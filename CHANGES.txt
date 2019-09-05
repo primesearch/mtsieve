@@ -1,0 +1,215 @@
+1.9.5 - August 19, 2019
+   Fixed errors factor rate calculation.
+
+1.9.4 - August 9, 2019
+   Fix a segfault with srsieve2 when rebuilding subsequences.
+   Fix a segfault with AVX logic on non-Windows OSes.
+   Fixed an issue with gfndsieve and dmdsieve where a large range of k and small range of x
+   cause it to not sieve subsequent subranges.
+   Added a table to gfndsieve to pre-set pmax if using -x and -P is not specified.
+   Add -D flag to xyyxsieve to disable AVX as it crashes in the AVX routines on Windows OS
+   on AMD CPUs.  The flag will be removed when that issue is resolved.
+   Added -fP to srsieve2.  This will generate a more verbose ABC output file with each line
+   specificing the values of k, n, and c.  It will also add the number_primes switch which is
+   supported by pfgw to ensure only a single prime for each distinct k of the file.
+   Added -fB to srsieve2.  This will generate a format that can be used to load BOINC.  This
+   is equivalent to the "PRP" format used by srsieve/srfile
+   
+1.9.3 - July 25, 2019
+   Re-implemented a single makefile.  It will now build separate exes for OpenCL enabled binaries.
+   Fix ABC format line in xyyxsieve output file.
+   Adjust reported factoring rate to account for less than 1 full CPU or more than 1 full CPU.
+   Handle race condition that can trigger an infinite loop.
+   Allow the first chunk to be smaller so that a rebuild of terms can be triggered earlier.
+   srsieve2 will compile, but requires more testing and only has srsieve functions.
+   
+1.9.2 - June 17, 2019
+   Split makefile so only GPU-enabled code will compile and link with OpenCL libraries
+   with intention of a single makefile in the future as having two nearly identical
+   makefiles is difficult to maintain.
+   Made changes to the framework to support sieving in chunks as needed by gfndsieve
+   and dmdsieve. 
+   Added -x and -X switches to gfndsieve.  With these switches one can execute Fermat
+   divisibility checks after sieving.
+   Allow gfndsieve to sieve smaller n, but report if k*2^n+1 is a prime in the range
+   being sieved.  It will not report if k*2^n+1 is prime when k*2^n+1 > maxp, but less than maxp^2.
+   Added -x and -X switches to dmdsieve.  With these switches one can execute MMP
+   divisibility checks after sieving.
+
+1.9.1 - May 31, 2019
+   Added srsieve2, which will eventually replace srsieve, sr2sieve, and sr1sieve.  It has
+   internal logic to determine how to sieve the input sequences, thus is combined into a
+   single executable.  It does not support Legendre table logic from sr2sieve and sr1sieve,
+   but should be faster than both when not using Legendre tables.
+   If ib_BlockWhenProcessingFirstChunk is set to true for the sieve, the factor rate will now
+   be reported if the first chunk requires more than 60 seconds to process.
+   Sieves now report intermediate results when processing chunks.  This allows for more
+   accurate factor rate calculations when it takes a long time to process each chunk.
+   Continue to report status if sieving is done, but workers are still processing their chunk.
+
+1.9.0 - May 21, 2019
+   Changes were made to the framework to support srsieve2 (which isn't ready yet).  No other
+   sieves use thse features (yet).
+   Modify FactorApp in an effort to more accurately compute the factor rate.  When starting
+   a new sieve, the factor rate would be inflated because it would calculate the rate based 
+   upon all factors removed.  This change will exclude factors removed in the the first 30
+   minutes that the program has run.  This logic will be executed when fewer than 60 terms
+   have been removed in the previous hour.
+   Fixed an issue in fbncsieve and twinsieve where the output file would contain composites
+   that are divisible by p that had already been sieved.
+   
+1.8.5 - January 17, 2019
+   Upgrade from primesieve 6.2 to primesieve 7.3.
+   Change calculation of factor rate to be based upon CPU utilization instead of number of workers.
+   Fix to twinsieve to correctly remove terms when using -r when restarting a sieve.
+
+1.8.4 - December 23, 2018
+   Added the new Mersenne Prime to dmdsieve.
+   Fixed an issue in twinsieve and fbncsieve where it can exit with an error when
+   testing primes above sqrt(max term).
+   Fixed an issue (impacting all sieves) in computing the factor rate.  The issue will manifest itself by
+   outputting a large factor removal rate.  It only occurs after running the sieve continuously for 5 days.
+   
+1.8.3 - October 7, 2018
+   Added dmdsieve.  This is used to sieve for divisors of Double-Mersenne numbers.
+   Output terms from dmdsieve have form 2*k*M+1 where M is a Mersenne Prime.
+
+   Fixed twinsieve so that it properly handles input factor files.
+   
+1.8.2 - October 2, 2018
+   Fixed twinsieve to properly check for file format when using -s.
+   
+1.8.1 - September 27, 2018
+   Fixed a bug that causes all sieves to crash when trying to compute factor rate.
+   twinsieve has duplicate -i switch, changed to -s.
+   
+1.8.0 - September 25, 2018
+   Added twinsieve.  This is more than 3x faster than newpgen's twin sieve.
+
+   Modified OpenCL code to change calculation for default workunits to improve GPU throughput.
+   Modified "start sieving" message to include expected factors, but only if -P is not the default value.
+   Modified all sieves to have custom "start sieving message" so it each show more detail specific to that sieve.
+   
+1.7.5 - August 14, 2018
+   Fixed a crash when reading multiple empty lines in a row from an input file.
+   Added -r option to fbncsieve to remove terms where k % base = 0.
+   Various updates for newpgen output from fbncsieve:
+       use the .npg extension instead of .pfgw extension
+       change third parameter of first line to 1 for srsieve/srfile compatibility
+       change last parameter of first line to 1/2 since 1/2 is used for fixed newpgen
+       sieves and 257/258 are used for fixed k sieves.
+
+   
+1.7.4 - August 10, 2018
+   Modify pixsieve to report primes.
+   Modify pixsieve to output search string to console and log when sieve starts.
+   Fixed a crash in xyyxsieve when sieving only one sign.
+   Generate default filename for mfsieve if not specified on the command line.
+   Fix issue in psieve if it finds a factor for the last term of the input.
+   
+   mfsieve supports AVX and is about 40% faster than previously.
+   
+1.7.3 - August 3, 2018
+   Fixed a memory exception that affects GPU workers for all sieves.
+   Re-enable AVX support with psieve as accidentally disabled in 1.7.1.
+   Do not output factor rate if no factors found.
+   Fixed another issue in non-AVX psieve code that causes it to crash.
+
+1.7.2 - July 27, 2018
+   Fixed issue with reading ABCD files as input lines with 1 character would be ignored.
+   Fixed a crash upon exit of fbncsieve.
+   Allow override with -p when starting fbncsieve and fkbnsieve from an input file.
+   
+1.7.1 - July 25, 2018
+   Fixed output for number of terms remaaining to support values > 2^32.
+   Modified psieve to support an input file created by fpsieve.
+   Fixed a bug in the non-AVX primorial ASM code that causes it to crash.
+   
+1.7.0 - July 4, 2018
+   Added a timestamp to lines written to the log.
+   Changed usage of some registers in AVX code to avoid ymm0-ymm3 being passed
+   between calls to AVX routines.
+   Added psieve for primorials.
+   
+   psieve supports AVX and is about 30% faster than fpsieve.
+   
+1.6.0 - June 25, 2018
+   Fixed an error with factor rate calculation when less than 1 per second.
+   Fixed an issue with gfndsieve when continuing a sieve and k < n.
+   For kbbsieve, added some checks for algebraic factorizations.
+   Added gcwsieve for Cullens and Woodalls.  This sieve is GPU enabled.   
+   Renamed all ASM routines to easily distinguish FPU/SSE/AVX.
+
+   Added AVX asm code for use by the Worker classes.
+   Added a mini-chunk mode that can be used when the worker classes
+   handles primes in chunks, such as AVX mode, which is chunks of 16 primes.
+
+   gcwsieve supports AVX.  The CPU-only code is about 30% faster than Geoff Reynold's version.
+   xyyxsieve supports AVX.  The CPU-only code is about 2.5x faster than the previous version.
+   
+1.5.0 - April 10, 2018
+   kbbsieve is more fully tested.  It now uses a powmod that is limited to
+   52 bits (switching from extended floating point to SSE), which should be
+   at least 10% faster.
+
+1.4.0 - April 9, 2018
+   Some common functionality for GPU sieving has been moved to Worker.cpp.
+   All GPU workers validate factors found by the GPU.
+
+   The xyyxsieve GPU sieving issue has been resolved.
+   The pixsieve GPU sieving code has been tested.
+   GPU sieving has been added to mfsieve.  It has been tested.
+   GPU sieving has been added to gfndsieve.  It has been tested.
+   
+   Add kbbsieve, for the form k*b^b+/-1 for fixed k and variable b.  It has been
+   partially tested.
+   
+1.3.0 - March 11, 2018
+   Ensure that "ENABLE_GPU=no" in makefile builds all programs without error.
+   cksieve no longer gives a fatal error if the computed root is not an actual
+   root.  This condition rarely happens, but is okay when it does.
+   Overriding -p from the command line should now work when starting with 
+   an input file.
+   
+   Added GPU workers to xyyxsieve.  When using GPU workers, an overflow with
+   collecting factors can cause xyyxsieve to crash.  If that happens override
+   -S and/or -g or sieve more deeply with the CPU before adding GPU workers.
+   This will be addressed in a future release.
+   
+   Added GPU workers to pixsieve.  It has not been tested yet.
+
+1.2.0 - February 23, 2018
+   fkbnsieve is now working.
+   Modify cksieve to detect candidates that are prime and to log them.
+   Fixed an asm bug that at worst causes factors to be missed by
+   fbncsieve and gfndsieve.  It will nor result in invalid factors and
+   if it did, they would be caught at runtime due to built-in factor
+   checking that relies on completely different code.
+   
+   Added -A option to apply factors (or reformat candidate file) and
+   exit immdiately without sieving.
+   Added GPU classes.  This adds the following command line options:
+      -D - to select the GPU platform
+      -d - to select the GPU device
+      -G - to specify the number of GPU workers
+      -g - to set multiple of workgroupsize which is used to compute
+           the number of primes per GPU worker
+   Added GPU workers to afsieve.
+   
+1.1.0 - February 21, 2018
+   Add an internal flag that guarantee that suspends all but one Worker when
+   processing the first chunk of primes.  This is used to improve performance
+   when there is a high factor density for low primes.  This will also suppress
+   any on screen reporting or checkpointing until that chunk is processed.
+   
+   Fix issue in computing CPU utilization.
+   Changed -c (chunksize) option to -w (worksize).
+   Change output to use shorter notation for min and max primes.
+
+   cksieve   - Fixed.
+   gfndsieve - Enable the flag mentioned above.
+   fbncsieve - Enable the flag mentioned above.
+   fkbnsieve - Added, but not tested.
+   
+1.0.0 - February 10, 2018
+   Initial Release
