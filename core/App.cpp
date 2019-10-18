@@ -40,6 +40,7 @@ App::App(void)
    
    il_MinPrime = il_AppMinPrime;
    il_MaxPrime = il_AppMaxPrime;
+   il_MaxPrimeForSingleWorker = 0;
    
    ii_CpuWorkSize = 1000000;
    
@@ -49,8 +50,6 @@ App::App(void)
    ii_GpuWorkGroups = 10;
    ib_SupportsGPU = false;
    ib_HaveCreatedWorkers = false;
-   
-   SetBlockWhenProcessingFirstChunk(false);
 
    ip_Workers = (Worker **) xmalloc(MAX_WORKERS * sizeof(Worker *));
    
@@ -299,16 +298,7 @@ void  App::StopWorkers(bool interrupted)
    uint32_t th;
    
    for (th=0; th<ii_TotalWorkerCount; th++)
-   {
-      while (ip_Workers[th]->HasWorkToDo())
-      {
-         CheckReportStatus();
-         
-         Sleep(100);
-      }
-
       ip_Workers[th]->StopASAP();
-   }
 
    count = 1;
    while (count)
@@ -331,20 +321,6 @@ void  App::StopWorkers(bool interrupted)
    }
 }
 
-// If -p was not specified on the command line, then this can be called
-// to set ii_MinPrime when one continues sieving from an input file.
-void  App::SetMinPrime(uint64_t minPrime)
-{
-   if (il_MinPrime == il_AppMinPrime)
-   {
-      il_MinPrime = minPrime;
-      
-      // If we aren't starting at il_AppMinPrime, then we don't need
-      // to block when processing the first chunk.
-      ib_BlockWhenProcessingFirstChunk = false;
-   }
-}
-
 // Overrice the max prime to be sieved so that we can guarantee
 // that all remaining terms are prime.
 void  App::SetMaxPrime(uint64_t maxPrime, const char *why)
@@ -352,16 +328,6 @@ void  App::SetMaxPrime(uint64_t maxPrime, const char *why)
    WriteToConsole(COT_OTHER, "Changing p_max to %" PRIu64".  %s.", maxPrime, why);
    
    il_MaxPrime = maxPrime;
-}
-
-void  App::SetBlockWhenProcessingFirstChunk(bool blockWhenProcessingFirstChunk, uint64_t maxPrimeForFirstBlock)
-{
-   ib_BlockWhenProcessingFirstChunk = blockWhenProcessingFirstChunk;
-   
-   il_MaxPrimeForFirstChunk = 0;
-   
-   if (ib_BlockWhenProcessingFirstChunk)
-      il_MaxPrimeForFirstChunk = maxPrimeForFirstBlock;
 }
  
 void  App::Run(void)
@@ -374,9 +340,7 @@ void  App::Run(void)
    {
       // This gives applications a chance to change any configurations prior to sieving.
       PreSieveHook();
-
-      ResetFactorStats();
-      
+    
       CreateWorkers(il_MinPrime);
       
       if (ii_GpuWorkerCount > 0)
@@ -399,21 +363,22 @@ void  App::Sieve(void)
 {
    uint32_t th;
    uint64_t sieveStartUS, largestPrimeSieved;
+   bool     useSingleThread;
    
    LogStartSievingMessage();
 
    ip_AppStatus->SetValueNoLock(AS_RUNNING);
    largestPrimeSieved = il_MinPrime - 1;
-   il_StartSievingUS = il_LastStatusReportUS = Clock::GetCurrentMicrosecond();
+   il_StartSievingUS = Clock::GetCurrentMicrosecond();
 
    it_StartTime = time(NULL);
    it_ReportTime = it_StartTime + REPORT_SECONDS;
    
-   ib_BlockingForFirstChunk = ib_BlockWhenProcessingFirstChunk;
+   useSingleThread = (largestPrimeSieved < il_MaxPrimeForSingleWorker);
    
    while (largestPrimeSieved < il_MaxPrime && IsRunning())
    {
-      th = GetNextAvailableWorker(largestPrimeSieved);
+      th = GetNextAvailableWorker(useSingleThread, largestPrimeSieved);
 
       // Stop if we couldn't get a worker.  This should only happen if there is 
       // a problem with the application or if ip_AppStatus is not AS_RUNNING.
@@ -422,30 +387,30 @@ void  App::Sieve(void)
 
       sieveStartUS = Clock::GetThreadMicroseconds();
 
-      largestPrimeSieved = ip_Workers[th]->ProcessNextPrimeChunk(largestPrimeSieved, il_MaxPrimeForFirstChunk);
+      largestPrimeSieved = ip_Workers[th]->ProcessNextPrimeChunk(largestPrimeSieved, il_MaxPrimeForSingleWorker);
 
       il_TotalSieveUS += (Clock::GetThreadMicroseconds() - sieveStartUS);
 
-      // If processing the first chunk and we want to block other workers
-      // from getting work, then wait until that first chunk is completed
-      // before allowing any other workers to get work.
-      if (ib_BlockingForFirstChunk && ib_BlockWhenProcessingFirstChunk)
+      // If we are using a single thread, then this will effectively block other Workers from getting work 
+      // until both this Worker is done and the largest prime tested for this workr exceeds the max prime
+      // for a single CPU thread.
+      if (useSingleThread)
       {
-         while (!ip_Workers[th]->IsWaitingForWork())
+         while (!ip_Workers[th]->IsWaitingForWork(false))
          {
             CheckReportStatus();
             
             Sleep(10);
          }
 
-         SetBlockWhenProcessingFirstChunk(false);
+         useSingleThread = (ip_Workers[th]->GetLargestPrimeTested() < il_MaxPrimeForSingleWorker);
       }
    }
    
    Finish();
 }
 
-uint32_t  App::GetNextAvailableWorker(uint64_t largestPrimeSieved)
+uint32_t  App::GetNextAvailableWorker(bool useSingleThread, uint64_t &largestPrimeSieved)
 {
    uint32_t  th;
    uint32_t  attempts = 0;
@@ -454,23 +419,38 @@ uint32_t  App::GetNextAvailableWorker(uint64_t largestPrimeSieved)
    {
       attempts++;
       
-      // Return -1 to indicate that we are returning without selecting
+      // Return NO_WORKER to indicate that we are returning without selecting
       // a worker as we want to stop processing.
       if (!IsRunning())
          return NO_WORKER;
-      
+
+      // If rebuilding, then the largest prime tested might be smaller
+      // than the largest prime sieved so we have to update it.
       if (IsRebuildNeeded())
-         PauseSievingAndRebuild();
+         largestPrimeSieved = PauseSievingAndRebuild();
       
       CheckReportStatus();
       
       for (th=0; th<ii_TotalWorkerCount; th++)
       {
-         if (ip_Workers[th]->IsGpuWorker() && largestPrimeSieved < il_MinGpuPrime)
-            continue;
-         
-         if (ip_Workers[th]->IsWaitingForWork())
+         if (ip_Workers[th]->IsGpuWorker())
+         {
+            if (useSingleThread)
+               continue;
+            
+            if (largestPrimeSieved < il_MinGpuPrime)
+               continue;
+         }
+            
+         if (ip_Workers[th]->IsWaitingForWork(true))
             return th;
+      }
+
+      if ((attempts % 1000) == 0)
+      {
+         printf("no waiting threads after %u attempts\n", attempts);
+         for (th=0; th<ii_TotalWorkerCount; th++)
+            printf("worker %d is %llu\n", th, ip_Workers[th]->GetWorkerStatus());
       }
       
       // If we didn't find one, sleep
@@ -478,7 +458,7 @@ uint32_t  App::GetNextAvailableWorker(uint64_t largestPrimeSieved)
    }
 }
 
-void  App::PauseSievingAndRebuild(void)
+uint64_t  App::PauseSievingAndRebuild(void)
 {
    uint64_t  largestPrimeTested;
 
@@ -494,7 +474,11 @@ void  App::PauseSievingAndRebuild(void)
 
    CreateWorkers(largestPrimeTested);
    
+   ResetFactorStats();
+         
    SetRebuildCompleted();
+   
+   return largestPrimeTested;
 }
 
 void  App::CheckReportStatus(void)
@@ -546,9 +530,12 @@ void  App::CreateWorkers(uint64_t largestPrimeTested)
       allWaiting = true;
       
       for (th=0; th<ii_TotalWorkerCount; th++)
-         if (!ip_Workers[th]->IsWaitingForWork())
+         if (!ip_Workers[th]->IsWaitingForWork(false))
             allWaiting = false;
    }
+   
+   il_LastStatusReportUS = Clock::GetCurrentMicrosecond();
+   il_LastStatusPrimesTested = 0;
 }
 
 void  App::Finish(void)

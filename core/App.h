@@ -55,6 +55,7 @@ public:
    uint32_t          GetGpuWorkSize(void) { return ii_GpuWorkGroupSize * ii_GpuWorkGroups; };
    void              SetGpuWorkGroupSize(uint32_t gpuWorkGroupSize) { ii_GpuWorkGroupSize = gpuWorkGroupSize; };
    uint32_t          GetTotalWorkers(void) { return ii_TotalWorkerCount; };
+   uint64_t          GetMaxPrimeForSingleWorker(void) { return il_MaxPrimeForSingleWorker; };
    
    void              SetRebuildNeeded(void) { ip_NeedToRebuild->SetValueNoLock(1); };
    
@@ -93,11 +94,11 @@ protected:
 
    void              SetBanner(string banner) { is_Banner = banner; };
    void              SetLogFileName(string logFileName);
-   void              SetBlockWhenProcessingFirstChunk(bool blockWhenProcessingFirstChunk, uint64_t maxPrimeForFirstBlock = 0);
+   void              SetMaxPrimeForSingleWorker(uint64_t maxPrimeForSingleWorker) { il_MaxPrimeForSingleWorker = maxPrimeForSingleWorker; };
    
    void              SetAppMinPrime(uint64_t minPrime) { il_MinPrime = il_AppMinPrime = minPrime; };
    void              SetAppMaxPrime(uint64_t maxPrime) { il_MaxPrime = il_AppMaxPrime = maxPrime; };
-   void              SetMinPrime(uint64_t minPrime);
+   void              SetMinPrime(uint64_t minPrime) { il_MinPrime = minPrime; };
    void              SetMaxPrime(uint64_t maxPrime, const char *why);
    void              SetMinGpuPrime(uint64_t minGpuPrime) { il_MinGpuPrime = minGpuPrime; };
    
@@ -118,14 +119,16 @@ protected:
    virtual Worker   *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested) = 0;
 
    bool              ib_SupportsGPU;
-   bool              ib_BlockingForFirstChunk;
    bool              ib_HaveCreatedWorkers;
    
    uint64_t          il_AppMinPrime;
    uint64_t          il_AppMaxPrime;
    uint64_t          il_MinPrime;
    uint64_t          il_MaxPrime;
-   uint64_t          il_MaxPrimeForFirstChunk;
+   
+   // This represents the largest prime that must be tested by a single worker.  There is one
+   // restriction, it must be a CPU worker.
+   uint64_t          il_MaxPrimeForSingleWorker;
 
    uint64_t          il_SplitRangeSize;
    
@@ -142,9 +145,9 @@ private:
    void              DeleteWorkers(void);
    void              CreateWorkers(uint64_t largestPrimeTested);
    
-   void              PauseSievingAndRebuild(void);
+   uint64_t          PauseSievingAndRebuild(void);
    void              ReportStatus(void);
-   uint32_t          GetNextAvailableWorker(uint64_t largestPrimeSieved);
+   uint32_t          GetNextAvailableWorker(bool useSingleThread, uint64_t &largestPrimeSieved);
    void              SetRebuildCompleted(void) { ip_NeedToRebuild->SetValueNoLock(0); };
    
    void              CheckReportStatus(void);
@@ -180,7 +183,6 @@ private:
 
    uint64_t          il_TotalSieveUS;
 
-   bool              ib_BlockWhenProcessingFirstChunk;
    time_t            it_ReportTime;
 };                
 
