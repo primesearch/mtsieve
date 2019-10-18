@@ -53,10 +53,10 @@ void  CullenWoodallWorker::TestMegaPrimeChunk(void)
 {
    uint64_t maxPrime = ip_CullenWoodallApp->GetMaxPrime();
    uint64_t ps[4];
-   uint32_t maxN = ip_CullenWoodallApp->GetMaxN();
+   uint32_t pForRebuild = ((ii_Base < ii_MaxN) ? (ii_MaxN + 1) : (ii_Base + 1));
    
    vector<uint64_t>::iterator it = iv_Primes.begin();
-
+   
    while (it != iv_Primes.end())
    {
       ps[0] = *it;
@@ -81,8 +81,19 @@ void  CullenWoodallWorker::TestMegaPrimeChunk(void)
          il_NextTermsBuild = (ps[3] << 1);
       }
       
-      if (ps[0] < ii_Base || ps[0] < maxN)
+      if (ps[0] < pForRebuild)
+      {
          TestSmallPrimesFPU(ps);
+         
+         if (ps[3] > pForRebuild)
+         {
+            ip_CullenWoodallApp->SetRebuildNeeded();
+
+            // Force rebuild of terms and break from this loop
+            il_NextTermsBuild = 2;
+            maxPrime = 2;
+         }
+      }
       else
          TestLargePrimesFPU(ps);
       
