@@ -39,8 +39,7 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    
    SetAppMinPrime(2);
    SetAppMaxPrime(PMAX_MAX_52BIT);
-   SetBlockWhenProcessingFirstChunk(true);
-   
+
    ii_MinN = 0;
    ii_MaxN = 0;
    it_Format = FF_ABCD;
@@ -192,14 +191,8 @@ void SierpinskiRieselApp::ValidateOptions(void)
       
       delete afh;
       
-      MakeSubsequences(true);
-      
+      MakeSubsequences(true);  
    }
-   
-   if (il_MinPrime < il_SmallPrimeSieveLimit)
-      SetBlockWhenProcessingFirstChunk(true, il_SmallPrimeSieveLimit);
-   else
-      SetBlockWhenProcessingFirstChunk(false);
 
    if (it_Format == FF_BOINC)
    {
@@ -236,6 +229,11 @@ void SierpinskiRieselApp::ValidateOptions(void)
    }
    
    FactorApp::ParentValidateOptions();
+   
+   // Allow only one worker to do work when processing small primes.  This allows us to avoid 
+   // locking when factors are reported, which significantly hurts performance as most terms 
+   // will be removed due to small primes.
+   SetMaxPrimeForSingleWorker(il_SmallPrimeSieveLimit);
 }
 
 bool  SierpinskiRieselApp::LoadSequencesFromFile(char *fileName)
@@ -852,8 +850,9 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, uint32_t seqIdx, u
                
    if (n < ii_MinN || n > ii_MaxN)
       return;
-      
-   ip_FactorAppLock->Lock();
+
+   if (thePrime > GetMaxPrimeForSingleWorker())
+      ip_FactorAppLock->Lock();
 
    nbit = NBIT(n);
       
@@ -874,8 +873,9 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, uint32_t seqIdx, u
       else
          LogFactor(thePrime, "%" PRIu64"*%u^%u%+" PRId64"", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c);
    }
-   
-   ip_FactorAppLock->Release();
+
+   if (thePrime > GetMaxPrimeForSingleWorker())
+      ip_FactorAppLock->Release();
 }
 
 bool  SierpinskiRieselApp::IsPrime(uint64_t p, uint64_t k, uint32_t n, int64_t c)

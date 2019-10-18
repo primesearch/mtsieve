@@ -43,7 +43,6 @@ CullenWoodallApp::CullenWoodallApp(void) : AlgebraicFactorApp()
    ii_GpuSteps = 5000;
 
    SetAppMinPrime(3);
-   SetBlockWhenProcessingFirstChunk(true);
    
 #ifdef HAVE_GPU_WORKERS
    ib_SupportsGPU = true;
@@ -185,20 +184,14 @@ void CullenWoodallApp::ValidateOptions(void)
    if (is_InputTermsFileName.length() == 0)
       EliminateTermsWithAlgebraicFactors();
 
-   // The GPU code for this sieve will not support primes lower than this.
-   if (ii_Base < ii_MaxN)
-      SetMinGpuPrime(ii_MaxN+1);
-   else
-      SetMinGpuPrime(ii_Base+1);
+   uint32_t pForSingleWorker = ((ii_Base < ii_MaxN) ? (ii_MaxN + 1) : (ii_Base + 1));
    
-   // Allow only one worker to do work when processing the first chunk of
-   // primes.  This will set the ib_BlockingForFirstChunk flag to true while
-   // the first chunk of primes is being worked on and be set to false when 
-   // that chunk is done.  This allows us to avoid locking when factors are 
-   // reported, which significantly hurts performance as most terms will be
-   // removed due to small primes.
-   if (il_MinPrime < 1000)
-      SetBlockWhenProcessingFirstChunk(true);
+   // The Worker will trigger a rebuild of terms when it reaches this prime
+   // At this prime multiple threads can be used.
+   SetMaxPrimeForSingleWorker(pForSingleWorker);
+   
+   // The GPU code for this sieve will not support primes lower than this.
+   SetMinGpuPrime(pForSingleWorker);
 }
 
 Worker *CullenWoodallApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested)
@@ -392,6 +385,10 @@ bool CullenWoodallApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
    ip_FactorAppLock->Release();
 
    return removedTerm;
+}
+
+void  CullenWoodallApp::NotifyAppToRebuild(void)
+{
 }
 
 void  CullenWoodallApp::SetInitialTerms(void)

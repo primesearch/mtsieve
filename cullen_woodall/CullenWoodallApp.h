@@ -47,7 +47,7 @@ protected:
    void              PreSieveHook(void) {};
    bool              PostSieveHook(void) { return true; };
    
-   void              NotifyAppToRebuild(void) {};
+   void              NotifyAppToRebuild(void);
    
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
    

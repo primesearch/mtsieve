@@ -249,14 +249,10 @@ void GFNDivisorApp::ValidateOptions(void)
    while (ii_CpuWorkSize % 4 != 0)
       ii_CpuWorkSize++;
    
-   // Allow only one worker to do work when processing the first chunk of
-   // primes.  This will set the ib_BlockingForFirstChunk flag to true while
-   // the first chunk of primes is being worked on and be set to false when 
-   // that chunk is done.  This allows us to avoid locking when factors are 
-   // reported, which significantly hurts performance as most terms will be
-   // removed due to small primes.
-   if (il_MinPrime < 1000)
-      SetBlockWhenProcessingFirstChunk(true);
+   // Allow only one worker to do work when processing small primes.  This allows us to avoid 
+   // locking when factors are reported, which significantly hurts performance as most terms 
+   // will be removed due to small primes.
+   SetMaxPrimeForSingleWorker(10000);
    
    SetMinGpuPrime(il_MaxK+1);
 }
@@ -682,7 +678,7 @@ bool  GFNDivisorApp::ReportFactor(uint64_t p, uint64_t k, uint32_t n)
    
    bool removedTerm = false;
    
-   if (!ib_BlockingForFirstChunk)
+   if (p > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
 
    uint64_t bit = BIT(k);
@@ -709,7 +705,7 @@ bool  GFNDivisorApp::ReportFactor(uint64_t p, uint64_t k, uint32_t n)
       removedTerm = true;
    }
    
-   if (!ib_BlockingForFirstChunk)
+   if (p > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
 
    return removedTerm;

@@ -252,14 +252,10 @@ void TwinApp::ValidateOptions(void)
    
    AdjustMaxPrime();
    
-   // Allow only one worker to do work when processing the first chunk of
-   // primes.  This will set the ib_BlockingForFirstChunk flag to true while
-   // the first chunk of primes is being worked on and be set to false when 
-   // that chunk is done.  This allows us to avoid locking when factors are 
-   // reported, which significantly hurts performance as most terms will be
-   // removed due to small primes.
-   if (il_MinPrime < 1000)
-      SetBlockWhenProcessingFirstChunk(true);
+   // Allow only one worker to do work when processing small primes.  This allows us to avoid 
+   // locking when factors are reported, which significantly hurts performance as most terms 
+   // will be removed due to small primes.
+   SetMaxPrimeForSingleWorker(10000);
 }
 
 Worker *TwinApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested)
@@ -644,7 +640,7 @@ bool  TwinApp::ReportFactor(uint64_t p, uint64_t k, int32_t c)
    if (p > il_MaxPrimeForValidFactor)
       return false;
    
-   if (!ib_BlockingForFirstChunk)
+   if (p > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
 
    uint64_t bit = BIT(k);
@@ -687,7 +683,7 @@ bool  TwinApp::ReportFactor(uint64_t p, uint64_t k, int32_t c)
       }
    }
    
-   if (!ib_BlockingForFirstChunk)
+   if (p > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
    
    return removedTerm;
