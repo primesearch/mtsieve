@@ -28,7 +28,7 @@ typedef enum { WS_INITIALIZING,
                WS_WAITING_FOR_WORK, // Indicates this thread is initialized and waiting for work
                WS_HAS_WORK_TO_DO,   // Indidates this thread has work and can start working on it
                WS_WORKING,          // Indicates this thread is working
-               WS_STOPPING,         // Indicates this thread is requested to stop
+               WS_STOPASAP,         // Indicates this thread is requested to stop
                WS_STOPPED           // Indicates this thread is stopped
              } workerstatus_t;
 
@@ -61,15 +61,16 @@ public:
  
    bool              IsInitialized(void) { return ib_Initialized; };
    bool              HasWorkToDo(void) { return (((workerstatus_t) ip_WorkerStatus->GetValueNoLock()) == WS_HAS_WORK_TO_DO); };
-   bool              IsWaitingForWork(void) { return (((workerstatus_t) ip_WorkerStatus->GetValueNoLock()) == WS_WAITING_FOR_WORK); };
+   bool              IsWaitingForWork(bool lockWorkerStatus);
    bool              IsWorking(void) { return (((workerstatus_t) ip_WorkerStatus->GetValueNoLock()) == WS_WORKING); };
    bool              IsStopped(void) { return (((workerstatus_t) ip_WorkerStatus->GetValueNoLock()) == WS_STOPPED); };
    bool              IsGpuWorker(void) { return ib_GpuWorker; };
    
+   uint64_t               GetWorkerStatus(void) { return ip_WorkerStatus->GetValueNoLock(); };
    void              DetermineWorkSize(void);
    void              WaitForHandOff(void);
    
-   void              StopASAP(void) { ip_WorkerStatus->SetValueNoLock(WS_STOPPING); };
+   void              StopASAP(void) { ip_WorkerStatus->SetValueNoLock(WS_STOPASAP); };
    uint64_t          ProcessNextPrimeChunk(uint64_t startFrom, uint64_t maxPrimeForChunk);
 
 protected:

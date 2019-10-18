@@ -119,8 +119,31 @@ void  Worker::AllocatePrimeList(uint32_t workGroupSize)
    il_PrimeList = (uint64_t *) xmalloc(ii_WorkSize*sizeof(uint64_t));
 }
 
-// This can only be called if this thread is waiting for work.  This is executed
-// by the main thread.
+// This is called by the main thread to determine if this worker
+// is waiting for work.
+bool  Worker::IsWaitingForWork(bool lockWorkerStatus)
+{
+   workerstatus_t status;
+   
+   ip_WorkerStatus->Lock();
+   
+   status = (workerstatus_t) ip_WorkerStatus->GetValueHaveLock();
+
+   // If not waiting for work, then release the lock and return
+   if (status != WS_WAITING_FOR_WORK)
+   {
+      ip_WorkerStatus->Release();
+      return false;
+   }
+
+   // Only release the lock if we don't want to keep it.
+   if (!lockWorkerStatus)
+      ip_WorkerStatus->Release();
+
+   return true;   
+}
+
+// This is called by the main thread when the thread is waiting for work.
 uint64_t  Worker::ProcessNextPrimeChunk(uint64_t startFrom, uint64_t maxPrimeForChunk)
 {
    uint64_t largestPrime;
@@ -139,6 +162,9 @@ uint64_t  Worker::ProcessNextPrimeChunk(uint64_t startFrom, uint64_t maxPrimeFor
    largestPrime = iv_Primes.back();
    
    SetHasWorkToDo();
+   
+   // 
+   ip_WorkerStatus->Release();
    
    // This could exceed maxPrime, but the TestPrimes() function will exit early if maxPrime is reached.
    return largestPrime;
@@ -160,7 +186,7 @@ void  Worker::WaitForHandOff(void)
       
       status = (workerstatus_t) ip_WorkerStatus->GetValueHaveLock();
       
-      if (status == WS_STOPPING)
+      if (status == WS_STOPASAP)
          break;
       
       if (status == WS_WAITING_FOR_WORK)
@@ -192,7 +218,7 @@ void  Worker::WaitForHandOff(void)
             idx++;
          }
       }
-               
+
       if (ii_MiniChunkSize > 0 && 
          iv_Primes.front() > il_MinPrimeForMiniChunkMode &&
          iv_Primes.back() < il_MaxPrimeForMiniChunkMode)      
@@ -215,7 +241,7 @@ void  Worker::WaitForHandOff(void)
       status = (workerstatus_t) ip_WorkerStatus->GetValueHaveLock();
       
       // The status can be be changed by the main thread while this thread is doing work.
-      if (status == WS_STOPPING)
+      if (status == WS_STOPASAP)
          break;
 
       // This tells the main thread that we are ready for more
