@@ -445,13 +445,6 @@ uint32_t  App::GetNextAvailableWorker(bool useSingleThread, uint64_t &largestPri
          if (ip_Workers[th]->IsWaitingForWork(true))
             return th;
       }
-
-      if ((attempts % 1000) == 0)
-      {
-         printf("no waiting threads after %u attempts\n", attempts);
-         for (th=0; th<ii_TotalWorkerCount; th++)
-            printf("worker %d is %llu\n", th, ip_Workers[th]->GetWorkerStatus());
-      }
       
       // If we didn't find one, sleep
       Sleep(10);
