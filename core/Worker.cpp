@@ -149,9 +149,9 @@ uint64_t  Worker::ProcessNextPrimeChunk(uint64_t startFrom, uint64_t maxPrimeFor
    uint64_t largestPrime;
 
    iv_Primes.clear();
-      
+
    // Generate primes for this worker
-   if (maxPrimeForChunk > 0)
+   if (maxPrimeForChunk > 0 && maxPrimeForChunk > startFrom)
    {
       largestPrime = primesieve::count_primes(startFrom+1, maxPrimeForChunk);
       primesieve::generate_n_primes(largestPrime+1, startFrom+1, &iv_Primes);
