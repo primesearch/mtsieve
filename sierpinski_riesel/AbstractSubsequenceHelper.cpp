@@ -68,32 +68,17 @@ uint64_t    AbstractSubsequenceHelper::MakeSubsequencesForNewSieve(seq_t *sequen
    return termCount;
 }
 
+void      AbstractSubsequenceHelper::CreateEmptySubsequences(uint32_t subsequenceCount)
+{
+   ip_Subsequences = (subseq_t *) xmalloc(subsequenceCount * sizeof(subseq_t));
+   
+   ii_SubsequenceCount = 0;
+   ii_SubsequenceCapacity = subsequenceCount;
+}
+
 uint32_t  AbstractSubsequenceHelper::AddSubsequence(uint32_t seqIdx, uint32_t d, uint32_t mTermCount)
 {
    uint32_t ssIdx;
-   
-   if (ii_SubsequenceCapacity == ii_SubsequenceCount)
-   {
-      ii_SubsequenceCapacity += 100;
-      
-      subseq_t *newPtr = (subseq_t *) xmalloc(ii_SubsequenceCapacity * sizeof(subseq_t));
-      
-      if (ip_Subsequences)
-      {
-         for (ssIdx=0; ssIdx<ii_SubsequenceCount; ssIdx++)
-         {
-            newPtr[ssIdx].seqIdx = ip_Subsequences[ssIdx].seqIdx;
-            newPtr[ssIdx].k = ip_Subsequences[ssIdx].k;
-            newPtr[ssIdx].c = ip_Subsequences[ssIdx].c;
-            newPtr[ssIdx].d = ip_Subsequences[ssIdx].d;
-            newPtr[ssIdx].mTerms = ip_Subsequences[ssIdx].mTerms;
-         }
-      
-         xfree(ip_Subsequences);
-      }
-      
-      ip_Subsequences = newPtr;
-   }
    
    ip_Sequences[seqIdx].ssCount++;
    

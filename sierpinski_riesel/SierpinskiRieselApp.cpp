@@ -20,7 +20,7 @@
 #include "CisOneSubsequenceHelper.h"
 
 #define APP_NAME        "srsieve2"
-#define APP_VERSION     "1.1"
+#define APP_VERSION     "1.2"
 
 #define NBIT(n)         ((n) - ii_MinN)
 #define MBIT(m)         ((m) - ii_MinM)
@@ -161,7 +161,6 @@ void SierpinskiRieselApp::ValidateOptions(void)
       ProcessInputTermsFile(true);
       
       MakeSubsequences(false);
-      
    }
    else
    {

@@ -56,6 +56,9 @@ void        GenericSubsequenceHelper::MakeSubsequencesForOldSieve(seq_t *sequenc
    needss = (bool *) xmalloc(ii_BestQ*sizeof(bool));
    rss = (uint32_t *) xmalloc(ii_BestQ*sizeof(uint32_t));
 
+   // This is the maximum number of subsequences
+   CreateEmptySubsequences(ii_SequenceCount * ii_BestQ);
+   
    for (seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)
    {
       seq_t *seq = &ip_Sequences[seqIdx];

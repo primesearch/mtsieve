@@ -77,6 +77,7 @@ public:
    void              NotifyWorkerOfUpdatedSequences(Worker *worker);
       
 protected:
+   void              CreateEmptySubsequences(uint32_t subsequenceCount);
    uint32_t          AddSubsequence(uint32_t seqIdx, uint32_t d, uint32_t mTermCount);
    
    App              *ip_App;
