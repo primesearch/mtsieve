@@ -319,7 +319,7 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
    uint32_t n, diff;
    uint64_t k;
    int64_t  c;
-   uint64_t lastPrime;
+   uint64_t lastPrime = 0;
    uint32_t lineNumber = 0;
    format_t format = FF_UNKNOWN;
    seq_t   *currentSequence = 0;
@@ -388,15 +388,31 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
       }
       else if (strstr(buffer, "number_primes") != NULL)
       {
-         if (sscanf(buffer, "ABC $a*%u^$b$c // {number_primes,$a,1} Sieved to %" SCNu64"", &ii_Base, &lastPrime) != 2)
-            FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+         if (strstr(buffer, "Sieved") != NULL)
+         {
+            if (sscanf(buffer, "ABC $a*%u^$b$c // {number_primes,$a,1} Sieved to %" SCNu64"", &ii_Base, &lastPrime) != 2)
+               FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+         }
+         else
+         {
+            if (sscanf(buffer, "ABC $a*%u^$b$c // {number_primes,$a,1}", &ii_Base) != 1)
+               FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+         }
          
          format = FF_NUMBER_PRIMES;
       }
       else if (!memcmp(buffer, "ABC ", 4))
       {
-         if (sscanf(buffer, "ABC %" SCNu64"*%u^$a%" SCNd64" // Sieved to %" SCNu64"", &k, &ii_Base, &c, &lastPrime) != 4)
-            FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+         if (strstr(buffer, "Sieved") != NULL)
+         {
+            if (sscanf(buffer, "ABC %" SCNu64"*%u^$a%" SCNd64" // Sieved to %" SCNu64"", &k, &ii_Base, &c, &lastPrime) != 4)
+               FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+         }
+         else
+         {
+            if (sscanf(buffer, "ABC %" SCNu64"*%u^$a%" SCNd64"", &k, &ii_Base, &c) != 3)
+               FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+         }
          
          format = FF_ABC;
          
@@ -450,7 +466,7 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
             default:
                FatalError("Input file %s has unknown format", is_InputTermsFileName.c_str());
          }
-               
+
          if (haveBitMap)
          {
             currentSequence->nTerms[NBIT(n)] = true;
@@ -464,10 +480,11 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
       }
    }
 
-   SetMinPrime(lastPrime);
-
    fclose(fPtr);
-   
+
+   if (lastPrime > 0)
+      SetMinPrime(lastPrime);
+      
    if (ii_SequenceCount == 0)
       FatalError("No sequences in input file %s", is_InputTermsFileName.c_str());
 }
