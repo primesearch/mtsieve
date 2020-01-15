@@ -46,6 +46,8 @@ uint64_t    AbstractSubsequenceHelper::MakeSubsequencesForNewSieve(seq_t *sequen
    uint32_t mTerms = (ii_MaxN - ii_MinN + 1);
    uint64_t termCount = 0;
 
+   CreateEmptySubsequences(ii_SequenceCount);
+   
    // For a new sieve there is only one subsequence per sequence
    for (seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)
    {
