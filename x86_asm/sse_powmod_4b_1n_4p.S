@@ -3,6 +3,7 @@
    void   sse_powmod_4b_1n_4p(uint64_t *b, uint64_t n, uint64_t *p, double *invp);
       Computes b = b^n mod p.
          b is a array of 4 bases.
+         n must be greater than 0
          p is a array of 4 primes.
 
    This program is free software; you can redistribute it and/or modify
