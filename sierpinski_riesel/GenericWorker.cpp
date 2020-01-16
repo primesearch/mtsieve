@@ -306,7 +306,7 @@ void  GenericWorker::DiscreteLogSmallPrimes(uint64_t *primeList, uint64_t *bases
          for (ssIdx=0; ssIdx<ii_SubsequenceCount; ssIdx++)
          {
             j = ip_HashTable[pIdx]->Lookup(bdck64[ssIdx][pIdx]);
-                     
+
             while (j < ii_SieveRange)
             {
                ip_SierpinskiRieselApp->ReportFactor(primeList[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, ii_SieveLow+j));
@@ -419,7 +419,11 @@ void  GenericWorker::DiscreteLogLargePrimes(uint64_t *primeList)
    bj0[2] = b[2];
    bj0[3] = b[3];
    
-   sse_powmod_4b_1n_4p(bj0, ii_SieveLow, primeList, invp);
+   // This powmod routine doesn't support n = 0 and it is possible for ii_SieveLow to be 0
+   if (ii_SieveLow == 0)
+      bj0[0] = bj0[1] = bj0[2] = bj0[3] = 1;
+   else
+      sse_powmod_4b_1n_4p(bj0, ii_SieveLow, primeList, invp);
    
    BabyStepsBigPrimes(primeList, invp, b, bj0, orderOfB);
 
