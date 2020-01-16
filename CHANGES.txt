@@ -1,3 +1,7 @@
+1.9.6 - January 15, 2020
+   Fixed issue in srsieve2 where it crashes when starting a new sieve.
+   Fixed issue in srsieve2 where it finds an invalid factor and terminates.
+   
 1.9.6 - January 10, 2020
    Refactored logic for "single worker" and "rebuild" logic so they work more nicely together.
    Fixed calculation of p/sec which is wrong after workers are recreated.
