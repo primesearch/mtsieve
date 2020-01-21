@@ -114,7 +114,7 @@ protected:
 #endif
 
 private:
-   void              SetHasWorkToDo(void) { ip_WorkerStatus->SetValueNoLock(WS_HAS_WORK_TO_DO); };
+   void              SetHasWorkToDo(void) { ip_WorkerStatus->SetValueHaveLock(WS_HAS_WORK_TO_DO); };
    void              SetWorking(void) { ip_WorkerStatus->SetValueNoLock(WS_WORKING); };
    void              SetWaitingForWork(void) { ip_WorkerStatus->SetValueNoLock(WS_WAITING_FOR_WORK); };
    void              SetStopped(void) { ip_WorkerStatus->SetValueNoLock(WS_STOPPED); };
