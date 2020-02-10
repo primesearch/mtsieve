@@ -47,9 +47,9 @@ void FactorApp::ParentHelp(void)
 {
    App::ParentHelp();
 
-   printf("-A --applyandexit     apply factors and exit\n");
+   printf("-A --applyandexit     apply factors and exit (used with -I)\n");
    printf("-i --inputterms=i     input file of remaining candidates\n");
-   printf("-I --inputfactors=I   input file with factors\n");
+   printf("-I --inputfactors=I   input file with factors (used with -A)\n");
    printf("-o --outputterms=o    output file of remaining candidates\n");
    printf("-O --outputfactors=O  output file with new factors\n");
 }
