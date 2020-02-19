@@ -59,7 +59,7 @@ void SierpinskiRieselApp::Help(void)
 
    printf("-n --nmin=n           Minimum n to search\n");
    printf("-N --nmax=N           Maximum n to search\n");
-   printf("-s --sequence=s       Sequence to find factors of in form k*b^n+c where b, n, and c are decimal values\n");
+   printf("-s --sequence=s       Sequence to find factors of in form k*b^n+c where k, b, and c are decimal values\n");
    printf("-f --format=f         Format of output file (A=ABC, D=ABCD (default), B=BOINC, P=ABC with number_primes)\n");
    printf("-l --legendre         Use Legendre tables\n");
    printf("-L --legendrefile=L   Input/output file for Legendre tables (tables kept in memory only if -l used without -L)\n");
