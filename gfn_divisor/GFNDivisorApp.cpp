@@ -25,7 +25,7 @@
 #define NMAX_MAX (1 << 31)
 
 #define APP_NAME        "gfndsieve"
-#define APP_VERSION     "1.6"
+#define APP_VERSION     "1.7"
 
 #define BIT(k)          (((k) - il_MinK) >> 1)
 
@@ -252,7 +252,10 @@ void GFNDivisorApp::ValidateOptions(void)
    // Allow only one worker to do work when processing small primes.  This allows us to avoid 
    // locking when factors are reported, which significantly hurts performance as most terms 
    // will be removed due to small primes.
-   SetMaxPrimeForSingleWorker(10000);
+   // The last prime this will handle is 9973, which is the largest prime less than 10000,
+   // but more importantly, the index of this prime is divisible by 4.  This is to avoid
+   // a potential division by 0 error in GFNDivisorWorker.
+   SetMaxPrimeForSingleWorker(9972);
    
    SetMinGpuPrime(il_MaxK+1);
 }

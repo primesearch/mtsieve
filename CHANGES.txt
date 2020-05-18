@@ -1,4 +1,7 @@
-1.9.6 - January 15, 2020
+1.9.8 - May 18, 2020
+   Fixed issue in gfndsieve where it accesses memory beyond the bounds of a vector.
+   
+1.9.7 - January 15, 2020
    Fixed issue in srsieve2 where it crashes when starting a new sieve.
    Fixed issue in srsieve2 where it finds an invalid factor and terminates.
    
