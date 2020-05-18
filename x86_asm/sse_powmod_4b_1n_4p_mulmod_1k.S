@@ -214,22 +214,22 @@ vec_sqr:
    mov     %r11, b4           // b4 = b4*b4 mod p4
 
    sub     p1, %r8            // if b1 > p1, then b1 -= p1
-   jc      s0
+   jl      s0
    mov     %r8, b1
    
 s0:
    sub     p2, %r9            // if b2 > p2, then b2 -= p2
-   jc      s1
+   jl      s1
    mov     %r9, b2
    
 s1:
    sub     p3, %r10           // if b3 > p3, then b3 -= p3
-   jc      s2
+   jl      s2
    mov     %r10, b3
    
 s2:
    sub     p4, %r11           // if b4 > p4, then b4 -= p4
-   jc      s3
+   jl      s3
    mov     %r11, b4
    
 s3:
@@ -297,22 +297,22 @@ vec_mul:
    mov     %r11, b4           // b4 = a4*b4 mod p4
 
    sub     p1, %r8            // if b1 > p1, then b1 -= p1
-   jc      m0
+   jl      m0
    mov     %r8, b1
    
 m0:
    sub     p2, %r9            // if b2 > p2, then b2 -= p2
-   jc      m1
+   jl      m1
    mov     %r9, b2
    
 m1:
    sub     p3, %r10           // if b3 > p3, then b3 -= p3
-   jc      m2
+   jl      m2
    mov     %r10, b3
    
 m2:
    sub     p4, %r11           // if b4 > p4, then b4 -= p4
-   jc      m3
+   jl      m3
    mov     %r11, b4
    
 m3:
@@ -386,22 +386,22 @@ vec_done:
    mov     %r11, b4           // b4 = a4*b4 mod p4
 
    sub     p1, %r8            // if b1 > p1, then b1 -= p1
-   jc      lm0
+   jl      lm0
    mov     %r8, b1
    
 lm0:
    sub     p2, %r9            // if b2 > p2, then b2 -= p2
-   jc      lm1
+   jl      lm1
    mov     %r9, b2
    
 lm1:
    sub     p3, %r10           // if b3 > p3, then b3 -= p3
-   jc      lm2
+   jl      lm2
    mov     %r10, b3
    
 lm2:
    sub     p4, %r11           // if b4 > p4, then b4 -= p4
-   jc      lm3
+   jl      lm3
    mov     %r11, b4
    
 lm3:

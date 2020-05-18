@@ -67,7 +67,7 @@ fpu_mulmod:
    mov     %r10, %rax         // rax = a*b mod p
 
    sub     ARGp, %r10  /* CF=0 predicted */
-   jc      done
+   jl      done
    mov     %r10, %rax
 
 done:

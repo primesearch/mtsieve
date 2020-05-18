@@ -151,22 +151,22 @@ fpu_mulmod_4a_4b_4p:
    mov     %r11, a4           // a4 = a4*b4 mod p4
 
    sub     p1, %r8            // if a1 > p1, then a1 -= p1
-   jc      m0
+   jl      m0
    mov     %r8, a1
    
 m0:
    sub     p2, %r9            // if a2 > p2, then a2 -= p2
-   jc      m1
+   jl      m1
    mov     %r9, a2
    
 m1:
    sub     p3, %r10           // if a3 > p3, then a3 -= p3
-   jc      m2
+   jl      m2
    mov     %r10, a3
    
 m2:
    sub     p4, %r11           // if a4 > p4, then a4 -= p4
-   jc      m3
+   jl      m3
    mov     %r11, a4
    
 m3:

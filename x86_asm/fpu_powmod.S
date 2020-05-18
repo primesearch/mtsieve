@@ -79,12 +79,12 @@ mulsqr_loop:
 
 correct_mul:
    sub     ARG3, REG5  /* CF=0 predicted */
-   jc      correct_sqr
+   jl      correct_sqr
    mov     REG5, %rax
 
 correct_sqr:
    sub     ARG3, REG6  /* CF=0 predicted */
-   jc      shift
+   jl      shift
    mov     REG6, ARG1
 
 shift:

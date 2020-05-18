@@ -59,7 +59,7 @@ sse_mulmod:
    
    mov     ARG2, %rax         // a1 = a1*b1 mod p1
    sub     ARG3, ARG2         // if a > p, then a -= p
-   jc      m0
+   jl      m0
    mov     ARG2, %rax
    
 m0:
