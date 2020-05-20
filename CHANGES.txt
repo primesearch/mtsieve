@@ -1,3 +1,9 @@
+2.0.0 - May 20, 2020
+   Fixed an issue with the framework where it could stop sieving before reaching the max
+   prime specified on the command line.
+   Fixed a link issue with gfndsieve and dmdsieve with GMP on OS X.
+   Fixed a compiler issue with the .align ASM instruction on OS X.
+
 1.9.8 - May 18, 2020
    Fixed issue in gfndsieve where it accesses memory beyond the bounds of a vector.
    
