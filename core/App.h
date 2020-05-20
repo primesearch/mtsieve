@@ -34,6 +34,7 @@ class App;
 // Console output types
 typedef enum { COT_OTHER = 1, COT_SIEVE } cotype_t;
 typedef enum { AS_INITIALIZING, AS_RUNNING, AS_INTERRUPTED, AS_FINISHED } appstatus_t;
+typedef enum { SS_NOT_STARTED, SS_SIEVING, SS_DONE } sievingstatus_t;
 
 // Although declared here, this must be implemented by a child class of App
 App *get_app(void);
@@ -67,15 +68,16 @@ public:
    uint64_t          GetMaxPrime(void) { return il_MaxPrime; };
    
    void              ConvertNumberToShortString(uint64_t value, char *buffer);
-                   
+   
+   bool              IsSievingDone(void) { return (((sievingstatus_t) ip_SievingStatus->GetValueNoLock()) == SS_DONE); };
    bool              IsInterrupted(void) { return (((appstatus_t) ip_AppStatus->GetValueNoLock()) == AS_INTERRUPTED); };
    bool              IsRunning(void) { return (((appstatus_t) ip_AppStatus->GetValueNoLock()) == AS_RUNNING); };
-                   
-   void              StopWorkers(bool interrupted);
+   
+   void              StopWorkers(void);
    void              Interrupt(void) { ip_AppStatus->SetValueNoLock(AS_INTERRUPTED); };
 
    void              Run(void);
-                   
+
    void              WriteToConsole(cotype_t consoleOutputType, const char *fmt, ...);
    void              WriteToLog(const char *fmt, ...);
    
@@ -160,6 +162,7 @@ private:
 
    SharedMemoryItem *ip_Console;
    SharedMemoryItem *ip_AppStatus;
+   SharedMemoryItem *ip_SievingStatus;
    SharedMemoryItem *ip_NeedToRebuild;
    
    Worker          **ip_Workers;

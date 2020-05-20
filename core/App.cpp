@@ -28,11 +28,13 @@ App::App(void)
 
    ip_Console = new SharedMemoryItem("console");
    ip_AppStatus = new SharedMemoryItem("appstatus");
+   ip_SievingStatus = new SharedMemoryItem("sievestatus");
    ip_NeedToRebuild = new SharedMemoryItem("rebuild");
    
    icot_LastConsoleOutputType = COT_OTHER;
 
    ip_AppStatus->SetValueNoLock(AS_INITIALIZING);
+   ip_SievingStatus->SetValueNoLock(SS_NOT_STARTED);
 
    // The application cannot exceeds these max values
    il_AppMinPrime = PMIN_MIN;
@@ -291,14 +293,13 @@ void  App::WriteToConsole(cotype_t consoleOutputType, const char *fmt, ...)
    ip_Console->Release();
 }
 
-void  App::StopWorkers(bool interrupted)
+void  App::StopWorkers(void)
 {
    int64_t  count = 1;
    int64_t  iter = 0;
-   uint32_t th;
-   
-   for (th=0; th<ii_TotalWorkerCount; th++)
-      ip_Workers[th]->StopASAP();
+
+   // This tells the Workers to stop as soon as possible.
+   ip_SievingStatus->SetValueNoLock(SS_DONE);
 
    count = 1;
    while (count)
@@ -335,7 +336,7 @@ void  App::Run(void)
    bool isDone;
 
    ValidateOptions();
-
+   
    do
    {
       // This gives applications a chance to change any configurations prior to sieving.
@@ -356,7 +357,7 @@ void  App::Run(void)
 
       if (!isDone)
          DeleteWorkers();
-   } while (!isDone);      
+   } while (!isDone);
 }
 
 void  App::Sieve(void)
@@ -368,6 +369,8 @@ void  App::Sieve(void)
    LogStartSievingMessage();
 
    ip_AppStatus->SetValueNoLock(AS_RUNNING);
+   ip_SievingStatus->SetValueNoLock(SS_SIEVING);
+   
    largestPrimeSieved = il_MinPrime - 1;
    il_StartSievingUS = Clock::GetCurrentMicrosecond();
 
@@ -375,6 +378,7 @@ void  App::Sieve(void)
    it_ReportTime = it_StartTime + REPORT_SECONDS;
    
    useSingleThread = (largestPrimeSieved < il_MaxPrimeForSingleWorker);
+   
    
    while (largestPrimeSieved < il_MaxPrime && IsRunning())
    {
@@ -455,12 +459,12 @@ uint64_t  App::PauseSievingAndRebuild(void)
 {
    uint64_t  largestPrimeTested;
 
-   StopWorkers(false);
+   StopWorkers();
    
    // We can pass true because all workers are stopped which means that
    // they have completed sieving their respective range of primes.
    largestPrimeTested = GetLargestPrimeTested(true);
-   
+    
    NotifyAppToRebuild();
       
    DeleteWorkers();
@@ -539,9 +543,9 @@ void  App::Finish(void)
    uint64_t    elapsedTimeUS;
    double      cpuUtilization;
    const char *finishMethod = (IsInterrupted() ? "interrupted" : "completed");
-
+   
    // This won't return until all workers have completed processing work assigned to them.
-   StopWorkers(IsInterrupted());
+   StopWorkers();
 
    processCpuUS = Clock::GetProcessMicroseconds();
    

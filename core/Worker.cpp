@@ -147,23 +147,32 @@ bool  Worker::IsWaitingForWork(bool lockWorkerStatus)
 uint64_t  Worker::ProcessNextPrimeChunk(uint64_t startFrom, uint64_t maxPrimeForChunk)
 {
    uint64_t largestPrime;
-
+   uint32_t primeCount;
+   
    iv_Primes.clear();
 
    // Generate primes for this worker
    if (maxPrimeForChunk > 0 && maxPrimeForChunk > startFrom)
    {
-      largestPrime = primesieve::count_primes(startFrom+1, maxPrimeForChunk);
-      primesieve::generate_n_primes(largestPrime+1, startFrom+1, &iv_Primes);
+      primeCount = primesieve::count_primes(startFrom+1, maxPrimeForChunk);
+     
+      // This assumes that worker threads need a count of primes that is a multiple of 4
+      while (primeCount & 0x03)
+         primeCount++;
+
+      primesieve::generate_n_primes(primeCount, startFrom+1, &iv_Primes);
+      
+      largestPrime = maxPrimeForChunk;
    }
    else
+   {
       primesieve::generate_n_primes(ii_WorkSize, startFrom+1, &iv_Primes);
    
-   largestPrime = iv_Primes.back();
+      largestPrime = iv_Primes.back();
+   }
    
    SetHasWorkToDo();
    
-   // 
    ip_WorkerStatus->Release();
    
    // This could exceed maxPrime, but the TestPrimes() function will exit early if maxPrime is reached.
@@ -176,28 +185,21 @@ void  Worker::WaitForHandOff(void)
    uint64_t startTime;
    uint32_t savedSseMode;
    uint16_t savedFpuMode;
-   workerstatus_t status;
    
    SetWaitingForWork();
    
    while (true)
    {
-      ip_WorkerStatus->Lock();
-      
-      status = (workerstatus_t) ip_WorkerStatus->GetValueHaveLock();
-      
-      if (status == WS_STOPASAP)
-         break;
-      
-      if (status == WS_WAITING_FOR_WORK)
+      if (IsWaitingForWork(false))
       {
-         ip_WorkerStatus->Release();
+         if (ip_App->IsSievingDone())
+            break;
+      
          Sleep(10);
          continue;
       }
-      
-      ip_WorkerStatus->SetValueHaveLock(WS_WORKING);
-      ip_WorkerStatus->Release();
+                  
+      ip_WorkerStatus->SetValueNoLock(WS_WORKING);
       
       startTime = Clock::GetThreadMicroseconds();
 
@@ -235,22 +237,11 @@ void  Worker::WaitForHandOff(void)
       il_WorkerCpuUS += (Clock::GetThreadMicroseconds() - startTime);
       
       ip_StatsLocker->Release();
-
-      ip_WorkerStatus->Lock();
       
-      status = (workerstatus_t) ip_WorkerStatus->GetValueHaveLock();
-      
-      // The status can be be changed by the main thread while this thread is doing work.
-      if (status == WS_STOPASAP)
-         break;
-
-      // This tells the main thread that we are ready for more
-      ip_WorkerStatus->SetValueHaveLock(WS_WAITING_FOR_WORK);
-      ip_WorkerStatus->Release();
+      ip_WorkerStatus->SetValueNoLock(WS_WAITING_FOR_WORK);
    }
 
-   ip_WorkerStatus->SetValueHaveLock(WS_STOPPED);
-   ip_WorkerStatus->Release();
+   ip_WorkerStatus->SetValueNoLock(WS_STOPPED);
 }
 
 void   Worker::SetMiniChunkRange(uint64_t minPrimeForMiniChunkMode, uint64_t maxPrimeForMiniChunkMode, uint32_t chunkSize)
