@@ -25,7 +25,7 @@
 #define NMAX_MAX (1 << 31)
 
 #define APP_NAME        "gfndsieve"
-#define APP_VERSION     "1.7"
+#define APP_VERSION     "1.8"
 
 #define BIT(k)          (((k) - il_MinK) >> 1)
 
@@ -33,7 +33,13 @@
 // sqrmods at a cost of more time in mpn_tdiv_qr().  N must satisfy 0 <= N <= 5.
 #define PRE_SQUARE 5
 
-static const uint64_t _MONTGOMERY_DATA[14] = {1,0,0,0,0,0,0,0,0,0,0,0,0,UINT64_C(1)<<(1<<PRE_SQUARE)};
+// Handle the possibility that mp_limb_t and uint64_t are different typedefs.
+// If they are they the compiler will not be able to cast.
+#ifdef WIN32
+static const unsigned long long _MONTGOMERY_DATA[14] = {1,0,0,0,0,0,0,0,0,0,0,0,0,UINT64_C(1)<<(1<<PRE_SQUARE)};
+#else
+static const unsigned long _MONTGOMERY_DATA[14] = {1,0,0,0,0,0,0,0,0,0,0,0,0,UINT64_C(1)<<(1<<PRE_SQUARE)};
+#endif
 
 #define ONE    (_MONTGOMERY_DATA+0)
 #define TWO128 (_MONTGOMERY_DATA+11)
@@ -156,6 +162,18 @@ void GFNDivisorApp::ValidateOptions(void)
    if (is_OutputTermsFileName.length() == 0)
       is_OutputTermsFileName = "gfnd";
 
+   // We need to ensure compatibility between GMP and the x86_asm_ext functions
+   if (sizeof(uint64_t) != sizeof(mp_limb_t))
+     FatalError("GMP limb size is not 64 bits");
+  
+#ifdef WIN32
+   if (sizeof(unsigned long long) != sizeof(mp_limb_t))
+     FatalError("GMP limb size is not 64 bits");
+#else
+   if (sizeof(unsigned long) != sizeof(mp_limb_t))
+     FatalError("GMP limb size is not 64 bits");
+#endif
+
    is_OutputTermsFilePrefix = is_OutputTermsFileName;
 
    if (is_InputTermsFileName.length() > 0)
@@ -252,10 +270,7 @@ void GFNDivisorApp::ValidateOptions(void)
    // Allow only one worker to do work when processing small primes.  This allows us to avoid 
    // locking when factors are reported, which significantly hurts performance as most terms 
    // will be removed due to small primes.
-   // The last prime this will handle is 9973, which is the largest prime less than 10000,
-   // but more importantly, the index of this prime is divisible by 4.  This is to avoid
-   // a potential division by 0 error in GFNDivisorWorker.
-   SetMaxPrimeForSingleWorker(9972);
+   SetMaxPrimeForSingleWorker(10000);
    
    SetMinGpuPrime(il_MaxK+1);
 }
@@ -871,8 +886,17 @@ void  GFNDivisorApp::TestRemainingTerms(void)
 // This code is from fermat_redc.c of GMP-Fermat
 bool  GFNDivisorApp::IsFermatDivisor(uint64_t k, uint32_t n)
 {
-   uint64_t inv, A[14], N[12];
+// Handle the possibility that mp_limb_t and uint64_t are different typedefs.
+// We don't use mp_limb_t here, but the variables are passed to our assembler
+// ext functions and to GMP functions, so theu must be compatible.
+#ifdef WIN32
+   unsigned long long inv, A[14], N[12];
+#else
+   unsigned long inv, A[14], N[12];
+#endif
+
    uint32_t i;
+
 
    // If 2^2^(n-1) = 1 (mod k*2^n+1) then k*2^n+1 divides 2^2^(n-1)-1 and
    // hence divides at least one of 2^2^1+1, 2^2^2+1, ..., 2^2^(n-2)+1.

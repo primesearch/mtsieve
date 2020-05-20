@@ -19,7 +19,7 @@
 #include "../x86_asm_ext/asm-ext-x86.h"
 
 #define APP_NAME        "dmdsieve"
-#define APP_VERSION     "1.1"
+#define APP_VERSION     "1.2"
 
 #define BIT(k)          ((k) - il_MinK)
 
@@ -27,7 +27,13 @@
 // sqrmods at a cost of more time in mpn_tdiv_qr().  N must satisfy 0 <= N <= 5.
 #define PRE_SQUARE 5
 
-static const uint64_t _MONTGOMERY_DATA[14] = {1,0,0,0,0,0,0,0,0,0,0,0,0,UINT64_C(1)<<(1<<PRE_SQUARE)};
+// Handle the possibility that mp_limb_t and uint64_t are different typedefs.
+// If they are they the compiler will not be able to cast.
+#ifdef WIN32
+static const unsigned long long _MONTGOMERY_DATA[14] = {1,0,0,0,0,0,0,0,0,0,0,0,0,UINT64_C(1)<<(1<<PRE_SQUARE)};
+#else
+static const unsigned long long _MONTGOMERY_DATA[14] = {1,0,0,0,0,0,0,0,0,0,0,0,0,UINT64_C(1)<<(1<<PRE_SQUARE)};
+#endif
 
 #define ONE    (_MONTGOMERY_DATA+0)
 #define TWO128 (_MONTGOMERY_DATA+11)
@@ -134,6 +140,14 @@ void DMDivisorApp::ValidateOptions(void)
                         2976221, 3021377, 6972593, 13466917, 20996011, 24036583, 
                         25964951, 30402457, 32582657, 37156667, 42643801, 43112609, 
                         57885161, 74207281, 77232917, 82589933, 0};
+
+#ifdef WIN32
+   if (sizeof(unsigned long long) != sizeof(mp_limb_t))
+     FatalError("GMP limb size is not 64 bits");
+#else
+   if (sizeof(unsigned long) != sizeof(mp_limb_t))
+     FatalError("GMP limb size is not 64 bits");
+#endif
 
    if (is_InputTermsFileName.length() > 0)
    {
@@ -607,7 +621,15 @@ void  DMDivisorApp::TestRemainingTerms(void)
 // but since mmff and mfac are faster, I don't see much value in that.
 bool  DMDivisorApp::IsDoubleMersenneDivisor(uint64_t k)
 {
-   uint64_t T[4], A[3], N[3], inv;
+// Handle the possibility that mp_limb_t and uint64_t are different typedefs.
+// We don't use mp_limb_t here, but the variables are passed to our assembler
+// ext functions and to GMP functions, so theu must be compatible.
+#ifdef WIN32
+   unsigned long long T[4], A[3], N[3], inv;
+#else
+   unsigned long T[4], A[3], N[3], inv;
+#endif
+
    int i;
 
    k *= 2;

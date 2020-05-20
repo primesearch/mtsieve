@@ -72,12 +72,10 @@ private:
    uint64_t          il_MinKOriginal;
    uint64_t          il_MaxKOriginal;
    uint64_t          il_MinKInChunk;
-   uint64_t          il_MaxKInChunk;
    
    uint32_t          ii_MinNOriginal;
    uint32_t          ii_MaxNOriginal;
    uint32_t          ii_MinNInChunk;
-   uint32_t          ii_MaxNInChunk;
    
    uint64_t          il_StartSievingUS;
    uint64_t          il_TotalTerms;
