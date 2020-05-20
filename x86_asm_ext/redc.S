@@ -59,7 +59,7 @@ outer:
 
 	/* j < nn-2 */
 
-	.align	32
+	.align	16
 inner:
 	mov	(%rdi), %rax
 	mov	8(%rdi), %rdx

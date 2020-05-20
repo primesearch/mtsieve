@@ -147,7 +147,7 @@ mulmod320:
 	movq	%rcx, 40(%rbp)
 
 
-	.align 32,,16
+	.align 16
 1:
 	/* i > 0, j = 0 */
 
@@ -384,7 +384,7 @@ mulmod320_proth0:
 	movq	%rcx, 40(%rbp)
 
 
-	.align 32,,16
+	.align 16
 1:
 	/* i > 0, j = 0 */
 
@@ -601,7 +601,7 @@ mulmod320_proth1:
 	movq	%rcx, 40(%rbp)
 
 
-	.align 32,,16
+	.align 16
 1:
 	/* i > 0, j = 0 */
 

@@ -242,7 +242,7 @@ mulmod704:
 	setc	%cl
 	movq	%rcx, 88(%rbp)
 
-	.align 32,,16
+	.align 16
 1:
 	/* i > 0, j = 0 */
 
@@ -665,7 +665,7 @@ mulmod704_proth0:
 	setc	%cl
 	movq	%rcx, 88(%rbp)
 
-	.align 32,,16
+	.align 16
 1:
 	/* i > 0, j = 0 */
 
@@ -1045,7 +1045,7 @@ mulmod704_proth1:
 	setc	%cl
 	movq	%rcx, 88(%rbp)
 
-	.align 32,,16
+	.align 16
 1:
 	/* i > 0, j = 0 */
 

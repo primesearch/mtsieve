@@ -162,7 +162,7 @@ mulmod384:
 	setc	%cl
 	movq	%rcx, 48(%rbp)
 
-	.align 32,,16
+	.align 16
 1:
 	/* i > 0, j = 0 */
 
@@ -429,7 +429,7 @@ mulmod384_proth0:
 	setc	%cl
 	movq	%rcx, 48(%rbp)
 
-	.align 32,,16
+	.align 16
 1:
 	/* i > 0, j = 0 */
 
@@ -672,7 +672,7 @@ mulmod384_proth1:
 	setc	%cl
 	movq	%rcx, 48(%rbp)
 
-	.align 32,,16
+	.align 16
 1:
 	/* i > 0, j = 0 */
 
