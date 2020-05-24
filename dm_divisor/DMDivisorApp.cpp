@@ -32,7 +32,7 @@
 #ifdef WIN32
 static const unsigned long long _MONTGOMERY_DATA[14] = {1,0,0,0,0,0,0,0,0,0,0,0,0,UINT64_C(1)<<(1<<PRE_SQUARE)};
 #else
-static const unsigned long long _MONTGOMERY_DATA[14] = {1,0,0,0,0,0,0,0,0,0,0,0,0,UINT64_C(1)<<(1<<PRE_SQUARE)};
+static const unsigned long _MONTGOMERY_DATA[14] = {1,0,0,0,0,0,0,0,0,0,0,0,0,UINT64_C(1)<<(1<<PRE_SQUARE)};
 #endif
 
 #define ONE    (_MONTGOMERY_DATA+0)
