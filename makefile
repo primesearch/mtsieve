@@ -46,7 +46,7 @@ endif
 
 CPU_PROGS=afsieve cksieve dmdsieve gcwsieve gfndsieve fbncsieve fkbnsieve kbbsieve mfsieve pixsieve psieve srsieve2 twinsieve xyyxsieve
 
-GPU_PROGS=afsievecl mfsievecl gfndsievecl pixsievecl xyyxsievecl
+GPU_PROGS=afsievecl mfsievecl gcwsievecl gfndsievecl pixsievecl xyyxsievecl
 
 CPU_CORE_OBJS=core/App_cpu.o core/FactorApp_cpu.o core/AlgebraicFactorApp_cpu.o \
    core/Clock.o core/Parser.o core/Worker_cpu.o core/HashTable.o core/main.o core/SharedMemoryItem.o
