@@ -48,10 +48,10 @@ CPU_PROGS=afsieve cksieve dmdsieve gcwsieve gfndsieve fbncsieve fkbnsieve kbbsie
 
 GPU_PROGS=afsievecl mfsievecl gfndsievecl pixsievecl xyyxsievecl
 
-CPU_CORE_OBJS=core/App_cpu.o core/FactorApp.o core/AlgebraicFactorApp.o \
+CPU_CORE_OBJS=core/App_cpu.o core/FactorApp_cpu.o core/AlgebraicFactorApp_cpu.o \
    core/Clock.o core/Parser.o core/Worker_cpu.o core/HashTable.o core/main.o core/SharedMemoryItem.o
    
-GPU_CORE_OBJS=core/App_gpu.o core/FactorApp.o core/AlgebraicFactorApp.o \
+GPU_CORE_OBJS=core/App_gpu.o core/FactorApp_gpu.o core/AlgebraicFactorApp_gpu.o \
    core/Clock.o core/Parser.o core/Worker_gpu.o core/HashTable.o core/main.o core/SharedMemoryItem.o \
    opencl/Device_gpu.o opencl/Kernel_gpu.o opencl/KernelArgument_gpu.o opencl/ErrorChecker_gpu.o
 
@@ -91,12 +91,12 @@ SR2_OBJS=sierpinski_riesel/SierpinskiRieselApp.o sierpinski_riesel/AlgebraicFact
    sierpinski_riesel/GenericSubsequenceHelper.o sierpinski_riesel/GenericWorker.o
 XYYX_OBJS=xyyx/XYYXApp.o xyyx/XYYXWorker.o
 
-AF_GPU_OBJS=alternating_factorial/AlternatingFactorialApp_gpu.o alternating_factorial/AlternatingFactorialWorker.o alternating_factorial/afsieve.o alternating_factorial/AlternatingFactorialGpuWorker_gpu.o
-GCW_GPU_OBJS=cullen_woodall/CullenWoodallApp_gpu.o cullen_woodall/CullenWoodallWorker.o cullen_woodall/CullenWoodallGpuWorker_gpu.o
-GFND_GPU_OBJS=gfn_divisor/GFNDivisorApp_gpu.o gfn_divisor/GFNDivisorWorker.o gfn_divisor/GFNDivisorGpuWorker_gpu.o
-MF_GPU_OBJS=multi_factorial/MultiFactorialApp_gpu.o multi_factorial/MultiFactorialWorker.o multi_factorial/mfsieve.o multi_factorial/multifactorial.o multi_factorial/MultiFactorialGpuWorker_gpu.o
-PIX_GPU_OBJS=primes_in_x/PrimesInXApp_gpu.o primes_in_x/PrimesInXWorker.o primes_in_x/pixsieve.o primes_in_x/PrimesInXGpuWorker_gpu.o
-XYYX_GPU_OBJS=xyyx/XYYXApp_gpu.o xyyx/XYYXWorker.o xyyx/XYYXGpuWorker_gpu.o
+AF_GPU_OBJS=alternating_factorial/AlternatingFactorialApp_gpu.o alternating_factorial/AlternatingFactorialWorker_gpu.o alternating_factorial/afsieve.o alternating_factorial/AlternatingFactorialGpuWorker_gpu.o
+GCW_GPU_OBJS=cullen_woodall/CullenWoodallApp_gpu.o cullen_woodall/CullenWoodallWorker_gpu.o cullen_woodall/CullenWoodallGpuWorker_gpu.o
+GFND_GPU_OBJS=gfn_divisor/GFNDivisorApp_gpu.o gfn_divisor/GFNDivisorWorker_gpu.o gfn_divisor/GFNDivisorGpuWorker_gpu.o
+MF_GPU_OBJS=multi_factorial/MultiFactorialApp_gpu.o multi_factorial/MultiFactorialWorker_gpu.o multi_factorial/mfsieve.o multi_factorial/multifactorial.o multi_factorial/MultiFactorialGpuWorker_gpu.o
+PIX_GPU_OBJS=primes_in_x/PrimesInXApp_gpu.o primes_in_x/PrimesInXWorker_gpu.o primes_in_x/pixsieve.o primes_in_x/PrimesInXGpuWorker_gpu.o
+XYYX_GPU_OBJS=xyyx/XYYXApp_gpu.o xyyx/XYYXWorker_gpu.o xyyx/XYYXGpuWorker_gpu.o
 
 ALL_OBJS=$(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(CPU_CORE_OBJS) $(GPU_CORE_OBJS) \
    $(AF_OBJS) $(MF_OBJS) $(FBNC_OBJS) $(FKBN_OBJS) $(GFND_OBJS) $(CK_OBJS) \
