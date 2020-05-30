@@ -504,7 +504,7 @@ void  CullenWoodallWorker::BuildListOfPowers(uint64_t a, uint64_t p, uint32_t co
    powers[1] = a;
    
    // Multiply successive terms by a (mod p)
-   for (index=2; index<=count; index++)
+   for (index=2; index<count; index++)
        powers[index] = fpu_mulmod_iter(powers[index-1], a, p);
 
    fpu_pop();
