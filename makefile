@@ -7,7 +7,7 @@
 
 # Set DEBUG=yes to compile with debugging information and internal checks.
 
-DEBUG=no
+DEBUG=yes
 CC=g++
 
 CPPFLAGS=-Isieve -m64 -Wall
@@ -91,12 +91,12 @@ SR2_OBJS=sierpinski_riesel/SierpinskiRieselApp.o sierpinski_riesel/AlgebraicFact
    sierpinski_riesel/GenericSubsequenceHelper.o sierpinski_riesel/GenericWorker.o
 XYYX_OBJS=xyyx/XYYXApp.o xyyx/XYYXWorker.o
 
-AF_GPU_OBJS=alternating_factorial/AlternatingFactorialGpuWorker.o
-GCW_GPU_OBJS=cullen_woodall/CullenWoodallGpuWorker.o
-GFND_GPU_OBJS=gfn_divisor/GFNDivisorGpuWorker.o
-MF_GPU_OBJS=multi_factorial/MultiFactorialGpuWorker.o
-PIX_GPU_OBJS=primes_in_x/PrimesInXGpuWorker.o
-XYYX_GPU_OBJS=xyyx/XYYXGpuWorker.o
+AF_GPU_OBJS=alternating_factorial/AlternatingFactorialApp_gpu.o alternating_factorial/AlternatingFactorialWorker.o alternating_factorial/afsieve.o alternating_factorial/AlternatingFactorialGpuWorker_gpu.o
+GCW_GPU_OBJS=cullen_woodall/CullenWoodallApp_gpu.o cullen_woodall/CullenWoodallWorker.o cullen_woodall/CullenWoodallGpuWorker_gpu.o
+GFND_GPU_OBJS=gfn_divisor/GFNDivisorApp_gpu.o gfn_divisor/GFNDivisorWorker.o gfn_divisor/GFNDivisorGpuWorker_gpu.o
+MF_GPU_OBJS=multi_factorial/MultiFactorialApp_gpu.o multi_factorial/MultiFactorialWorker.o multi_factorial/mfsieve.o multi_factorial/multifactorial.o multi_factorial/MultiFactorialGpuWorker_gpu.o
+PIX_GPU_OBJS=primes_in_x/PrimesInXApp_gpu.o primes_in_x/PrimesInXWorker.o primes_in_x/pixsieve.o primes_in_x/PrimesInXGpuWorker_gpu.o
+XYYX_GPU_OBJS=xyyx/XYYXApp_gpu.o xyyx/XYYXWorker.o xyyx/XYYXGpuWorker_gpu.o
 
 ALL_OBJS=$(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(CPU_CORE_OBJS) $(GPU_CORE_OBJS) \
    $(AF_OBJS) $(MF_OBJS) $(FBNC_OBJS) $(FKBN_OBJS) $(GFND_OBJS) $(CK_OBJS) \
@@ -125,7 +125,7 @@ gpu_all: $(GPU_PROGS)
 afsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(AF_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(EXTRALDFLAGS)
 
-afsievecl: $(GPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(AF_OBJS)
+afsievecl: $(GPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(AF_GPU_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(GPULDFLAGS) $(EXTRALDFLAGS)
    
 cksieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(CK_OBJS)
@@ -143,13 +143,13 @@ fkbnsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(FKBN_OBJS)
 gcwsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(GCW_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(EXTRALDFLAGS)
 
-gcwsievecl: $(GPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(GCW_OBJS)
+gcwsievecl: $(GPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(GCW_GPU_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(GPULDFLAGS) $(EXTRALDFLAGS)
    
 gfndsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(GFND_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^  $(GMPLDFLAGS) $(EXTRALDFLAGS)
 
-gfndsievecl: $(GPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(GFND_OBJS)
+gfndsievecl: $(GPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(GFND_GPU_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^  $(GMPLDFLAGS) $(GPULDFLAGS) $(EXTRALDFLAGS)
 
 kbbsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(KBB_OBJS)
@@ -158,13 +158,13 @@ kbbsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(KBB_OBJS)
 mfsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(MF_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(EXTRALDFLAGS)
 
-mfsievecl: $(GPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(MF_OBJS)
+mfsievecl: $(GPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(MF_GPU_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(GPULDFLAGS) $(EXTRALDFLAGS)
    
 pixsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(PIX_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(EXTRALDFLAGS)
 
-pixsievecl: $(GPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(PIX_OBJS)
+pixsievecl: $(GPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(PIX_GPU_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(GPULDFLAGS) $(EXTRALDFLAGS)
 
 psieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(PRIM_OBJS)
@@ -179,7 +179,7 @@ twinsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(TWIN_OBJS)
 xyyxsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(XYYX_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(EXTRALDFLAGS)
 
-xyyxsievecl: $(GPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(XYYX_OBJS)
+xyyxsievecl: $(GPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(XYYX_GPU_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(GPULDFLAGS) $(EXTRALDFLAGS)
 
 clean_objs:
