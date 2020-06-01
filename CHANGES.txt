@@ -1,3 +1,7 @@
+2.0.1 - June 1, 2020
+   Added k1b2sieve to sieve 2^n+c for a range of n and c.
+   Fixed runtime issue with gcwsieve.
+   
 2.0.0 - May 20, 2020
    Fixed an issue with the framework where it could stop sieving before reaching the max
    prime specified on the command line.

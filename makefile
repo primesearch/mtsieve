@@ -7,7 +7,7 @@
 
 # Set DEBUG=yes to compile with debugging information and internal checks.
 
-DEBUG=yes
+DEBUG=no
 CC=g++
 
 CPPFLAGS=-Isieve -m64 -Wall
@@ -44,7 +44,7 @@ endif
    
 # No changes should be needed below here.
 
-CPU_PROGS=afsieve cksieve dmdsieve gcwsieve gfndsieve fbncsieve fkbnsieve kbbsieve mfsieve pixsieve psieve srsieve2 twinsieve xyyxsieve
+CPU_PROGS=afsieve cksieve dmdsieve gcwsieve gfndsieve fbncsieve fkbnsieve k2b2sieve kbbsieve mfsieve pixsieve psieve srsieve2 twinsieve xyyxsieve
 
 GPU_PROGS=afsievecl mfsievecl gcwsievecl gfndsievecl pixsievecl xyyxsievecl
 
@@ -81,6 +81,7 @@ FBNC_OBJS=fixed_bnc/FixedBNCApp.o fixed_bnc/FixedBNCWorker.o
 FKBN_OBJS=fixed_kbn/FixedKBNApp.o fixed_kbn/FixedKBNWorker.o
 GCW_OBJS=cullen_woodall/CullenWoodallApp.o cullen_woodall/CullenWoodallWorker.o
 GFND_OBJS=gfn_divisor/GFNDivisorApp.o gfn_divisor/GFNDivisorWorker.o
+K1B2_OBJS=k1b2/K1B2App.o k1b2/K1B2Worker.o
 KBB_OBJS=kbb/KBBApp.o kbb/KBBWorker.o
 MF_OBJS=multi_factorial/MultiFactorialApp.o multi_factorial/MultiFactorialWorker.o multi_factorial/mfsieve.o multi_factorial/multifactorial.o
 PIX_OBJS=primes_in_x/PrimesInXApp.o primes_in_x/PrimesInXWorker.o primes_in_x/pixsieve.o
@@ -101,7 +102,7 @@ XYYX_GPU_OBJS=xyyx/XYYXApp_gpu.o xyyx/XYYXWorker_gpu.o xyyx/XYYXGpuWorker_gpu.o
 ALL_OBJS=$(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(CPU_CORE_OBJS) $(GPU_CORE_OBJS) \
    $(AF_OBJS) $(MF_OBJS) $(FBNC_OBJS) $(FKBN_OBJS) $(GFND_OBJS) $(CK_OBJS) \
    $(PIX_OBJS) $(XYYX_OBJS) $(KBB_OBJS) $(GCW_OBJS) $(PRIM_OBJS) $(TWIN_OBJS) \
-   $(DMD_OBJS) $(SR2_OBJS) \
+   $(DMD_OBJS) $(SR2_OBJS) $(K1B2_OBJS) \
    $(AF_GPU_OBJS) $(GCW_GPU_OBJS) $(GFND_GPU_OBJS) $(MF_GPU_OBJS) $(PIX_GPU_OBJS) $(XYYX_GPU_OBJS)
 
 all: $(CPU_PROGS) $(GPU_PROGS)
@@ -151,6 +152,9 @@ gfndsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(GFN
 
 gfndsievecl: $(GPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(GFND_GPU_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^  $(GMPLDFLAGS) $(GPULDFLAGS) $(EXTRALDFLAGS)
+
+k1b2sieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(K1B2_OBJS)
+	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(EXTRALDFLAGS)
 
 kbbsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(KBB_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(EXTRALDFLAGS)
