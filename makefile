@@ -44,7 +44,7 @@ endif
    
 # No changes should be needed below here.
 
-CPU_PROGS=afsieve cksieve dmdsieve gcwsieve gfndsieve fbncsieve fkbnsieve k2b2sieve kbbsieve mfsieve pixsieve psieve srsieve2 twinsieve xyyxsieve
+CPU_PROGS=afsieve cksieve dmdsieve gcwsieve gfndsieve fbncsieve fkbnsieve k1b2sieve kbbsieve mfsieve pixsieve psieve srsieve2 twinsieve xyyxsieve
 
 GPU_PROGS=afsievecl mfsievecl gcwsievecl gfndsievecl pixsievecl xyyxsievecl
 
