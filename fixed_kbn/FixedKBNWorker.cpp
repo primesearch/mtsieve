@@ -73,7 +73,6 @@ void  FixedKBNWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
    FatalError("FixedKBNWorker::TestMiniPrimeChunk not implemented");
 }
 
-// This must be used when prime <= il_MaxK.
 void    FixedKBNWorker::RemoveTerms(uint64_t prime, uint64_t b)
 {
    int64_t  c, cc;
