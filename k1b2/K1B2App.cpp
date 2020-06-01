@@ -265,8 +265,6 @@ bool  K1B2App::ApplyFactor(const char *term)
 
 void K1B2App::WriteOutputTermsFile(uint64_t largestPrime)
 {
-   ip_FactorAppLock->Lock();
-   
    uint64_t termsCounted = 0;
    uint32_t n;
    int64_t  c;
