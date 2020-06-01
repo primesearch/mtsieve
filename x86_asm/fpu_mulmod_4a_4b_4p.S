@@ -1,11 +1,10 @@
 /* fpu_mulmod_4a_4b_4p.S -- (C) Mark Rodenkirch, May 2018
 
-   void   fpu_mulmod_4a_4b_4p(uint64_t *a, uint64_t *b, uint64_t *p, long double *binvp);
+   void   fpu_mulmod_4a_4b_4p(uint64_t *a, uint64_t *b, uint64_t *p);
       Computes a = a*b mod p.
          a is an array of 4 numbers.
          b is an array of 4 numbers.
          p is an array of 4 primes.
-         binvp is an array of 4 values for b/p.
 
       Assumes FPU is set to double extended precision and round to zero
 
@@ -21,7 +20,6 @@
 #define ARG1      %rcx
 #define ARG2      %rdx
 #define ARG3      %r8
-#define ARG4      %r9
 #define t1      8(%rsp)
 #define t2     16(%rsp)
 #define t3     24(%rsp)
@@ -30,7 +28,6 @@
 #define ARG1      %rdi
 #define ARG2      %rsi
 #define ARG3      %rdx
-#define ARG4      %rcx
 #define t1     -8(%rsp)
 #define t2    -16(%rsp)
 #define t3    -24(%rsp)
@@ -51,11 +48,6 @@
 #define p2      8(%rdx)
 #define p3     16(%rdx)
 #define p4     24(%rdx)
-
-#define binvp1  0(%rcx)
-#define binvp2  16(%rcx)
-#define binvp3  24(%rcx)
-#define binvp4  32(%rcx)
 
   .globl _fpu_mulmod_4a_4b_4p
   .globl fpu_mulmod_4a_4b_4p
@@ -82,13 +74,7 @@ fpu_mulmod_4a_4b_4p:
    mov     ARG1, %rbp
    mov     ARG2, %rbx
    mov     ARG3, %rdx
-   mov     ARG4, %rcx
-   
-   //fldt    binvp4
-   //fldt    binvp3
-   //fldt    binvp2
-   //fldt    binvp1
-   
+
    // Compute a*b mod p for each b
    fildll  a1
    fildll  b1
@@ -113,7 +99,7 @@ fpu_mulmod_4a_4b_4p:
    fmulp   %st(0), %st(1)
    fmul    %st(4), %st(0)
    fistpll t4                 // t4 = trunc(a4*b4 / p4)
-   
+      
    mov     a1, %r8
    mov     a2, %r9
    mov     a3, %r10
@@ -170,12 +156,6 @@ m2:
    mov     %r11, a4
    
 m3:
-   .p2align 4,,2
-
-   //fstp    %st(0)
-   //fstp    %st(0)
-   //fstp    %st(0)
-   //fstp    %st(0)
 
 #ifdef _WIN64
    add     $60, %rsp
