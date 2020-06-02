@@ -24,8 +24,8 @@
 #define CMAX_MAX (UINT64_C(1)<<62)
 #define NMAX_MAX (1 << 31)
 
-#define APP_NAME        "k2b2sieve"
-#define APP_VERSION     "1.0"
+#define APP_NAME        "k1b2sieve"
+#define APP_VERSION     "1.1"
 
 // This is declared in App.h, but implemented here.  This means that App.h
 // can remain unchanged if using the mtsieve framework for other applications.
@@ -146,6 +146,12 @@ void K1B2App::ValidateOptions(void)
       if (ii_MaxN < ii_MinN)
          FatalError("nmax must be greater than nmin");
 
+      if (!(il_MinC & 1))
+         il_MinC++;
+      
+      if (!(il_MaxC & 1))
+         il_MaxC--;
+
       nCount = ii_MaxN - ii_MinN + 1;
       cCount = il_MaxC - il_MinC + 1;
       
@@ -155,9 +161,13 @@ void K1B2App::ValidateOptions(void)
       for (uint32_t n=ii_MinN; n<=ii_MaxN; n++)
       {
          iv_Terms[n-ii_MinN].resize(cCount);
-         std::fill(iv_Terms[n-ii_MinN].begin(), iv_Terms[n-ii_MinN].end(), true);
+         std::fill(iv_Terms[n-ii_MinN].begin(), iv_Terms[n-ii_MinN].end(), false);
          
-         il_TermCount += cCount;
+         for (int64_t c=il_MinC; c<=il_MaxC; c+=2)
+         {
+            iv_Terms[n-ii_MinN][c-il_MinC] = true;
+            il_TermCount++;
+         }
       }
    }
    
@@ -192,6 +202,7 @@ void K1B2App::ProcessInputTermsFile(bool haveBitMap)
    uint32_t n;
    int64_t  c;
    uint64_t lastPrime;
+   bool     firstTerm = true;
 
    if (!fPtr)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
@@ -202,9 +213,9 @@ void K1B2App::ProcessInputTermsFile(bool haveBitMap)
    if (!haveBitMap)
       il_MinC = il_MaxC = 0;
    
-   if (!memcmp(buffer, "ABC ", 5))
+   if (!memcmp(buffer, "ABC ", 4))
    {
-      if (sscanf(buffer, "ABC 2^$a+$b // Sieved to %" SCNu64"", &lastPrime) != 1)
+      if (sscanf(buffer, "ABC 2^$a$b // Sieved to %" SCNu64"", &lastPrime) != 1)
          FatalError("Line 1 is not a valid ABCD line in input file %s", is_InputTermsFileName.c_str());
       
       SetMinPrime(lastPrime);
@@ -227,10 +238,18 @@ void K1B2App::ProcessInputTermsFile(bool haveBitMap)
       }
       else
       {
-         if (ii_MinN > n) ii_MinN = n;
-         if (ii_MaxN < n) ii_MaxN = n;
-         if (il_MinC > c) il_MinC = c;
-         if (il_MaxC < c) il_MaxC = c;
+         if (firstTerm)
+         {
+            ii_MinN = ii_MaxN = n;
+            il_MinC = il_MaxC = c;
+            firstTerm = false;
+         }
+
+         if (n < ii_MinN) ii_MinN = n;
+         if (n > ii_MaxN) ii_MaxN = n;
+         
+         if (c < il_MinC) il_MinC = c;
+         if (c > il_MaxC) il_MaxC = c;
       }
    }
 
@@ -276,7 +295,7 @@ void K1B2App::WriteOutputTermsFile(uint64_t largestPrime)
    
    ip_FactorAppLock->Lock();
    
-   fprintf(termsFile, "ABC s^$a$b // Sieved to %" PRIu64"\n", largestPrime);
+   fprintf(termsFile, "ABC 2^$a$b // Sieved to %" PRIu64"\n", largestPrime);
    
    for (n=ii_MinN; n<=ii_MaxN; n++)
       for (c=il_MinC; c<=il_MaxC; c++)
@@ -298,7 +317,7 @@ void K1B2App::WriteOutputTermsFile(uint64_t largestPrime)
 
 void  K1B2App::GetExtraTextForSieveStartedMessage(char *extraText)
 { 
-   sprintf(extraText, "%u <= n <= %u %" PRId64" <= c <= %" PRId64", 2^n+c", ii_MinN, ii_MaxN, il_MinC, il_MaxC);
+   sprintf(extraText, "%u <= n <= %u, %" PRId64" <= c <= %" PRId64", 2^n+c", ii_MinN, ii_MaxN, il_MinC, il_MaxC);
 }
 
 bool  K1B2App::ReportFactor(uint64_t p, uint32_t n, int64_t c)
