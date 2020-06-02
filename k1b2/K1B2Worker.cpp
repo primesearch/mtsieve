@@ -113,7 +113,7 @@ void    K1B2Worker::RemoveTermsSmallP(uint64_t prime, uint32_t n, uint64_t twoEx
 {
    int64_t  c, cc;
    int64_t  sPrime;
-      
+
    c = prime - twoExpN;
    
    // Need this to be signed for the next calculation
@@ -184,8 +184,11 @@ void  K1B2Worker::VerifyFactor(uint64_t prime, uint32_t n, int64_t c)
    rem = fpu_powmod(2, n, prime);
    
    rem += c;
+
+   while (rem >= (int64_t) prime)
+      rem -= (int64_t) prime;
    
-   if (rem != 0 && rem != (int64_t) prime)
+   if (rem != 0)
       FatalError("2^%u%+" PRId64" mod %" PRIu64" = %" PRIu64"", n, c, prime, rem);
 }
 
