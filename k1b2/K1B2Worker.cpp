@@ -55,7 +55,7 @@ void  K1B2Worker::TestMegaPrimeChunk(void)
 
       if (useSmallPLogic)
       {
-         if ((int64_t) p4 > (il_MaxC + il_MinC + 1))
+         if ((int64_t) p1 > (il_MaxC - il_MinC + 1))
             useSmallPLogic = false;
       }
 
@@ -111,34 +111,47 @@ void  K1B2Worker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 
 void    K1B2Worker::RemoveTermsSmallP(uint64_t prime, uint32_t n, uint64_t twoExpN)
 {
-   int64_t  c, cc;
-   int64_t  sPrime;
-
-   c = prime - twoExpN;
+   int64_t  c;
    
-   // Need this to be signed for the next calculation
-   sPrime = (int64_t) prime;
-   
-   // Compute c such that il_MinC <= c < il_MinC + p
-   cc = sPrime * ((il_MinC - c)/sPrime);
-
-   c += cc;
-   
-   while (c > il_MaxC) c -= prime;
-   while (c < il_MinC) c += prime;
-   
-   if (c > il_MaxC)
-      return;
-
    fpu_push_1divp(prime);
-      
+   
+   // 2^n (mod p) = twoExpN
+   // 2^n - twoExpN (mod p) = 0
+   // 2^n + (p - twoExpN) (mod p) = 0
+
+   // Set c = p - twoExpN
+   // Since p > twoExpN, c is positive
+   // 2^n + c (mod p) = 0
+   c = (int64_t) (prime - twoExpN);
+   
+   // Set c to an odd value
+   if (!(c & 1))
+      c += (int64_t) prime;
+
    do 
    {
+      // 2^n + c (mod p) = 0
       if (ip_K1B2App->ReportFactor(prime, n, c))
          VerifyFactor(prime, n, c);
-
-      c += prime;
+      
+      c += (int64_t) (prime << 1);
    } while (c <= il_MaxC);
+   
+   c = (int64_t) (prime - twoExpN);
+   
+   // Set c to an odd value
+   if (!(c & 1))
+      c -= (int64_t) prime;
+   
+   do 
+   {
+      // 2^n + c (mod p) = 0
+      if (ip_K1B2App->ReportFactor(prime, n, c))
+         VerifyFactor(prime, n, c);
+      
+      c -= (int64_t) (prime << 1);
+   } while (c >= il_MinC);
+   
    
    fpu_pop();
 }
@@ -185,10 +198,13 @@ void  K1B2Worker::VerifyFactor(uint64_t prime, uint32_t n, int64_t c)
    
    rem += c;
 
+   while (rem < 0)
+      rem += (int64_t) prime;
+   
    while (rem >= (int64_t) prime)
       rem -= (int64_t) prime;
    
    if (rem != 0)
-      FatalError("2^%u%+" PRId64" mod %" PRIu64" = %" PRIu64"", n, c, prime, rem);
+      FatalError("2^%u%+" PRId64" mod %" PRIu64" = %" PRId64"", n, c, prime, rem);
 }
 
