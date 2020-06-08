@@ -15,7 +15,7 @@
 #include "FixedKBNWorker.h"
 
 #define APP_NAME        "fkbnsieve"
-#define APP_VERSION     "1.2"
+#define APP_VERSION     "1.3"
 
 // This is declared in App.h, but implemented here.  This means that App.h
 // can remain unchanged if using the mtsieve framework for other applications.
