@@ -28,15 +28,15 @@ public:
 protected:
 
 private:
-   void              RemoveTerms(uint64_t prime, uint64_t b);
+   void              RemoveTerms(uint64_t prime, uint64_t bExpN);
    void              VerifyFactor(uint64_t prime, int64_t c);
 
    FixedKBNApp      *ip_FixedKBNApp;
 
-   uint64_t          il_KBpowN;
    uint64_t          il_K;
    uint32_t          ii_Base;
    uint32_t          ii_N;
+   
    int64_t           il_MinC;
    int64_t           il_MaxC;
 };

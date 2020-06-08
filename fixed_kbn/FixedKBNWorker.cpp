@@ -73,62 +73,63 @@ void  FixedKBNWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
    FatalError("FixedKBNWorker::TestMiniPrimeChunk not implemented");
 }
 
-void    FixedKBNWorker::RemoveTerms(uint64_t prime, uint64_t b)
+void    FixedKBNWorker::RemoveTerms(uint64_t prime, uint64_t bExpN)
 {
-   int64_t  c, cc;
-   int64_t  sPrime;
-   uint64_t rem;
+   int64_t  c;
+   int64_t  kbExpN;
    
    fpu_push_1divp(prime);
    
-   c = prime - fpu_mulmod(il_K, b, prime);
-   
-   // Need this to be signed for the next calculation
-   sPrime = (int64_t) prime;
-   
-   // Compute c such that il_MinC <= c < il_MinC + p
-   cc = sPrime * ((il_MinC - c)/sPrime);
-
-   c += cc;
-   
-   while (c > il_MaxC) c -= prime;
-   while (c < il_MinC) c += prime;
-   
-   if (c > il_MaxC)
-   {
-      fpu_pop();
-      return;
-   }
+   kbExpN = fpu_mulmod(il_K, bExpN, prime);
       
-   rem = fpu_powmod(ii_Base, ii_N, prime);
-   il_KBpowN = fpu_mulmod(rem, il_K, prime);
+   // k*b^n (mod p) = kbExpN
+   // k*b^n - kbExpN (mod p) = 0
+   // k*b^n + (p - kbExpN) (mod p) = 0
 
-   fpu_pop();
-  
+   // Set c = p - kbExpN
+   // Since p > kbExpN, c is positive
+   // k*b^n + c (mod p) = 0
+   c = (int64_t) (prime - kbExpN);
+
    do 
    {
+      // k*b^n + c (mod p) = 0
       if (ip_FixedKBNApp->ReportFactor(prime, c))
          VerifyFactor(prime, c);
-
-      c += prime;
+      
+      c += (int64_t) prime;
    } while (c <= il_MaxC);
+   
+   c = (int64_t) (prime - kbExpN);
+      
+   do 
+   {
+      // k*b^n + c (mod p) = 0
+      if (ip_FixedKBNApp->ReportFactor(prime, c))
+         VerifyFactor(prime, c);
+      
+      c -= (int64_t) prime;
+   } while (c >= il_MinC);
+   
+   
+   fpu_pop();
 }
 
 
 void  FixedKBNWorker::VerifyFactor(uint64_t prime, int64_t c)
 {
    int64_t  rem;
-   int64_t  sPrime;
 
-   rem = c + il_KBpowN;
+   rem = fpu_powmod(ii_Base, ii_N, prime);
+   rem = fpu_mulmod(il_K, rem, prime);
    
-   // Need this to be signed for the next calculation
-   sPrime = (int64_t) prime;
-      
-   rem = (rem % sPrime);
-
-   if (rem < 0)
-      rem += sPrime;
+   rem += c;
+         
+   while (rem < 0)
+      rem += (int64_t) prime;
+   
+   while (rem >= (int64_t) prime)
+      rem -= (int64_t) prime;
    
    if (rem != 0)
       FatalError("%" PRIu64"*%u^%u%+d mod %" PRIu64" = %" PRIu64"", il_K, ii_Base, ii_N, c, prime, rem);

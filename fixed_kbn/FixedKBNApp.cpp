@@ -125,7 +125,7 @@ void FixedKBNApp::ValidateOptions(void)
    
    if (is_OutputTermsFileName.length() == 0)
    {
-      sprintf(fileName, "k%" PRIu64"_b%u_n%u+c.pfgw", il_K,ii_Base, ii_N);
+      sprintf(fileName, "k%" PRIu64"_b%u_n%u.pfgw", il_K,ii_Base, ii_N);
       is_OutputTermsFileName = fileName;
    }
    
@@ -311,6 +311,9 @@ void  FixedKBNApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
 bool  FixedKBNApp::ReportFactor(uint64_t p, int64_t c)
 {   
    bool     removedTerm = false;
+   
+   if (c < il_MinC || c > il_MaxC)
+      return false;
    
    if (p > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
