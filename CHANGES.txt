@@ -1,3 +1,9 @@
+2.0.2 - June 8, 2020
+   Ensure that -p always overrides "last prime" from input file.
+   Fixed fkbnsieve as it can sometimes miss factors for small p.
+   Fixed issues with k1b2sieve.
+   Fixed ^C handling as sometimes sieving wouldn't stop.
+   
 2.0.1 - June 1, 2020
    Added k1b2sieve to sieve 2^n+c for a range of n and c.
    Fixed runtime issue with gcwsieve.
