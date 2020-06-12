@@ -52,7 +52,7 @@ CPU_CORE_OBJS=core/App_cpu.o core/FactorApp_cpu.o core/AlgebraicFactorApp_cpu.o 
    core/Clock.o core/Parser.o core/Worker_cpu.o core/HashTable.o core/main.o core/SharedMemoryItem.o
    
 GPU_CORE_OBJS=core/App_gpu.o core/FactorApp_gpu.o core/AlgebraicFactorApp_gpu.o \
-   core/Clock.o core/Parser.o core/Worker_gpu.o core/HashTable.o core/main.o core/SharedMemoryItem.o \
+   core/Clock_gpu.o core/Parser_gpu.o core/Worker_gpu.o core/HashTable_gpu.o core/main_gpu.o core/SharedMemoryItem_gpu.o \
    opencl/Device_gpu.o opencl/Kernel_gpu.o opencl/KernelArgument_gpu.o opencl/ErrorChecker_gpu.o
 
 ASM_OBJS=x86_asm/fpu_mod_init_fini.o x86_asm/fpu_push_pop.o x86_asm/sse_mulmod.o \
