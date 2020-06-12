@@ -100,7 +100,7 @@ protected:
    
    void              SetAppMinPrime(uint64_t minPrime) { il_MinPrime = il_AppMinPrime = minPrime; };
    void              SetAppMaxPrime(uint64_t maxPrime) { il_MaxPrime = il_AppMaxPrime = maxPrime; };
-   void              SetMinPrime(uint64_t minPrime) { il_MinPrime = minPrime; };
+   void              SetMinPrime(uint64_t minPrime);
    void              SetMaxPrime(uint64_t maxPrime, const char *why);
    void              SetMinGpuPrime(uint64_t minGpuPrime) { il_MinGpuPrime = minGpuPrime; };
    
@@ -166,6 +166,8 @@ private:
    SharedMemoryItem *ip_NeedToRebuild;
    
    Worker          **ip_Workers;
+   
+   bool              ib_SetMinPrimeFromCommandLine;
    
    uint32_t          ii_CpuWorkerCount;
    uint32_t          ii_GpuWorkerCount;

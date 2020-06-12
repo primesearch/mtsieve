@@ -52,6 +52,7 @@ App::App(void)
    ii_GpuWorkGroups = 10;
    ib_SupportsGPU = false;
    ib_HaveCreatedWorkers = false;
+   ib_SetMinPrimeFromCommandLine = false;
 
    ip_Workers = (Worker **) xmalloc(MAX_WORKERS * sizeof(Worker *));
    
@@ -126,6 +127,7 @@ void  App::ParentAddCommandLineOptions(string &shortOpts, struct option *longOpt
 parse_t App::ParentParseOption(int opt, char *arg, const char *source)
 {
    parse_t      status = P_UNSUPPORTED;
+   uint64_t     minPrime;
 
 #ifdef HAVE_GPU_WORKERS
    if (ib_SupportsGPU)
@@ -138,7 +140,9 @@ parse_t App::ParentParseOption(int opt, char *arg, const char *source)
    switch (opt)
    {     
       case 'p':
-         status = Parser::Parse(arg, il_AppMinPrime, il_AppMaxPrime-1, il_MinPrime);
+         status = Parser::Parse(arg, il_AppMinPrime, il_AppMaxPrime-1, minPrime);
+         SetMinPrime(minPrime);
+         ib_SetMinPrimeFromCommandLine = true;
          break;
 
       case 'P':
@@ -320,6 +324,14 @@ void  App::StopWorkers(void)
          exit(0);
       }
    }
+}
+
+void  App::SetMinPrime(uint64_t minPrime)
+{
+   if (ib_SetMinPrimeFromCommandLine)
+      return;
+   
+   il_MinPrime = minPrime;
 }
 
 // Overrice the max prime to be sieved so that we can guarantee
