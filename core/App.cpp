@@ -391,7 +391,6 @@ void  App::Sieve(void)
    
    useSingleThread = (largestPrimeSieved < il_MaxPrimeForSingleWorker);
    
-   
    while (largestPrimeSieved < il_MaxPrime && IsRunning())
    {
       th = GetNextAvailableWorker(useSingleThread, largestPrimeSieved);
@@ -472,7 +471,7 @@ uint64_t  App::PauseSievingAndRebuild(void)
    uint64_t  largestPrimeTested;
 
    StopWorkers();
-   
+      
    // We can pass true because all workers are stopped which means that
    // they have completed sieving their respective range of primes.
    largestPrimeTested = GetLargestPrimeTested(true);
@@ -481,6 +480,9 @@ uint64_t  App::PauseSievingAndRebuild(void)
       
    DeleteWorkers();
 
+   // Reset the sieving status since StopWorkers had changed to SS_DONE
+   ip_SievingStatus->SetValueNoLock(SS_SIEVING);
+   
    CreateWorkers(largestPrimeTested);
    
    ResetFactorStats();
