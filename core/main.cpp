@@ -49,8 +49,7 @@ void SetQuitting(int sig)
       fprintf(stderr, "\nCTRL-C already hit, so I'm going to terminate now.  Remaining terms file is not complete\n");
       exit(0);
    }
-
-   fprintf(stderr, "\nCTRL-C accepted.  Please wait for threads to complete.\n");
+   
    theApp->Interrupt();
    gb_ForceQuit = true;
 }

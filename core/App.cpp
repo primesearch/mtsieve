@@ -43,6 +43,7 @@ App::App(void)
    il_MinPrime = il_AppMinPrime;
    il_MaxPrime = il_AppMaxPrime;
    il_MaxPrimeForSingleWorker = 0;
+   il_LargestPrimeSieved = 0;
    
    ii_CpuWorkSize = 1000000;
    
@@ -326,6 +327,13 @@ void  App::StopWorkers(void)
    }
 }
 
+void  App::Interrupt(void)
+{
+   ip_AppStatus->SetValueNoLock(AS_INTERRUPTED);
+
+   WriteToConsole(COT_OTHER, "CTRL-C accepted.  Threads will stop after sieving to %llu", il_LargestPrimeSieved);
+}
+
 void  App::SetMinPrime(uint64_t minPrime)
 {
    if (ib_SetMinPrimeFromCommandLine)
@@ -375,7 +383,7 @@ void  App::Run(void)
 void  App::Sieve(void)
 {
    uint32_t th;
-   uint64_t sieveStartUS, largestPrimeSieved;
+   uint64_t sieveStartUS;
    bool     useSingleThread;
    
    LogStartSievingMessage();
@@ -383,17 +391,17 @@ void  App::Sieve(void)
    ip_AppStatus->SetValueNoLock(AS_RUNNING);
    ip_SievingStatus->SetValueNoLock(SS_SIEVING);
    
-   largestPrimeSieved = il_MinPrime - 1;
+   il_LargestPrimeSieved = il_MinPrime - 1;
    il_StartSievingUS = Clock::GetCurrentMicrosecond();
 
    it_StartTime = time(NULL);
    it_ReportTime = it_StartTime + REPORT_SECONDS;
    
-   useSingleThread = (largestPrimeSieved < il_MaxPrimeForSingleWorker);
+   useSingleThread = (il_LargestPrimeSieved < il_MaxPrimeForSingleWorker);
    
-   while (largestPrimeSieved < il_MaxPrime && IsRunning())
+   while (il_LargestPrimeSieved < il_MaxPrime && IsRunning())
    {
-      th = GetNextAvailableWorker(useSingleThread, largestPrimeSieved);
+      th = GetNextAvailableWorker(useSingleThread, il_LargestPrimeSieved);
 
       // Stop if we couldn't get a worker.  This should only happen if there is 
       // a problem with the application or if ip_AppStatus is not AS_RUNNING.
@@ -402,7 +410,7 @@ void  App::Sieve(void)
 
       sieveStartUS = Clock::GetThreadMicroseconds();
 
-      largestPrimeSieved = ip_Workers[th]->ProcessNextPrimeChunk(largestPrimeSieved, il_MaxPrimeForSingleWorker);
+      il_LargestPrimeSieved = ip_Workers[th]->ProcessNextPrimeChunk(il_LargestPrimeSieved, il_MaxPrimeForSingleWorker);
 
       il_TotalSieveUS += (Clock::GetThreadMicroseconds() - sieveStartUS);
 
@@ -614,7 +622,12 @@ void  App::ReportStatus(void)
    if (largestPrimeTested == 0)
       percentDone = 0.0;
    else
-      percentDone = (double)(largestPrimeTested-il_MinPrime)/(il_MaxPrime-il_MinPrime);
+   {
+      if (IsInterrupted())
+         percentDone = (double)(largestPrimeTested-il_MinPrime)/(il_LargestPrimeSieved-il_MinPrime);
+      else
+         percentDone = (double)(largestPrimeTested-il_MinPrime)/(il_MaxPrime-il_MinPrime);
+   }
    
    // Compute how many primes are tested per second since the last report
    primeRate = (double)(primesTested-il_LastStatusPrimesTested)/(currentUS-il_LastStatusReportUS);

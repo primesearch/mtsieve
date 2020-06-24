@@ -74,7 +74,7 @@ public:
    bool              IsRunning(void) { return (((appstatus_t) ip_AppStatus->GetValueNoLock()) == AS_RUNNING); };
    
    void              StopWorkers(void);
-   void              Interrupt(void) { ip_AppStatus->SetValueNoLock(AS_INTERRUPTED); };
+   void              Interrupt(void);
 
    void              Run(void);
 
@@ -127,6 +127,8 @@ protected:
    uint64_t          il_AppMaxPrime;
    uint64_t          il_MinPrime;
    uint64_t          il_MaxPrime;
+   
+   uint64_t          il_LargestPrimeSieved;
    
    // This represents the largest prime that must be tested by a single worker.  There is one
    // restriction, it must be a CPU worker.
