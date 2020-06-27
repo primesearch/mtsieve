@@ -61,8 +61,14 @@ void  GenericWorker::TestMegaPrimeChunk(void)
    {
       maxPrime = ProcessSmallPrimes();
 
-      if (il_SmallPrimeSieveLimit < maxPrime)
+      if (il_SmallPrimeSieveLimit <= maxPrime)
+      {
          ip_SierpinskiRieselApp->SetRebuildNeeded();
+         
+         // This will trigger a retest of some primes between il_SmallPrimeSieveLimit and maxPrime
+         // using large primes logic.  This should only be a few primes, so no big performance hit.
+         SetLargestPrimeTested(il_SmallPrimeSieveLimit, 0);
+      }
       
       return;
    }
@@ -202,7 +208,7 @@ uint64_t  GenericWorker::ProcessSmallPrimes(void)
    uint64_t maxPrime = ip_App->GetMaxPrime();
    uint64_t primeList[4];
    uint64_t bases[4];
-   uint64_t thePrime, lsatPrime = 0;
+   uint64_t thePrime, lastPrime = 0;
    uint32_t primeCount = 0;
    uint32_t actualCount = 0;
    
@@ -210,7 +216,7 @@ uint64_t  GenericWorker::ProcessSmallPrimes(void)
    
    while (it != iv_Primes.end())
    {
-      lsatPrime = thePrime = *it;
+      lastPrime = thePrime = *it;
       it++;
       
       if (ii_Base % thePrime  == 0)
@@ -230,12 +236,12 @@ uint64_t  GenericWorker::ProcessSmallPrimes(void)
          primeCount = 0;
          
          if (primeList[3] >= maxPrime)
-            return lsatPrime;
+            return lastPrime;
       }
    }
 
    if (primeCount == 0)
-      return lsatPrime;
+      return lastPrime;
    
    actualCount = primeCount;
    
@@ -251,7 +257,7 @@ uint64_t  GenericWorker::ProcessSmallPrimes(void)
    
    SetLargestPrimeTested(primeList[3], actualCount);
    
-   return lsatPrime;
+   return lastPrime;
 }
 
 void  GenericWorker::DiscreteLogSmallPrimes(uint64_t *primeList, uint64_t *bases)

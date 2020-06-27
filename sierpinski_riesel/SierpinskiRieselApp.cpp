@@ -20,7 +20,7 @@
 #include "CisOneSubsequenceHelper.h"
 
 #define APP_NAME        "srsieve2"
-#define APP_VERSION     "1.2.1"
+#define APP_VERSION     "1.2.2"
 
 #define NBIT(n)         ((n) - ii_MinN)
 #define MBIT(m)         ((m) - ii_MinM)
@@ -232,7 +232,10 @@ void SierpinskiRieselApp::ValidateOptions(void)
    // Allow only one worker to do work when processing small primes.  This allows us to avoid 
    // locking when factors are reported, which significantly hurts performance as most terms 
    // will be removed due to small primes.
-   SetMaxPrimeForSingleWorker(il_SmallPrimeSieveLimit);
+   
+   // This will sieve beyond the limit, but we want to make sure that at least one prime
+   // larger than this limit is passed to the worker even if the worker does not test it.
+   SetMaxPrimeForSingleWorker(il_SmallPrimeSieveLimit + 1000);
 }
 
 bool  SierpinskiRieselApp::LoadSequencesFromFile(char *fileName)
