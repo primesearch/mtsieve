@@ -77,22 +77,20 @@
    mov            ARG3, %r8
 
    // Ensure %rsp is on a 32-byte boundary
-   mov            $200, %rdx
+   mov            %rsp, %rdx
 
 #ifdef _WIN64
-   sub            $200, %rsp
+   sub            $400, %rsp
 rsp_loop:
    test           $31, %rsp
    jz             rsp_done
-   add            $1, %rdx
    sub            $1, %rsp
    jmp            rsp_loop
 #else
-   add            $200, %rsp
+   sub            $400, %rsp
 rsp_loop:
    test           $31, %rsp
    jz             rsp_done
-   sub            $1, %rdx
    add            $1, %rsp
    jmp            rsp_loop
 #endif
@@ -353,12 +351,8 @@ all_done:
    vmovapd        %ymm13, b2
    vmovapd        %ymm14, b3
    vmovapd        %ymm15, b4
-
-#ifdef _WIN64
-   add            %rdx, %rsp
-#else
-   sub            %rdx, %rsp
-#endif
+  
+   mov            %rdx, %rsp
    
    ret
    
