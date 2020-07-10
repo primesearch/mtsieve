@@ -44,7 +44,8 @@ endif
    
 # No changes should be needed below here.
 
-CPU_PROGS=afsieve cksieve dmdsieve gcwsieve gfndsieve fbncsieve fkbnsieve k1b2sieve kbbsieve mfsieve pixsieve psieve srsieve2 twinsieve xyyxsieve
+CPU_PROGS=afsieve cksieve dmdsieve gcwsieve gfndsieve fbncsieve fkbnsieve k1b2sieve kbbsieve mfsieve \
+   pixsieve psieve sgsieve srsieve2 twinsieve xyyxsieve
 
 GPU_PROGS=afsievecl mfsievecl gcwsievecl gfndsievecl pixsievecl xyyxsievecl
 
@@ -87,6 +88,7 @@ MF_OBJS=multi_factorial/MultiFactorialApp.o multi_factorial/MultiFactorialWorker
 PIX_OBJS=primes_in_x/PrimesInXApp.o primes_in_x/PrimesInXWorker.o primes_in_x/pixsieve.o
 PRIM_OBJS=primorial/PrimorialApp.o primorial/PrimorialWorker.o primorial/primorial.o
 TWIN_OBJS=twin/TwinApp.o twin/TwinWorker.o
+SG_OBJS=sophie_germain/SophieGermainApp.o sophie_germain/SophieGermainWorker.o
 SR2_OBJS=sierpinski_riesel/SierpinskiRieselApp.o sierpinski_riesel/AlgebraicFactorHelper.o \
    sierpinski_riesel/AbstractSubsequenceHelper.o sierpinski_riesel/AbstractWorker.o \
    sierpinski_riesel/GenericSubsequenceHelper.o sierpinski_riesel/GenericWorker.o
@@ -102,7 +104,7 @@ XYYX_GPU_OBJS=xyyx/XYYXApp_gpu.o xyyx/XYYXWorker_gpu.o xyyx/XYYXGpuWorker_gpu.o
 ALL_OBJS=$(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(CPU_CORE_OBJS) $(GPU_CORE_OBJS) \
    $(AF_OBJS) $(MF_OBJS) $(FBNC_OBJS) $(FKBN_OBJS) $(GFND_OBJS) $(CK_OBJS) \
    $(PIX_OBJS) $(XYYX_OBJS) $(KBB_OBJS) $(GCW_OBJS) $(PRIM_OBJS) $(TWIN_OBJS) \
-   $(DMD_OBJS) $(SR2_OBJS) $(K1B2_OBJS) \
+   $(DMD_OBJS) $(SR2_OBJS) $(K1B2_OBJS) $(SG_OBJS) \
    $(AF_GPU_OBJS) $(GCW_GPU_OBJS) $(GFND_GPU_OBJS) $(MF_GPU_OBJS) $(PIX_GPU_OBJS) $(XYYX_GPU_OBJS)
 
 all: $(CPU_PROGS) $(GPU_PROGS)
@@ -172,6 +174,9 @@ pixsievecl: $(GPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(PIX_GPU_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(GPULDFLAGS) $(EXTRALDFLAGS)
 
 psieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(PRIM_OBJS)
+	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(EXTRALDFLAGS)
+
+sgsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(SG_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(EXTRALDFLAGS)
    
 srsieve2: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(SR2_OBJS)

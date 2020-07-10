@@ -1,6 +1,9 @@
-2.0.3 - June 13, 2020
+2.0.3 - July 10, 2020
    Fixed an issue where sieving would stop after rebuilding workers.
-   
+   Fixed an issue with factor rate calculation if all factors are found in the 
+   first minute and none after.
+   Added sgsieve for Sophie-Germain searches
+
 2.0.2 - June 8, 2020
    Ensure that -p always overrides "last prime" from input file.
    Fixed fkbnsieve as it can sometimes miss factors for small p.
