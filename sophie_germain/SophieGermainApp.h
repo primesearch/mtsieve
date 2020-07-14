@@ -16,7 +16,7 @@
 #define KMAX_MAX (UINT64_C(1)<<62)
 #define NMAX_MAX (1 << 31)
 
-typedef enum { FF_UNKNOWN = 1, FF_ABCD, FF_ABC, FF_NEWPGEN } format_t;
+typedef enum { FF_UNKNOWN = 1, FF_ABCD, FF_NEWPGEN } format_t;
 
 class SophieGermainApp : public FactorApp
 {
@@ -47,12 +47,16 @@ protected:
    void              ProcessInputTermsFile(bool haveBitMap);
    bool              IsWritingOutputTermsFile(void){ return true; };
    void              WriteOutputTermsFile(uint64_t largestPrime);
+   
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
 
 private:
    uint64_t          WriteABCDTermsFile(uint64_t maxPrime, FILE *termsFile);
+   uint64_t          WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsFile);
    
    vector<bool>      iv_Terms;
+   
+   format_t          it_Format;
    
    string            is_InputFileName;
    string            is_OutputFileName;

@@ -15,7 +15,7 @@
 #include "SophieGermainWorker.h"
 
 #define APP_NAME        "sgsieve"
-#define APP_VERSION     "1.0"
+#define APP_VERSION     "1.1"
 
 #define NMAX_MAX        (1 << 31)
 
@@ -33,6 +33,8 @@ SophieGermainApp::SophieGermainApp() : FactorApp()
    SetBanner(APP_NAME " v" APP_VERSION ", a program to eliminate terms for Sophie-Germain prime searches for base 2, fixed n and variable k");
    SetLogFileName("sgsieve.log");
    
+   it_Format = FF_ABCD;
+   
    il_MinK = 0;
    il_MaxK = 0;
    ii_N = 0;
@@ -49,17 +51,19 @@ void SophieGermainApp::Help(void)
    printf("-k --kmin=k           Minimum k to search\n");
    printf("-K --kmax=K           Maximum k to search\n");
    printf("-n --exp=n            Exponent to search\n");
+   printf("-f --format=f         Format of output file (D=ABCD (default), N=NEWPGEN)\n");
 }
 
 void  SophieGermainApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "k:K:n:";
+   shortOpts += "k:K:n:f:";
 
    AppendLongOpt(longOpts, "kmin",           required_argument, 0, 'k');
    AppendLongOpt(longOpts, "kmax",           required_argument, 0, 'K');
    AppendLongOpt(longOpts, "exp",            required_argument, 0, 'n');
+   AppendLongOpt(longOpts, "format",         required_argument, 0, 'f');
 }
 
 parse_t SophieGermainApp::ParseOption(int opt, char *arg, const char *source)
@@ -82,6 +86,18 @@ parse_t SophieGermainApp::ParseOption(int opt, char *arg, const char *source)
       case 'n':
          status = Parser::Parse(arg, 1, NMAX_MAX, ii_N);
          break;
+         
+      case 'f':
+         char value;
+         status = Parser::Parse(arg, "DN", value);
+         
+         it_Format = FF_UNKNOWN;
+   
+         if (value == 'D')
+            it_Format = FF_ABCD;
+         if (value == 'N')
+            it_Format = FF_NEWPGEN;
+         break;
    }
 
    return status;
@@ -89,6 +105,9 @@ parse_t SophieGermainApp::ParseOption(int opt, char *arg, const char *source)
 
 void SophieGermainApp::ValidateOptions(void)
 {
+   if (it_Format == FF_UNKNOWN)
+      FatalError("File format not valid, use D (ABCD) or N (NewPGen)");
+   
    if (is_InputTermsFileName.length() > 0)
    {
       ProcessInputTermsFile(false);
@@ -159,10 +178,11 @@ Worker *SophieGermainApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t lar
 
 void SophieGermainApp::ProcessInputTermsFile(bool haveBitMap)
 {
-   FILE    *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
-   char     buffer[1000];
-   uint32_t n1, n2;
-   uint64_t bit, k, diff, lastPrime;
+   FILE      *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
+   char       buffer[1000];
+   uint32_t   n1, n2, n;
+   uint64_t   bit, k, diff, lastPrime;
+   format_t   format = FF_UNKNOWN;
 
    if (!fPtr)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
@@ -171,16 +191,34 @@ void SophieGermainApp::ProcessInputTermsFile(bool haveBitMap)
       FatalError("No data in input file %s", is_InputTermsFileName.c_str());
    
    if (!haveBitMap)
+   {
+      ii_N = 0;
       il_MinK = il_MaxK = 0;
+   }
    
-   if (sscanf(buffer, "ABCD $a*2^%d+1 & 2*$a*2^%d+1)-1 [%" SCNu64"] // Sieved to %" SCNu64"", 
-      &n1, &n2, &k, &lastPrime) != 6)
-      FatalError("Line 1 is not a valid ABCD line in input file %s", is_InputTermsFileName.c_str());
-      
-   if (n1 != n2)
-      FatalError("Line 1 exponents in ABCD input file %s do not match", is_InputTermsFileName.c_str());
+   if (sscanf(buffer, "ABCD $a*2^%u+1 & 2*($a*2^%u+1)-1 [%" SCNu64"] // Sieved to %" SCNu64"", &n1, &n2, &k, &lastPrime) == 4) {
+      if (n1 != n2)
+         FatalError("Line 1 exponents in ABCD input file %s do not match", is_InputTermsFileName.c_str());
    
-   ii_N = n1;
+      ii_N = n1;
+      format = FF_ABCD;
+
+      if (haveBitMap)
+      {
+         bit = BIT(k);
+
+         iv_Terms[bit] = true;
+         il_TermCount++;
+      }
+      else 
+         il_MinK = il_MaxK = k;
+   }
+   else if (sscanf(buffer, "%" SCNu64":C:0:2:5", &lastPrime) == 1)
+   {
+      format = FF_NEWPGEN;
+   }
+   else
+      FatalError("Input file %s has unknown format", is_InputTermsFileName.c_str());     
    
    SetMinPrime(lastPrime);
    
@@ -189,24 +227,55 @@ void SophieGermainApp::ProcessInputTermsFile(bool haveBitMap)
       if (!StripCRLF(buffer))
          continue;
       
-      if (sscanf(buffer, "%" SCNu64"", &diff) != 1)
-         FatalError("Line %s is malformed", buffer);
-      
-      k += diff;
-      break;
-
-      if (haveBitMap)
+      if (format == FF_ABCD)
       {
-         bit = BIT(k);
+         if (sscanf(buffer, "%" SCNu64"", &diff) != 1)
+            FatalError("Line %s is malformed", buffer);
+         
+         k += diff;
 
-         iv_Terms[bit] = true;
-         il_TermCount++;
+         if (haveBitMap)
+         {
+            bit = BIT(k);
 
+            iv_Terms[bit] = true;
+            il_TermCount++;
+         }
+         else
+         {
+            if (k == 0)
+               FatalError("dd");
+            
+            if (il_MinK > k) il_MinK = k;
+            if (il_MaxK < k) il_MaxK = k;
+         }
       }
       else
       {
-         if (il_MinK > k) il_MinK = k;
-         if (il_MaxK < k) il_MaxK = k;
+         if (sscanf(buffer, "%" SCNu64" %u", &k, &n) != 2)
+            FatalError("Line %s is malformed", buffer);
+         
+         if (ii_N == 0)
+         {
+            ii_N = n;
+            il_MinK = il_MaxK = k;
+         }
+         
+         if (n != ii_N)
+            FatalError("Only one n is supported");
+
+         if (haveBitMap)
+         {
+            bit = BIT(k);
+
+            iv_Terms[bit] = true;
+            il_TermCount++;
+         }
+         else
+         {
+            if (il_MinK > k) il_MinK = k;
+            if (il_MaxK < k) il_MaxK = k;
+         }
       }
    }
 
@@ -246,16 +315,34 @@ bool SophieGermainApp::ApplyFactor(const char *term)
 
 void SophieGermainApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
-   uint64_t k, kCount = 0, previousK;
-   uint64_t bit;
+   uint64_t kCount = 0;
    
-   ip_FactorAppLock->Lock();
-
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
 
    if (!termsFile)
       FatalError("Unable to open output file %s", is_OutputTermsFileName.c_str());
+   
+   ip_FactorAppLock->Lock();
+      
+   if (it_Format == FF_ABCD)
+      kCount = WriteABCDTermsFile(largestPrime, termsFile);
+   
+   if (it_Format == FF_NEWPGEN)
+      kCount = WriteNewPGenTermsFile(largestPrime, termsFile);
+   
+   fclose(termsFile);
+   
+   if (kCount != il_TermCount)
+      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", kCount, il_TermCount);
+   
+   ip_FactorAppLock->Release();
+}
 
+uint64_t SophieGermainApp::WriteABCDTermsFile(uint64_t largestPrime, FILE *termsFile)
+{
+   uint64_t k, kCount = 0, previousK;
+   uint64_t bit;
+   
    for (k=il_MinK; k<=il_MaxK; k+=2)
    {
       bit = BIT(k);
@@ -273,7 +360,6 @@ void SophieGermainApp::WriteOutputTermsFile(uint64_t largestPrime)
    kCount = 1;
    k += 2;
    
-   bit = BIT(k);
    for (; k<=il_MaxK; k+=2)
    {
       bit = BIT(k);
@@ -286,12 +372,30 @@ void SophieGermainApp::WriteOutputTermsFile(uint64_t largestPrime)
       }
    }
 
-   fclose(termsFile);
+   return kCount;
+}
+
+uint64_t SophieGermainApp::WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsFile)
+{
+   uint64_t k, kCount = 0;
+   uint64_t bit;
+
+   fprintf(termsFile, "%" PRIu64":C:0:2:5\n", maxPrime);
+      
+   k = il_MinK;
    
-   if (kCount != il_TermCount)
-      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", kCount, il_TermCount);
+   for (; k<=il_MaxK; k+=2)
+   {
+      bit = BIT(k);
+      
+      if (iv_Terms[bit])
+      {
+         fprintf(termsFile, "%" PRIu64" %u\n", k, ii_N);
+         kCount++;
+      }
+   }
    
-   ip_FactorAppLock->Release();
+   return kCount;
 }
 
 void  SophieGermainApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
