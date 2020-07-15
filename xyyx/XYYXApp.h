@@ -45,8 +45,12 @@ public:
    bool              IsMinus(void) { return ib_IsMinus; };
 
    void              GetTerms(uint32_t *xyTerms, uint32_t *yxTerms);
-   uint32_t          GetTerms(uint32_t *terms, uint32_t minGroupSize, uint32_t maxGroupSize);
    
+#ifdef HAVE_GPU_WORKERS
+   uint32_t          GetNumberOfGroups(void);
+   uint32_t          GetGroupedTerms(uint32_t *terms);
+#endif
+
 protected:
    void              PreSieveHook(void) {};
    bool              PostSieveHook(void) { return true; };
@@ -61,7 +65,7 @@ protected:
 
 private:
    void              SetInitialTerms(void);
-   
+
    vector<bool>      iv_PlusTerms;
    vector<bool>      iv_MinusTerms;
    

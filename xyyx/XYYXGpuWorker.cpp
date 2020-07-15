@@ -39,25 +39,21 @@ XYYXGpuWorker::XYYXGpuWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
 
    AllocatePrimeList(ip_XYYXKernel->GetWorkGroupSize());
    
-   // If there are more y for any x than the number of steps, then we'll give an error
-   // to the user at runtime when building the term groups.
-   ii_MinGroupSize = ip_XYYXApp->GetGpuSteps();
-   ii_MaxGroupSize = 2 * ii_MinGroupSize;
+   ii_GroupSize = ip_XYYXApp->GetGpuSteps();
    
-   ii_MaxTermCount = ip_XYYXApp->GetTermCount() + 2 * ip_XYYXApp->GetXCount() + 2 * ip_XYYXApp->GetYCount();
-   
-   // Ensure the buffer big enough to avoid issues when executing the kernel
-   if (ii_MaxTermCount < ii_MaxGroupSize)
-      ii_MaxTermCount = ii_MaxGroupSize;
-
    // Allocate enough memory to hold all of the terms.
-   ii_Terms = (uint32_t *) xmalloc(ii_MaxTermCount*sizeof(int32_t));
+   ii_Groups = ip_XYYXApp->GetNumberOfGroups();
    
+   ii_GroupedTerms = (uint32_t *) xmalloc(ii_Groups * ii_GroupSize * sizeof(uint32_t));
+   
+   if (myId == 1)
+      ip_XYYXApp->WriteToConsole(COT_OTHER, "Creating %u groups with %u terms each for GPU", ii_Groups, ii_GroupSize);
+      
    il_PrimeList = (uint64_t *) xmalloc(ii_WorkSize*sizeof(uint64_t));
    il_MagicNumber = (uint64_t *) xmalloc(ii_WorkSize*sizeof(uint64_t));
    il_MagicShift = (uint64_t *) xmalloc(ii_WorkSize*sizeof(uint64_t));
-   il_MinusFactorList = (uint64_t *) xmalloc(ii_MaxGroupSize*sizeof(uint64_t));
-   il_PlusFactorList = (uint64_t *) xmalloc(ii_MaxGroupSize*sizeof(uint64_t));
+   il_MinusFactorList = (uint64_t *) xmalloc(ii_GroupSize*sizeof(uint64_t));
+   il_PlusFactorList = (uint64_t *) xmalloc(ii_GroupSize*sizeof(uint64_t));
    
    ip_KAPrime        = new KernelArgument(ip_XYYXApp->GetDevice(), "prime", KA_HOST_TO_GPU, il_PrimeList, ii_WorkSize);
    ip_MKAMagicNumber = new KernelArgument(ip_XYYXApp->GetDevice(), "magic_number", KA_GPU_TO_HOST, il_MagicNumber, ii_WorkSize);
@@ -67,9 +63,9 @@ XYYXGpuWorker::XYYXGpuWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
    ip_XYYXKAMagicShift  = new KernelArgument(ip_XYYXApp->GetDevice(), "magic_shift", KA_HOST_TO_GPU, il_MagicShift, ii_WorkSize);
 
    // We will change the pointer before executing the kernel
-   ip_KATerms        = new KernelArgument(ip_XYYXApp->GetDevice(), "terms", KA_HOST_TO_GPU, ii_Terms, ii_MaxGroupSize);
-   ip_KAMinusFactors = new KernelArgument(ip_XYYXApp->GetDevice(), "minus_factors", KA_BIDIRECTIONAL, il_MinusFactorList, ii_MaxGroupSize);
-   ip_KAPlusFactors  = new KernelArgument(ip_XYYXApp->GetDevice(), "plus_factors", KA_BIDIRECTIONAL, il_PlusFactorList, ii_MaxGroupSize);
+   ip_KATerms        = new KernelArgument(ip_XYYXApp->GetDevice(), "terms", KA_HOST_TO_GPU, ii_GroupedTerms, ii_GroupSize);
+   ip_KAMinusFactors = new KernelArgument(ip_XYYXApp->GetDevice(), "minus_factors", KA_BIDIRECTIONAL, il_MinusFactorList, ii_GroupSize);
+   ip_KAPlusFactors  = new KernelArgument(ip_XYYXApp->GetDevice(), "plus_factors", KA_BIDIRECTIONAL, il_PlusFactorList, ii_GroupSize);
 
    ip_MagicKernel->AddArgument(ip_KAPrime);
    ip_MagicKernel->AddArgument(ip_MKAMagicNumber);
@@ -105,7 +101,7 @@ void  XYYXGpuWorker::CleanUp(void)
    delete ip_MagicKernel;
    delete ip_XYYXKernel;
 
-   xfree(ii_Terms);
+   xfree(ii_GroupedTerms);
    xfree(il_MagicNumber);
    xfree(il_MagicShift);
    xfree(il_MinusFactorList);
@@ -124,7 +120,7 @@ void  XYYXGpuWorker::TestMegaPrimeChunk(void)
    // which will speed up testing for the next range of p.
    if (il_PrimeList[0] > il_NextTermsBuild)
    {
-      ii_Groups = ip_XYYXApp->GetTerms(ii_Terms, ii_MinGroupSize, ii_MaxGroupSize);
+      ii_Groups = ip_XYYXApp->GetGroupedTerms(ii_GroupedTerms);
       
       il_NextTermsBuild = (il_PrimeList[0] << 1);
    }
@@ -132,33 +128,35 @@ void  XYYXGpuWorker::TestMegaPrimeChunk(void)
    // Compute magic numbers
    ip_MagicKernel->Execute(ii_WorkSize);
 
-   for (group=0; group<ii_Groups; group++) {
-      if (ip_XYYXApp->IsInterrupted() || time(NULL) > reportTime) {
+   for (group=0; group<ii_Groups; group++)
+   {
+      if (ip_XYYXApp->IsInterrupted() && time(NULL) > reportTime)
+      {
          ip_XYYXApp->WriteToConsole(COT_SIEVE, "Thread %d has completed %d of %d iterations", ii_MyId, group, ii_Groups);
          reportTime = time(NULL) + 60;
       }
       
-      for (ii=0; ii<ii_MaxGroupSize; ii++)
+      for (ii=0; ii<ii_GroupSize; ii++)
       {
          il_MinusFactorList[ii] = PMAX_MAX_62BIT;
          il_PlusFactorList[ii] = PMAX_MAX_62BIT;
       }
       
-      idx = group * ii_MaxGroupSize;
-      ip_KATerms->SetHostMemory(&ii_Terms[idx]);
+      idx = group * ii_GroupSize;
+      ip_KATerms->SetHostMemory(&ii_GroupedTerms[idx]);
 
       ip_XYYXKernel->Execute(ii_WorkSize);
 
       ii = 0;
-      while (ii_Terms[idx] != 0)
+      while (ii_GroupedTerms[idx] != 0)
       {
-         x = ii_Terms[idx];         
+         x = ii_GroupedTerms[idx];         
          idx++;
          ii++;
          
-         while (ii_Terms[idx] != 0)
+         while (ii_GroupedTerms[idx] != 0)
          {
-            y = ii_Terms[idx];
+            y = ii_GroupedTerms[idx];
             
             if (il_MinusFactorList[ii] != PMAX_MAX_62BIT)
             {
@@ -205,7 +203,7 @@ void  XYYXGpuWorker::VerifyFactor(uint64_t p, uint32_t x, uint32_t y, int32_t c)
    yPowX = fpu_powmod(y, x, p);
    
    fpu_pop();
-   
+      
    if (c == -1 && xPowY != yPowX)
       FatalError("%" PRIu64" does not divide %u^%u-%u^%u", p, x, y, y, x);
    

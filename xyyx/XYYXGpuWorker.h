@@ -36,11 +36,9 @@ protected:
    uint64_t         *il_MinusFactorList;
    uint64_t         *il_PlusFactorList;
    
-   uint32_t         *ii_Terms;
    uint32_t          ii_Groups;
-   uint32_t          ii_MinGroupSize;
-   uint32_t          ii_MaxGroupSize;
-   uint32_t          ii_MaxTermCount;
+   uint32_t          ii_GroupSize;
+   uint32_t         *ii_GroupedTerms;
    uint64_t          il_NextTermsBuild;
 
    XYYXApp          *ip_XYYXApp;

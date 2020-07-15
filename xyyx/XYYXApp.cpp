@@ -19,7 +19,7 @@
 #endif
 
 #define APP_NAME        "xyyxsieve"
-#define APP_VERSION     "1.5"
+#define APP_VERSION     "1.6"
 
 #define BIT(x, y)       ((((x) - ii_MinX) * GetYCount()) + ((y) - ii_MinY))
 
@@ -40,14 +40,14 @@ XYYXApp::XYYXApp(void) : FactorApp()
    ii_MinY = 0;
    ii_MaxY = 0;
    ii_CpuWorkSize = 10000;
-   ii_GpuSteps = 2000;
+   ii_GpuSteps = 5000;
    ib_IsPlus = false;
    ib_IsMinus = false;
    SetAppMinPrime(3);
    ib_UseAvx = true;
    
   // SetBlockWhenProcessingFirstChunk(true);
-   
+
 #ifdef HAVE_GPU_WORKERS
    ib_SupportsGPU = true;
 #endif
@@ -536,31 +536,101 @@ void  XYYXApp::GetTerms(uint32_t *xyTerms, uint32_t *yxTerms)
    
 }
 
-// Build multiple one dimensional arrays of terms in groups.
-uint32_t  XYYXApp::GetTerms(uint32_t *terms, uint32_t minGroupSize, uint32_t maxGroupSize)
+#ifdef HAVE_GPU_WORKERS
+uint32_t  XYYXApp::GetNumberOfGroups(void)
 {
-   uint32_t index = 0, bit;
-   uint32_t groupCount = 0;
-   uint32_t termsInGroup = 0, x, y;
+   uint32_t bit, x, y;
+   uint32_t groupCount = 1;
+   uint32_t termsInGroup = 0, termsForX = 0;
+   bool     firstXInGroup;
    
    ip_FactorAppLock->Lock();
 
-   for (x=ii_MinX; x<=ii_MaxX; x++)
+   firstXInGroup = true;
+   termsInGroup = 0;
+
+   x = ii_MinX;
+   
+   do
    {
-      // If the group is full, then start another group
-      if (termsInGroup > minGroupSize)
+      termsForX = 0;
+      
+      for (y=ii_MinY; y<=ii_MaxY; y++)
       {
-         // Indicate that there are no more terms for this group
-         terms[index] = 0;
-         groupCount++;
+         bit = BIT(x, y);
          
-         index = maxGroupSize * groupCount;
+         if (iv_PlusTerms[bit] || iv_MinusTerms[bit])
+         {
+            termsInGroup++;
+            termsForX++;
+         }
+      }
+      
+      // Account for x for the start of the group and 0 for the end of the group.
+      termsInGroup += 2;
+      
+      // We need all y for the first x to fit into a group.
+      if (firstXInGroup && termsForX >= (ii_GpuSteps - 2))
+         FatalError("Too many terms for x = %u.  Increase setting for -S to %u and try again", x, termsForX+10);
+
+      firstXInGroup = false;
+
+      // If not enough space for all y for this x, then put this x into the next group.
+      if ((termsForX + termsInGroup) >= (ii_GpuSteps - 2))
+      {
          termsInGroup = 0;
+         firstXInGroup = true;
+         groupCount++;
+         continue;
+      }
+      
+      x++;
+   } while (x <= ii_MaxX);
+
+   ip_FactorAppLock->Release();
+   
+   return groupCount;
+}
+
+// Build multiple one dimensional arrays of terms in groups.
+uint32_t   XYYXApp::GetGroupedTerms(uint32_t *terms)
+{
+   uint32_t  bit, x, y;
+   uint32_t  groupIndex = 0;
+   uint32_t  termsForX = 0;
+   uint32_t  index, maxIndexForGroup;
+   
+   ip_FactorAppLock->Lock();
+
+   index = 0;
+   maxIndexForGroup = index + ii_GpuSteps;
+
+   x = ii_MinX;
+   
+   do
+   {
+      termsForX = 0;
+      
+      for (y=ii_MinY; y<=ii_MaxY; y++)
+      {
+         bit = BIT(x, y);
+         
+         if (iv_PlusTerms[bit] || iv_MinusTerms[bit])
+            termsForX++;
       }
 
+      // If not enough space for all y for this x, then put this x into the next group.
+      if ((termsForX + index) >= (maxIndexForGroup - 2))
+      {
+         terms[index] = 0;
+         groupIndex++;
+         index = groupIndex * ii_GpuSteps;
+         maxIndexForGroup = index + ii_GpuSteps;
+         continue;
+      }
+      
       terms[index] = x;
       index++;
-      termsInGroup++;
 
       for (y=ii_MinY; y<=ii_MaxY; y++)
       {
@@ -570,23 +640,18 @@ uint32_t  XYYXApp::GetTerms(uint32_t *terms, uint32_t minGroupSize, uint32_t max
          {
             terms[index] = y;
             index++;
-            termsInGroup++;
-
-            if (termsInGroup > maxGroupSize)
-               FatalError("Too many terms for x = %u.  Increase setting for -S to %u and try again", x, termsInGroup+10);
          }
       }
-      
-      // Indicate that there are no more terms for this x
+
       terms[index] = 0;
       index++;
-      termsInGroup++;
-   }
-   
-   // Indicate that there are no more terms for the last group
-   terms[index] = 0;
+      
+      x++;
+   } while (x <= ii_MaxX);
+
 
    ip_FactorAppLock->Release();
-
-   return groupCount + 1;
+   
+   return groupIndex + 1;
 }
+#endif
