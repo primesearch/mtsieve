@@ -118,13 +118,11 @@ parse_t XYYXApp::ParseOption(int opt, char *arg, const char *source)
          
       case 's':
          char value;
-         status = Parser::Parse(arg, "+-b", value);
+         status = Parser::Parse(arg, "+-", value);
          if (value == '-')
             ib_IsMinus = true;
          if (value == '+')
             ib_IsPlus = true;
-         if (value == 'b')
-            ib_IsPlus = ib_IsMinus = true;
          break;
          
 #ifdef HAVE_GPU_WORKERS
@@ -181,8 +179,11 @@ void XYYXApp::ValidateOptions(void)
       if (ii_MinY > ii_MaxY)
          FatalError("min y must be less than or equal to max y");
 
-      if (ii_MaxY < ii_MaxX)
-         FatalError("max y must be greater than max x");
+      if (ib_IsPlus && ii_MaxY > ii_MaxX)
+         FatalError("for + max x must be greater than max y");
+      
+      if (ib_IsMinus && ii_MaxY < ii_MaxX)
+         FatalError("for - max x must be less than max y");
 
       il_TermCount = GetXCount() * GetYCount();
       
