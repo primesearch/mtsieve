@@ -66,8 +66,7 @@ protected:
 private:
    void              SetInitialTerms(void);
 
-   vector<bool>      iv_PlusTerms;
-   vector<bool>      iv_MinusTerms;
+   vector<bool>      iv_Terms;
    
    bool              ib_UseAvx;
    bool              ib_IsPlus;

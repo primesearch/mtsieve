@@ -32,7 +32,7 @@ App *get_app(void)
 
 XYYXApp::XYYXApp(void) : FactorApp()
 {
-   SetBanner(APP_NAME " v" APP_VERSION ", a program to find factors numbers of the form x^y+y^x");
+   SetBanner(APP_NAME " v" APP_VERSION ", a program to find factors numbers of the form x^y+y^x or x^y-y^x");
    SetLogFileName("xyyxsieve.log");
 
    ii_MinX = 0;
@@ -118,11 +118,11 @@ parse_t XYYXApp::ParseOption(int opt, char *arg, const char *source)
          
       case 's':
          char value;
+         
          status = Parser::Parse(arg, "+-", value);
-         if (value == '-')
-            ib_IsMinus = true;
-         if (value == '+')
-            ib_IsPlus = true;
+         
+         ib_IsPlus = (value == '+');
+         ib_IsMinus = (value == '-');
          break;
          
 #ifdef HAVE_GPU_WORKERS
@@ -146,12 +146,9 @@ void XYYXApp::ValidateOptions(void)
       
       il_TermCount = GetXCount() * GetYCount();
       
-      iv_PlusTerms.resize(il_TermCount);
-      std::fill(iv_PlusTerms.begin(), iv_PlusTerms.end(), false);
-   
-      iv_MinusTerms.resize(il_TermCount);
-      std::fill(iv_MinusTerms.begin(), iv_MinusTerms.end(), false);
-   
+      iv_Terms.resize(il_TermCount);
+      std::fill(iv_Terms.begin(), iv_Terms.end(), false);
+      
       il_TermCount = 0;
       
       ProcessInputTermsFile(true);
@@ -179,20 +176,19 @@ void XYYXApp::ValidateOptions(void)
       if (ii_MinY > ii_MaxY)
          FatalError("min y must be less than or equal to max y");
 
+      // Force x > y due to how searches are typically executed
       if (ib_IsPlus && ii_MaxY > ii_MaxX)
          FatalError("for + max x must be greater than max y");
       
+      // Force x < y because we want x^y > y^x
       if (ib_IsMinus && ii_MaxY < ii_MaxX)
          FatalError("for - max x must be less than max y");
 
       il_TermCount = GetXCount() * GetYCount();
       
-      iv_PlusTerms.resize(il_TermCount);
-      std::fill(iv_PlusTerms.begin(), iv_PlusTerms.end(), false);
-   
-      iv_MinusTerms.resize(il_TermCount);
-      std::fill(iv_MinusTerms.begin(), iv_MinusTerms.end(), false);
-      
+      iv_Terms.resize(il_TermCount);
+      std::fill(iv_Terms.begin(), iv_Terms.end(), false);
+         
       SetInitialTerms();
    }
    
@@ -218,7 +214,7 @@ void XYYXApp::ProcessInputTermsFile(bool haveBitMap)
    FILE    *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
    char     buffer[200];
    uint32_t x, y;
-   int32_t  sign;
+   uint8_t  sign;
    uint64_t minPrime;
    
    if (!fPtr)
@@ -227,9 +223,15 @@ void XYYXApp::ProcessInputTermsFile(bool haveBitMap)
    if (fgets(buffer, 200,fPtr) == NULL)
       FatalError("File %s is empty", is_InputTermsFileName.c_str());
 
-   if (sscanf(buffer, "ABC $a^$b$c*$b^$a // Sieved to %" SCNu64, &minPrime) != 1)
+   if (sscanf(buffer, "ABC $a^$b%c$b^$a // Sieved to %" SCNu64"", &sign, &minPrime) != 2)
       FatalError("First line of the input file is malformed");
 
+   ib_IsPlus = (sign == '+');
+   ib_IsMinus = (sign == '+');
+   
+   if (!ib_IsMinus && !ib_IsPlus)
+      FatalError("The sign must be '+' or '-'");
+      
    // Reset this
    il_TermCount = 0;
 
@@ -240,16 +242,12 @@ void XYYXApp::ProcessInputTermsFile(bool haveBitMap)
       if (!StripCRLF(buffer))
          continue;
 
-      if (sscanf(buffer, "%u %u %d", &x, &y, &sign) != 3)
+      if (sscanf(buffer, "%u %u", &x, &y) != 2)
          FatalError("Line %s is malformed", buffer);
 
       if (haveBitMap)
       {
-         if (sign == +1)
-            iv_PlusTerms[BIT(x, y)] = true;
-         else
-            iv_MinusTerms[BIT(x, y)] = true;
-            
+         iv_Terms[BIT(x, y)] = true;
          il_TermCount++;
       }
       else
@@ -280,7 +278,7 @@ void XYYXApp::ProcessInputTermsFile(bool haveBitMap)
 bool XYYXApp::ApplyFactor(const char *term)
 {
    uint32_t x1, x2, y1, y2;
-   char     c;
+   uint8_t  c;
    
    if (sscanf(term, "%u^%u%c%u^%u", &x1, &y1, &c, &y2, &x2) != 5)
       FatalError("Could not parse term %s\n", term);
@@ -300,16 +298,9 @@ bool XYYXApp::ApplyFactor(const char *term)
    uint64_t bit = BIT(x1, y1);
    
    // No locking is needed because the Workers aren't running yet
-   if (c == '+' && iv_PlusTerms[bit])
+   if (iv_Terms[bit])
    {
-      iv_PlusTerms[bit] = false;
-      il_TermCount--;
-      return true;
-   }
-   
-   if (c == '-' && iv_MinusTerms[bit])
-   {
-      iv_MinusTerms[bit] = false;
+      iv_Terms[bit] = false;
       il_TermCount--;
       return true;
    }
@@ -330,7 +321,7 @@ void XYYXApp::WriteOutputTermsFile(uint64_t largestPrime)
    
    ip_FactorAppLock->Lock();
 
-   fprintf(fPtr, "ABC $a^$b$c*$b^$a // Sieved to %" PRIu64"\n", largestPrime);
+   fprintf(fPtr, "ABC $a^$b%c$b^$a // Sieved to %" PRIu64"\n", (ib_IsPlus ? '+' : '-'), largestPrime);
 
    for (x=ii_MinX; x<=ii_MaxX; x++)
    {
@@ -338,15 +329,9 @@ void XYYXApp::WriteOutputTermsFile(uint64_t largestPrime)
       {
          bit = BIT(x, y);
          
-         if (ib_IsPlus && iv_PlusTerms[bit])
+         if (iv_Terms[bit])
          {
-            fprintf(fPtr, "%u %u +1\n", x, y);
-            terms++;
-         }
-         
-         if (ib_IsMinus && iv_MinusTerms[bit])
-         {
-            fprintf(fPtr, "%u %u -1\n", x, y);
+            fprintf(fPtr, "%u %u\n", x, y);
             terms++;
          }
       }
@@ -380,18 +365,18 @@ bool XYYXApp::ReportFactor(uint64_t p, uint32_t x, uint32_t y, int32_t c)
 
    bit = BIT(x, y);
    
-   if (ib_IsPlus && c == +1 && iv_PlusTerms[bit])
+   if (ib_IsPlus && c == +1 && iv_Terms[bit])
    {
-      iv_PlusTerms[bit] = false;
+      iv_Terms[bit] = false;
       il_TermCount--;
       il_FactorCount++;
       removedTerm = true;
       LogFactor(p, "%u^%u+%u^%u", x, y, y, x);
    }
    
-   if (ib_IsMinus && c == -1 && iv_MinusTerms[bit])
+   if (ib_IsMinus && c == -1 && iv_Terms[bit])
    {
-      iv_MinusTerms[bit] = false;
+      iv_Terms[bit] = false;
       il_TermCount--;
       il_FactorCount++;
       removedTerm = true;
@@ -449,15 +434,9 @@ void  XYYXApp::SetInitialTerms(void)
 
          bit = BIT(x, y);
    
-         if (stillPlus)
+         if (stillPlus || stillMinus)
          {
-            iv_PlusTerms[bit] = true;
-            il_TermCount++;
-         }
-         
-         if (stillMinus)
-         {
-            iv_MinusTerms[bit] = true;
+            iv_Terms[bit] = true;
             il_TermCount++;
          }
       }
@@ -494,7 +473,7 @@ void  XYYXApp::GetTerms(uint32_t *xyTerms, uint32_t *yxTerms)
       {
          bit = BIT(x, y);
          
-         if (iv_PlusTerms[bit] || iv_MinusTerms[bit]) 
+         if (iv_Terms[bit]) 
          {
             *ptr = y;
             ptr++;
@@ -519,7 +498,7 @@ void  XYYXApp::GetTerms(uint32_t *xyTerms, uint32_t *yxTerms)
       {
          bit = BIT(x, y);
          
-         if (iv_PlusTerms[bit] || iv_MinusTerms[bit])
+         if (iv_Terms[bit])
          {
             *ptr = x;
             ptr++;
@@ -560,7 +539,7 @@ uint32_t  XYYXApp::GetNumberOfGroups(void)
       {
          bit = BIT(x, y);
          
-         if (iv_PlusTerms[bit] || iv_MinusTerms[bit])
+         if (iv_Terms[bit])
          {
             termsInGroup++;
             termsForX++;
@@ -616,7 +595,7 @@ uint32_t   XYYXApp::GetGroupedTerms(uint32_t *terms)
       {
          bit = BIT(x, y);
          
-         if (iv_PlusTerms[bit] || iv_MinusTerms[bit])
+         if (iv_Terms[bit])
             termsForX++;
       }
 
@@ -637,7 +616,7 @@ uint32_t   XYYXApp::GetGroupedTerms(uint32_t *terms)
       {
          bit = BIT(x, y);
          
-         if (iv_PlusTerms[bit] || iv_MinusTerms[bit])
+         if (iv_Terms[bit])
          {
             terms[index] = y;
             index++;
