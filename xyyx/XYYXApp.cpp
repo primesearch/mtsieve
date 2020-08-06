@@ -245,6 +245,9 @@ void XYYXApp::ProcessInputTermsFile(bool haveBitMap)
       if (sscanf(buffer, "%u %u", &x, &y) != 2)
          FatalError("Line %s is malformed", buffer);
 
+      if (y >= x)
+         continue;
+
       if (haveBitMap)
       {
          iv_Terms[BIT(x, y)] = true;
@@ -263,12 +266,6 @@ void XYYXApp::ProcessInputTermsFile(bool haveBitMap)
 
          if (y > ii_MaxY)
             ii_MaxY = y;
-
-         if (sign == 1)
-            ib_IsPlus = true;
-
-         if (sign == -1)
-            ib_IsMinus = true;
       }
    }
 
