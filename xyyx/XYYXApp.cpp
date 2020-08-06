@@ -19,7 +19,7 @@
 #endif
 
 #define APP_NAME        "xyyxsieve"
-#define APP_VERSION     "1.6"
+#define APP_VERSION     "1.7"
 
 #define BIT(x, y)       ((((x) - ii_MinX) * GetYCount()) + ((y) - ii_MinY))
 
@@ -447,52 +447,99 @@ void  XYYXApp::SetInitialTerms(void)
    WriteToConsole(COT_OTHER, "    %u because x and y have a common divisor", commonDivisorCount);
 }
 
-// Build two one dimensional arrays of terms.  The first array is will starts with the value for x
-// and is followed by each y for that x that does not have a factor.  The list of y ends with a 0.
-// Then the next x, and so on.  The list is done when it ends with two zeroes.  The second array
-// is like the first, but it starts with the first y and has each x for that y.
-//
-// Imagine we have 7 x,y terms (100, 205), (100, 207), (100, 211), (100, 213), (101, 204), (101, 206), (102, 207)
-// The xyTerms array would look like this: 100 205 207 211 213 0 101 204 206 0 102 207 0 0
-// The yxTerms array would look like this: 204 101 0 206 101 0 207 100 102 0 211 100 0 213 100 0 0
-void  XYYXApp::GetTerms(uint32_t *xyTerms, uint32_t *yxTerms)
+// Build two tables for the worker.  One table will be used to hold x^y mod p.  One will be used to hold y^x mod p.
+// This is a slightly more overhead to only having entries for remaining candidates, but it
+// reduces memory usage by a factor of 10.
+void   XYYXApp::GetTerms(bool supportsAvx, uint32_t avxRemaindersCount, bases_t *bases)
 {
-   uint32_t x, y, bit;
-   uint32_t *ptr;
-
+   uint32_t  x, prevX;
+   uint32_t  y, prevY;
+   uint32_t  bit, idx, powerCount, diffPowerIdx, maxDiff;
+   base_t   *xPowY, *yPowX;
+   
    ip_FactorAppLock->Lock();
+
+   ii_MaxPowerDiff = 0;
    
-   ptr = xyTerms;
-   
+   bases->xPowY = xPowY = (base_t *) xmalloc((ii_MaxX - ii_MinX + 1) * sizeof(base_t));
+
    for (x=ii_MinX; x<=ii_MaxX; x++)
    {
-      *ptr = x;
-      ptr++;
+      powerCount = 0;
+      maxDiff = 0;
+      prevY = 0;
       
       for (y=ii_MinY; y<=ii_MaxY; y++)
       {
          bit = BIT(x, y);
          
-         if (iv_Terms[bit]) 
+         if (iv_Terms[bit])
          {
-            *ptr = y;
-            ptr++;
+            powerCount++;
+            
+            if (y - prevY > maxDiff)
+               maxDiff = y - prevY;
+            
+            prevY = y;
          }
       }
       
-      *ptr = 0;
-      ptr++;
-   }
+      xPowY[x - ii_MinX].base = x;
+      xPowY[x - ii_MinX].powerCount = powerCount;
+         
+      if (powerCount > 0)
+      {
+         if (ii_MaxPowerDiff < maxDiff)
+            ii_MaxPowerDiff = maxDiff;
 
-   *ptr = 0;
-   ptr++;
+         xPowY[x - ii_MinX].maxPowerDiff = maxDiff;
+         xPowY[x - ii_MinX].distinctPowers = 0;
+         xPowY[x - ii_MinX].powers = (power_t *) xmalloc(powerCount * sizeof(power_t));
+         xPowY[x - ii_MinX].neededPowers = (uint8_t *) xmalloc(maxDiff * sizeof(uint8_t));
+
+         powerCount = 0;
+         prevY = 0;
+         
+         for (y=ii_MinY; y<=ii_MaxY; y++)
+         {
+            bit = BIT(x, y);
+            
+            if (iv_Terms[bit])
+            {
+               diffPowerIdx = (y - prevY) / 2;
+               
+               xPowY[x - ii_MinX].powers[powerCount].exponent = y;
+               xPowY[x - ii_MinX].powers[powerCount].diffPowerIdx = diffPowerIdx;
+               
+               // We allocate here to ensure that the array is properly aligned for AVX.
+               if (supportsAvx && ib_UseAvx)
+                  xPowY[x - ii_MinX].powers[powerCount].avxRemainders = (double *) xmalloc(avxRemaindersCount * sizeof(double));
+               
+               // Note that y - prevY is always even
+               if (powerCount > 0)
+               {
+                  if (xPowY[x - ii_MinX].neededPowers[diffPowerIdx] == 0)
+                     xPowY[x - ii_MinX].distinctPowers++;
+                  
+                  xPowY[x - ii_MinX].neededPowers[diffPowerIdx] = 1;
+               }
+               
+               powerCount++;
+               
+               prevY = y;
+            }
+         }
+
+      }
+   }
    
-   ptr = yxTerms;
+   bases->yPowX = yPowX = (base_t *) xmalloc((ii_MaxY - ii_MinY + 1) * sizeof(base_t));
    
    for (y=ii_MinY; y<=ii_MaxY; y++)
    {
-      *ptr = y;
-      ptr++;
+      powerCount = 0;
+      maxDiff = 0;
+      prevX = 0;
       
       for (x=ii_MinX; x<=ii_MaxX; x++)
       {
@@ -500,20 +547,71 @@ void  XYYXApp::GetTerms(uint32_t *xyTerms, uint32_t *yxTerms)
          
          if (iv_Terms[bit])
          {
-            *ptr = x;
-            ptr++;
+            powerCount++;
+            
+            if (x - prevX > maxDiff)
+               maxDiff = x - prevX;
+            
+            prevX = x;
          }
       }
       
-      *ptr = 0;
-      ptr++;
-   }
+      yPowX[y - ii_MinY].base = y;
+      yPowX[y - ii_MinY].powerCount = powerCount;
+      
+      if (powerCount > 0)
+      {
+         if (ii_MaxPowerDiff < maxDiff)
+            ii_MaxPowerDiff = maxDiff;
+         
+         yPowX[y - ii_MinY].maxPowerDiff = maxDiff;
+         yPowX[y - ii_MinY].distinctPowers = 0;
+         yPowX[y - ii_MinY].powers = (power_t *) xmalloc(powerCount * sizeof(power_t));
+         yPowX[y - ii_MinY].neededPowers = (uint8_t *) xmalloc(maxDiff * sizeof(uint8_t));
 
-   *ptr = 0;
-   ptr++;
+         powerCount = 0;
+         prevX = 0;
+         
+         for (x=ii_MinX; x<=ii_MaxX; x++)
+         {
+            bit = BIT(x, y);
+            
+            if (iv_Terms[bit])
+            {
+               diffPowerIdx = (x - prevX) / 2;
+               
+               yPowX[y - ii_MinY].powers[powerCount].exponent = x;
+               yPowX[y - ii_MinY].powers[powerCount].diffPowerIdx = diffPowerIdx;
+               yPowX[y - ii_MinY].powers[powerCount].avxRemainders = 0;
+               
+               // Note that x - prevX is always even
+               if (powerCount > 0)
+               {
+                  if (yPowX[y - ii_MinY].neededPowers[diffPowerIdx] == 0)
+                     yPowX[y - ii_MinY].distinctPowers++;
+                  
+                  yPowX[y - ii_MinY].neededPowers[diffPowerIdx] = 1;
+               }
+               
+               for (idx=0; idx<xPowY[x - ii_MinX].powerCount; idx++)
+               {
+                  if (xPowY[x - ii_MinX].powers[idx].exponent == y)
+                  {
+                     // Link these together so that we can find x^y that corresponds to y^x
+                     xPowY[x - ii_MinX].powers[idx].pairedPower = &yPowX[y - ii_MinY].powers[powerCount];
+                     yPowX[y - ii_MinY].powers[powerCount].pairedPower = &xPowY[x - ii_MinX].powers[idx];
+                  }
+               }
+               
+               powerCount++;
+               
+               prevX = x;
+            }            
+         }
+      }
+   }
    
    ip_FactorAppLock->Release();
-   
 }
 
 #ifdef HAVE_GPU_WORKERS

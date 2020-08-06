@@ -15,6 +15,29 @@
 
 #include "../core/FactorApp.h"
 
+typedef struct {
+   uint32_t   exponent;
+   uint32_t   base;
+   uint32_t   diffPowerIdx;
+   uint64_t   fpuRemainders[4];
+   double    *avxRemainders;
+   void      *pairedPower;
+} power_t;
+
+typedef struct {
+   uint32_t   base;
+   uint32_t   powerCount;
+   uint32_t   maxPowerDiff;
+   uint32_t   distinctPowers;
+   uint8_t   *neededPowers;
+   power_t   *powers;
+} base_t;
+
+typedef struct {
+   base_t    *xPowY;
+   base_t    *yPowX;
+} bases_t;
+
 class XYYXApp : public FactorApp
 {
 public:
@@ -35,6 +58,7 @@ public:
    uint32_t          GetMaxX(void) { return ii_MaxX; };
    uint32_t          GetMinY(void) { return ii_MinY; };
    uint32_t          GetMaxY(void) { return ii_MaxY; };
+   uint32_t          GetMaxPowerDiff(void) { return ii_MaxPowerDiff; };
    uint32_t          GetGpuSteps(void) { return ii_GpuSteps; }
    uint64_t          GetTermCount(void) { return il_TermCount; }
    uint32_t          GetXCount(void) { return (ii_MaxX - ii_MinX + 1); };
@@ -44,7 +68,7 @@ public:
    bool              IsPlus(void) { return ib_IsPlus; };
    bool              IsMinus(void) { return ib_IsMinus; };
 
-   void              GetTerms(uint32_t *xyTerms, uint32_t *yxTerms);
+   void              GetTerms(bool supportsAvx, uint32_t avxRemaindersCount, bases_t *bases);
    
 #ifdef HAVE_GPU_WORKERS
    uint32_t          GetNumberOfGroups(void);
@@ -76,6 +100,7 @@ private:
    uint32_t          ii_MinY;
    uint32_t          ii_MaxY;
    uint32_t          ii_GpuSteps;
+   uint32_t          ii_MaxPowerDiff;
 };
 
 #endif
