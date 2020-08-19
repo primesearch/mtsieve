@@ -19,7 +19,7 @@
 #endif
 
 #define APP_NAME        "xyyxsieve"
-#define APP_VERSION     "1.7"
+#define APP_VERSION     "1.8"
 
 #define BIT(x, y)       ((((x) - ii_MinX) * GetYCount()) + ((y) - ii_MinY))
 
@@ -391,6 +391,7 @@ void  XYYXApp::SetInitialTerms(void)
    uint32_t   x, y, bit;
    uint32_t   evenCount = 0;
    uint32_t   commonDivisorCount = 0;
+   uint32_t   xGTEy = 0, yGTEx = 0;
    
    // Reset this
    il_TermCount = 0;
@@ -401,6 +402,18 @@ void  XYYXApp::SetInitialTerms(void)
       {
          bool stillPlus = ib_IsPlus;
          bool stillMinus = ib_IsMinus;
+
+         if (ib_IsMinus && x >= y)
+         {
+            xGTEy++;
+            continue;
+         }
+         
+         if (ib_IsPlus && y >= x)
+         {
+            yGTEx++;
+            continue;
+         }
 
          // If x and y are both odd, then both x^y+y^x and x^y-y^x are even
          // so we don't need to add them
@@ -440,6 +453,12 @@ void  XYYXApp::SetInitialTerms(void)
    }
 
    WriteToConsole(COT_OTHER, "Quick elimination of terms info (in order of check):");
+   
+   if (ib_IsMinus)
+      WriteToConsole(COT_OTHER, "    %u because x >= y", xGTEy);
+   if (ib_IsPlus)
+      WriteToConsole(COT_OTHER, "    %u because y >= x", yGTEx);
+   
    WriteToConsole(COT_OTHER, "    %u because the term is even", evenCount);
    WriteToConsole(COT_OTHER, "    %u because x and y have a common divisor", commonDivisorCount);
 }
@@ -451,7 +470,8 @@ void   XYYXApp::GetTerms(bool supportsAvx, uint32_t avxRemaindersCount, bases_t 
 {
    uint32_t  x, prevX;
    uint32_t  y, prevY;
-   uint32_t  bit, idx, powerCount, diffPowerIdx, maxDiff;
+   uint32_t  bit, idx, powerCount, powerIndex;
+   uint32_t  diffPowerIdx, maxDiff;
    base_t   *xPowY, *yPowX;
    
    ip_FactorAppLock->Lock();
@@ -491,10 +511,11 @@ void   XYYXApp::GetTerms(bool supportsAvx, uint32_t avxRemaindersCount, bases_t 
 
          xPowY[x - ii_MinX].maxPowerDiff = maxDiff;
          xPowY[x - ii_MinX].distinctPowers = 0;
+         xPowY[x - ii_MinX].powerIndices = (uint32_t *) xmalloc((ii_MaxY - ii_MinY + 1) * sizeof(uint32_t));
          xPowY[x - ii_MinX].powers = (power_t *) xmalloc(powerCount * sizeof(power_t));
          xPowY[x - ii_MinX].neededPowers = (uint8_t *) xmalloc(maxDiff * sizeof(uint8_t));
 
-         powerCount = 0;
+         powerIndex = 0;
          prevY = 0;
          
          for (y=ii_MinY; y<=ii_MaxY; y++)
@@ -505,15 +526,17 @@ void   XYYXApp::GetTerms(bool supportsAvx, uint32_t avxRemaindersCount, bases_t 
             {
                diffPowerIdx = (y - prevY) / 2;
                
-               xPowY[x - ii_MinX].powers[powerCount].exponent = y;
-               xPowY[x - ii_MinX].powers[powerCount].diffPowerIdx = diffPowerIdx;
+               xPowY[x - ii_MinX].powers[powerIndex].exponent = y;
+               xPowY[x - ii_MinX].powers[powerIndex].diffPowerIdx = diffPowerIdx;
+               
+               xPowY[x - ii_MinX].powerIndices[y - ii_MinY] = powerIndex;
                
                // We allocate here to ensure that the array is properly aligned for AVX.
                if (supportsAvx && ib_UseAvx)
-                  xPowY[x - ii_MinX].powers[powerCount].avxRemainders = (double *) xmalloc(avxRemaindersCount * sizeof(double));
+                  xPowY[x - ii_MinX].powers[powerIndex].avxRemainders = (double *) xmalloc(avxRemaindersCount * sizeof(double));
                
                // Note that y - prevY is always even
-               if (powerCount > 0)
+               if (powerIndex > 0)
                {
                   if (xPowY[x - ii_MinX].neededPowers[diffPowerIdx] == 0)
                      xPowY[x - ii_MinX].distinctPowers++;
@@ -521,12 +544,11 @@ void   XYYXApp::GetTerms(bool supportsAvx, uint32_t avxRemaindersCount, bases_t 
                   xPowY[x - ii_MinX].neededPowers[diffPowerIdx] = 1;
                }
                
-               powerCount++;
+               powerIndex++;
                
                prevY = y;
             }
          }
-
       }
    }
    
@@ -566,7 +588,7 @@ void   XYYXApp::GetTerms(bool supportsAvx, uint32_t avxRemaindersCount, bases_t 
          yPowX[y - ii_MinY].powers = (power_t *) xmalloc(powerCount * sizeof(power_t));
          yPowX[y - ii_MinY].neededPowers = (uint8_t *) xmalloc(maxDiff * sizeof(uint8_t));
 
-         powerCount = 0;
+         powerIndex = 0;
          prevX = 0;
          
          for (x=ii_MinX; x<=ii_MaxX; x++)
@@ -577,12 +599,12 @@ void   XYYXApp::GetTerms(bool supportsAvx, uint32_t avxRemaindersCount, bases_t 
             {
                diffPowerIdx = (x - prevX) / 2;
                
-               yPowX[y - ii_MinY].powers[powerCount].exponent = x;
-               yPowX[y - ii_MinY].powers[powerCount].diffPowerIdx = diffPowerIdx;
-               yPowX[y - ii_MinY].powers[powerCount].avxRemainders = 0;
+               yPowX[y - ii_MinY].powers[powerIndex].exponent = x;
+               yPowX[y - ii_MinY].powers[powerIndex].diffPowerIdx = diffPowerIdx;
+               yPowX[y - ii_MinY].powers[powerIndex].avxRemainders = 0;
                
                // Note that x - prevX is always even
-               if (powerCount > 0)
+               if (powerIndex > 0)
                {
                   if (yPowX[y - ii_MinY].neededPowers[diffPowerIdx] == 0)
                      yPowX[y - ii_MinY].distinctPowers++;
@@ -590,17 +612,13 @@ void   XYYXApp::GetTerms(bool supportsAvx, uint32_t avxRemaindersCount, bases_t 
                   yPowX[y - ii_MinY].neededPowers[diffPowerIdx] = 1;
                }
                
-               for (idx=0; idx<xPowY[x - ii_MinX].powerCount; idx++)
-               {
-                  if (xPowY[x - ii_MinX].powers[idx].exponent == y)
-                  {
-                     // Link these together so that we can find x^y that corresponds to y^x
-                     xPowY[x - ii_MinX].powers[idx].pairedPower = &yPowX[y - ii_MinY].powers[powerCount];
-                     yPowX[y - ii_MinY].powers[powerCount].pairedPower = &xPowY[x - ii_MinX].powers[idx];
-                  }
-               }
+               // Link these together so that we can find x^y that corresponds to y^x
+               idx = xPowY[x - ii_MinX].powerIndices[y - ii_MinY];
                
-               powerCount++;
+               xPowY[x - ii_MinX].powers[idx].pairedPower = &yPowX[y - ii_MinY].powers[powerIndex];
+               yPowX[y - ii_MinY].powers[powerIndex].pairedPower = &xPowY[x - ii_MinX].powers[idx];
+
+               powerIndex++;
                
                prevX = x;
             }            
@@ -608,6 +626,11 @@ void   XYYXApp::GetTerms(bool supportsAvx, uint32_t avxRemaindersCount, bases_t 
       }
    }
    
+   
+   for (x=ii_MinX; x<=ii_MaxX; x++)       
+      if (xPowY[x - ii_MinX].powerCount > 0)
+         xfree(xPowY[x - ii_MinX].powerIndices);
+         
    ip_FactorAppLock->Release();
 }
 

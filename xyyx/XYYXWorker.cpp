@@ -19,7 +19,6 @@
 XYYXWorker::XYYXWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
 {  
    bases_t  bases;
-   uint32_t idx;
    
    ip_XYYXApp = (XYYXApp *) theApp;
    
@@ -36,7 +35,8 @@ XYYXWorker::XYYXWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
    
    ip_xyTerms = ip_yxTerms = 0;
    
-   ip_XYYXApp->GetTerms(CpuSupportsAvx(), AVX_ARRAY_SIZE, &bases);
+   ib_HaveAvxArray = false;
+   ip_XYYXApp->GetTerms(ib_HaveAvxArray, AVX_ARRAY_SIZE, &bases);
 
    ip_xyTerms = bases.xPowY;
    ip_yxTerms = bases.yPowX;
@@ -45,11 +45,9 @@ XYYXWorker::XYYXWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
    ib_Initialized = true;
    ii_MaxPowerDiff = ip_XYYXApp->GetMaxPowerDiff();
 
-   ip_FpuPowers = (uint64_t **) malloc(ii_MaxPowerDiff * sizeof(uint64_t *));
-      
-   for (idx=0; idx<ii_MaxPowerDiff; idx++)
-      ip_FpuPowers[idx] = (uint64_t *) xmalloc(4 * sizeof(uint64_t));
-      
+   for (uint32_t i=0; i<=MAX_POWERS; i++)
+      ip_FpuPowers[i] = (uint64_t *) malloc(4 * sizeof(uint64_t));
+            
    if (ip_XYYXApp->UseAvxIfAvailable() && CpuSupportsAvx())
    {
       for (uint32_t i=0; i<=MAX_POWERS; i++)
@@ -73,8 +71,8 @@ void  XYYXWorker::CleanUp(void)
          xfree(ip_AvxPowers[i]);
    }
    
-   for (uint32_t idx=0; idx<ii_MaxPowerDiff; idx++)
-      xfree(ip_FpuPowers[idx]);
+   for (uint32_t i=0; i<=MAX_POWERS; i++)
+      xfree(ip_FpuPowers[i]);
    
    xfree(ip_FpuPowers);
 }
@@ -91,7 +89,7 @@ void  XYYXWorker::FreeTerms(void)
       if (ip_xyTerms[x-ii_MinX].powerCount == 0)
          continue;
       
-      if (ip_XYYXApp->UseAvxIfAvailable() && CpuSupportsAvx())
+      if (ip_XYYXApp->UseAvxIfAvailable() && ib_HaveAvxArray)
          for (idx=0; idx<ip_xyTerms[x-ii_MinX].powerCount; idx++)  
             xfree(ip_xyTerms[x-ii_MinX].powers[idx].avxRemainders);
       
@@ -142,21 +140,19 @@ void  XYYXWorker::TestMegaPrimeChunk(void)
          
          FreeTerms();
          
-         ip_XYYXApp->GetTerms(CpuSupportsAvx(), AVX_ARRAY_SIZE, &bases);
+         ib_HaveAvxArray = false;
+         ip_XYYXApp->GetTerms(ib_HaveAvxArray, AVX_ARRAY_SIZE, &bases);
                
          ip_xyTerms = bases.xPowY;
          ip_yxTerms = bases.yPowX;
       
-         il_NextTermsBuild = (ps[3] << 1);
+         il_NextTermsBuild = (ps[3] << 2);
       }
       
       // Compute x^y for y
-      BuildFpuPowmodTables(ip_xyTerms, ii_MinX, ii_MaxX, ps);
+      BuildFpuXYRemainders(ps);
 
-      // Compute y^x for x
-      BuildFpuPowmodTables(ip_yxTerms, ii_MinY, ii_MaxY, ps);
-
-      CheckForFpuFactors(ps);
+      CheckFpuXYRemainders(ps);
 
       SetLargestPrimeTested(ps[3], 4);
       
@@ -165,168 +161,219 @@ void  XYYXWorker::TestMegaPrimeChunk(void)
    }
 }
 
-// Pre-compute b^2 thru b^64.  then b^(64*n) for n up to maxPowerDiff.
-// Find the other powers that are needed for the base and populate them.  This
-// way we only need a mulmod to compute all b^n.
-void  XYYXWorker::BuildFpuPowmodTables(base_t *terms, uint32_t minBase, uint32_t maxBase, uint64_t *ps) 
+// Build a table of x^y mod p for all remaining terms
+void  XYYXWorker::BuildFpuXYRemainders(uint64_t *ps) 
 {  
-   uint32_t  base;
-   base_t   *bPtr;
-   uint32_t  idx, n, prevN;
-   uint64_t  as[4], bs[4];
+   uint32_t  x, y, prevY;
+   uint32_t  yIndex, powIndex;
+   uint32_t  maxPowers;
+   base_t   *xyPtr;
    
-   for (base=minBase; base<=maxBase; base++)
+   // If the range of y is only 50, then we only want to generate
+   // up to y^50 instead of y^100  (assuming MAX_POWERS = 50).
+   if (ii_YCount < MAX_POWERS * 2)
+      maxPowers = (ii_YCount / 2);
+   else
+      maxPowers = MAX_POWERS;
+   
+   for (x=ii_MinX; x<=ii_MaxX; x++)
    {
-      bPtr = &terms[base-minBase];
+      xyPtr = &ip_xyTerms[x-ii_MinX];
       
-      if (bPtr->powerCount == 0)
+      if (xyPtr->powerCount == 0)
          continue;
 
-      base = terms->base;
-
-      terms->powers[0].fpuRemainders[0] = base;
-      terms->powers[0].fpuRemainders[1] = base;
-      terms->powers[0].fpuRemainders[2] = base;
-      terms->powers[0].fpuRemainders[3] = base;
+      BuildFpuListOfPowers(x, ps, maxPowers);
       
-      fpu_powmod_4b_1n_4p(terms->powers[0].fpuRemainders, terms->powers[0].exponent, ps);
+      xyPtr->powers[0].fpuRemainders[0] = x;
+      xyPtr->powers[0].fpuRemainders[1] = x;
+      xyPtr->powers[0].fpuRemainders[2] = x;
+      xyPtr->powers[0].fpuRemainders[3] = x;
+
+      y = xyPtr->powers[0].exponent;
+      
+      fpu_powmod_4b_1n_4p(xyPtr->powers[0].fpuRemainders, y, ps);
 
       fpu_push_1divp(ps[3]);
       fpu_push_1divp(ps[2]);
       fpu_push_1divp(ps[1]);
       fpu_push_1divp(ps[0]);
-   
-      as[0] = as[1] = as[2] = as[3] = base;
-      bs[0] = bs[1] = bs[2] = bs[3] = base;
-
-      // Compute b^2*idx thru b^32*idx
-      for (idx=1; idx<=32; idx++)
-      {
-         fpu_mulmod_4a_4b_4p(as, bs, ps);
-         
-         ip_FpuPowers[idx][0] = as[0];
-         ip_FpuPowers[idx][1] = as[1];
-         ip_FpuPowers[idx][2] = as[2];
-         ip_FpuPowers[idx][3] = as[3];
-      }   
       
-      bs[0] = ip_FpuPowers[32][0];
-      bs[1] = ip_FpuPowers[32][1];
-      bs[2] = ip_FpuPowers[32][2];
-      bs[3] = ip_FpuPowers[32][3];
-
-      // Compute b^(32*2*idx) thru b^(32*2*idx)
-      // This is effectively 2^64, 2^128, ... thru 2^1280
-      for (idx=2; idx<=20; idx++)
-      {
-         fpu_mulmod_4a_4b_4p(as, bs, ps);
+      prevY = y;
          
-         ip_FpuPowers[idx*32][0] = as[0];
-         ip_FpuPowers[idx*32][1] = as[1];
-         ip_FpuPowers[idx*32][2] = as[2];
-         ip_FpuPowers[idx*32][3] = as[3];    
-      }
-
-      prevN = 0;
-      
-      // Fill in the table for the remaining powers that we need.
-      // If we need b^78, then this is computed as b^64 * b^14, but
-      // if we do not need b^79, then we won't compute it.
-      for (n=32; n<=terms->maxPowerDiff/2; n++)
+      for (yIndex=1; yIndex<xyPtr->powerCount; yIndex++)
       {
-         // If we already computed this power, skip it.
-         if ((n % 32) == 0)
+         y = xyPtr->powers[yIndex].exponent;
+      
+         // If x is even then y must be odd and if x is odd
+         // then y must be even so y - prevY is always even
+         powIndex = (y - prevY) >> 1;
+         
+         xyPtr->powers[yIndex].fpuRemainders[0] = xyPtr->powers[yIndex-1].fpuRemainders[0];
+         xyPtr->powers[yIndex].fpuRemainders[1] = xyPtr->powers[yIndex-1].fpuRemainders[1];
+         xyPtr->powers[yIndex].fpuRemainders[2] = xyPtr->powers[yIndex-1].fpuRemainders[2];
+         xyPtr->powers[yIndex].fpuRemainders[3] = xyPtr->powers[yIndex-1].fpuRemainders[3];
+         
+         // We have x^prevY (mod p).
+         // Now compute x^y (mod p) as (x^prevY * x^(y-prevY) (mod p)
+         while (powIndex > maxPowers) 
          {
-            bs[0] = ip_FpuPowers[n][0];
-            bs[1] = ip_FpuPowers[n][1];
-            bs[2] = ip_FpuPowers[n][2];
-            bs[3] = ip_FpuPowers[n][3];
-            
-            prevN = n;
-            continue;
-         }
-
-         // If we don't need this power, skip it.
-         if (terms->neededPowers[n] == 0)
-            continue;
+            fpu_mulmod_4a_4b_4p(xyPtr->powers[yIndex].fpuRemainders, ip_FpuPowers[maxPowers], ps);
+            powIndex -= maxPowers;
+         };
          
-         ip_FpuPowers[n][0] = ip_FpuPowers[n - prevN][0];
-         ip_FpuPowers[n][1] = ip_FpuPowers[n - prevN][1];
-         ip_FpuPowers[n][2] = ip_FpuPowers[n - prevN][2];
-         ip_FpuPowers[n][3] = ip_FpuPowers[n - prevN][3];
-
-         fpu_mulmod_4a_4b_4p(ip_FpuPowers[n], bs, ps);
+         if (powIndex > 0)
+            fpu_mulmod_4a_4b_4p(xyPtr->powers[yIndex].fpuRemainders, ip_FpuPowers[powIndex], ps);
          
-         prevN = n;
+         prevY = y;
       }
       
-      terms->powers[0].fpuRemainders[0] = base;
-      terms->powers[0].fpuRemainders[1] = base;
-      terms->powers[0].fpuRemainders[2] = base;
-      terms->powers[0].fpuRemainders[3] = base;
-      
-      fpu_powmod_4b_1n_4p(terms->powers[0].fpuRemainders, terms->powers[0].exponent, ps);
-      
-      for (n=1; n<terms->powerCount; n++)
-      {
-         terms->powers[n].fpuRemainders[0] = ip_FpuPowers[terms->powers[n].diffPowerIdx][0];
-         terms->powers[n].fpuRemainders[1] = ip_FpuPowers[terms->powers[n].diffPowerIdx][1];
-         terms->powers[n].fpuRemainders[2] = ip_FpuPowers[terms->powers[n].diffPowerIdx][2];
-         terms->powers[n].fpuRemainders[3] = ip_FpuPowers[terms->powers[n].diffPowerIdx][3];
-            
-         fpu_mulmod_4a_4b_4p(terms->powers[n].fpuRemainders, terms->powers[n-1].fpuRemainders, ps);
-      }
-
       fpu_pop();
       fpu_pop();
       fpu_pop();
       fpu_pop();
-      
-      terms++;
    }
 }
 
-void  XYYXWorker::CheckForFpuFactors(uint64_t *ps)
+void  XYYXWorker::CheckFpuXYRemainders(uint64_t *ps) 
 {
-   uint32_t x, y, xyIdx;
-   base_t   *xyTerms;
-   power_t  *yPowX;
-   
-   xyTerms = ip_xyTerms;
-   
-   while (xyTerms->base <= ii_MaxX)
+   uint32_t  x, y, prevX;
+   uint32_t  xIndex, powIndex;
+   uint32_t  maxPowers;
+   uint64_t  yPowXRemainders[4];
+   base_t   *yxPtr;
+   power_t  *pairedPower;
+
+   // If the range of x is only 50, then we only want to generate
+   // up to x^50 instead of x^100  (assuming MAX_POWERS = 50).   
+   if (ii_XCount < MAX_POWERS * 2)
+      maxPowers = (ii_XCount / 2);
+   else
+      maxPowers = MAX_POWERS;
+
+   for (y=ii_MinY; y<=ii_MaxY; y++)
    {
-      if (xyTerms->powerCount == 0)
-      {
-         xyTerms++;
+      yxPtr = &ip_yxTerms[y-ii_MinY];
+      
+      if (yxPtr->powerCount == 0)
          continue;
-      }
+
+      BuildFpuListOfPowers(y, ps, maxPowers);
       
-      x = xyTerms->base;
+      yPowXRemainders[0] = y;
+      yPowXRemainders[1] = y;
+      yPowXRemainders[2] = y;
+      yPowXRemainders[3] = y;
+
+      x = yxPtr->powers[0].exponent;
       
-      for (xyIdx=0; xyIdx<=xyTerms->powerCount; xyIdx++)
+      fpu_powmod_4b_1n_4p(yPowXRemainders, x, ps);
+      
+      pairedPower = (power_t *) yxPtr->powers[0].pairedPower;
+      
+      CheckFpuResult(x, y, ps, pairedPower, yPowXRemainders);
+         
+      fpu_push_1divp(ps[3]);
+      fpu_push_1divp(ps[2]);
+      fpu_push_1divp(ps[1]);
+      fpu_push_1divp(ps[0]);
+
+      prevX = x;
+      
+      for (xIndex=1; xIndex<yxPtr->powerCount; xIndex++)
       {
-         y = xyTerms->powers[xyIdx].exponent;
+         x = yxPtr->powers[xIndex].exponent;
          
-         yPowX = (power_t *) xyTerms->powers[xyIdx].pairedPower;
          
-         for (uint32_t i=0; i<4; i++)
+         // If x is even then y must be odd and if x is odd
+         // then y must be even so y - prevY is always even
+         powIndex = (x - prevX) >> 1;
+         
+         // We have x^prevY (mod p).
+         // Now compute x^y (mod p) as (x^prevY * x^(y-prevY) (mod p)
+         while (powIndex > maxPowers) 
          {
-            if (ib_IsMinus && xyTerms->powers[xyIdx].fpuRemainders[i] == yPowX->fpuRemainders[i])
-            {                  
-               if (ip_XYYXApp->ReportFactor(ps[i], x, y, -1))
-                  VerifyFactor(ps[i], x, y, -1);
-            }
-            
-            if (ib_IsPlus && xyTerms->powers[xyIdx].fpuRemainders[i] == ps[i] - yPowX->fpuRemainders[i])           
-            {                  
-               if (ip_XYYXApp->ReportFactor(ps[i], x, y, +1))
-                  VerifyFactor(ps[i], x, y, +1);
-            }
-         }
+            fpu_mulmod_4a_4b_4p(yPowXRemainders, ip_FpuPowers[maxPowers], ps);
+            powIndex -= maxPowers;
+         };
+         
+         if (powIndex > 0)
+            fpu_mulmod_4a_4b_4p(yPowXRemainders, ip_FpuPowers[powIndex], ps);
+                  
+         pairedPower = (power_t *) yxPtr->powers[xIndex].pairedPower;
+      
+         CheckFpuResult(x, y, ps, pairedPower, yPowXRemainders);
+         
+         prevX = x;
       }
       
-      xyTerms++;
+      fpu_pop();
+      fpu_pop();
+      fpu_pop();
+      fpu_pop();
+   }
+}
+
+void  XYYXWorker::BuildFpuListOfPowers(uint32_t base, uint64_t *ps, uint32_t count)
+{
+   uint32_t idx;
+
+   fpu_push_1divp(ps[3]);
+   fpu_push_1divp(ps[2]);
+   fpu_push_1divp(ps[1]);
+   fpu_push_1divp(ps[0]);
+   
+   ip_FpuPowers[0][0] = base;
+   ip_FpuPowers[0][1] = base;
+   ip_FpuPowers[0][2] = base;
+   ip_FpuPowers[0][3] = base;
+
+   ip_FpuPowers[1][0] = base;
+   ip_FpuPowers[1][1] = base;
+   ip_FpuPowers[1][2] = base;
+   ip_FpuPowers[1][3] = base;
+   
+   fpu_mulmod_4a_4b_4p(ip_FpuPowers[1], ip_FpuPowers[0], ps);
+
+   // Multiply successive terms by a^2 (mod p)
+   for (idx=2; idx<=count; idx++)
+   {
+      ip_FpuPowers[idx][0] = ip_FpuPowers[idx-1][0];
+      ip_FpuPowers[idx][1] = ip_FpuPowers[idx-1][1];
+      ip_FpuPowers[idx][2] = ip_FpuPowers[idx-1][2];
+      ip_FpuPowers[idx][3] = ip_FpuPowers[idx-1][3];
+      
+      fpu_mulmod_4a_4b_4p(ip_FpuPowers[idx], ip_FpuPowers[1], ps);
+   }
+   
+   fpu_pop();
+   fpu_pop();
+   fpu_pop();
+   fpu_pop();
+}
+
+void  XYYXWorker::CheckFpuResult(uint32_t x, uint32_t y, uint64_t *ps, power_t *xyPow, uint64_t *yPowXRemainders)
+{
+   uint32_t idx;
+
+   if (ib_IsMinus)
+   {            
+      for (idx=0; idx<4; idx++)
+         if (xyPow->fpuRemainders[idx] == yPowXRemainders[idx])
+         {
+            if (ip_XYYXApp->ReportFactor(ps[idx], x, y, -1))
+               VerifyFactor(ps[idx], x, y, -1);
+         }
+   }
+
+   if (ib_IsPlus)
+   {
+      for (idx=0; idx<4; idx++)
+         if (xyPow->fpuRemainders[idx] == ps[idx] - yPowXRemainders[idx])
+         {
+            if (ip_XYYXApp->ReportFactor(ps[idx], x, y, +1))
+               VerifyFactor(ps[idx], x, y, +1);
+         }
    }
 }
 
@@ -337,13 +384,14 @@ void  XYYXWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
    
    // Every once in a while rebuild the term lists as it will have fewer entries
    // which will speed up testing for the next range of p.
-   if (miniPrimeChunk[0] > il_NextTermsBuild)
+   if (!ib_HaveAvxArray || miniPrimeChunk[0] > il_NextTermsBuild)
    {
       bases_t bases;
       
       FreeTerms();
       
-      ip_XYYXApp->GetTerms(CpuSupportsAvx(), AVX_ARRAY_SIZE, &bases);
+      ib_HaveAvxArray = true;
+      ip_XYYXApp->GetTerms(ib_HaveAvxArray, AVX_ARRAY_SIZE, &bases);
             
       ip_xyTerms = bases.xPowY;
       ip_yxTerms = bases.yPowX;
@@ -566,7 +614,7 @@ void  XYYXWorker::CheckAvxResult(uint32_t x, uint32_t y, uint64_t *ps, double *d
 void  XYYXWorker::VerifyFactor(uint64_t p, uint32_t x, uint32_t y, int32_t c)
 {
    uint64_t xPowY, yPowX;
-   
+      
    fpu_push_1divp(p);
    
    xPowY = fpu_powmod(x, y, p);

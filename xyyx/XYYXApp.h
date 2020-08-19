@@ -29,6 +29,7 @@ typedef struct {
    uint32_t   powerCount;
    uint32_t   maxPowerDiff;
    uint32_t   distinctPowers;
+   uint32_t  *powerIndices;
    uint8_t   *neededPowers;
    power_t   *powers;
 } base_t;
