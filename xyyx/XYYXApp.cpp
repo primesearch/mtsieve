@@ -227,7 +227,7 @@ void XYYXApp::ProcessInputTermsFile(bool haveBitMap)
       FatalError("First line of the input file is malformed");
 
    ib_IsPlus = (sign == '+');
-   ib_IsMinus = (sign == '+');
+   ib_IsMinus = (sign == '-');
    
    if (!ib_IsMinus && !ib_IsPlus)
       FatalError("The sign must be '+' or '-'");
