@@ -34,13 +34,13 @@ private:
    void           BuildFpuXYRemainders(uint64_t *ps);
    void           CheckFpuXYRemainders(uint64_t *ps);
    void           BuildFpuListOfPowers(uint32_t base, uint64_t *ps, uint32_t count);
-   void           CheckFpuResult(uint32_t x, uint32_t y, uint64_t *ps, power_t *xyPow, uint64_t *yPowXRemainders);
+   void           CheckFpuResult(uint32_t x, uint32_t y, uint64_t *ps, uint64_t *powerOfX, uint64_t *powesOfY);
    
    void           TestPrimeChunkAVX(uint64_t &largestPrimeTested, uint64_t &primesTested);
    void           BuildAvxXYRemainders(uint64_t *ps, double *dps, double *reciprocals);
    void           CheckAvxXYRemainders(uint64_t *ps, double *dps, double *reciprocals);
    void           BuildAvxListOfPowers(uint32_t base, double *dps, double *reciprocals, uint32_t count);
-   void           CheckAvxResult(uint32_t x, uint32_t y, uint64_t *ps, double *dps, power_t *pair);
+   void           CheckAvxResult(uint32_t x, uint32_t y, uint64_t *ps, double *dps, double *powersOfX);
    
    void           VerifyFactor(uint64_t p, uint32_t x, uint32_t y, int32_t c);
 
@@ -52,12 +52,12 @@ private:
    uint32_t       ii_MaxY;
    uint32_t       ii_XCount;
    uint32_t       ii_YCount;
-   uint32_t       ii_MaxPowerDiff;
 
    bool           ib_IsPlus;
    bool           ib_IsMinus;
 
-   bool           ib_HaveAvxArray;
+   bool           ib_HaveFpuRemainders;
+   bool           ib_HaveAvxRemainders;
    uint64_t       il_NextTermsBuild;
 
    base_t        *ip_xyTerms;
