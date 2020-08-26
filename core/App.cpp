@@ -331,7 +331,10 @@ void  App::Interrupt(void)
 {
    ip_AppStatus->SetValueNoLock(AS_INTERRUPTED);
 
-   WriteToConsole(COT_OTHER, "CTRL-C accepted.  Threads will stop after sieving to %llu", il_LargestPrimeSieved);
+   if (il_LargestPrimeSieved > il_MaxPrime)
+      WriteToConsole(COT_OTHER, "CTRL-C accepted.  Threads will stop after sieving to %llu", il_MaxPrime);
+   else
+      WriteToConsole(COT_OTHER, "CTRL-C accepted.  Threads will stop after sieving to %llu", il_LargestPrimeSieved);
 }
 
 void  App::SetMinPrime(uint64_t minPrime)
@@ -594,6 +597,7 @@ void  App::Finish(void)
 void  App::ReportStatus(void)
 {
    double   percentDone;
+   bool     havePercentDone;
    double   primeRate;
    double   cpuUtilization;
    uint32_t primePrecision;
@@ -620,13 +624,21 @@ void  App::ReportStatus(void)
    
    // Compute the percentage of the range we have completed
    if (largestPrimeTested == 0)
-      percentDone = 0.0;
+      havePercentDone = false;
    else
    {
+      havePercentDone = true;
+      
       if (IsInterrupted())
          percentDone = (double)(largestPrimeTested-il_MinPrime)/(il_LargestPrimeSieved-il_MinPrime);
       else
+      {
          percentDone = (double)(largestPrimeTested-il_MinPrime)/(il_MaxPrime-il_MinPrime);
+         
+         if (percentDone < 1.0 && il_MaxPrime == il_AppMaxPrime)
+            havePercentDone = false;
+      }
+      
    }
    
    // Compute how many primes are tested per second since the last report
@@ -643,7 +655,7 @@ void  App::ReportStatus(void)
    
    // Calculate ETC.
    finishTimeBuffer[0] = '\0';
-   if (percentDone > 0.0)
+   if (havePercentDone && percentDone > 0.0)
    {
       finish_date = (time_t) (it_StartTime + (time(NULL)-it_StartTime)/percentDone);
       finish_tm = localtime(&finish_date);
@@ -652,13 +664,25 @@ void  App::ReportStatus(void)
    }
 
    if (strlen(childStats) > 0)
-      WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec, %s, %.1f%% done. %s           ",
-                     largestPrimeTested, primePrecision, primeRate, primeRateUnit,
-                     childStats, 100.0*percentDone, finishTimeBuffer);
+   {   
+      if (!havePercentDone)
+         WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec, %s                            ",
+                        largestPrimeTested, primePrecision, primeRate, primeRateUnit, childStats);
+      else
+         WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec, %s, %.1f%% done. %s           ",
+                        largestPrimeTested, primePrecision, primeRate, primeRateUnit,
+                        childStats, 100.0*percentDone, finishTimeBuffer);
+   }
    else
-      WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec, %%.1f%% done. %s           ",
-                     largestPrimeTested, primePrecision, primeRate, primeRateUnit,
-                     100.0*percentDone, finishTimeBuffer);
+   {   
+      if (!havePercentDone)
+         WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec                                ",
+                        largestPrimeTested, primePrecision, primeRate, primeRateUnit);
+      else
+         WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec, %%.1f%% done. %s              ",
+                        largestPrimeTested, primePrecision, primeRate, primeRateUnit,
+                        100.0*percentDone, finishTimeBuffer);
+   }
 
    il_LastStatusReportUS = currentUS;
    il_LastStatusPrimesTested = primesTested;
