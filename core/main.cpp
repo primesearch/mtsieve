@@ -270,6 +270,11 @@ void xfree(void *memoryPtr)
    free(allocatedPtr);
 }
 
+uint64_t GetCpuMemoryUsage(void)
+{
+   return cpuBytes;
+}
+
 void  MemoryLeakEnter(void)
 {
    #if defined (WIN32) && defined (_MSC_VER) && defined (MEMLEAK)

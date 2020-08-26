@@ -58,6 +58,7 @@ void     AppendLongOpt(struct option *longOpts, const char *name, int has_arg, i
 
 void    *xmalloc(size_t size);
 void     xfree(void *mem);
+uint64_t GetCpuMemoryUsage(void);
 
 #ifdef __cplusplus
 }
