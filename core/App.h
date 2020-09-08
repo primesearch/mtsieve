@@ -113,7 +113,7 @@ protected:
    
    uint32_t          GetCpuWorkerCount(void) { return ii_CpuWorkerCount; };
    uint32_t          GetGpuWorkerCount(void) { return ii_GpuWorkerCount; };
-   void              GetWorkerStats(uint64_t &workerCpuUS, uint64_t &largestPrimeTested, uint64_t &primesTested);
+   void              GetWorkerStats(uint64_t &workerCpuUS, uint64_t &largestPrimeTestedNoGaps, uint64_t &largestPrimeTested, uint64_t &primesTested);
    uint64_t          GetLargestPrimeTested(bool finishedNormally);
 
    void              Sieve(void);

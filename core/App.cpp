@@ -562,7 +562,7 @@ void  App::CreateWorkers(uint64_t largestPrimeTested)
 
 void  App::Finish(void)
 {
-   uint64_t    largestPrimeTested, primesTested;
+   uint64_t    largestPrimeTestedNoGaps, largestPrimeTested, primesTested;
    uint64_t    workerCpuUS;
    uint64_t    processCpuUS;
    uint64_t    elapsedTimeUS;
@@ -576,8 +576,9 @@ void  App::Finish(void)
    
    elapsedTimeUS = Clock::GetCurrentMicrosecond() - il_StartSievingUS;
 
-   GetWorkerStats(workerCpuUS, largestPrimeTested, primesTested);
+   GetWorkerStats(workerCpuUS, largestPrimeTestedNoGaps, largestPrimeTested, primesTested);
 
+   // Since all threads finished normally, there are no gaps thus we use largestPrimeTested.
    WriteToConsole(COT_OTHER, "Sieve %s at p=%" PRIu64".", finishMethod, largestPrimeTested);
 
    cpuUtilization = ((double) processCpuUS) / ((double) elapsedTimeUS);
@@ -607,7 +608,7 @@ void  App::ReportStatus(void)
    char     finishTimeBuffer[32];
    uint64_t currentUS, workerCpuUS;
    uint64_t processCpuUS, elapsedTimeUS;
-   uint64_t largestPrimeTested, primesTested;
+   uint64_t largestPrimeTestedNoGaps, largestPrimeTested, primesTested;
    time_t   finish_date;
 
    currentUS = Clock::GetCurrentMicrosecond();
@@ -616,24 +617,24 @@ void  App::ReportStatus(void)
    
    elapsedTimeUS = Clock::GetCurrentMicrosecond() - il_StartSievingUS;
    
-   GetWorkerStats(workerCpuUS, largestPrimeTested, primesTested);
+   GetWorkerStats(workerCpuUS, largestPrimeTestedNoGaps, largestPrimeTested, primesTested);
 
    cpuUtilization = ((double) processCpuUS) / ((double) elapsedTimeUS);
    
    GetReportStats(childStats, cpuUtilization);
    
    // Compute the percentage of the range we have completed
-   if (largestPrimeTested == 0)
+   if (largestPrimeTestedNoGaps == 0)
       havePercentDone = false;
    else
    {
       havePercentDone = true;
       
       if (IsInterrupted())
-         percentDone = (double)(largestPrimeTested-il_MinPrime)/(il_LargestPrimeSieved-il_MinPrime);
+         percentDone = (double)(largestPrimeTestedNoGaps-il_MinPrime)/(il_LargestPrimeSieved-il_MinPrime);
       else
       {
-         percentDone = (double)(largestPrimeTested-il_MinPrime)/(il_MaxPrime-il_MinPrime);
+         percentDone = (double)(largestPrimeTestedNoGaps-il_MinPrime)/(il_MaxPrime-il_MinPrime);
          
          if (percentDone < 1.0 && il_MaxPrime == il_AppMaxPrime)
             havePercentDone = false;
@@ -667,20 +668,20 @@ void  App::ReportStatus(void)
    {   
       if (!havePercentDone)
          WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec, %s                            ",
-                        largestPrimeTested, primePrecision, primeRate, primeRateUnit, childStats);
+                        largestPrimeTestedNoGaps, primePrecision, primeRate, primeRateUnit, childStats);
       else
          WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec, %s, %.1f%% done. %s           ",
-                        largestPrimeTested, primePrecision, primeRate, primeRateUnit,
+                        largestPrimeTestedNoGaps, primePrecision, primeRate, primeRateUnit,
                         childStats, 100.0*percentDone, finishTimeBuffer);
    }
    else
    {   
       if (!havePercentDone)
          WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec                                ",
-                        largestPrimeTested, primePrecision, primeRate, primeRateUnit);
+                        largestPrimeTestedNoGaps, primePrecision, primeRate, primeRateUnit);
       else
          WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec, %%.1f%% done. %s              ",
-                        largestPrimeTested, primePrecision, primeRate, primeRateUnit,
+                        largestPrimeTestedNoGaps, primePrecision, primeRate, primeRateUnit,
                         100.0*percentDone, finishTimeBuffer);
    }
 
@@ -693,21 +694,32 @@ void  App::ReportStatus(void)
 // none of the workers can be terminated while working on a chunk of primes.
 // If we are still sieving, the largest prime tested might not be correct
 // as threads will finish out of sequence, but that is okay.
-void  App::GetWorkerStats(uint64_t &workerCpuUS, uint64_t &largestPrimeTested, uint64_t &primesTested)
+void  App::GetWorkerStats(uint64_t &workerCpuUS, uint64_t &largestPrimeTestedNoGaps, uint64_t &largestPrimeTested, uint64_t &primesTested)
 {
+   uint64_t workerLargestPrimeTested;
+   
    workerCpuUS = 0;
    primesTested = 0;
    largestPrimeTested = 0;
+   largestPrimeTestedNoGaps = PMAX_MAX_62BIT;
    
    for (uint32_t ii=0; ii<ii_TotalWorkerCount; ii++)
    {
       ip_Workers[ii]->LockStats();
 
-      if (ip_Workers[ii]->GetLargestPrimeTested() > largestPrimeTested)
-         largestPrimeTested = ip_Workers[ii]->GetLargestPrimeTested();
+      workerLargestPrimeTested = ip_Workers[ii]->GetLargestPrimeTested();
+      
+      // If there are multiple workers, this will be the largest prime tested
+      // where we know that all primes less than this prime have been tested.
+      if (workerLargestPrimeTested < largestPrimeTestedNoGaps)
+         largestPrimeTestedNoGaps = workerLargestPrimeTested;
+      
+      if (workerLargestPrimeTested > largestPrimeTested)
+         largestPrimeTested = workerLargestPrimeTested;
       
       primesTested += ip_Workers[ii]->GetPrimesTested();
       workerCpuUS += ip_Workers[ii]->GetWorkerCpuUS();
+      
       ip_Workers[ii]->ReleaseStats();
    }
 }
