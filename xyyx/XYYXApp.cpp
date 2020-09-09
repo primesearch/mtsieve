@@ -525,7 +525,7 @@ void   XYYXApp::GetTerms(uint32_t fpuRemaindersCount, uint32_t avxRemaindersCoun
                
                powerOfX->y = y;
                
-               if (avxRemaindersCount)
+               if (fpuRemaindersCount)
                {
                   powerOfX->fpuRemainders = fpuRemaindersPtr;
                   fpuRemaindersPtr += fpuRemaindersCount;
