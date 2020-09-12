@@ -42,9 +42,9 @@ public:
    
    uint32_t          GetSequenceCount(void) { return ii_SequenceCount; };
    
-   void              AddSequence(uint64_t k, int64_t c);
+   void              AddSequence(uint64_t k, int64_t c, uint32_t d);
    
-   seq_t            *GetSequence(uint64_t k, int64_t c);
+   seq_t            *GetSequence(uint64_t k, int64_t c, uint32_t d);
 
    void              ReportFactor(uint64_t thePrime, uint32_t seqIdx, uint32_t n);
 
@@ -74,10 +74,10 @@ private:
    uint32_t          WriteABCDTermsFile(seq_t *seq, uint64_t maxPrime, FILE *termsFile);
    uint32_t          WriteABCTermsFile(seq_t *seq, uint64_t maxPrime, FILE *termsFile);
    uint32_t          WriteBoincTermsFile(seq_t *seq, uint64_t maxPrime, FILE *termsFile);
-   uint32_t          WriteABCNumberPrimesTermsFile(seq_t *seq, uint64_t maxPrime, FILE *termsFile);
+   uint32_t          WriteABCNumberPrimesTermsFile(seq_t *seq, uint64_t maxPrime, FILE *termsFile, bool allSequencesHaveDEqual1);
    
    bool              IsPrime(uint64_t p, uint64_t k, uint32_t n, int64_t c);
-   void              VerifyFactor(uint64_t thePrime, uint32_t seqIdx, uint32_t n);
+   bool              VerifyFactor(uint64_t thePrime, uint32_t seqIdx, uint32_t n);
    
    uint64_t          il_SmallPrimeSieveLimit;
 

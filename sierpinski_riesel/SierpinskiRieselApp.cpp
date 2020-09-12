@@ -37,7 +37,7 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    SetBanner(APP_NAME " v" APP_VERSION ", a program to find factors of k*b^n+c numbers for fixed b and variable k and n");
    SetLogFileName("srsieve2.log");
    
-   SetAppMinPrime(2);
+   SetAppMinPrime(3);
    SetAppMaxPrime(PMAX_MAX_52BIT);
 
    ii_MinN = 0;
@@ -267,9 +267,15 @@ void  SierpinskiRieselApp::ValidateAndAddNewSequence(char *arg)
    uint64_t k;
    uint32_t b;
    int64_t  c;
+   uint32_t d;
    
-   if (sscanf(arg, "%" SCNu64"*%u^n%" SCNd64"", &k, &b, &c) != 3)         
-      FatalError("sequence must be in form k*b^n+c where you specify values for k, b and c");
+   if (sscanf(arg, "(%" SCNu64"*%u^n%" SCNd64")/%u", &k, &b, &c, &d) != 4)
+   {
+      d = 1;
+      
+      if (sscanf(arg, "%" SCNu64"*%u^n%" SCNd64"", &k, &b, &c) != 3)         
+         FatalError("sequence must be in form k*b^n+c or (k*b^n+c)/d where you specify values for k, b, c, and d");
+   }
 
    if (ib_HaveNewSequences && b != ii_Base)
       FatalError("only one bsae can be specified");
@@ -287,6 +293,9 @@ void  SierpinskiRieselApp::ValidateAndAddNewSequence(char *arg)
       
       ii_Base = b;
    }
+
+   if (d != 1 && it_Format == FF_BOINC)
+      FatalError("d must be 1 for BOINC format");
 
    if (c > 0)
    {
@@ -307,7 +316,7 @@ void  SierpinskiRieselApp::ValidateAndAddNewSequence(char *arg)
 
    ib_HaveNewSequences = true;
    
-   AddSequence(k, c);
+   AddSequence(k, c, d);
 }
 
 Worker *SierpinskiRieselApp::CreateWorker(uint32_t id,  bool gpuWorker, uint64_t largestPrimeTested)
@@ -322,6 +331,7 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
    uint32_t n, diff;
    uint64_t k;
    int64_t  c;
+   uint32_t d = 1;
    uint64_t lastPrime = 0;
    uint32_t lineNumber = 0;
    format_t format = FF_UNKNOWN;
@@ -360,20 +370,30 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
       {
          if (strstr(buffer, "Sieved") != NULL)
          {
-            if (sscanf(buffer, "ABCD %" SCNu64"*%u^$a%" SCNd64" [%u] // Sieved to %" SCNu64"", &k, &ii_Base, &c, &n, &lastPrime) != 5)
-               FatalError("Line %u is not a valid ABCD line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+            if (sscanf(buffer, "ABCD (%" SCNu64"*%u^$a%" SCNd64")/%u [%u] // Sieved to %" SCNu64"", &k, &ii_Base, &c, &d, &n, &lastPrime) != 6)
+            {
+               d = 1;
+               
+               if (sscanf(buffer, "ABCD %" SCNu64"*%u^$a%" SCNd64" [%u] // Sieved to %" SCNu64"", &k, &ii_Base, &c, &n, &lastPrime) != 5)
+                  FatalError("Line %u is not a valid ABCD line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+            }
          }
          else
          {
-            if (sscanf(buffer, "ABCD %" SCNu64"*%u^$a%" SCNd64" [%u]", &k, &ii_Base, &c, &n) != 4)
-               FatalError("Line %u is not a valid ABCD line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+            if (sscanf(buffer, "ABCD (%" SCNu64"*%u^$a%" SCNd64")/%u [%u]", &k, &ii_Base, &c, &d, &n) != 5)
+            {
+               d = 1;
+               
+               if (sscanf(buffer, "ABCD %" SCNu64"*%u^$a%" SCNd64" [%u]", &k, &ii_Base, &c, &n) != 4)
+                  FatalError("Line %u is not a valid ABCD line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+            }
          }
          
          format = FF_ABCD;
 
          if (haveBitMap)
          {
-            currentSequence = GetSequence(k, c);
+            currentSequence = GetSequence(k, c, d);
             currentSequence->nTerms[NBIT(n)] = true;
             il_TermCount++;
             continue;
@@ -386,20 +406,26 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
             if (ii_MinN > n) ii_MinN = n;
             if (ii_MaxN < n) ii_MaxN = n;
             
-            AddSequence(k, c);
+            AddSequence(k, c, d);
          }
       }
       else if (strstr(buffer, "number_primes") != NULL)
       {
          if (strstr(buffer, "Sieved") != NULL)
          {
-            if (sscanf(buffer, "ABC $a*%u^$b$c // {number_primes,$a,1} Sieved to %" SCNu64"", &ii_Base, &lastPrime) != 2)
-               FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+            if (sscanf(buffer, "ABC ($a*%u^$b$c)/$d // {number_primes,$a,1} Sieved to %" SCNu64"", &ii_Base, &lastPrime) != 2)
+            {              
+               if (sscanf(buffer, "ABC $a*%u^$b$c // {number_primes,$a,1} Sieved to %" SCNu64"", &ii_Base, &lastPrime) != 2)
+                  FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+            }
          }
          else
          {
-            if (sscanf(buffer, "ABC $a*%u^$b$c // {number_primes,$a,1}", &ii_Base) != 1)
-               FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+            if (sscanf(buffer, "ABC ($a*%u^$b$c)/%d // {number_primes,$a,1}", &ii_Base) != 1)
+            {
+               if (sscanf(buffer, "ABC $a*%u^$b$c // {number_primes,$a,1}", &ii_Base) != 1)
+                  FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+            }
          }
          
          format = FF_NUMBER_PRIMES;
@@ -408,21 +434,31 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
       {
          if (strstr(buffer, "Sieved") != NULL)
          {
-            if (sscanf(buffer, "ABC %" SCNu64"*%u^$a%" SCNd64" // Sieved to %" SCNu64"", &k, &ii_Base, &c, &lastPrime) != 4)
-               FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+            if (sscanf(buffer, "ABC (%" SCNu64"*%u^$a%" SCNd64")/%u // Sieved to %" SCNu64"", &k, &ii_Base, &c, &d, &lastPrime) != 5)
+            {
+               d = 1;
+               
+               if (sscanf(buffer, "ABC %" SCNu64"*%u^$a%" SCNd64" // Sieved to %" SCNu64"", &k, &ii_Base, &c, &lastPrime) != 4)
+                  FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+            }
          }
          else
          {
-            if (sscanf(buffer, "ABC %" SCNu64"*%u^$a%" SCNd64"", &k, &ii_Base, &c) != 3)
-               FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+            if (sscanf(buffer, "ABC (%" SCNu64"*%u^$a%" SCNd64")/%u", &k, &ii_Base, &c, &d) != 4)
+            {
+               d = 1;
+               
+               if (sscanf(buffer, "ABC %" SCNu64"*%u^$a%" SCNd64"", &k, &ii_Base, &c) != 3)
+                  FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+            }
          }
          
          format = FF_ABC;
          
          if (haveBitMap)
-            currentSequence = GetSequence(k, c);
+            currentSequence = GetSequence(k, c, d);
          else
-            AddSequence(k, c);
+            AddSequence(k, c, d);
       }
       else
       {
@@ -448,19 +484,19 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
                   FatalError("Line %s is malformed", buffer);
                
                if (haveBitMap)
-                  currentSequence = GetSequence(k, c);
+                  currentSequence = GetSequence(k, c, d);
                else
-                  AddSequence(k, c);
+                  AddSequence(k, c, d);
                break;
                
             case FF_NUMBER_PRIMES:
-               if (sscanf(buffer, "%" SCNu64" %u %" SCNd64"", &k, &n, &c) != 3)
+               if (sscanf(buffer, "%" SCNu64" %u %" SCNd64" %u", &k, &n, &c, &d) != 4)
                   FatalError("Line %s is malformed", buffer);
                
                if (haveBitMap)
-                  currentSequence = GetSequence(k, c);
+                  currentSequence = GetSequence(k, c, d);
                else
-                  AddSequence(k, c);
+                  AddSequence(k, c, d);
                
                if (ii_MinN == 0)
                   ii_MinN = ii_MaxN = n;
@@ -495,12 +531,17 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
 bool SierpinskiRieselApp::ApplyFactor(const char *term)
 {
    uint64_t k;
-   uint32_t b, n;
+   uint32_t b, n, d;
    int64_t  c;
    seq_t   *seq;
    
-   if (sscanf(term, "%" SCNu64"*%u^%u%" SCNd64"", &k, &b, &n, &c) != 4)
-      FatalError("Could not parse term %s", term);
+   if (sscanf(term, "(%" SCNu64"*%u^%u%" SCNd64")/%u", &k, &b, &n, &c, &d) != 5)
+   {
+      d = 1;
+      
+      if (sscanf(term, "%" SCNu64"*%u^%u%" SCNd64"", &k, &b, &n, &c) != 4)
+         FatalError("Could not parse term %s", term);
+   }
 
    if (b != ii_Base)
       FatalError("Expected base %u in factor but found base %u", ii_Base, b);
@@ -509,7 +550,7 @@ bool SierpinskiRieselApp::ApplyFactor(const char *term)
       return false;
    
    // No locking is needed because the Workers aren't running yet
-   seq = GetSequence(k, c);
+   seq = GetSequence(k, c, d);
    
    if (seq->nTerms[NBIT(n)])
    {
@@ -526,6 +567,7 @@ void SierpinskiRieselApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
    uint32_t nCount = 0;
    uint32_t seqIdx;
+   bool     allSequencesHaveDEqual1 = true;
    
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
 
@@ -535,10 +577,19 @@ void SierpinskiRieselApp::WriteOutputTermsFile(uint64_t largestPrime)
    ip_FactorAppLock->Lock();
    
    nCount = 0;
-   
+
    if (it_Format == FF_NUMBER_PRIMES)
-      fprintf(termsFile, "ABC $a*%u^$b$c // {number_primes,$a,1} Sieved to %" PRIu64"\n", ii_Base, largestPrime);
-   
+   {
+      for (seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)
+         if (ip_Sequences[seqIdx].d != 1)
+            allSequencesHaveDEqual1 = false;
+         
+      if (allSequencesHaveDEqual1)
+         fprintf(termsFile, "ABC $a*%u^$b$c // {number_primes,$a,1} Sieved to %" PRIu64"\n", ii_Base, largestPrime);
+      else
+         fprintf(termsFile, "ABC ($a*%u^$b$c)/$d // {number_primes,$a,1} Sieved to %" PRIu64"\n", ii_Base, largestPrime);
+   }
+
    if (it_Format == FF_BOINC)
    {
       if (ip_Sequences[0].c == +1)
@@ -559,7 +610,7 @@ void SierpinskiRieselApp::WriteOutputTermsFile(uint64_t largestPrime)
          nCount += WriteBoincTermsFile(&ip_Sequences[seqIdx], largestPrime, termsFile);
       
       if (it_Format == FF_NUMBER_PRIMES)
-         nCount += WriteABCNumberPrimesTermsFile(&ip_Sequences[seqIdx], largestPrime, termsFile);
+         nCount += WriteABCNumberPrimesTermsFile(&ip_Sequences[seqIdx], largestPrime, termsFile, allSequencesHaveDEqual1);
    }
    
    fclose(termsFile);
@@ -590,7 +641,10 @@ uint32_t SierpinskiRieselApp::WriteABCDTermsFile(seq_t *seq, uint64_t maxPrime, 
    if (n > ii_MaxN)
       return 0;
    
-   fprintf(termsFile, "ABCD %" PRIu64"*%u^$a%+" PRId64" [%u] // Sieved to %" PRIu64"\n", seq->k, ii_Base, seq->c, n, maxPrime);
+   if (seq->d == 1)
+      fprintf(termsFile, "ABCD %" PRIu64"*%u^$a%+" PRId64" [%u] // Sieved to %" PRIu64"\n", seq->k, ii_Base, seq->c, n, maxPrime);
+   else
+      fprintf(termsFile, "ABCD (%" PRIu64"*%u^$a%+" PRId64")/%u [%u] // Sieved to %" PRIu64"\n", seq->k, ii_Base, seq->c, seq->d, n, maxPrime);
    
    previousN = n;
    nCount = 1;
@@ -617,7 +671,10 @@ uint32_t SierpinskiRieselApp::WriteABCTermsFile(seq_t *seq, uint64_t maxPrime, F
    uint32_t n, nCount = 0;
    uint32_t bit;
 
-   fprintf(termsFile, "ABC %" PRIu64"*%u^$a%+" PRId64" // Sieved to %" PRIu64"\n", seq->k, ii_Base, seq->c, maxPrime);
+   if (seq->d == 1)
+      fprintf(termsFile, "ABC %" PRIu64"*%u^$a%+" PRId64" // Sieved to %" PRIu64"\n", seq->k, ii_Base, seq->c, maxPrime);
+   else
+      fprintf(termsFile, "ABC (%" PRIu64"*%u^$a%+" PRId64")/%u // Sieved to %" PRIu64"\n", seq->k, ii_Base, seq->c, seq->d, maxPrime);
       
    n = ii_MinN;
    bit = NBIT(n);
@@ -658,12 +715,11 @@ uint32_t SierpinskiRieselApp::WriteBoincTermsFile(seq_t *seq, uint64_t maxPrime,
    return nCount;
 }
 
-uint32_t SierpinskiRieselApp::WriteABCNumberPrimesTermsFile(seq_t *seq, uint64_t maxPrime, FILE *termsFile)
+uint32_t SierpinskiRieselApp::WriteABCNumberPrimesTermsFile(seq_t *seq, uint64_t maxPrime, FILE *termsFile, bool allSequencesHaveDEqual1)
 {
    uint32_t n, nCount = 0;
    uint32_t bit;
 
-      
    n = ii_MinN;
    bit = NBIT(n);
 
@@ -671,7 +727,11 @@ uint32_t SierpinskiRieselApp::WriteABCNumberPrimesTermsFile(seq_t *seq, uint64_t
    {
       if (seq->nTerms[bit])
       {
-         fprintf(termsFile, "%" PRIu64" %u %+" PRId64"\n", seq->k, n, seq->c);
+         if (allSequencesHaveDEqual1)
+            fprintf(termsFile, "%" PRIu64" %u %+" PRId64"\n", seq->k, n, seq->c);
+         else
+            fprintf(termsFile, "%" PRIu64" %u %+" PRId64" %u\n", seq->k, n, seq->c, seq->d);
+         
          nCount++;
       }
       
@@ -686,21 +746,21 @@ void  SierpinskiRieselApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
    sprintf(extraTtext, "%u < n < %u, k*%u^n+c", ii_MinN, ii_MaxN, ii_Base);
 }
 
-void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c)
+void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
 {
    uint32_t seqIdx;
 
    // If base, k, and c are odd then all terms are even
-   if ((ii_Base % 2) && (k % 2) && (c % 2))
+   if ((ii_Base % 2) && (k % 2) && (c % 2) && (d == 1))
    {
-      WriteToConsole(COT_OTHER, "All terms for sequence %" PRIu64"*%u^n%+d are divisible by 2", k, ii_Base, c);
+      WriteToConsole(COT_OTHER, "Sequence %" PRIu64"*%u^n%+d not added because all terms are divisible by 2", k, ii_Base, c);
       return;
    }
 
    // If either the base or k is even and c is even then all terms are even
-   if ((!(ii_Base % 2) || !(k % 2)) && !(c % 2))
+   if ((!(ii_Base % 2) || !(k % 2)) && !(c % 2) && (d == 1))
    {
-      WriteToConsole(COT_OTHER, "All terms for sequence %" PRIu64"*%u^n%+d are divisible by 2", k, ii_Base, c);
+      WriteToConsole(COT_OTHER, "Sequence %" PRIu64"*%u^n%+d not added because all terms are divisible by 2", k, ii_Base, c);
       return;
    }
    
@@ -725,6 +785,7 @@ void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c)
          {
             newPtr[seqIdx].k = ip_Sequences[seqIdx].k;
             newPtr[seqIdx].c = ip_Sequences[seqIdx].c;
+            newPtr[seqIdx].d = ip_Sequences[seqIdx].d;
          }
          
          xfree(ip_Sequences);
@@ -737,17 +798,18 @@ void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c)
    
    seq->k = k;
    seq->c = c;
+   seq->d = d;
    
    ii_SequenceCount++;
 }
 
-seq_t    *SierpinskiRieselApp::GetSequence(uint64_t k, int64_t c) 
+seq_t    *SierpinskiRieselApp::GetSequence(uint64_t k, int64_t c, uint32_t d) 
 {
    uint32_t seqIdx;
    
    for (seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)
    {      
-      if (ip_Sequences[seqIdx].k == k && ip_Sequences[seqIdx].c == c)
+      if (ip_Sequences[seqIdx].k == k && ip_Sequences[seqIdx].c == c && ip_Sequences[seqIdx].d == d)
          return &ip_Sequences[seqIdx];
    }
    
@@ -870,27 +932,48 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, uint32_t seqIdx, u
    if (n < ii_MinN || n > ii_MaxN)
       return;
 
+   nbit = NBIT(n);
+   
    if (thePrime > GetMaxPrimeForSingleWorker())
+   {
       ip_FactorAppLock->Lock();
 
-   nbit = NBIT(n);
+      if (!ip_Sequences[seqIdx].nTerms[nbit])
+      {
+         ip_FactorAppLock->Release();
+         return;
+      }
+   }
       
-   if (ip_Sequences[seqIdx].nTerms[nbit])
+   if (VerifyFactor(thePrime, seqIdx, n))
    {
-      VerifyFactor(thePrime, seqIdx, n);
-      
       il_TermCount--;
       il_FactorCount++;
       ip_Sequences[seqIdx].nTerms[nbit] = false;
             
       if (IsPrime(thePrime, ip_Sequences[seqIdx].k, n, ip_Sequences[seqIdx].c))
       {
-         WriteToConsole(COT_OTHER, "%" PRIu64"*%u^%u%+" PRId64" is prime!", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c);
+         if (ip_Sequences[seqIdx].d > 1)
+         {
+            WriteToConsole(COT_OTHER, "(%" PRIu64"*%u^%u%+" PRId64")/%u is prime!", ip_Sequences[seqIdx].k, ii_Base, n,  ip_Sequences[seqIdx].c, ip_Sequences[seqIdx].d);
 
-         WriteToLog("%" PRIu64"*%u^%u%+" PRId64" is prime!", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c);
+            WriteToLog("(%" PRIu64"*%u^%u%+" PRId64")/%u is prime!", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c, ip_Sequences[seqIdx].d);
+
+         }
+         else
+         {
+            WriteToConsole(COT_OTHER, "%" PRIu64"*%u^%u%+" PRId64" is prime!", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c);
+
+            WriteToLog("%" PRIu64"*%u^%u%+" PRId64" is prime!", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c);
+         }
       }
       else
-         LogFactor(thePrime, "%" PRIu64"*%u^%u%+" PRId64"", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c);
+      {
+         if (ip_Sequences[seqIdx].d > 1)
+            LogFactor(thePrime, "(%" PRIu64"*%u^%u%+" PRId64")/%u", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c, ip_Sequences[seqIdx].d);
+         else
+            LogFactor(thePrime, "%" PRIu64"*%u^%u%+" PRId64"", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c);
+      }
    }
 
    if (thePrime > GetMaxPrimeForSingleWorker())
@@ -919,7 +1002,7 @@ bool  SierpinskiRieselApp::IsPrime(uint64_t p, uint64_t k, uint32_t n, int64_t c
    return (n == 0 && p == 1);
 }
 
-void  SierpinskiRieselApp::VerifyFactor(uint64_t thePrime, uint32_t seqIdx, uint32_t n)
+bool  SierpinskiRieselApp::VerifyFactor(uint64_t thePrime, uint32_t seqIdx, uint32_t n)
 {
    uint64_t  rem;
 
@@ -928,16 +1011,26 @@ void  SierpinskiRieselApp::VerifyFactor(uint64_t thePrime, uint32_t seqIdx, uint
    rem = fpu_powmod(ii_Base, n, thePrime);
    rem = fpu_mulmod(rem, ip_Sequences[seqIdx].k, thePrime);
 
-   if (ip_Sequences[seqIdx].c < 0 && rem < (uint64_t) -ip_Sequences[seqIdx].c)
-      rem += thePrime;
+   fpu_pop();
    
-   rem += ip_Sequences[seqIdx].c;
-   
+   if (ip_Sequences[seqIdx].c > 0)
+      rem += ip_Sequences[seqIdx].c;
+   else
+      rem += (thePrime + ip_Sequences[seqIdx].c);
+      
    if (rem >= thePrime)
       rem -= thePrime;
 
    if (rem != 0)
       FatalError("%" PRIu64"*%u^%u%+" PRId64" mod %" PRIu64" = %" PRIu64"", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c, thePrime, rem);
    
-   fpu_pop();
+   if (ip_Sequences[seqIdx].d == 1)
+      return true;
+   
+   if (rem % ip_Sequences[seqIdx].d == 0)
+   {
+      rem %= ip_Sequences[seqIdx].d;
+      
+      
+   }
 }

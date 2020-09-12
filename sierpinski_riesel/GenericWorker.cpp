@@ -620,7 +620,7 @@ void   GenericWorker::BuildTables(uint64_t *baseToUse, uint64_t *primeList, doub
       bdck64[ssIdx][2] = ck64[ip_Subsequences[ssIdx].seqIdx][2];
       bdck64[ssIdx][3] = ck64[ip_Subsequences[ssIdx].seqIdx][3];
       
-      fpu_mulmod_4a_4b_4p(bdck64[ssIdx], bd64[ip_Subsequences[ssIdx].d], primeList);
+      fpu_mulmod_4a_4b_4p(bdck64[ssIdx], bd64[ip_Subsequences[ssIdx].q], primeList);
    }
    
    fpu_pop();

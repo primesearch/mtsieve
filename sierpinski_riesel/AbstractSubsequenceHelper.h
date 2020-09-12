@@ -15,14 +15,15 @@
 #define POWER_RESIDUE_DIVISORS 30
 
 #define SEQ_IDX(ssIdx)     (ip_Subsequences[(ssIdx)].seqIdx)
-#define N_TERM(ssIdx, m)   ((m)*ii_BestQ + ip_Subsequences[(ssIdx)].d)
+#define N_TERM(ssIdx, m)   ((m)*ii_BestQ + ip_Subsequences[(ssIdx)].q)
 
 // All of these fields are set before sieving is started, but only nTerms can be
 // modified after sieving has started.
 typedef struct
 {
-   uint64_t     k;            // k in k*b^n+c
-   int64_t      c;            // c in k*b^n+c
+   uint64_t     k;            // k in (k*b^n+c)/d
+   int64_t      c;            // c in (k*b^n+c)/d
+   uint32_t     d;            // d in (k*b^n+c)/d
    
    uint32_t     parity;       // 0 if all n terms are even, 1 if all n terms are odd, 2 if mixed
    uint32_t     ssCount;
@@ -44,7 +45,7 @@ typedef struct
    uint32_t     seqIdx;       // index to the sequence that this subsequence is for
    uint64_t     k;            // k in k*b^n+c
    int64_t      c;            // c in k*b^n+c
-   uint32_t     d;
+   uint32_t     q;
    uint32_t     babySteps;
    uint32_t     giantSteps;
    vector<bool> mTerms;       // remaining m for this sub-sequence
@@ -78,7 +79,7 @@ public:
       
 protected:
    void              CreateEmptySubsequences(uint32_t subsequenceCount);
-   uint32_t          AddSubsequence(uint32_t seqIdx, uint32_t d, uint32_t mTermCount);
+   uint32_t          AddSubsequence(uint32_t seqIdx, uint32_t q, uint32_t mTermCount);
    
    App              *ip_App;
    

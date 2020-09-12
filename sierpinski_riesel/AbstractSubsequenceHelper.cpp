@@ -78,7 +78,7 @@ void      AbstractSubsequenceHelper::CreateEmptySubsequences(uint32_t subsequenc
    ii_SubsequenceCapacity = subsequenceCount;
 }
 
-uint32_t  AbstractSubsequenceHelper::AddSubsequence(uint32_t seqIdx, uint32_t d, uint32_t mTermCount)
+uint32_t  AbstractSubsequenceHelper::AddSubsequence(uint32_t seqIdx, uint32_t q, uint32_t mTermCount)
 {
    uint32_t ssIdx;
    
@@ -90,10 +90,10 @@ uint32_t  AbstractSubsequenceHelper::AddSubsequence(uint32_t seqIdx, uint32_t d,
    if (ip_Sequences[seqIdx].ssCount == 1)
    {
       ip_Sequences[seqIdx].ssIdxFirst = ii_SubsequenceCount;
-      ip_Sequences[seqIdx].parity = d % 2;
+      ip_Sequences[seqIdx].parity = q % 2;
    }
    
-   if (ip_Sequences[seqIdx].parity != d % 2)
+   if (ip_Sequences[seqIdx].parity != q % 2)
       ip_Sequences[seqIdx].parity = 2;
    
    ip_Sequences[seqIdx].ssIdxLast = ii_SubsequenceCount;
@@ -103,7 +103,7 @@ uint32_t  AbstractSubsequenceHelper::AddSubsequence(uint32_t seqIdx, uint32_t d,
    ssPtr->seqIdx = seqIdx;
    ssPtr->k = ip_Sequences[seqIdx].k;
    ssPtr->c = ip_Sequences[seqIdx].c;
-   ssPtr->d = d;
+   ssPtr->q = q;
    ssPtr->mTerms.resize(mTermCount);
       
    std::fill(ssPtr->mTerms.begin(), ssPtr->mTerms.end(), false);
