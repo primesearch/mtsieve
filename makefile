@@ -192,7 +192,7 @@ xyyxsievecl: $(GPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(XYYX_GPU_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(GPULDFLAGS) $(EXTRALDFLAGS)
 
 clean_objs:
-	rm -f $(ALL_OBJS) *.log *.pfgw
+	rm -f $(ALL_OBJS) *.log
    
 clean:
-	rm -f $(CPU_PROGS) $(GPU_PROGS) $(ALL_OBJS) *.log *.pfgw
+	rm -f $(CPU_PROGS) $(GPU_PROGS) $(ALL_OBJS) *.log
