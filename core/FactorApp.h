@@ -16,7 +16,7 @@
 
 // As long as we don't expect the factor rate to fall below 1 per day
 // then this should be sufficient to capture the rate.
-#define STATUS_COUNT 60 * 5 * 24
+#define MAX_STATUS_COUNT 60 * 5 * 24
 
 typedef struct {
    uint64_t reportTimeUS;
@@ -65,15 +65,15 @@ protected:
    string            is_OutputFactorsFileName;
       
 private:
-   void              GetFactoringRate(uint64_t factorCount, double cpuUtilization, char *factoringRate);
-   void              BuildFactoringRateString(double cpuUtilization, char *factoringRate);
+   bool              BuildFactorsPerSecondRateString(uint32_t currentStatusEntry, double cpuUtilization, char *factoringRate);
+   bool              BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, double cpuUtilization, char *factoringRate);
    
    FILE             *if_FactorFile;
    time_t            it_CheckpointTime;
    bool              ib_ApplyAndExit;
    
    // I could use a vector, but I'm lazy
-   report_t          ir_ReportStatus[STATUS_COUNT];
+   report_t          ir_ReportStatus[MAX_STATUS_COUNT];
    uint32_t          ii_NextStatusEntry;
 };
 

@@ -265,6 +265,7 @@ void  FactorApp::GetReportStats(char *reportStats, double cpuUtilization)
 {
    char     factoringRate[100];
    uint64_t checkpointPrime;
+   uint32_t currnetStatusEntry;
 
    // Use this as our opportunity to checkpoint current progress
    if (time(NULL) > it_CheckpointTime)
@@ -279,166 +280,170 @@ void  FactorApp::GetReportStats(char *reportStats, double cpuUtilization)
    // Lock because workers can update il_FactorCount
    ip_FactorAppLock->Lock();
    
-   if (il_FactorCount > 0)
-   {   
-      GetFactoringRate(il_FactorCount, cpuUtilization, factoringRate);
+   currnetStatusEntry = ii_NextStatusEntry;
    
-      sprintf(reportStats, "%" PRIu64" factors found at %s", il_FactorCount, factoringRate);
-   }
-   else
-      sprintf(reportStats, "no factors found");
-      
-   ip_FactorAppLock->Release();
-}
-
-void  FactorApp::GetFactoringRate(uint64_t factorCount, double cpuUtilization, char *factoringRate)
-{
-   int statusEntry = ii_NextStatusEntry;
+   if (ii_NextStatusEntry < MAX_STATUS_COUNT)
+      ii_NextStatusEntry++;
    
-   if (ii_NextStatusEntry == STATUS_COUNT) 
+   if (ii_NextStatusEntry == MAX_STATUS_COUNT) 
    {
-      statusEntry = STATUS_COUNT - 1;
+      currnetStatusEntry = MAX_STATUS_COUNT - 1;
       
       // Since we have reached the end of the array, move everything one index up in the
       // array.  We don't care if we lose the oldest since we don't expect factor rates
       // to change much if we have been running for that long.
-      for (int i=0; i<statusEntry; i++)
+      // Eventually this will be changed to a vector.
+      for (uint32_t i=0; i<currnetStatusEntry; i++)
       {   
          ir_ReportStatus[i].reportTimeUS = ir_ReportStatus[i+1].reportTimeUS;
          ir_ReportStatus[i].factorsFound = ir_ReportStatus[i+1].factorsFound;;
       }
    }
    
-   ir_ReportStatus[statusEntry].reportTimeUS = Clock::GetCurrentMicrosecond();
-   ir_ReportStatus[statusEntry].factorsFound = factorCount;
-
-   BuildFactoringRateString(cpuUtilization, factoringRate);
+   ir_ReportStatus[currnetStatusEntry].reportTimeUS = Clock::GetCurrentMicrosecond();
+   ir_ReportStatus[currnetStatusEntry].factorsFound = il_FactorCount;
    
-   if (ii_NextStatusEntry < STATUS_COUNT)
-      ii_NextStatusEntry++;;
+   if (il_FactorCount > 0)
+   {   
+      if (!BuildFactorsPerSecondRateString(currnetStatusEntry, cpuUtilization, factoringRate))
+         BuildSecondsPerFactorRateString(currnetStatusEntry, cpuUtilization, factoringRate);
+   
+      sprintf(reportStats, "%" PRIu64" factors found at %s", il_FactorCount, factoringRate);
+   }
+   else
+      sprintf(reportStats, "no factors found");
+      
+   
+   ip_FactorAppLock->Release();
 }
 
-void  FactorApp::BuildFactoringRateString(double cpuUtilization, char *factoringRate)
+bool  FactorApp::BuildFactorsPerSecondRateString(uint32_t currentStatusEntry, double cpuUtilization, char *factoringRate)
+{
+   uint32_t     previousStatusEntry;
+   uint32_t     factorPrecision;
+   const char  *factorRateUnit;
+   uint64_t     factorsFound;
+   uint64_t     factorTimeUS = 0;
+   double       factorsPerSecond = 0;
+   double       adjustedFactorTimeSeconds;
+   uint64_t     currentReportTimeUS = ir_ReportStatus[currentStatusEntry].reportTimeUS;
+   uint64_t     currentFactorsFound = ir_ReportStatus[currentStatusEntry].factorsFound;
+
+   previousStatusEntry = currentStatusEntry;
+   
+   while (previousStatusEntry > 0)
+   {
+      previousStatusEntry--;
+      
+      factorTimeUS = currentReportTimeUS - ir_ReportStatus[previousStatusEntry].reportTimeUS;
+      factorsFound = currentFactorsFound - ir_ReportStatus[previousStatusEntry].factorsFound;
+
+      if (factorsFound == 0)
+         continue;
+      
+      // Might add logic here in the future to allow for longer time periods for factor rate
+      // calculation but the previous minute should be okay most of the time as most ranges
+      // need to reach a removal rate of less than 1 per second which will trigger the 
+      // seconds per factor logic.
+      break;
+   };
+   
+   // This will adjust based upon the CPU utilization, i.e. number of cores
+   // and that the factorTimeUS is in microseconds.
+   adjustedFactorTimeSeconds = ((double) factorTimeUS * cpuUtilization) / 1000000.0;
+   
+   // If finding at least one per second, then compute as factors per second
+   if (factorsFound < (uint64_t) adjustedFactorTimeSeconds)
+      return false;
+   
+   // Note that we are computing factors per second
+   factorsPerSecond = ((double) factorsFound) / ((double) factorTimeUS);
+   
+   // Divide the CPU utilization to account for less or more than 1 core
+   factorsPerSecond /= cpuUtilization;
+
+   factorRateUnit = "M";
+   if (factorsPerSecond < 1.0) factorsPerSecond *= 1000.0, factorRateUnit = "K";
+   if (factorsPerSecond < 1.0) factorsPerSecond *= 1000.0, factorRateUnit = "";
+
+   factorPrecision = 0;
+   if (factorsPerSecond < 1000.0) factorPrecision = 1;
+   if (factorsPerSecond < 100.0)  factorPrecision = 2;
+   if (factorsPerSecond < 10.0)   factorPrecision = 3;
+   
+   sprintf(factoringRate, "%.*f%s f/sec (last %u min)", factorPrecision, factorsPerSecond, factorRateUnit, currentStatusEntry - previousStatusEntry);
+   
+   return true;
+}
+
+bool  FactorApp::BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, double cpuUtilization, char *factoringRate)
 {
    uint32_t previousStatusEntry;
-   double   factorRate;
-   uint32_t factorPrecision;
-   uint32_t statusEntry = ii_NextStatusEntry;
-   const char  *factorRateUnit;
-   uint64_t factorsFound;
-   uint64_t factorTimeUS, adjustedFactorTimeUS;
-   uint64_t currentReportTimeUS = ir_ReportStatus[statusEntry].reportTimeUS;
-   uint64_t currentFactorsFound = ir_ReportStatus[statusEntry].factorsFound;
+   uint64_t factorsFound = 0;
+   uint64_t factorTimeUS = 0;
+   double   secondsPerFactor;
+   uint64_t currentReportTimeUS = ir_ReportStatus[currentStatusEntry].reportTimeUS;
+   uint64_t currentFactorsFound = ir_ReportStatus[currentStatusEntry].factorsFound;
+   
+   previousStatusEntry = currentStatusEntry;
 
-   if (statusEntry == 1)
+   while (previousStatusEntry > 0)
    {
-      factorTimeUS = currentReportTimeUS - ir_ReportStatus[statusEntry-1].reportTimeUS;
-      factorsFound = currentFactorsFound - ir_ReportStatus[statusEntry-1].factorsFound;
-   }
-   else
-   {
-      previousStatusEntry = ((statusEntry > 5) ? (statusEntry - 5) : statusEntry - 1);
+      previousStatusEntry--;
       
-      do {
-         factorTimeUS = currentReportTimeUS - ir_ReportStatus[previousStatusEntry-1].reportTimeUS;
-         factorsFound = currentFactorsFound - ir_ReportStatus[previousStatusEntry-1].factorsFound;
+      factorTimeUS = currentReportTimeUS - ir_ReportStatus[previousStatusEntry].reportTimeUS;
+      factorsFound = currentFactorsFound - ir_ReportStatus[previousStatusEntry].factorsFound;
 
-         if (previousStatusEntry == 0)
-            break;
-         
-         // Add a minute until we have a range of time with at least one factor found
-         previousStatusEntry--;
-      } while (factorsFound == 0);
-  
-      // This will adjust based upon the CPU utilization, i.e. number of cores
-      adjustedFactorTimeUS = (uint64_t) ((double) factorTimeUS * cpuUtilization);
+      // If no factors found in this time slice, try the next biggest time slice
+      if (factorsFound == 0)
+         continue;
 
-      // If finding at least one per second in the previous 5 minutes, then compute as factors per second
-      if (factorsFound > adjustedFactorTimeUS / 1000000)
-      {
-         // Note that we are computing factors per second
-         factorRate = ((double) factorsFound) / ((double) factorTimeUS);
-         
-         // Divide the CPU utilization to account for less or more than 1 core
-         factorRate /= cpuUtilization;
-
-         factorRateUnit = "M";
-         if (factorRate < 1.0) factorRate *= 1000.0, factorRateUnit = "K";
-         if (factorRate < 1.0) factorRate *= 1000.0, factorRateUnit = "";
-
-         factorPrecision = 0;
-         if (factorRate < 1000.0) factorPrecision = 1;
-         if (factorRate < 100.0)  factorPrecision = 2;
-         if (factorRate < 10.0)   factorPrecision = 3;
-         
-         sprintf(factoringRate, "%.*f%s f/sec", factorPrecision, factorRate, factorRateUnit);
-         return;
-      }
-
-      // Use the status entry from for the past hour
-      previousStatusEntry = ((statusEntry > 60) ? (statusEntry - 60) : statusEntry - 1);
-
-      do {
-         factorTimeUS = currentReportTimeUS - ir_ReportStatus[previousStatusEntry].reportTimeUS;
-         factorsFound = currentFactorsFound - ir_ReportStatus[previousStatusEntry].factorsFound;
-
-         if (previousStatusEntry == 0)
-            break;
-
-         // Add a minute until we have a range of time with at least one factor found
-         previousStatusEntry--;
-      } while (factorsFound == 0);
-         
-      // This will adjust based upon the CPU utilization, i.e. number of cores
-      adjustedFactorTimeUS = (uint64_t) ((double) factorTimeUS * cpuUtilization);
-
-      // If finding less than 1 per minute for the past hour, use the past day
-      if (adjustedFactorTimeUS < (statusEntry - previousStatusEntry))
-      {
-         // We will ignore the first hour as we want to avoid inflated numbers due to the
-         // number of terms removed in the first hour.  This is arbitrary, but we're assuming
-         // that most users will be running for at least 30 minutes before they stop sieving.
-         // If we haven't been running for at least 30 minutes, compute the rate based upon
-         // when we started sieving.
-         previousStatusEntry = ((statusEntry > 30) ? 30 : 0);
-
-         // If running for at least 24 hours, then use the last 23.5 hours to compute the rate.
-         // If we use the last 24 hours, then we might get rates for the first hour of a new
-         // sieve which will inflate the factoring rate for an hour.
-         if (statusEntry > 1440)
-            previousStatusEntry = statusEntry - 1410;
-      
-         factorTimeUS = currentReportTimeUS - ir_ReportStatus[previousStatusEntry].reportTimeUS;
-         factorsFound = currentFactorsFound - ir_ReportStatus[previousStatusEntry].factorsFound;
-         
-         // If fewer than 24 factors found, then use the oldest status entry to compute the rate
-         // as that is our best chance of getting a meaningful factor rate.
-         if (factorsFound < 24)
-         {
-            factorTimeUS = currentReportTimeUS - ir_ReportStatus[0].reportTimeUS;
-            factorsFound = currentFactorsFound - ir_ReportStatus[0].factorsFound;
-         }
-      }
-   }
-
-   if (factorsFound > 0)
-   {
       // Note that we are computing seconds per factor
-      factorRate = ((double) factorTimeUS) / ((double) factorsFound);
+      secondsPerFactor = ((double) factorTimeUS) / ((double) factorsFound);
       
       // Convert from ms per factor to sec per factor.
-      factorRate /= 1000000.0;
+      secondsPerFactor /= 1000000.0;
 
       // Multiply the CPU utilization to account for less or more than 1 core
-      factorRate *= cpuUtilization;
+      secondsPerFactor *= cpuUtilization;
       
-      if (factorRate > 100)
-         sprintf(factoringRate, "%.0f sec per factor", factorRate);
-      else
-         sprintf(factoringRate, "%.2f sec per factor", factorRate);
+      // The value of 5000 is arbitrary.  The idea is that as the factor rate decreases
+      // we want a longer time slice so that natural fluctuations in factor density
+      // do not skew the factoring rate too much with successive reports.  For example
+      // once the rate is about 10 seconds per factor, it will compute the rate for the
+      // past 50000 seconds.  If the rate is about 15 seconds per factor, it will
+      // compute the rate based upon the lsat 75000 seconds.
+      if ((double) factorsFound > 5000.0 * secondsPerFactor)
+         break;
+      
+      // It is possible that we haven't removed that many factors in the window that
+      // is being tracked, therefore this will compute based upon the oldest entry
+      // in ir_ReportStatus.  If we want to track for longer then we can increase
+      // MAX_STATUS_COUNT, which will be addressed when ir_RepportStatus is changed
+      // to a vector.
+   };
+
+   if (factorsFound == 0)
+   {
+      sprintf(factoringRate, "no factors found (last %u min)", currentStatusEntry - previousStatusEntry);
+      return true;
    }
+   
+   // Note that we are computing seconds per factor
+   secondsPerFactor = ((double) factorTimeUS) / ((double) factorsFound);
+   
+   // Convert from ms per factor to sec per factor.
+   secondsPerFactor /= 1000000.0;
+
+   // Multiply the CPU utilization to account for less or more than 1 core
+   secondsPerFactor *= cpuUtilization;
+   
+   if (secondsPerFactor > 100)
+      sprintf(factoringRate, "%.0f sec per factor (last %u min)", secondsPerFactor, currentStatusEntry - previousStatusEntry);
    else
-         sprintf(factoringRate, "no factors found");
+      sprintf(factoringRate, "%.2f sec per factor (last %u min)", secondsPerFactor, currentStatusEntry - previousStatusEntry);
+
+   return true;      
 }
 
 void  FactorApp::LogFactor(uint64_t p, const char *fmt, ...)
