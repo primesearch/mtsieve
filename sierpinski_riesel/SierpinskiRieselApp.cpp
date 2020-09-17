@@ -20,7 +20,7 @@
 #include "CisOneSubsequenceHelper.h"
 
 #define APP_NAME        "srsieve2"
-#define APP_VERSION     "1.2.2"
+#define APP_VERSION     "1.2.3"
 
 #define NBIT(n)         ((n) - ii_MinN)
 #define MBIT(m)         ((m) - ii_MinM)
@@ -421,7 +421,7 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
          }
          else
          {
-            if (sscanf(buffer, "ABC ($a*%u^$b$c)/%d // {number_primes,$a,1}", &ii_Base) != 1)
+            if (sscanf(buffer, "ABC ($a*%u^$b$c)/$d // {number_primes,$a,1}", &ii_Base) != 1)
             {
                if (sscanf(buffer, "ABC $a*%u^$b$c // {number_primes,$a,1}", &ii_Base) != 1)
                   FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
@@ -934,17 +934,16 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, uint32_t seqIdx, u
 
    nbit = NBIT(n);
    
-   if (thePrime > GetMaxPrimeForSingleWorker())
-   {
-      ip_FactorAppLock->Lock();
-
-      if (!ip_Sequences[seqIdx].nTerms[nbit])
-      {
-         ip_FactorAppLock->Release();
-         return;
-      }
-   }
       
+   if (thePrime > GetMaxPrimeForSingleWorker())
+      ip_FactorAppLock->Lock();
+      
+   if (!ip_Sequences[seqIdx].nTerms[nbit])
+   {
+      ip_FactorAppLock->Release();
+      return;
+   }
+
    if (VerifyFactor(thePrime, seqIdx, n))
    {
       il_TermCount--;
@@ -1024,13 +1023,6 @@ bool  SierpinskiRieselApp::VerifyFactor(uint64_t thePrime, uint32_t seqIdx, uint
    if (rem != 0)
       FatalError("%" PRIu64"*%u^%u%+" PRId64" mod %" PRIu64" = %" PRIu64"", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c, thePrime, rem);
    
-   if (ip_Sequences[seqIdx].d == 1)
-      return true;
-   
-   if (rem % ip_Sequences[seqIdx].d == 0)
-   {
-      rem %= ip_Sequences[seqIdx].d;
-      
-      
-   }
+   // At some point need logic if gcd(d, thePrime) != 1
+   return true;
 }
