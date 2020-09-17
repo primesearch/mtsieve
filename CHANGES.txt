@@ -1,3 +1,10 @@
+2.0.6 - September 8, 2020
+   Fixed crash with xyyxsievecl with overly large ranges for the GPU.
+   More speed enhancements for xyyxsieve, mainly due to reduced memory requirements.
+   Do not show ETA or percent done if less than 1% done and -P not used.
+   Modify factor rate calculation to handle uneven factor distribution better.
+   Fix srsieve2 as it was counting factors of terms that had already been removed.
+   
 2.0.5 - July 13, 2020
    Added support for newpgen format to sgsieve.
 
