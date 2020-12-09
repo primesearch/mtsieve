@@ -179,6 +179,7 @@ int   ProcessArgs(App *theApp, int argc, char *argv[])
    {
       help();
       theApp->Help();
+      exit(0);
    }
 
    return count;
