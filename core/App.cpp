@@ -151,7 +151,7 @@ parse_t App::ParentParseOption(int opt, char *arg, const char *source)
          break;
 
       case 'w':
-         status = Parser::Parse(arg, 10000, 1000000000, ii_CpuWorkSize);
+         status = Parser::Parse(arg, 10, 1000000000, ii_CpuWorkSize);
          break;
 
       case 'W':
