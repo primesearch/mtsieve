@@ -302,7 +302,7 @@ bool XYYXApp::ApplyFactor(uint64_t thePrime, const char *term)
    
    if (!xyyxWorker->VerifyFactor(false, thePrime, x1, y1, c))
    {
-      if (c == -1)
+      if (c == '-')
          WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of %u^%u-%u^%u and was rejected", thePrime, x1, y1);
       else
          WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of %u^%u+%u^%u and was rejected", thePrime, x1, y1);

@@ -6,6 +6,7 @@
    (at your option) any later version.
 */
 
+#include <math.h>
 #include "MultiFactorialWorker.h"
 #include "../x86_asm/fpu-asm-x86.h"
 #include "../x86_asm/avx-asm-x86.h"
@@ -44,7 +45,7 @@ void  MultiFactorialWorker::TestFactorial(void)
    vector<uint64_t>::iterator it = iv_Primes.begin();
    uint32_t  n;
    // if i <= n_pair then (i - 1) * i < p. Compute n! = (2 * 3) * (4 * 5) * ... * ((n - 1) * n)
-   uint32_t n_pair = std::max(2u, std::min(ii_MinN, uint32_t(std::sqrt(double(*it))) & ~1u));
+   uint32_t n_pair = std::max(2u, std::min(ii_MinN, uint32_t(sqrt(double(*it))) & ~1u));
       
    while (it != iv_Primes.end())
    {

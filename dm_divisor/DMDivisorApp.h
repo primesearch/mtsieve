@@ -69,7 +69,6 @@ private:
    uint64_t          il_MinKOriginal;
    uint64_t          il_MaxKOriginal;
    uint64_t          il_MinKInChunk;
-   uint64_t          il_MaxKInChunk;
       
    uint64_t          il_StartSievingUS;
    uint64_t          il_TotalTerms;

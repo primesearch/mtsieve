@@ -37,7 +37,6 @@ private:
    uint64_t          il_MinK;
    uint64_t          il_MaxK;
    uint64_t          ii_Exp;
-   uint64_t          il_2powN;
 };
 
 #endif

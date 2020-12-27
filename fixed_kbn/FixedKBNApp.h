@@ -55,8 +55,6 @@ protected:
 private:   
    vector<bool>      iv_Terms;
 
-   uint32_t         *ii_BaseInverses;
-
    string            is_Sequence;
    string            is_InputFileName;
    string            is_OutputFileName;

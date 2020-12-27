@@ -31,7 +31,7 @@ else
    UNAME_S := $(shell uname -s)
    
    ifeq ($(UNAME_S),Darwin)
-      CPPFLAGS+=-std=c++0x
+      CPPFLAGS+=-std=c++14
       GMPLDFLAGS=-lgmp
       GPULDFLAGS+=-framework OpenCL
    else

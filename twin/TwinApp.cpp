@@ -278,7 +278,7 @@ void TwinApp::ProcessInputTermsFile(bool haveBitMap)
    int32_t  c;
    uint32_t n;
    uint32_t base1, base2, n1, n2;
-   uint64_t bit, k, diff, lastPrime;
+   uint64_t bit, k, diff, lastPrime = 0;
    format_t format = FF_UNKNOWN;
 
    if (!fPtr)
@@ -292,7 +292,7 @@ void TwinApp::ProcessInputTermsFile(bool haveBitMap)
    
    if (!memcmp(buffer, "ABCD ", 5))
    {
-      if (strchr(buffer, '&') > 0)
+      if (strchr(buffer, '&') != NULL)
       {
          if (sscanf(buffer, "ABCD $a*%u^%d+1 & $a*%u^%d-1  [%" SCNu64"] // Sieved to %" SCNu64"", 
             &base1, &n1, &base2, &n2, &k, &lastPrime) != 6)
@@ -323,7 +323,7 @@ void TwinApp::ProcessInputTermsFile(bool haveBitMap)
    }
    else if (!memcmp(buffer, "ABC ", 4))
    {
-      if (strchr(buffer, '&') > 0)
+      if (strchr(buffer, '&') != NULL)
       {
          if (sscanf(buffer, "ABC $a*%u^%d+1 & $a*%u^%d-1  // Sieved to %" SCNu64"", 
             &base1, &n1, &base2, &n2, &lastPrime) != 5)
@@ -349,7 +349,7 @@ void TwinApp::ProcessInputTermsFile(bool haveBitMap)
       
       format = FF_ABC;
    }
-   else if (buffer[0] > '0' && buffer[0] <= '9')
+   else if (isdigit(buffer[0]))
    {
       // handle newpgnen noise created by srsieve/srfile
       if (sscanf(buffer, "%" SCNu64":T:0:%u:3", &lastPrime, &ii_Base) != 2)

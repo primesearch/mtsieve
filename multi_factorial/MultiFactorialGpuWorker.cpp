@@ -15,7 +15,6 @@
 #include "mf_kernel.h"
 #include "../x86_asm/fpu-asm-x86.h"
 #include <time.h>
-#include "../core/MpArith.h"
 
 MultiFactorialGpuWorker::MultiFactorialGpuWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
 {

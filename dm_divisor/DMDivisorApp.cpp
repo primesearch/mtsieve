@@ -291,7 +291,7 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
    FILE    *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
    char     buffer[1000];
    uint32_t n, bit;
-   uint64_t k, lastPrime;
+   uint64_t k, lastPrime = 0;
    
    if (!fPtr)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());

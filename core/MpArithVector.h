@@ -36,7 +36,7 @@ private:
 
 private:
 	// p * p_inv = 1 (mod 2^64) (Newton's method)
-	constexpr uint64_t invert(const uint64_t p)
+	constexpr uint64_t invert(const uint64_t p) const
 	{
 		uint64_t p_inv = 1, prev = 0;
 		while (p_inv != prev) { prev = p_inv; p_inv *= 2 - p * p_inv; }

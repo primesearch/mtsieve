@@ -61,7 +61,6 @@ private:
    seq_t             io_Sequence[ROOT_COUNT];
       
    uint64_t          il_A[ROOT_COUNT];
-   uint64_t          bQ64;
 };    
 
 #endif

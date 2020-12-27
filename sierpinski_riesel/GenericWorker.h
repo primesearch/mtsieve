@@ -51,10 +51,6 @@ private:
    uint32_t          ii_BabySteps;
    uint32_t          ii_GiantSteps;
 
-   uint32_t          gotOrder;
-   uint32_t          firstSteps;
-   uint32_t          multiSteps;
-   
    HashTable        *ip_HashTable[4];
    
    uint32_t         *ssHash;        // there is one per subsequence

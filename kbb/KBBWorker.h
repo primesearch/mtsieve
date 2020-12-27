@@ -38,8 +38,6 @@ private:
    uint32_t         *ip_Bases;
    
    uint64_t          il_K;
-   uint32_t          ii_MinB;
-   uint32_t          ii_MaxB;
 };
 
 #endif

@@ -233,7 +233,7 @@ void FixedBNCApp::ProcessInputTermsFile(bool haveBitMap)
    FILE    *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
    char     buffer[1000], sign;
    uint32_t n, type;
-   uint64_t bit, k, diff, lastPrime;
+   uint64_t bit, k, diff, lastPrime = 0;
    format_t format = FF_UNKNOWN;
 
    if (!fPtr)
