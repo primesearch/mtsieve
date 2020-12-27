@@ -40,7 +40,7 @@ inline uint64_t  gcd64(uint64_t a, uint64_t b)
 }
 
 // From gmp-fermat
-inline uint64_t inv_proth(uint64_t k, uint32_t n)
+inline uint64_t invproth(uint64_t k, uint32_t n)
 {
    uint64_t i, j, x, y;
 
@@ -92,5 +92,120 @@ inline int32_t jacobi(int32_t a, uint32_t p)
    }
 
    return ((y == 1) ? sign : 0);
+}
+
+// Thanks to Yves Gallot for this implementation based upon 
+// Peter L. Montgomery, Modular multiplication without trial division, Math. Comp.44 (1985), 519–521.
+inline uint64_t   mmmInvert(uint64_t p)
+{
+   uint64_t p_inv = 1;
+   uint64_t prev = 0;
+   
+   while (p_inv != prev)
+   {
+      prev = p_inv;
+      p_inv *= (2 - p * p_inv);
+   }
+   
+   return p_inv;
+}
+
+// Compute the residual of 1 (mod p)
+inline uint64_t   mmmOne(uint64_t p)
+{
+   return ((-p) % p);
+}
+
+// Compute the residual of a + b (mod p)
+inline uint64_t   mmmAdd(uint64_t a, uint64_t b, uint64_t p)
+{
+   uint64_t c = (a >= p - b) ? p : 0;
+   return a + b - c;
+}
+
+// Compute the residual of a - b (mod p)
+inline uint64_t   mmmSub(uint64_t a, uint64_t b, uint64_t p)
+{
+   uint64_t c = (a < b) ? p : 0;
+   return a - b + c;
+}
+
+// Compute the residual of a * b (mod p)
+inline uint64_t   mmmMulmod(uint64_t a, uint64_t b, uint64_t p, uint64_t q)
+{
+   __uint128_t t1 = a * __uint128_t(b);
+   
+   uint64_t m = uint64_t(t1) * q;
+   
+   __uint128_t t2 = m * __uint128_t(p);
+   
+   int64_t r = int64_t(t1 >> 64) - int64_t(t2 >> 64);
+
+   if (r < 0)
+      return (uint64_t) (r + p);
+      
+   return (uint64_t) r;      
+}
+
+// Compute the residual of n (mod p)
+inline uint64_t   mmmN(uint64_t n, uint64_t p)
+{
+   if (n == 1)
+      return mmmOne(p);
+    
+   // list[0] = res(2^0), list[1] = res(2^1), list[2] = res(2^2), etc.
+   uint64_t list[64];
+   uint64_t bit = 0x01;
+   uint64_t value = 0;
+
+   list[0] = mmmOne(p);
+   
+   if (n & bit)
+   {
+      value = list[0];
+      n &= ~bit;
+   }
+   
+   for (uint32_t idx=1; idx<64; idx++)
+   {
+      bit <<= 1;
+      
+      // Need to compute for each power of 2
+      list[idx] = mmmAdd(list[idx-1], list[idx-1], p);
+      
+      if (n & bit)
+      {
+         value = mmmAdd(list[idx], value, p);
+         n &= ~bit;
+      }
+      
+      if (n == 0)
+         break;
+   }
+
+   return value;
+}
+
+// Compute the residual of b ^ n (mod p)
+inline uint64_t   mmmPowmod(uint64_t base, uint64_t exp, uint64_t p, uint64_t q)
+{
+   uint64_t x = mmmN(base, p);
+   uint64_t y = mmmN(1, p);
+   
+   while (true)
+   {
+      if (exp & 1)
+         y = mmmMulmod(x, y, p, q);
+
+      exp >>= 1;
+
+      if (!exp)
+         return y;
+
+      x = mmmMulmod(x, x, p, q);
+   }
+
+   // Should never get here
+   return 0;
 }
 #endif

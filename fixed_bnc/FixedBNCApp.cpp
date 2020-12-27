@@ -39,6 +39,8 @@ FixedBNCApp::FixedBNCApp() : FactorApp()
    ib_Remove = false;
    
    il_MaxPrimeForValidFactor = PMAX_MAX_62BIT;
+   
+   ip_FactorValidator = new FixedBNCWorker(0, this);
 }
 
 void FixedBNCApp::Help(void)
@@ -347,7 +349,7 @@ void FixedBNCApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool FixedBNCApp::ApplyFactor(const char *term)
+bool FixedBNCApp::ApplyFactor(uint64_t thePrime, const char *term)
 {
    uint64_t k;
    uint32_t b, n;

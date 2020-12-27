@@ -18,7 +18,7 @@ GPULIBS=
 ifeq ($(strip $(DEBUG)),yes)
    CPPFLAGS+=-g
 else
-   CPPFLAGS+=-O2
+   CPPFLAGS+=-O3
 endif
 
 ifeq ($(OS),Windows_NT)
@@ -50,7 +50,7 @@ CPU_PROGS=afsieve cksieve dmdsieve gcwsieve gfndsieve fbncsieve fkbnsieve k1b2si
 GPU_PROGS=afsievecl mfsievecl gcwsievecl gfndsievecl pixsievecl xyyxsievecl
 
 CPU_CORE_OBJS=core/App_cpu.o core/FactorApp_cpu.o core/AlgebraicFactorApp_cpu.o \
-   core/Clock.o core/Parser.o core/Worker_cpu.o core/HashTable.o core/main.o core/SharedMemoryItem.o
+   core/Clock_cpu.o core/Parser_cpu.o core/Worker_cpu.o core/HashTable_cpu.o core/main_cpu.o core/SharedMemoryItem_cpu.o
    
 GPU_CORE_OBJS=core/App_gpu.o core/FactorApp_gpu.o core/AlgebraicFactorApp_gpu.o \
    core/Clock_gpu.o core/Parser_gpu.o core/Worker_gpu.o core/HashTable_gpu.o core/main_gpu.o core/SharedMemoryItem_gpu.o \
@@ -75,24 +75,24 @@ PRIMESIEVE_OBJS=sieve/Erat.o sieve/EratBig.o sieve/EratMedium.o sieve/EratSmall.
    sieve/IteratorHelper.o sieve/popcount.o sieve/nthPrime.o sieve/PrintPrimes.o \
    sieve/ParallelSieve.o sieve/iterator.o sieve/api.o sieve/SievingPrimes.o
 
-AF_OBJS=alternating_factorial/AlternatingFactorialApp.o alternating_factorial/AlternatingFactorialWorker.o alternating_factorial/afsieve.o
+AF_OBJS=alternating_factorial/AlternatingFactorialApp_cpu.o alternating_factorial/AlternatingFactorialWorker_cpu.o alternating_factorial/afsieve.o
 CK_OBJS=carol_kynea/CarolKyneaApp.o carol_kynea/CarolKyneaWorker.o
 DMD_OBJS=dm_divisor/DMDivisorApp.o dm_divisor/DMDivisorWorker.o
 FBNC_OBJS=fixed_bnc/FixedBNCApp.o fixed_bnc/FixedBNCWorker.o
 FKBN_OBJS=fixed_kbn/FixedKBNApp.o fixed_kbn/FixedKBNWorker.o
-GCW_OBJS=cullen_woodall/CullenWoodallApp.o cullen_woodall/CullenWoodallWorker.o
-GFND_OBJS=gfn_divisor/GFNDivisorApp.o gfn_divisor/GFNDivisorWorker.o
+GCW_OBJS=cullen_woodall/CullenWoodallApp_cpu.o cullen_woodall/CullenWoodallWorker_cpu.o
+GFND_OBJS=gfn_divisor/GFNDivisorApp_cpu.o gfn_divisor/GFNDivisorWorker_cpu.o
 K1B2_OBJS=k1b2/K1B2App.o k1b2/K1B2Worker.o
 KBB_OBJS=kbb/KBBApp.o kbb/KBBWorker.o
-MF_OBJS=multi_factorial/MultiFactorialApp.o multi_factorial/MultiFactorialWorker.o multi_factorial/mfsieve.o multi_factorial/multifactorial.o
-PIX_OBJS=primes_in_x/PrimesInXApp.o primes_in_x/PrimesInXWorker.o primes_in_x/pixsieve.o
+MF_OBJS=multi_factorial/MultiFactorialApp_cpu.o multi_factorial/MultiFactorialWorker_cpu.o
+PIX_OBJS=primes_in_x/PrimesInXApp_cpu.o primes_in_x/PrimesInXWorker_cpu.o primes_in_x/pixsieve.o
 PRIM_OBJS=primorial/PrimorialApp.o primorial/PrimorialWorker.o primorial/primorial.o
 TWIN_OBJS=twin/TwinApp.o twin/TwinWorker.o
 SG_OBJS=sophie_germain/SophieGermainApp.o sophie_germain/SophieGermainWorker.o
 SR2_OBJS=sierpinski_riesel/SierpinskiRieselApp.o sierpinski_riesel/AlgebraicFactorHelper.o \
    sierpinski_riesel/AbstractSubsequenceHelper.o sierpinski_riesel/AbstractWorker.o \
-   sierpinski_riesel/GenericSubsequenceHelper.o sierpinski_riesel/GenericWorker.o
-XYYX_OBJS=xyyx/XYYXApp.o xyyx/XYYXWorker.o
+   sierpinski_riesel/GenericSubsequenceHelper.o sierpinski_riesel/GenericWorker.o 
+XYYX_OBJS=xyyx/XYYXApp_cpu.o xyyx/XYYXWorker_cpu.o
 
 AF_GPU_OBJS=alternating_factorial/AlternatingFactorialApp_gpu.o alternating_factorial/AlternatingFactorialWorker_gpu.o alternating_factorial/afsieve.o alternating_factorial/AlternatingFactorialGpuWorker_gpu.o
 GCW_GPU_OBJS=cullen_woodall/CullenWoodallApp_gpu.o cullen_woodall/CullenWoodallWorker_gpu.o cullen_woodall/CullenWoodallGpuWorker_gpu.o

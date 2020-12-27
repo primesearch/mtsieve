@@ -9,6 +9,8 @@
 #ifndef _APP_H
 #define _APP_H
 
+#define FRAMEWORK_VERSION     "2.0.7"
+
 #define MAX_WORKERS           100
 #define NO_WORKER             MAX_WORKERS + 99999
 #define PMIN_MIN              1
@@ -53,15 +55,18 @@ public:
    virtual void      ValidateOptions(void) = 0;
    
    uint32_t          GetCpuWorkSize(void) { return ii_CpuWorkSize; };
-   uint32_t          GetGpuWorkSize(void) { return ii_GpuWorkGroupSize * ii_GpuWorkGroups; };
-   void              SetGpuWorkGroupSize(uint32_t gpuWorkGroupSize) { ii_GpuWorkGroupSize = gpuWorkGroupSize; };
    uint32_t          GetTotalWorkers(void) { return ii_TotalWorkerCount; };
    uint64_t          GetMaxPrimeForSingleWorker(void) { return il_MaxPrimeForSingleWorker; };
    
    void              SetRebuildNeeded(void) { ip_NeedToRebuild->SetValueNoLock(1); };
    
 #ifdef HAVE_GPU_WORKERS
+   uint32_t          GetGpuWorkSize(void) { return ii_GpuWorkGroupSize * ii_GpuWorkGroups; };
+   uint32_t          GetGpuWorkGroups(void) { return ii_GpuWorkGroups; };
+   void              SetGpuWorkGroupSize(uint32_t gpuWorkGroupSize) { ii_GpuWorkGroupSize = gpuWorkGroupSize; };
+   
    Device           *GetDevice(void) { return ip_Device; }
+   uint64_t          GetMinGpuPrime(void) { return il_MinGpuPrime; };
 #endif
    
    uint64_t          GetMinPrime(void) { return il_MinPrime; };
@@ -120,7 +125,6 @@ protected:
    
    virtual Worker   *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested) = 0;
 
-   bool              ib_SupportsGPU;
    bool              ib_HaveCreatedWorkers;
    
    uint64_t          il_AppMinPrime;
@@ -140,8 +144,11 @@ protected:
    uint64_t          il_StartSievingUS;
    
    uint32_t          ii_CpuWorkSize;
+   
+#ifdef HAVE_GPU_WORKERS
    uint32_t          ii_GpuWorkGroupSize;
    uint32_t          ii_GpuWorkGroups;
+#endif
    
    cotype_t          icot_LastConsoleOutputType;
                     

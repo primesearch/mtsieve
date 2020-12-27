@@ -79,7 +79,7 @@ void KernelArgument::Initialize(gpu_dir_t direction, void *argument, int32_t siz
    if (status != CL_SUCCESS)
       ErrorChecker::ExitIfError("clCreateBuffer", status, "bytes: %d", ii_Bytes);
 
-   ip_Device->IncrementGPUBytes(ii_Bytes);
+   ip_Device->IncrementGpuBytes(ii_Bytes);
 }
 
 void KernelArgument::WriteToGPU(cl_command_queue commandQueue)

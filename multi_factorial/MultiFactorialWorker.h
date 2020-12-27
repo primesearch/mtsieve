@@ -24,16 +24,19 @@ public:
    void              TestMegaPrimeChunk(void);
    void              TestMiniPrimeChunk(uint64_t *miniPrimeChunk);
    void              CleanUp(void);
+   
+   bool              VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t theN, int32_t theC);
 
 protected:
    MultiFactorialApp      *ip_MultiFactorialApp;
+   
+   uint32_t          ii_MinN;
+   uint32_t          ii_MaxN;
+   uint32_t          ii_MultiFactorial;
 
 private:
-   double           *id_Terms;
-   
-   void              ExtractFactors(uint32_t start, uint64_t p);
-   void              CheckAVXResult(uint64_t *ps, double *dps, uint32_t theN);
-   void              VerifyAVXFactor(uint64_t p, uint32_t theN, int32_t theC);
+   void              TestFactorial(void);
+   void              TestMultiFactorial(void);
 };
 
 #endif

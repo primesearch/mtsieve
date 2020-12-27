@@ -164,11 +164,11 @@ void  CullenWoodallWorker::TestSmallPrimesFPU(uint64_t *ps)
          
          if (cwrem == +1)
             if (ip_CullenWoodallApp->ReportFactor(thePrime, theN, -1))
-               VerifyFactor(thePrime, theN, -1);
+               VerifyFactor(false, thePrime, theN, -1);
             
          if (cwrem == thePrime - 1)
             if (ip_CullenWoodallApp->ReportFactor(thePrime, theN, +1))
-               VerifyFactor(thePrime, theN, +1);
+               VerifyFactor(false, thePrime, theN, +1);
 
          prevN = theN;
          termIndex--;
@@ -229,11 +229,11 @@ void  CullenWoodallWorker::TestLargePrimesFPU(uint64_t *ps)
       
       if (powinvs[i] == theN)
          if (ip_CullenWoodallApp->ReportFactor(thePrime, theN, -1))
-            VerifyFactor(thePrime, theN, -1);
+            VerifyFactor(true, thePrime, theN, -1);
          
       if (powinvs[i] == thePrime - theN)
          if (ip_CullenWoodallApp->ReportFactor(thePrime, theN, +1))
-            VerifyFactor(thePrime, theN, +1);
+            VerifyFactor(true, thePrime, theN, +1);
    }
    
    fpu_push_1divp(ps[3]);
@@ -305,35 +305,35 @@ void  CullenWoodallWorker::TestLargePrimesFPU(uint64_t *ps)
 
       if (rems[0] == theN)
          if (ip_CullenWoodallApp->ReportFactor(ps[0], theN, -1))
-            VerifyFactor(ps[0], theN, -1);
+            VerifyFactor(true, ps[0], theN, -1);
          
       if (rems[0] == ps[0] - theN)
          if (ip_CullenWoodallApp->ReportFactor(ps[0], theN, +1))
-            VerifyFactor(ps[0], theN, +1);
+            VerifyFactor(true, ps[0], theN, +1);
          
       if (rems[1] == theN)
          if (ip_CullenWoodallApp->ReportFactor(ps[1], theN, -1))
-            VerifyFactor(ps[1], theN, -1);
+            VerifyFactor(true, ps[1], theN, -1);
          
       if (rems[1] == ps[1] - theN)
          if (ip_CullenWoodallApp->ReportFactor(ps[1], theN, +1))
-            VerifyFactor(ps[1], theN, +1);
+            VerifyFactor(true, ps[1], theN, +1);
          
       if (rems[2] == theN)
          if (ip_CullenWoodallApp->ReportFactor(ps[2], theN, -1))
-            VerifyFactor(ps[2], theN, -1);
+            VerifyFactor(true, ps[2], theN, -1);
          
       if (rems[2] == ps[2] - theN)
          if (ip_CullenWoodallApp->ReportFactor(ps[2], theN, +1))
-            VerifyFactor(ps[2], theN, +1);
+            VerifyFactor(true, ps[2], theN, +1);
          
       if (rems[3] == theN)
          if (ip_CullenWoodallApp->ReportFactor(ps[3], theN, -1))
-            VerifyFactor(ps[3], theN, -1);
+            VerifyFactor(true, ps[3], theN, -1);
          
       if (rems[3] == ps[3] - theN)
          if (ip_CullenWoodallApp->ReportFactor(ps[3], theN, +1))
-            VerifyFactor(ps[3], theN, +1);
+            VerifyFactor(true, ps[3], theN, +1);
          
       prevN = theN;
       termIndex++;
@@ -445,7 +445,7 @@ void  CullenWoodallWorker::CheckAVXResult(uint32_t theN, uint64_t *ps, double *d
          if (rems[idx] == comparator[0])
          {
             if (ip_CullenWoodallApp->ReportFactor(ps[idx], theN, -1))
-               VerifyFactor(ps[idx], theN, -1);
+               VerifyFactor(true, ps[idx], theN, -1);
          }
    }
       
@@ -458,7 +458,7 @@ void  CullenWoodallWorker::CheckAVXResult(uint32_t theN, uint64_t *ps, double *d
          if (rems[idx] == dps[idx] - comparator[0])
          {
             if (ip_CullenWoodallApp->ReportFactor(ps[idx], theN, +1))
-               VerifyFactor(ps[idx], theN, +1);
+               VerifyFactor(true, ps[idx], theN, +1);
          }
    }
 }
@@ -510,7 +510,7 @@ void  CullenWoodallWorker::BuildListOfPowers(uint64_t a, uint64_t p, uint32_t co
    fpu_pop();
 }
 
-void  CullenWoodallWorker::VerifyFactor(uint64_t p, uint32_t n, int32_t c)
+bool  CullenWoodallWorker::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t n, int32_t c)
 {
    uint64_t rem;
       
@@ -522,8 +522,20 @@ void  CullenWoodallWorker::VerifyFactor(uint64_t p, uint32_t n, int32_t c)
    fpu_pop();
    
    if (c == -1 && rem != +1)
-      FatalError("%" PRIu64" does not divide %u*%u^%u-1", p, n, ii_Base, n);
+   {
+      if (badFactorIsFatal)
+         FatalError("%" PRIu64" does not divide %u*%u^%u-1", p, n, ii_Base, n);
+      else
+         return false;
+   }
    
    if (c == +1 && rem != p-1)
-      FatalError("%" PRIu64" does not divide %u*%u^%u+1", p, n, ii_Base, n);
+   {
+      if (badFactorIsFatal)
+         FatalError("%" PRIu64" does not divide %u*%u^%u+1", p, n, ii_Base, n);
+      else
+         return false;
+   }
+   
+   return true;
 }

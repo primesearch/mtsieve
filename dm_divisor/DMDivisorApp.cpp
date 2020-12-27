@@ -71,6 +71,8 @@ DMDivisorApp::DMDivisorApp() : FactorApp()
    il_TotalTermsEvaluated = 0;
    
    iv_MMPTerms.clear();
+
+   ip_FactorValidator = new DMDivisorWorker(0, this);
 }
 
 void DMDivisorApp::Help(void)
@@ -352,7 +354,7 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool DMDivisorApp::ApplyFactor(const char *term)
+bool DMDivisorApp::ApplyFactor(uint64_t thePrime, const char *term)
 {
    uint64_t k;
    uint32_t n;

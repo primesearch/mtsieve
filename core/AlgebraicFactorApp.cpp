@@ -37,6 +37,9 @@ void  AlgebraicFactorApp::GetRoot(uint64_t theNumber, uint64_t *root, uint32_t *
    uint64_t  r, rf_factor[50];
    uint32_t  rf_power[50];
 
+   for (idx=0; idx<50; idx++)
+      rf_power[idx] = 0;
+
    rf_count = GetFactorList(theNumber, rf_factor, rf_power);
    
    rpow = rf_power[0];

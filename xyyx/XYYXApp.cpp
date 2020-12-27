@@ -39,6 +39,8 @@ XYYXApp::XYYXApp(void) : FactorApp()
    ii_MaxX = 0;
    ii_MinY = 0;
    ii_MaxY = 0;
+   ii_SplitYCount = 0;
+   ii_SplitYValue = 0;
    ii_CpuWorkSize = 10000;
    ii_GpuSteps = 5000;
    ib_IsPlus = false;
@@ -46,11 +48,7 @@ XYYXApp::XYYXApp(void) : FactorApp()
    SetAppMinPrime(3);
    ib_UseAvx = true;
    
-  // SetBlockWhenProcessingFirstChunk(true);
-
-#ifdef HAVE_GPU_WORKERS
-   ib_SupportsGPU = true;
-#endif
+   ip_FactorValidator = new XYYXWorker(0, this);
 }
 
 void XYYXApp::Help(void)
@@ -72,7 +70,7 @@ void  XYYXApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "x:X:y:Y:s:S:D";
+   shortOpts += "x:X:y:Y:s:S:z:Z:D";
 
    AppendLongOpt(longOpts, "minx",              required_argument, 0, 'x');
    AppendLongOpt(longOpts, "maxx",              required_argument, 0, 'X');
@@ -111,6 +109,14 @@ parse_t XYYXApp::ParseOption(int opt, char *arg, const char *source)
          status = Parser::Parse(arg, 1, 1000000000, ii_MaxY);
          break;
 		
+      case 'z':
+         status = Parser::Parse(arg, 1, 1000000000, ii_SplitYCount);
+         break;
+         
+      case 'Z':
+         status = Parser::Parse(arg, 1, 1000000000, ii_SplitYValue);
+         break;
+         
       case 'D':
          ib_UseAvx = false;
          status = P_SUCCESS;
@@ -272,7 +278,7 @@ void XYYXApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool XYYXApp::ApplyFactor(const char *term)
+bool XYYXApp::ApplyFactor(uint64_t thePrime, const char *term)
 {
    uint32_t x1, x2, y1, y2;
    uint8_t  c;
@@ -292,6 +298,18 @@ bool XYYXApp::ApplyFactor(const char *term)
    if (y1 < ii_MinY || y1 > ii_MaxY)
       return false;
 
+   XYYXWorker *xyyxWorker = (XYYXWorker *) ip_FactorValidator;
+   
+   if (!xyyxWorker->VerifyFactor(false, thePrime, x1, y1, c))
+   {
+      if (c == -1)
+         WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of %u^%u-%u^%u and was rejected", thePrime, x1, y1);
+      else
+         WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of %u^%u+%u^%u and was rejected", thePrime, x1, y1);
+         
+      return false;
+   }
+
    uint64_t bit = BIT(x1, y1);
    
    // No locking is needed because the Workers aren't running yet
@@ -307,33 +325,56 @@ bool XYYXApp::ApplyFactor(const char *term)
 
 void XYYXApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
-   FILE    *fPtr;
-   uint32_t x, y, bit;
+   FILE    *fPtr, *sPtr = NULL;
+   uint32_t x, y, bit, yCount;
    uint64_t terms = 0;
+
+   ip_FactorAppLock->Lock();
 
    fPtr = fopen(is_OutputTermsFileName.c_str(), "w");
 
    if (!fPtr)
       FatalError("Unable to open input file %s", is_OutputTermsFileName.c_str());
    
-   ip_FactorAppLock->Lock();
-
    fprintf(fPtr, "ABC $a^$b%c$b^$a // Sieved to %" PRIu64"\n", (ib_IsPlus ? '+' : '-'), largestPrime);
 
+   if (ii_SplitYCount > 0 || (ii_SplitYValue >= ii_MinY && ii_SplitYValue < ii_MaxY))
+   {
+      sPtr = fopen("xyyx_split.pfgw", "w");
+      fprintf(sPtr, "ABC $a^$b%c$b^$a // Sieved to %" PRIu64"\n", (ib_IsPlus ? '+' : '-'), largestPrime);
+   }
+   
    for (x=ii_MinX; x<=ii_MaxX; x++)
    {
+      yCount = 0;
+      
+      for (y=ii_MinY; y<=ii_MaxY; y++)
+      {
+         bit = BIT(x, y);
+         
+         if (iv_Terms[bit])
+            yCount++;
+      }
+      
       for (y=ii_MinY; y<=ii_MaxY; y++)
       {
          bit = BIT(x, y);
          
          if (iv_Terms[bit])
          {
-            fprintf(fPtr, "%u %u\n", x, y);
+            if (yCount <= ii_SplitYCount || y <= ii_SplitYValue)
+               fprintf(sPtr, "%u %u\n", x, y);
+            else
+               fprintf(fPtr, "%u %u\n", x, y);
+            
             terms++;
          }
       }
    }
 
+   if (sPtr != NULL)
+      fclose(sPtr);
+      
    fclose(fPtr);
    
    if (terms != il_TermCount)

@@ -33,6 +33,8 @@ FixedKBNApp::FixedKBNApp() : FactorApp()
    
    il_MinC = 0;
    il_MaxC = 0;
+   
+   ip_FactorValidator = new FixedKBNWorker(0, this);
 }
 
 void FixedKBNApp::Help(void)
@@ -213,7 +215,7 @@ void FixedKBNApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool FixedKBNApp::ApplyFactor(const char *term)
+bool FixedKBNApp::ApplyFactor(uint64_t thePrime, const char *term)
 {
    uint64_t k;
    uint32_t b, n;

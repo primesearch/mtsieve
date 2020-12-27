@@ -34,7 +34,9 @@ public:
    void              CleanUp(void);
    void              TestMegaPrimeChunk(void);
    void              TestMiniPrimeChunk(uint64_t *miniPrimeChunk);
-
+   
+   bool              VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t n, int32_t c);
+   
 protected:
 
 private:

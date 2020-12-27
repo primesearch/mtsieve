@@ -35,6 +35,7 @@ FactorApp::FactorApp(void)
    if_FactorFile = 0;
    
    ib_ApplyAndExit = false;
+   ip_FactorValidator = NULL;
 }
 
 FactorApp::~FactorApp(void)
@@ -112,6 +113,7 @@ void  FactorApp::ParentValidateOptions(void)
    char     buffer[1000];
    char    *pos;
    uint32_t factors = 0, applied = 0;
+   uint64_t thePrime;
    
    if (is_OutputTermsFileName.length() == 0)
    {
@@ -133,23 +135,28 @@ void  FactorApp::ParentValidateOptions(void)
       
       if (factorFile == NULL)
          FatalError("Could not open factor file %s for input", is_InputFactorsFileName.c_str());
-         
+   
       while (fgets(buffer, 1000, factorFile) != NULL)
       {
          if (!StripCRLF(buffer))
             continue;
 
+         if (sscanf(buffer, "%" SCNu64"", &thePrime) != 1)
+            FatalError("Could not parse prime from string %s", buffer);
+            
          // All factors are of the form "p | term"
          pos = strchr(buffer, '|');
 
          if (pos == 0)
-            FatalError("Could not parse factor %s", buffer);
+            FatalError("Could not extract candidate from %s", buffer);
+
+         *pos = 0;
          
          factors++;
-         if (ApplyFactor(pos + 2))
+         if (ApplyFactor(thePrime, pos + 2))
             applied++;
       }
-
+      
       WriteToConsole(COT_OTHER, "Read %u factors from %s.  Removed %u terms", factors, is_InputFactorsFileName.c_str(), applied);
       
       fclose(factorFile);
@@ -168,6 +175,13 @@ void  FactorApp::ParentValidateOptions(void)
       
       if (if_FactorFile == NULL)
          FatalError("Could not open factor file %s for output", is_OutputFactorsFileName.c_str());
+   }
+
+   // We no longer need this;
+   if (ip_FactorValidator != NULL)
+   {
+      delete ip_FactorValidator;
+      ip_FactorValidator = NULL;
    }
 }
 

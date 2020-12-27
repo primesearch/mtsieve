@@ -26,6 +26,8 @@ public:
    void           TestMegaPrimeChunk(void);
    void           TestMiniPrimeChunk(uint64_t *miniPrimeChunk);
    void           CleanUp(void);
+   
+   bool           VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t x, uint32_t y, int32_t c);
 
 private:         
    void           FreeTerms(void);
@@ -41,9 +43,6 @@ private:
    void           CheckAvxXYRemainders(uint64_t *ps, double *dps, double *reciprocals);
    void           BuildAvxListOfPowers(uint32_t base, double *dps, double *reciprocals, uint32_t count);
    void           CheckAvxResult(uint32_t x, uint32_t y, uint64_t *ps, double *dps, double *powersOfX);
-   
-   void           VerifyFactor(uint64_t p, uint32_t x, uint32_t y, int32_t c);
-
    XYYXApp       *ip_XYYXApp;
 
    uint32_t       ii_MinX;

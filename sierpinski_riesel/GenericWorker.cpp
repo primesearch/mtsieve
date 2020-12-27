@@ -175,7 +175,6 @@ void  GenericWorker::InitializeDiscreteLog(void)
    
    if (ii_MaxN/ii_BestQ >= ii_SieveLow+ii_SieveRange)
       FatalError("ii_SieveRange was not computed correctly");
-
    ssHash = (uint32_t *) xmalloc(ii_SubsequenceCount*sizeof(uint32_t *));
    
    ck64 = (uint64_t **) xmalloc(ii_SequenceCount*sizeof(uint64_t *));

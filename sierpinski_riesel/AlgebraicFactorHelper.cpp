@@ -559,6 +559,9 @@ uint64_t  AlgebraicFactorHelper::CheckBase2(seq_t *seq)
       y++;
    }
 
+   // To get rid of compiler warnings
+   kf_power[0] = 0;
+
    // Now that the base is removed, refactorize k
    kf_count = GetFactorList(k, kf_factor, kf_power);
    
@@ -827,6 +830,9 @@ void  AlgebraicFactorHelper::GetRoot(uint64_t number, uint32_t *root, uint32_t *
    uint32_t  idx, r, rpow, rf_count;
    uint32_t  rf_factor[50], rf_power[50];
 
+   // To get rid of compiler warnings
+   rf_power[0] = 0;
+   
    rf_count = GetFactorList(number, rf_factor, rf_power);
    
    rpow = rf_power[0];

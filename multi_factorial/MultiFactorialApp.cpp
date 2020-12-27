@@ -1,5 +1,7 @@
 /* MultiFactorialApp.cpp -- (C) Mark Rodenkirch, October 2012
 
+   This program finds factors of numbers in the form n!m+1 and n!m-1
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
@@ -15,7 +17,7 @@
 #include "../core/Parser.h"
 
 #define APP_NAME        "mfsieve"
-#define APP_VERSION     "1.5"
+#define APP_VERSION     "1.7"
 
 #define BIT(n)          ((n) - ii_MinN)
 
@@ -36,15 +38,16 @@ MultiFactorialApp::MultiFactorialApp() : FactorApp()
    ii_MaxN = 0;
    ii_CpuWorkSize = 50000;
    
+   ip_FactorValidator = new MultiFactorialWorker(0, this);
+
    // We'll remove all even terms manually
    SetAppMinPrime(3);
-   
-      // This is because the assembly code is using SSE to do the mulmods
+
    SetAppMaxPrime(PMAX_MAX_52BIT);
    
 #ifdef HAVE_GPU_WORKERS
-   ii_StepN = 5000;
-   ib_SupportsGPU = true;
+   ii_MaxGpuSteps = 100000;
+   ii_MaxGpuFactors = GetGpuWorkGroups() * 10;
 #endif
 }
 
@@ -57,7 +60,8 @@ void MultiFactorialApp::Help(void)
    printf("-m --multifactorial=m multifactorial, e.g. x!m where m = 3 --> x!!! (default 1)\n");
 
 #ifdef HAVE_GPU_WORKERS
-   printf("-s --step=s           n iterated per call to GPU\n");
+   printf("-S --step=S           max steps iterated per call to GPU (default %u)\n", ii_MaxGpuSteps);
+   printf("-M --maxfactors=M     max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
 #endif
 }
 
@@ -72,9 +76,10 @@ void  MultiFactorialApp::AddCommandLineOptions(string &shortOpts, struct option 
    AppendLongOpt(longOpts, "multifactorial", required_argument, 0, 'm');
 
 #ifdef HAVE_GPU_WORKERS
-   shortOpts += "s:";
+   shortOpts += "S:M:";
    
-   AppendLongOpt(longOpts, "step_n",         required_argument, 0, 's');
+   AppendLongOpt(longOpts, "maxsteps",       required_argument, 0, 'S');
+   AppendLongOpt(longOpts, "maxfactors",     required_argument, 0, 'M');
 #endif
 }
 
@@ -100,8 +105,12 @@ parse_t MultiFactorialApp::ParseOption(int opt, char *arg, const char *source)
          break;
 
 #ifdef HAVE_GPU_WORKERS
-      case 's':
-         status = Parser::Parse(arg, 1, 1000000000, ii_StepN);
+      case 'S':
+         status = Parser::Parse(arg, 1, 1000000000, ii_MaxGpuSteps);
+         break;
+         
+      case 'M':
+         status = Parser::Parse(arg, 10, 1000000, ii_MaxGpuFactors);
          break;
 #endif
    }
@@ -171,7 +180,7 @@ void MultiFactorialApp::ValidateOptions(void)
    }
 
    FactorApp::ParentValidateOptions();
-   
+
    // The testing routine is optimized to test 4 primes at a time.
    while (ii_CpuWorkSize % 4 > 0)
       ii_CpuWorkSize++;
@@ -185,6 +194,51 @@ Worker *MultiFactorialApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t la
 #endif
    
    return new MultiFactorialWorker(id, this);
+}
+
+terms_t *MultiFactorialApp::GetTerms(void)
+{
+   terms_t *terms = (terms_t *) xmalloc(ii_MultiFactorial * sizeof(terms_t));
+   double minPrime = (double) GetMinPrime();
+   uint64_t bigN, bigMinN = ii_MinN;
+
+   // Build an array by multiplying terms so that we can reduce the number of mulmods  in the main loop.
+   // For example if multiFactorial = 1, minPrime = 1e6 and minN = 25:
+   //   terms[0].termList[0] = 1 * 2 * 3 * 4 * 5 * 6 * 7 * 8 * 9
+   //   terms[0].termList[1] = 10 * 11 * 12 * 13 * 14
+   //   terms[0].termList[2] = 15 * 16 * 17 * 18
+   //   terms[0].termList[3] = 19 * 20 * 21 * 22
+   //   terms[0].termList[4] = 23 * 24
+   // Note that each term < 1e6 (minPrime).
+   // In short, instead of needing 24 mulmods to compute 25! (mod p) we will only need 5 mulmods.
+   for (uint32_t mf=1; mf<=ii_MultiFactorial; mf++)
+   {
+      uint64_t idx = 0;
+      
+      terms[mf-1].mf = mf;
+      terms[mf-1].termList = (uint64_t *) xmalloc(ii_MinN * sizeof(uint64_t)/2);
+      
+      terms[mf-1].termList[idx] = 1;
+      for (uint32_t n=mf; n<ii_MinN; n+=mf)
+      {
+         if (terms[mf-1].termList[idx] * n > minPrime)
+         {
+            idx++;
+            terms[mf-1].maxNForTerm = n;
+            terms[mf-1].termList[idx] = n;
+            continue;
+         }
+
+         terms[mf-1].maxNForTerm = n;
+         terms[mf-1].termList[idx] *= n;
+         
+         bigN = n;
+         if ((bigN * bigN) > bigMinN)
+            break;
+      }
+   }
+   
+   return terms;
 }
 
 void MultiFactorialApp::ProcessInputTermsFile(bool haveBitMap)
@@ -248,7 +302,7 @@ void MultiFactorialApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool MultiFactorialApp::ApplyFactor(const char *term)
+bool MultiFactorialApp::ApplyFactor(uint64_t thePrime, const char *term)
 {
    uint32_t n, mf;
    int32_t  c;
@@ -261,6 +315,18 @@ bool MultiFactorialApp::ApplyFactor(const char *term)
    
    if (n < ii_MinN || n > ii_MaxN)
       return false;
+  
+   MultiFactorialWorker *mfWorker = (MultiFactorialWorker *) ip_FactorValidator;
+   
+   if (!mfWorker->VerifyFactor(false, thePrime, n, c))
+   {
+      if (mf == 1)
+         WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of %u!%+d and was rejected", thePrime, n, c);
+      else
+         WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of %u!%u%+d and was rejected", thePrime, n, mf, c);
+      
+      return false;
+   }
    
    uint64_t bit = BIT(n);
    
@@ -364,33 +430,8 @@ bool MultiFactorialApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
 
 void MultiFactorialApp::ReportPrime(uint64_t p, uint32_t n, int32_t c)
 {
-   uint32_t bit;
-   
-   if (n < ii_MinN)
-      return;
-   
-   if (n > ii_MaxN)
-      return;
-
-   ip_FactorAppLock->Lock();
-   
-   bit = BIT(n);
-   
-   if (c == -1 && iv_MinusTerms[bit])
-   {	
-      iv_MinusTerms[bit] = false;
-      il_TermCount--;
-   }
-
-   if (c == +1 && iv_PlusTerms[bit])
-   {	
-      iv_PlusTerms[bit] = false;
-      il_TermCount--;
-   }
-   
+      
    WriteToConsole(COT_OTHER, "%d!%d%+d is prime! (%" PRId64")", n, ii_MultiFactorial, c, p);
 
    WriteToLog("%d!%d%+d is prime! (%" PRId64")", n, ii_MultiFactorial, c, p);
-      
-   ip_FactorAppLock->Release();
 }

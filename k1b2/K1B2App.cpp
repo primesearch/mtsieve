@@ -45,9 +45,7 @@ K1B2App::K1B2App(void) : FactorApp()
 
    SetAppMinPrime(3);
    
-#ifdef HAVE_GPU_WORKERS
-   ib_SupportsGPU = true;
-#endif
+   ip_FactorValidator = new K1B2Worker(0, this);
 }
 
 void K1B2App::Help(void)
@@ -256,7 +254,7 @@ void K1B2App::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool  K1B2App::ApplyFactor(const char *term)
+bool  K1B2App::ApplyFactor(uint64_t thePrime, const char *term)
 {
    uint32_t n;
    int64_t  c;

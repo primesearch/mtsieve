@@ -1,3 +1,49 @@
+2.1.0 - December 27, 2020
+   framework:
+      On Windows, switched to using gcc from msys2 instead of gcc from mingw64.  -O3
+      gives a nice performance bump to some of the non-ASM code.
+      
+      Exit after showing help when using -h swtich instead of giving fatal error.
+      
+      Add logic to support validation of factors passed with -I, but not all sieves are
+      coded to do this validation.
+      
+      On GPU builds, default -W to 0 and -G to 1.  A "special" CPU worker will be created
+      as necessary to test ranges of p that are to small for the GPU code.
+   
+      For GPU executables, add -H to show some GPU details when each kernel is created.
+   
+      Improve factor rate calculation when using GPU workers.
+      
+      Created FUTURE.txt for items I would like to get working.
+   
+   cksieve:  version 1.3
+      Added logic to validate factors passed with -I.
+
+   gcwsieve, gcwsievecl:  version 1.4
+      Added logic to validate factors passed with -I.
+      Add -f option to gcwsieve so that it can generate ABC output that is supported by LLR.
+      Added -M option and fixed -S for gcwsievecl.
+      Improved speed of GPU code of gcwsievecl by about 25%.
+      The GPU code is more than 20x faster than the CPU for the same amount of work.
+   
+   mfsieve, mfsievecl:  version 1.7
+      Added logic to validate factors passed with -I.
+      Replaced all ASM routines with non-ASM routines based upon Montgomery mulitplication.  This
+      provides a speed bump of at least 30% over the previous release.
+      Fixed the GPU code and replaced magic number logic with Montgomery multiplcation as it is
+      faster.  The new GPU code is more then 25% faster than the old GPU code.
+      The GPU code is more than 20x faster than the CPU for the same amount of work.
+   
+    sgsieve:  version 1.2
+      Added logic to validate factors passed with -I.
+      
+    twinsieve:  version 1.3
+      Added logic to validate factors passed with -I.
+      
+    xyyxsieve, xyyxsievecl:  version 1.8
+      Added logic to validate factors passed with -I.
+    
 2.0.6 - September 8, 2020
    Fixed crash with xyyxsievecl with overly large ranges for the GPU.
    More speed enhancements for xyyxsieve, mainly due to reduced memory requirements.

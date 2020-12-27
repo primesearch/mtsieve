@@ -29,34 +29,24 @@ public:
    void              CleanUp(void);
 
 protected:
-   void              CreateKernels(bool knownWorkSize);
    void              VerifyFactor(uint64_t p, uint32_t n, int32_t c);
-   
-   uint64_t         *il_MagicNumber;
-   uint64_t         *il_MagicShift;
+
+   uint64_t          il_NextTermsBuild;   
+   uint32_t          ii_MaxGpuSteps;
+   uint32_t          ii_MaxGpuFactors;
    int64_t          *il_FactorList;
 
    uint32_t          ii_Base;
    uint32_t         *ii_Terms;
    uint32_t          ii_Groups;
-   uint32_t          ii_MinGroupSize;
-   uint32_t          ii_MaxGroupSize;
-   uint32_t          ii_MaxTermCount;
-   uint64_t          il_NextTermsBuild;
-   int32_t           ii_MaxFactorCount;
-   int32_t           ii_FactorCount;
+   uint32_t          ii_GroupSize;
+   uint32_t          ii_FactorCount;
 
    CullenWoodallApp *ip_CullenWoodallApp;
    
-   Kernel           *ip_MagicKernel;
    Kernel           *ip_GCWKernel;
 
    KernelArgument   *ip_KAPrime;
-   KernelArgument   *ip_MKAMagicNumber;
-   KernelArgument   *ip_MKAMagicShift;
-
-   KernelArgument   *ip_GCWKAMagicNumber;
-   KernelArgument   *ip_GCWKAMagicShift;
    KernelArgument   *ip_KATerms;
    KernelArgument   *ip_KAFactorCount;
    KernelArgument   *ip_KAFactorList;

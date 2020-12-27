@@ -14,13 +14,18 @@
 
 Kernel::Kernel(Device *device, const char *kernelName, const char *kernelSource[], bool useFMA)
 {
-   cl_int  status;
-   int     computeUnits, ii, count;
-   size_t *sourceSize;
-   size_t  len;
-   char    buffer[16384];
-   string  madEnable = "-cl-mad-enable";
-   string  buildOptions = "";
+   cl_int    status;
+   int       computeUnits, ii, count;
+   size_t   *sourceSize;
+   size_t    len;
+   size_t    workGroupSizeMultiple;
+   cl_ulong  deviceGlobalMemorySize;
+   cl_ulong  deviceLocalMemorySize;
+   cl_ulong  localMemorySize;
+   cl_ulong  privateMemorySize;
+   char      buffer[16384];
+   string    madEnable = "-cl-mad-enable";
+   string    buildOptions = "";
 
    if (useFMA)
       buildOptions += madEnable;
@@ -65,17 +70,51 @@ Kernel::Kernel(Device *device, const char *kernelName, const char *kernelSource[
       ErrorChecker::ExitIfError("clBuildProgram", status, buffer);
    }
 
+
+   status = clGetDeviceInfo(ip_Device->GetDeviceId(), CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(deviceGlobalMemorySize), &deviceGlobalMemorySize, NULL);
+   ErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get CL_DEVICE_GLOBAL_MEM_SIZE of device");
+   
+   status = clGetDeviceInfo(ip_Device->GetDeviceId(), CL_DEVICE_LOCAL_MEM_SIZE, sizeof(deviceLocalMemorySize), &deviceLocalMemorySize, NULL);
+   ErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get CL_DEVICE_LOCAL_MEM_SIZE of device");
+      
    // get a kernel object handle for a kernel with the given name
    im_Kernel = clCreateKernel(im_Program, kernelName, &status);
    ErrorChecker::ExitIfError("clCreateKernel", status, "kernelName: %s", kernelName);
 
    status = clGetKernelWorkGroupInfo(im_Kernel, ip_Device->GetDeviceId(), CL_KERNEL_WORK_GROUP_SIZE,
-                                     sizeof(size_t), &ii_KernelWorkGroupSize, NULL);
+                                     sizeof(ii_KernelWorkGroupSize), &ii_KernelWorkGroupSize, NULL);
    ErrorChecker::ExitIfError("clGetKernelWorkGroupInfo", status, "kernelName: %s  argument CL_KERNEL_WORK_GROUP_SIZE", kernelName);
     
+   status = clGetKernelWorkGroupInfo(im_Kernel, ip_Device->GetDeviceId(), CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
+                                     sizeof(workGroupSizeMultiple), &workGroupSizeMultiple, NULL);
+   ErrorChecker::ExitIfError("clGetKernelWorkGroupInfo", status, "kernelName: %s  argument CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE", kernelName);
+   
+   status = clGetKernelWorkGroupInfo(im_Kernel, ip_Device->GetDeviceId(), CL_KERNEL_LOCAL_MEM_SIZE,
+                                     sizeof(privateMemorySize), &localMemorySize, NULL);
+   ErrorChecker::ExitIfError("clGetKernelWorkGroupInfo", status, "kernelName: %s  argument CL_KERNEL_LOCAL_MEM_SIZE", kernelName);
+   
+   status = clGetKernelWorkGroupInfo(im_Kernel, ip_Device->GetDeviceId(), CL_KERNEL_PRIVATE_MEM_SIZE,
+                                     sizeof(privateMemorySize), &privateMemorySize, NULL);
+   ErrorChecker::ExitIfError("clGetKernelWorkGroupInfo", status, "kernelName: %s  argument CL_KERNEL_PRIVATE_MEM_SIZE", kernelName);
+   
+   ii_DeviceLocalMemorySize = deviceLocalMemorySize;
+   ii_LocalMemorySize = localMemorySize;
+   ii_PrivateMemorySize = privateMemorySize;   
+      
    computeUnits = ip_Device->GetMaxComputeUnits();
 
    ii_WorkGroupSize = computeUnits * ii_KernelWorkGroupSize;
+   
+   if (ip_Device->IsPrintDetails())
+   {
+      printf("CL_DEVICE_MAX_COMPUTE_UNITS = %u\n", (uint32_t) computeUnits);
+      printf("CL_DEVICE_GLOBAL_MEM_SIZE = %u\n", (uint32_t) deviceGlobalMemorySize);
+      printf("CL_DEVICE_LOCAL_MEM_SIZE = %u\n", (uint32_t) deviceLocalMemorySize);
+      printf("CL_KERNEL_WORK_GROUP_SIZE = %u\n", (uint32_t) ii_KernelWorkGroupSize);
+      printf("CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE = %u\n", (uint32_t) workGroupSizeMultiple);
+      printf("CL_KERNEL_LOCAL_MEM_SIZE = %u\n", (uint32_t) localMemorySize);
+      printf("CL_KERNEL_PRIVATE_MEM_SIZE = %u\n", (uint32_t) privateMemorySize);
+   }
    
    xfree(sourceSize);
 }
@@ -85,12 +124,6 @@ Kernel::~Kernel(void)
    clReleaseKernel(im_Kernel);
    clReleaseProgram(im_Program);
    clReleaseCommandQueue(im_CommandQueue);
-}
-
-void Kernel::PrintStats(void)
-{
-   //VerboseOutput("workGroupSize = %d = %d * %d * %d (blocks * workGroupSizeMultiple * deviceComputeUnits)", 
-   //              ii_WorkSize, ii_Blocks, (int) ii_Multiplier, ip_Device->GetMaxComputeUnits());
 }
 
 void Kernel::AddArgument(KernelArgument *kernelArgument)
@@ -116,7 +149,7 @@ void Kernel::Execute(uint32_t workSize)
 
    GetGPUOutput();
 
-   ip_Device->AddGPUClockTime(Clock::GetCurrentMicrosecond() - startTime);
+   ip_Device->AddGpuMicroseconds(Clock::GetCurrentMicrosecond() - startTime);
 }
 
 void Kernel::SetGPUInput(void)

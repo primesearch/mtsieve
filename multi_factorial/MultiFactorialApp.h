@@ -15,6 +15,13 @@
 #include "../core/FactorApp.h"
 #include "../core/SharedMemoryItem.h"
 
+typedef struct {
+   uint32_t  mf;
+   uint64_t  maxNForTerm;
+   uint64_t  termCount;
+   uint64_t *termList;
+} terms_t;
+
 class MultiFactorialApp : public FactorApp
 {
 public:
@@ -26,7 +33,7 @@ public:
    void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(const char *term);
+   bool              ApplyFactor(uint64_t thePrime, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
    bool              IsMultiFactorial(void) { return (ii_MultiFactorial > 1); };
@@ -35,12 +42,15 @@ public:
    uint32_t          GetMaxN(void) { return ii_MaxN; };
 
 #ifdef HAVE_GPU_WORKERS
-   uint32_t          GetStepN(void) { return ii_StepN; };
+   uint32_t          GetMaxGpuSteps(void) { return ii_MaxGpuSteps; };
+   uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
 #endif
 
    bool              ReportFactor(uint64_t p, uint32_t n, int32_t c);
    void              ReportPrime(uint64_t p, uint32_t n, int32_t c);
 
+   terms_t          *GetTerms(void);
+   
 protected:
    void              PreSieveHook(void) {};
    bool              PostSieveHook(void) { return true; };
@@ -52,17 +62,20 @@ protected:
    void              WriteOutputTermsFile(uint64_t largestPrime);
    
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
+   
 
 private:
    vector<bool>      iv_PlusTerms;
    vector<bool>      iv_MinusTerms;
 
+   Worker           *ip_FactorValidator;
    uint32_t          ii_MultiFactorial;
    uint32_t          ii_MinN;
    uint32_t          ii_MaxN;
    
 #ifdef HAVE_GPU_WORKERS
-   uint32_t          ii_StepN;
+   uint32_t          ii_MaxGpuSteps;
+   uint32_t          ii_MaxGpuFactors;
 #endif
 };
 

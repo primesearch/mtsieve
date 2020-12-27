@@ -37,6 +37,8 @@ PrimesInXApp::PrimesInXApp() : FactorApp()
 
    // This is because the assembly code is using SSE to do the mulmods
    SetAppMaxPrime(PMAX_MAX_52BIT);
+   
+   ip_FactorValidator = new PrimesInXWorker(0, this);
 
    ii_MinLength = 0;
    ii_MinLengthRemaining = 0;
@@ -51,7 +53,6 @@ PrimesInXApp::PrimesInXApp() : FactorApp()
 
 #ifdef HAVE_GPU_WORKERS
    ii_StepL = 5000;
-   ib_SupportsGPU = true;
 #endif
 }
 
@@ -268,7 +269,7 @@ void PrimesInXApp::ProcessInputTermsFile(bool haveBitMap)
    xfree(buffer);
 }
 
-bool  PrimesInXApp::ApplyFactor(const char *term)
+bool  PrimesInXApp::ApplyFactor(uint64_t thePrime, const char *term)
 {
    uint32_t c;
    

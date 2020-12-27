@@ -23,7 +23,7 @@ public:
    void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(const char *term);
+   bool              ApplyFactor(uint64_t thePrime, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
 
    uint32_t          GetBase(void) { return ii_Base; };
@@ -49,6 +49,8 @@ private:
    vector<bool>      iv_PlusTerms;
    vector<bool>      iv_MinusTerms;
 
+   Worker           *ip_FactorValidator;
+   
    uint32_t          ii_Base;
    uint32_t          ii_MinN;
    uint32_t          ii_MaxN;

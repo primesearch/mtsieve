@@ -24,7 +24,7 @@ public:
    void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(const char *term);
+   bool              ApplyFactor(uint64_t thePrime, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
    uint32_t          GetMinN(void) { return ii_MinN; };

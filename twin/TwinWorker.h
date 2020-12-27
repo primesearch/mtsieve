@@ -25,12 +25,14 @@ public:
    void              TestMiniPrimeChunk(uint64_t *miniPrimeChunk);
    void              CleanUp(void);
 
+   bool              VerifyExternalFactor(bool badFactorIsFatal, uint64_t prime, uint64_t k, uint32_t b, uint32_t n, int32_t c);
+   
 protected:
 
 private:
    void              RemoveTermsSmallPrime(uint64_t prime, uint64_t k, int32_t c);
    void              RemoveTermsBigPrime(uint64_t prime, uint64_t k, int32_t c);
-   void              VerifyFactor(uint64_t prime, uint64_t k, int32_t c, uint64_t bPowNModP);
+   bool              VerifyFactor(bool badFactorIsFatal, uint64_t prime, uint64_t k, int32_t c, uint64_t bPowNModP);
    
    void              BuildBaseInverses(void);
    uint32_t          EuclidExtendedGCD(uint32_t a, uint32_t base);

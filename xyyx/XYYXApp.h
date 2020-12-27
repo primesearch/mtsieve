@@ -53,7 +53,7 @@ public:
    void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(const char *term);
+   bool              ApplyFactor(uint64_t thePrime, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
    bool              ReportFactor(uint64_t p, uint32_t x, uint32_t y, int32_t c);
@@ -92,7 +92,7 @@ protected:
 
 private:
    void              SetInitialTerms(void);
-
+   
    vector<bool>      iv_Terms;
    
    bool              ib_UseAvx;
@@ -102,6 +102,8 @@ private:
    uint32_t          ii_MaxX;
    uint32_t          ii_MinY;
    uint32_t          ii_MaxY;
+   uint32_t          ii_SplitYCount;
+   uint32_t          ii_SplitYValue;
    uint32_t          ii_GpuSteps;
 };
 

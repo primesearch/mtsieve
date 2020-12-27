@@ -15,7 +15,7 @@
 #include "SophieGermainWorker.h"
 
 #define APP_NAME        "sgsieve"
-#define APP_VERSION     "1.1"
+#define APP_VERSION     "1.2"
 
 #define NMAX_MAX        (1 << 31)
 
@@ -42,6 +42,8 @@ SophieGermainApp::SophieGermainApp() : FactorApp()
    SetAppMinPrime(3);
    
    iv_Terms.clear();
+   
+   ip_FactorValidator = new SophieGermainWorker(0, this);
 }
 
 void SophieGermainApp::Help(void)
@@ -282,23 +284,44 @@ void SophieGermainApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool SophieGermainApp::ApplyFactor(const char *term)
+bool SophieGermainApp::ApplyFactor(uint64_t thePrime, const char *term)
 {
    uint64_t k;
    uint32_t n;
-   
+      
    if (sscanf(term, "%" SCNu64"*2^%u+1", &k, &n) != 2)
    {
       if (sscanf(term, "2*(%" SCNu64"*2^%u+1)-1", &k, &n) != 2)
          FatalError("Could not parse term %s", term);
    }
    
-   if (n != ii_N)
+   if (n != ii_N && n != ii_N+1)
       FatalError("Expected n %u in factor but found %d", ii_N, n);
         
    if (k < il_MinK || k > il_MaxK)
       return false;
 
+   SophieGermainWorker *sgWorker = (SophieGermainWorker *) ip_FactorValidator;
+   
+   if (n == ii_N)
+   {
+      if (!sgWorker->VerifyExternalFactor(false, thePrime, k, n, true))
+      {
+         WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of %" PRIu64"*2^%u+1 and was rejected", thePrime, n);
+         
+         return false;
+      }
+   }
+   else
+   {
+      if (!sgWorker->VerifyExternalFactor(false, thePrime, k, n, false))
+      {
+         WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of 2*(%" PRIu64"*2^%u+1)-1 and was rejected", thePrime, ii_N+1);
+         
+         return false;
+      }
+   }
+  
    uint64_t bit = k - il_MinK;
    
    // No locking is needed because the Workers aren't running yet

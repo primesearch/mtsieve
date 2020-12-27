@@ -38,8 +38,6 @@ public:
 
    int        GetWorkGroupSize(void) { return ii_WorkGroupSize; };
 
-   void       PrintStats(void);
-
 private:
    string            is_KernelName;
 
@@ -47,7 +45,10 @@ private:
    cl_kernel         im_Kernel;
    cl_command_queue  im_CommandQueue;
 
+   uint32_t          ii_DeviceLocalMemorySize;
    int               ii_WorkGroupSize;
+   uint32_t          ii_LocalMemorySize;
+   uint32_t          ii_PrivateMemorySize;
    int               ii_ArgumentCount;
 
    size_t            ii_KernelWorkGroupSize;

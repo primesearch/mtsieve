@@ -1,6 +1,6 @@
 /* CullenWoodallApp.cpp -- (C) Mark Rodenkirch, September 2012
 
-   CullenWoodallSieve/Wall-Sun-Sun Search OpenCL application
+   This program finds factors of numbers in the form n*b^n+1 and n*b^n-1
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #endif
 
 #define APP_NAME        "gcwsieve"
-#define APP_VERSION     "1.3"
+#define APP_VERSION     "1.4"
 
 #define BIT(n)        ((n) - ii_MinN)
 
@@ -40,12 +40,14 @@ CullenWoodallApp::CullenWoodallApp(void) : AlgebraicFactorApp()
    ii_MaxN = 0;
    ib_Cullen = false;
    ib_Woodall = false;
-   ii_GpuSteps = 5000;
+   it_Format = FF_ABC;
 
+   ip_FactorValidator = new CullenWoodallWorker(0, this);
    SetAppMinPrime(3);
    
 #ifdef HAVE_GPU_WORKERS
-   ib_SupportsGPU = true;
+   ii_MaxGpuSteps = 100000;
+   ii_MaxGpuFactors = GetGpuWorkGroups() * 10;
 #endif
 }
 
@@ -57,8 +59,10 @@ void CullenWoodallApp::Help(void)
    printf("-n --min_n=n          Minimum n to search\n");
    printf("-N --max_n=N          Maximum N to search\n");
    printf("-s --sign=+/-/b       Sign to sieve for (+ = Cullen, - = Woodall)\n");
+   printf("-f --format=f         Format of output file (A=ABC (default), L=LLR\n");
 #ifdef HAVE_GPU_WORKERS
-   printf("-S --step=S           steps iterated per call to GPU (default %d)\n", ii_GpuSteps);
+   printf("-S --step=S           max steps iterated per call to GPU (default %d)\n", ii_MaxGpuSteps);
+   printf("-M --maxfactors=M     max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
 #endif
 }
 
@@ -72,8 +76,13 @@ void  CullenWoodallApp::AddCommandLineOptions(string &shortOpts, struct option *
    AppendLongOpt(longOpts, "min_n",          required_argument, 0, 'n');
    AppendLongOpt(longOpts, "max_n",          required_argument, 0, 'N');
    AppendLongOpt(longOpts, "sign",           required_argument, 0, 's');
+   AppendLongOpt(longOpts, "format",         required_argument, 0, 'f');
+   
 #ifdef HAVE_GPU_WORKERS
-   AppendLongOpt(longOpts, "steps",          required_argument, 0, 'S');
+   shortOpts += "S:M:";
+   
+   AppendLongOpt(longOpts, "maxsteps",       required_argument, 0, 'S');
+   AppendLongOpt(longOpts, "maxfactors",     required_argument, 0, 'M');
 #endif
 }
 
@@ -81,6 +90,7 @@ void  CullenWoodallApp::AddCommandLineOptions(string &shortOpts, struct option *
 parse_t CullenWoodallApp::ParseOption(int opt, char *arg, const char *source)
 {
    parse_t status = P_UNSUPPORTED;
+   char value;
 
    status = FactorApp::ParentParseOption(opt, arg, source);
    if (status != P_UNSUPPORTED) return status;
@@ -99,8 +109,18 @@ parse_t CullenWoodallApp::ParseOption(int opt, char *arg, const char *source)
          status = Parser::Parse(arg, 2, 1000000000, ii_MaxN);
          break;
 		 
+      case 'f':
+         status = Parser::Parse(arg, "AL", value);
+         
+         it_Format = FF_UNKNOWN;
+   
+         if (value == 'A')
+            it_Format = FF_ABC;
+         if (value == 'L')
+            it_Format = FF_LLR;
+         break;
+         
       case 's':
-         char value;
          status = Parser::Parse(arg, "+-b", value);
          if (value == '-')
             ib_Woodall = true;
@@ -112,7 +132,11 @@ parse_t CullenWoodallApp::ParseOption(int opt, char *arg, const char *source)
          
 #ifdef HAVE_GPU_WORKERS
       case 'S':
-         status = Parser::Parse(arg, 1, 1000000000, ii_GpuSteps);
+         status = Parser::Parse(arg, 1, 1000000000, ii_MaxGpuSteps);
+         break;
+
+      case 'M':
+         status = Parser::Parse(arg, 10, 1000000, ii_MaxGpuFactors);
          break;
 #endif
    }
@@ -122,6 +146,9 @@ parse_t CullenWoodallApp::ParseOption(int opt, char *arg, const char *source)
 
 void CullenWoodallApp::ValidateOptions(void)
 {
+   if (it_Format == FF_UNKNOWN)
+      FatalError("the specified file format in not valid, use A (ABC) or L (LLR)");
+      
    if (is_InputTermsFileName.length() > 0)
    {
       ProcessInputTermsFile(false);
@@ -212,9 +239,12 @@ void CullenWoodallApp::ProcessInputTermsFile(bool haveBitMap)
 {
    FILE    *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
    char     buffer[200];
-   uint32_t n;
+   uint32_t n, b;
    int32_t  c;
    uint64_t p;
+   format_t format = FF_UNKNOWN;
+
+   ii_Base = 0;
 
    if (!fPtr)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
@@ -222,7 +252,13 @@ void CullenWoodallApp::ProcessInputTermsFile(bool haveBitMap)
    if (fgets(buffer, 200,fPtr) == NULL)
       FatalError("File %s is empty", is_InputTermsFileName.c_str());
 
-   if (sscanf(buffer, "ABC $a*%d^$a$b // Sieved to %" SCNu64"", &ii_Base, &p) != 2)
+   if (sscanf(buffer, "ABC $a*%d^$a$b // Sieved to %" SCNu64"", &ii_Base, &p) == 2)
+      format = FF_ABC;
+      
+   if (sscanf(buffer, "ABC $a*$b^$a$c // Sieved to %" SCNu64"", &p) == 1)
+      format = FF_LLR;
+
+   if (format == FF_UNKNOWN)
       FatalError("First line of the input file is malformed");
 
    // Reset this
@@ -232,8 +268,24 @@ void CullenWoodallApp::ProcessInputTermsFile(bool haveBitMap)
 
    while (fgets(buffer, 200,fPtr) != NULL)
    {
-      if (sscanf(buffer, "%u %d", &n, &c) != 2)
-         FatalError("Line %s is malformed", buffer);
+      if (format == FF_ABC)
+      {
+         if (sscanf(buffer, "%u %d", &n, &c) != 2)
+            FatalError("Line %s is malformed", buffer);
+      }
+      
+      if (format == FF_LLR)
+      {
+         if (sscanf(buffer, "%u %u %d", &n, &b, &c) != 3)
+            FatalError("Line %s is malformed", buffer);
+         
+         if (il_TermCount == 0)
+            ii_Base = b;
+         
+         if (ii_Base != b)
+            FatalError("Multiple bases specified in input file", buffer);
+      }
+      
 
       if (haveBitMap)
       {
@@ -264,7 +316,7 @@ void CullenWoodallApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool CullenWoodallApp::ApplyFactor(const char *term)
+bool CullenWoodallApp::ApplyFactor(uint64_t thePrime, const char *term)
 {
    uint32_t n1, b, n2;
    int32_t  c;
@@ -283,6 +335,15 @@ bool CullenWoodallApp::ApplyFactor(const char *term)
    
    if (n1 < ii_MinN || n1 > ii_MaxN)
       return false;
+   
+   CullenWoodallWorker *cwWorker = (CullenWoodallWorker *) ip_FactorValidator;
+   
+   if (!cwWorker->VerifyFactor(false, thePrime, n1, c))
+   {
+      WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of %u*%u^%u%+d and was rejected", thePrime, n1, ii_Base, c);
+      
+      return false;
+   }
    
    uint64_t bit = BIT(n1);
    
@@ -315,22 +376,33 @@ void CullenWoodallApp::WriteOutputTermsFile(uint64_t largestPrime)
 
    ip_FactorAppLock->Lock();
 
-   fprintf(fPtr, "ABC $a*%u^$a$b // Sieved to %" PRIu64"\n", ii_Base, largestPrime);
-   
+   if (it_Format == FF_ABC)
+      fprintf(fPtr, "ABC $a*%u^$a$b // Sieved to %" PRIu64"\n", ii_Base, largestPrime);
+   else
+      fprintf(fPtr, "ABC $a*$b^$a$c // Sieved to %" PRIu64"\n", largestPrime);
+
    for (n=ii_MinN; n<=ii_MaxN; n++)
    {
       bit = BIT(n);
       
       if (iv_CullenTerms[bit])
       {
-         fprintf(fPtr, "%u +1\n", n);
          terms++;
+         
+         if (it_Format == FF_ABC)
+            fprintf(fPtr, "%u +1\n", n);
+         else
+            fprintf(fPtr, "%u %u +1\n", n, ii_Base);
       }
       
       if (iv_WoodallTerms[bit])
       {
-         fprintf(fPtr, "%u -1\n", n);
          terms++;
+         
+         if (it_Format == FF_ABC)
+            fprintf(fPtr, "%u -1\n", n);
+         else
+            fprintf(fPtr, "%u %u -1\n", n, ii_Base);
       }
    }
 
@@ -541,7 +613,7 @@ bool  CullenWoodallApp::CheckAlgebraicFactor(uint32_t n, int32_t c, const char *
 // Build a one dimensional array containing the values for n that don't have
 // a factor.  The 0 at the end indicates that they are no more terms.  This
 // array will have n in descending order.
-uint32_t  CullenWoodallApp::GetTerms(uint32_t *terms, uint32_t minGroupSize, uint32_t maxGroupSize)
+uint32_t  CullenWoodallApp::GetTerms(uint32_t *terms, uint32_t maxTermsInGroup, uint32_t groupSize)
 {
    uint32_t index = 0, bit;
    uint32_t groupCount = 0;
@@ -552,13 +624,13 @@ uint32_t  CullenWoodallApp::GetTerms(uint32_t *terms, uint32_t minGroupSize, uin
    for (n=ii_MaxN; n>=ii_MinN; n--)
    {
       // If the group is full, then start another group
-      if (termsInGroup > minGroupSize)
+      if (termsInGroup > maxTermsInGroup)
       {
          // Indicate that there are no more terms for this group
          terms[index] = 0;
          groupCount++;
          
-         index = maxGroupSize * groupCount;
+         index = groupSize * groupCount;
          termsInGroup = 0;
       }
 

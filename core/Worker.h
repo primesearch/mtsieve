@@ -66,7 +66,6 @@ public:
    bool              IsGpuWorker(void) { return ib_GpuWorker; };
    
    uint64_t          GetWorkerStatus(void) { return ip_WorkerStatus->GetValueNoLock(); };
-   void              DetermineWorkSize(void);
    void              WaitForHandOff(void);
    
    uint64_t          ProcessNextPrimeChunk(uint64_t startFrom, uint64_t maxPrimeForChunk);
@@ -76,10 +75,6 @@ protected:
    uint64_t          InvMod32(uint32_t a, uint64_t p);
    uint64_t          InvMod64(uint64_t a, uint64_t p);
    
-   // This is called by GPU workers.  It will allocate memory for il_PrimeList
-   // and return the number of primes per worker.
-   void              AllocatePrimeList(uint32_t workGroupSize);
-
    // This function will return a boolean indicating if the CPU supports the instructions used
    // by the avx256_xxx.S assembler code which rely on the ymm registers.
    bool              CpuSupportsAvx(void) { return (__builtin_cpu_supports("avx") && __builtin_cpu_supports("fma")); };
@@ -92,15 +87,22 @@ protected:
 
    void              SetLargestPrimeTested(uint64_t largestPrimeTested, uint64_t primesTested)  { il_LargestPrimeTested = largestPrimeTested; il_PrimesTested += primesTested; }
    
+#ifdef HAVE_GPU_WORKERS
+   // This is called by GPU workers.  It will allocate memory for il_PrimeList
+   // and return the number of primes per worker.
+   void              AllocatePrimeList(uint32_t workGroupSize);
+#endif
+
    uint32_t          ii_MyId;
    bool              ib_Initialized;
    bool              ib_GpuWorker;
    
    vector<uint64_t>  iv_Primes;
    
-   // This is only used by GPU workers
+#ifdef HAVE_GPU_WORKERS
    uint64_t         *il_PrimeList;
-   
+#endif
+
    App              *ip_App;
 
    SharedMemoryItem *ip_StatsLocker;

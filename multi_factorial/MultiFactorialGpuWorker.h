@@ -31,34 +31,29 @@ public:
    void              CleanUp(void);
 
 protected:
-   void              CheckForPrimeOrFactor(int64_t p, uint32_t n, int32_t c);
-   void              ValidateFactor(int64_t p, uint32_t n, int32_t c);
+   void              VerifyFactor(uint64_t p, uint32_t theN, int32_t theC);
    
    MultiFactorialApp *ip_MultiFactorialApp;
    
-   uint32_t          ii_StepN;
+   uint32_t          ii_MinN;
+   uint32_t          ii_MaxN;
+   uint32_t          ii_MaxGpuSteps;
    uint32_t          ii_MultiFactorial;
+   uint32_t          ii_MaxGpuFactors;
    
-   int64_t          *il_RemainderList;
-   uint64_t         *il_MagicNumber;
-   uint64_t         *il_MagicShift;
-   uint32_t          ii_NRange[10];
-   uint64_t         *il_MinusFactorList;
-   uint64_t         *il_PlusFactorList;
+   uint64_t         *il_RemainderList;
+   uint32_t          ii_Params[5];
+   uint32_t          ii_FactorCount;
+   int64_t          *il_FactorList;
 
-   Kernel           *ip_MagicKernel;
    Kernel           *ip_FactorialKernel;
 
    KernelArgument   *ip_KAPrime;
-   KernelArgument   *ip_MKAMagicNumber;
-   KernelArgument   *ip_MKAMagicShift;
-
-   KernelArgument   *ip_FKAMagicNumber;
-   KernelArgument   *ip_FKAMagicShift;
-   KernelArgument   *ip_KANRange;
    KernelArgument   *ip_KARemainder;
-   KernelArgument   *ip_KAMinusFactor;
-   KernelArgument   *ip_KAPlusFactor;
+   KernelArgument   *ip_KAParams;
+   KernelArgument   *ip_KATemp;
+   KernelArgument   *ip_KAFactorCount;
+   KernelArgument   *ip_KAFactorList;
 };
 
 #endif

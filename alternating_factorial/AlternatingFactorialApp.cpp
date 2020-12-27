@@ -40,13 +40,13 @@ AlternatingFactorialApp::AlternatingFactorialApp() : FactorApp()
    
    // This is because the assembly code is using SSE to do the mulmods
    SetAppMaxPrime(PMAX_MAX_52BIT);
+   ip_FactorValidator = new AlternatingFactorialWorker(0, this);
    
    // Override the default
    ii_CpuWorkSize = 10000;
 
 #ifdef HAVE_GPU_WORKERS
    ii_StepN = 10000;
-   ib_SupportsGPU = true;
 #endif
 }
 
@@ -201,10 +201,10 @@ void AlternatingFactorialApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool AlternatingFactorialApp::ApplyFactor(const char *term)
+bool AlternatingFactorialApp::ApplyFactor(uint64_t thePrime, const char *term)
 {
    uint32_t c;
-   
+      
    if (sscanf(term, "af(%u)", &c) != 1)
       FatalError("Could not parse term %s\n", term);
 

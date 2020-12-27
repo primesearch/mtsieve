@@ -23,7 +23,7 @@ App::App(void)
    il_TotalClockTime = 0;
    il_WorkerClockTime = 0;
    il_InitUS = Clock::GetCurrentMicrosecond();
-   ii_CpuWorkerCount = 1;
+   ii_CpuWorkerCount = 0;
    ii_GpuWorkerCount = 0;
 
    ip_Console = new SharedMemoryItem("console");
@@ -49,16 +49,15 @@ App::App(void)
    
    // We won't know this until we create a kernel in the GPU
    il_MinGpuPrime = 0;
-   ii_GpuWorkGroupSize = 0;
-   ii_GpuWorkGroups = 10;
-   ib_SupportsGPU = false;
    ib_HaveCreatedWorkers = false;
    ib_SetMinPrimeFromCommandLine = false;
 
-   ip_Workers = (Worker **) xmalloc(MAX_WORKERS * sizeof(Worker *));
+   ip_Workers = (Worker **) xmalloc((MAX_WORKERS + 1) * sizeof(Worker *));
    
 #ifdef HAVE_GPU_WORKERS
    ip_Device = new Device();
+   ii_GpuWorkGroupSize = 0;
+   ii_GpuWorkGroups = 10;
 #endif
 }
 
@@ -88,13 +87,10 @@ void App::ParentHelp(void)
    printf("-W --workers=W        start W workers (default %u)\n", ii_CpuWorkerCount);
 
 #ifdef HAVE_GPU_WORKERS
-   if (ib_SupportsGPU)
-   {
-      printf("-g --gpuworkgroups=g  work groups per call to GPU (default %u)\n", ii_GpuWorkGroups);
-      printf("-G --gpuworkers=G     start G GPU workers (default %u)\n", ii_GpuWorkerCount);
-      
-      ip_Device->Help();
-   }
+   printf("-g --gpuworkgroups=g  work groups per call to GPU (default %u)\n", ii_GpuWorkGroups);
+   printf("-G --gpuworkers=G     start G GPU workers (default %u)\n", ii_GpuWorkerCount);
+   
+   ip_Device->Help();
 #endif
 }
 
@@ -108,15 +104,12 @@ void  App::ParentAddCommandLineOptions(string &shortOpts, struct option *longOpt
    AppendLongOpt(longOpts, "workers",       required_argument, 0, 'W');
    
 #ifdef HAVE_GPU_WORKERS
-   if (ib_SupportsGPU)
-   {
-      shortOpts += "g:G:";
-      
-      AppendLongOpt(longOpts, "gpuworkgroups", required_argument, 0, 'g');
-      AppendLongOpt(longOpts, "gpuworkers",    required_argument, 0, 'G');
-      
-      ip_Device->AddCommandLineOptions(shortOpts, longOpts);
-   }
+   shortOpts += "g:G:";
+   
+   AppendLongOpt(longOpts, "gpuworkgroups", required_argument, 0, 'g');
+   AppendLongOpt(longOpts, "gpuworkers",    required_argument, 0, 'G');
+   
+   ip_Device->AddCommandLineOptions(shortOpts, longOpts);
 #endif
 }
 
@@ -131,8 +124,7 @@ parse_t App::ParentParseOption(int opt, char *arg, const char *source)
    uint64_t     minPrime;
 
 #ifdef HAVE_GPU_WORKERS
-   if (ib_SupportsGPU)
-      status = ip_Device->ParseOption(opt, arg, source);
+   status = ip_Device->ParseOption(opt, arg, source);
    
    if (status != P_UNSUPPORTED)
       return status;
@@ -154,19 +146,21 @@ parse_t App::ParentParseOption(int opt, char *arg, const char *source)
          status = Parser::Parse(arg, 10, 1000000000, ii_CpuWorkSize);
          break;
 
+#ifdef HAVE_GPU_WORKERS
       case 'W':
-         status = Parser::Parse(arg, 1, MAX_WORKERS, ii_CpuWorkerCount);
+         status = Parser::Parse(arg, 0, MAX_WORKERS, ii_CpuWorkerCount);
          break;
 
-#ifdef HAVE_GPU_WORKERS
       case 'g':
-         if (ib_SupportsGPU)
-            status = Parser::Parse(arg, 1, 1000000, ii_GpuWorkGroups);
+         status = Parser::Parse(arg, 1, 1000000, ii_GpuWorkGroups);
          break;
 
       case 'G':
-         if (ib_SupportsGPU)
-            status = Parser::Parse(arg, 1, MAX_WORKERS, ii_GpuWorkerCount);
+         status = Parser::Parse(arg, 0, MAX_WORKERS, ii_GpuWorkerCount);
+         break;
+#else
+      case 'W':
+         status = Parser::Parse(arg, 1, MAX_WORKERS, ii_CpuWorkerCount);
          break;
 #endif
    }
@@ -176,6 +170,18 @@ parse_t App::ParentParseOption(int opt, char *arg, const char *source)
 
 void App::ParentValidateOptions(void)
 {
+   if (ii_CpuWorkerCount + ii_GpuWorkerCount > MAX_WORKERS)
+      FatalError("Too many workers are configured.  The limit is %u", MAX_WORKERS);
+      
+   if (ii_CpuWorkerCount + ii_GpuWorkerCount == 0)
+   {
+#ifdef HAVE_GPU_WORKERS
+      ii_GpuWorkerCount = 1;
+#else
+      ii_CpuWorkerCount = 1;
+#endif
+   }
+
    // Ensure that the number of primes is divisble by 32
    // Although not required by all CPU sieves, many of them optimize
    // with groups of 4, 16, or 32 primes.
@@ -188,8 +194,7 @@ void App::ParentValidateOptions(void)
    ii_TotalWorkerCount = ii_CpuWorkerCount + ii_GpuWorkerCount;
    
 #ifdef HAVE_GPU_WORKERS
-   if (ib_SupportsGPU)
-      ip_Device->Validate();
+   ip_Device->Validate();
 #endif
 }
 
@@ -315,9 +320,15 @@ void  App::StopWorkers(void)
 
       count = 0;
       
-      for (uint32_t ii=0; ii<ii_TotalWorkerCount; ii++)
+      for (uint32_t ii=0; ii<=ii_TotalWorkerCount; ii++)
+      {
+         // ip_Worker[0] is the special CPU worker (if we need one)
+         if (ii == 0 && ip_Workers[0] == NULL)
+            continue;
+         
          if (!ip_Workers[ii]->IsStopped())
             count++;
+      }
 
       if (count && ++iter > 60000)
       {
@@ -366,7 +377,8 @@ void  App::Run(void)
       PreSieveHook();
     
       CreateWorkers(il_MinPrime);
-      
+
+#ifdef HAVE_GPU_WORKERS
       if (ii_GpuWorkerCount > 0)
       {
          if (ii_GpuWorkGroupSize == 0)
@@ -374,6 +386,8 @@ void  App::Run(void)
          
          WriteToConsole(COT_OTHER, "GPU primes per worker is %u", GetGpuWorkSize());
       }
+#endif
+
       Sieve();
       
       isDone = PostSieveHook();
@@ -457,8 +471,24 @@ uint32_t  App::GetNextAvailableWorker(bool useSingleThread, uint64_t &largestPri
       
       CheckReportStatus();
       
-      for (th=0; th<ii_TotalWorkerCount; th++)
+      for (th=0; th<=ii_TotalWorkerCount; th++)
       {
+         // ip_Worker[0] is the special CPU worker (if we need one).
+         // It will only stop when we can switch to the other workers.
+         if (th == 0)
+         {
+            if (ip_Workers[0] == NULL)
+               continue;
+
+            if (ip_Workers[0]->IsStopped())
+               continue;
+         
+            if (ip_Workers[0]->IsWaitingForWork(true))
+               return th;
+               
+            continue;
+         }
+
          if (ip_Workers[th]->IsGpuWorker())
          {
             if (useSingleThread)
@@ -516,8 +546,12 @@ void  App::CheckReportStatus(void)
 
 void  App::DeleteWorkers(void)
 {
-   for (uint32_t ii=0; ii<ii_TotalWorkerCount; ii++)
+   for (uint32_t ii=0; ii<=ii_TotalWorkerCount; ii++)
    {
+      // ip_Worker[0] is the special CPU worker (if we need one)
+      if (ii == 0 && ip_Workers[0] == NULL)
+         continue;
+            
       ip_Workers[ii]->CleanUp();
 
       delete ip_Workers[ii];
@@ -526,23 +560,31 @@ void  App::DeleteWorkers(void)
 
 void  App::CreateWorkers(uint64_t largestPrimeTested)
 {
-   uint32_t w, th = 0;
+   uint32_t w, th;
    bool allWaiting = false;
+   
+   ip_Workers[0] = NULL;
+   
+   if (ii_CpuWorkerCount == 0 && largestPrimeTested < il_MinGpuPrime)
+   {
+      // Worker "0" is only created if all of the following conditions are met:
+      //    no CPU workers specified
+      //    the application supports GPU workers
+      //    the next prime tested cannot be tested on a GPU
+      WriteToConsole(COT_OTHER, "Creating CPU worker to use until p >= %" PRIu64"", il_MinGpuPrime);
+      ip_Workers[0] = CreateWorker(0, false, largestPrimeTested);
+   }
+
+   th = 1;
    
    // This will create the workers and start executing them
    // Create the CPU workers first, then the GPU workers
-   for (w=0; w<ii_CpuWorkerCount; w++)
-   {
-      ip_Workers[th] = CreateWorker(th+1, false, largestPrimeTested);
-      th++;
-   }
+   for (w=0; w<ii_CpuWorkerCount; w++, th++)
+      ip_Workers[th] = CreateWorker(th, false, largestPrimeTested);
    
-   for (w=0; w<ii_GpuWorkerCount; w++)
-   {
-      ip_Workers[th] = CreateWorker(th+1, true, largestPrimeTested);
-      th++;
-   }
-   
+   for (w=0; w<ii_GpuWorkerCount; w++, th++)
+      ip_Workers[th] = CreateWorker(th, true, largestPrimeTested);
+      
    ib_HaveCreatedWorkers = true;
    
    // We can't start until all workers waiting for work
@@ -551,9 +593,15 @@ void  App::CreateWorkers(uint64_t largestPrimeTested)
       Sleep(10);
       allWaiting = true;
       
-      for (th=0; th<ii_TotalWorkerCount; th++)
+      for (th=0; th<=ii_TotalWorkerCount; th++)
+      {
+         // ip_Worker[0] is the special CPU worker (if we need one)
+         if (th == 0 && ip_Workers[0] == NULL)
+            continue;
+            
          if (!ip_Workers[th]->IsWaitingForWork(false))
             allWaiting = false;
+      }
    }
    
    il_LastStatusReportUS = Clock::GetCurrentMicrosecond();
@@ -573,22 +621,36 @@ void  App::Finish(void)
    StopWorkers();
 
    processCpuUS = Clock::GetProcessMicroseconds();
-   
+
    elapsedTimeUS = Clock::GetCurrentMicrosecond() - il_StartSievingUS;
 
    GetWorkerStats(workerCpuUS, largestPrimeTestedNoGaps, largestPrimeTested, primesTested);
 
    // Since all threads finished normally, there are no gaps thus we use largestPrimeTested.
    WriteToConsole(COT_OTHER, "Sieve %s at p=%" PRIu64".", finishMethod, largestPrimeTested);
-
+   
    cpuUtilization = ((double) processCpuUS) / ((double) elapsedTimeUS);
    
+#ifdef HAVE_GPU_WORKERS
+   uint64_t    processGpuUS = ip_Device->GetGpuMicroseconds();
+   
+   // This outputs statistics regarding CPU time, i.e. time the CPU (or cores) spent
+   // on this program, thus not including time spent working on other processes
+   WriteToConsole(COT_OTHER, "CPU time: %.2f sec. (%.2f sieving) (%.2f cores) GPU time: %.2f sec. ",
+            processCpuUS/1000000.0,
+            il_TotalSieveUS/1000000.0,
+            cpuUtilization,
+            processGpuUS/1000000.0);
+#else
    // This outputs statistics regarding CPU time, i.e. time the CPU (or cores) spent
    // on this program, thus not including time spent working on other processes
    WriteToConsole(COT_OTHER, "Processor time: %.2f sec. (%.2f sieving) (%.2f cores)",
             processCpuUS/1000000.0,
             il_TotalSieveUS/1000000.0,
             cpuUtilization);
+#endif
+   
+
 
    Finish(finishMethod, elapsedTimeUS, largestPrimeTested, primesTested);
 
@@ -619,7 +681,12 @@ void  App::ReportStatus(void)
    
    GetWorkerStats(workerCpuUS, largestPrimeTestedNoGaps, largestPrimeTested, primesTested);
 
+#ifdef HAVE_GPU_WORKERS
+   // Treat time spent in GPU as if spent in CPU
+   cpuUtilization = ((double) processCpuUS + ip_Device->GetGpuMicroseconds()) / ((double) elapsedTimeUS);
+#else
    cpuUtilization = ((double) processCpuUS) / ((double) elapsedTimeUS);
+#endif
    
    GetReportStats(childStats, cpuUtilization);
    
@@ -702,9 +769,18 @@ void  App::GetWorkerStats(uint64_t &workerCpuUS, uint64_t &largestPrimeTestedNoG
    primesTested = 0;
    largestPrimeTested = 0;
    largestPrimeTestedNoGaps = PMAX_MAX_62BIT;
-   
-   for (uint32_t ii=0; ii<ii_TotalWorkerCount; ii++)
+         
+#ifdef HAVE_GPU_WORKERS
+   // Treat time spent in GPU as if spent in CPU
+   workerCpuUS += ip_Device->GetGpuMicroseconds();
+#endif
+
+   for (uint32_t ii=0; ii<=ii_TotalWorkerCount; ii++)
    {
+      // ip_Worker[0] is the special CPU worker (if we need one)
+      if (ii == 0 && ip_Workers[0] == NULL)
+         continue;
+
       ip_Workers[ii]->LockStats();
 
       workerLargestPrimeTested = ip_Workers[ii]->GetLargestPrimeTested();
@@ -719,7 +795,7 @@ void  App::GetWorkerStats(uint64_t &workerCpuUS, uint64_t &largestPrimeTestedNoG
       
       primesTested += ip_Workers[ii]->GetPrimesTested();
       workerCpuUS += ip_Workers[ii]->GetWorkerCpuUS();
-      
+
       ip_Workers[ii]->ReleaseStats();
    }
 }
@@ -731,8 +807,12 @@ uint64_t  App::GetLargestPrimeTested(bool finishedNormally)
    if (!ib_HaveCreatedWorkers)
       return il_MinPrime;
    
-   for (uint32_t ii=0; ii<ii_TotalWorkerCount; ii++)
+   for (uint32_t ii=0; ii<=ii_TotalWorkerCount; ii++)
    {
+      // ip_Worker[0] is the special CPU worker (if we need one)
+      if (ii == 0 && ip_Workers[0] == NULL)
+         continue;
+
       ip_Workers[ii]->LockStats();
       
       // If the program finished normally, then the largest prime tested across all

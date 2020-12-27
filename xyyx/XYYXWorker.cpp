@@ -353,7 +353,7 @@ void  XYYXWorker::CheckFpuResult(uint32_t x, uint32_t y, uint64_t *ps, uint64_t 
          if (powerOfX[idx] == powerOfY[idx])
          {
             if (ip_XYYXApp->ReportFactor(ps[idx], x, y, -1))
-               VerifyFactor(ps[idx], x, y, -1);
+               VerifyFactor(true, ps[idx], x, y, -1);
          }
    }
 
@@ -363,7 +363,7 @@ void  XYYXWorker::CheckFpuResult(uint32_t x, uint32_t y, uint64_t *ps, uint64_t 
          if (powerOfX[idx] == ps[idx] - powerOfY[idx])
          {
             if (ip_XYYXApp->ReportFactor(ps[idx], x, y, +1))
-               VerifyFactor(ps[idx], x, y, +1);
+               VerifyFactor(true, ps[idx], x, y, +1);
          }
    }
 }
@@ -583,7 +583,7 @@ void  XYYXWorker::CheckAvxResult(uint32_t x, uint32_t y, uint64_t *ps, double *d
          if (rems[idx] == powerOfX[idx])
          {
             if (ip_XYYXApp->ReportFactor(ps[idx], x, y, -1))
-               VerifyFactor(ps[idx], x, y, -1);
+               VerifyFactor(true, ps[idx], x, y, -1);
          }
    }
       
@@ -596,12 +596,12 @@ void  XYYXWorker::CheckAvxResult(uint32_t x, uint32_t y, uint64_t *ps, double *d
          if (rems[idx] == dps[idx] - powerOfX[idx])
          {
             if (ip_XYYXApp->ReportFactor(ps[idx], x, y, +1))
-               VerifyFactor(ps[idx], x, y, +1);
+               VerifyFactor(true, ps[idx], x, y, +1);
          }
    }
 }
 
-void  XYYXWorker::VerifyFactor(uint64_t p, uint32_t x, uint32_t y, int32_t c)
+bool  XYYXWorker::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t x, uint32_t y, int32_t c)
 {
    uint64_t xPowY, yPowX;
       
@@ -609,13 +609,24 @@ void  XYYXWorker::VerifyFactor(uint64_t p, uint32_t x, uint32_t y, int32_t c)
    
    xPowY = fpu_powmod(x, y, p);
    yPowX = fpu_powmod(y, x, p);
-      
-   if (c == -1 && xPowY != yPowX)
-      FatalError("%" PRIu64" does not divide %u^%u-%u^%u", p, x, y, y, x);
-   
-   if (c == +1 && xPowY + yPowX != p)
-      FatalError("%" PRIu64" does not divide %u^%u+%u^%u", p, x, y, y, x);
    
    fpu_pop();
-}
+   
+   if (c == -1 && xPowY != yPowX)
+   {
+      if (badFactorIsFatal)
+         FatalError("%" PRIu64" does not divide %u^%u-%u^%u", p, x, y, y, x);
+         
+      return false;
+   }
+   
+   if (c == +1 && xPowY + yPowX != p)
+   {
+      if (badFactorIsFatal)
+         FatalError("%" PRIu64" does not divide %u^%u+%u^%u", p, x, y, y, x);
+         
+      return false;
+   }
 
+   return true;
+}

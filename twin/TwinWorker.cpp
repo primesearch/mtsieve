@@ -212,17 +212,17 @@ void    TwinWorker::RemoveTermsSmallPrime(uint64_t prime, uint64_t k, int32_t c)
             // If k*b^n+c is prime, then we won't treat this as a factor
             if (k * il_BpowN != prime - c)
                if (ip_TwinApp->ReportFactor(prime, k, c))
-                  VerifyFactor(prime, k, c, bPowNModP);
+                  VerifyFactor(true, prime, k, c, bPowNModP);
          }
          else
             if (ip_TwinApp->ReportFactor(prime, k, c))
-               VerifyFactor(prime, k, c, bPowNModP); 
+               VerifyFactor(true, prime, k, c, bPowNModP); 
             
       }
       else
       {
          if (ip_TwinApp->ReportFactor(prime, k, c))
-            VerifyFactor(prime, k, c, bPowNModP);
+            VerifyFactor(true, prime, k, c, bPowNModP);
       }
 
 		k += prime; 
@@ -234,35 +234,53 @@ void    TwinWorker::RemoveTermsSmallPrime(uint64_t prime, uint64_t k, int32_t c)
 // Using this bypasses a number of if checks that can be done when prime > il_MaxK.
 void    TwinWorker::RemoveTermsBigPrime(uint64_t prime, uint64_t k, int32_t c)
 {
-   uint64_t  bPowNModP;
    
    // Make sure that k >= il_MinK
    if (k < il_MinK)
       return;
    
    if (ip_TwinApp->ReportFactor(prime, k, c))
-   {
-      fpu_push_1divp(prime);
-
-      bPowNModP = fpu_powmod(ii_Base, ii_N, prime);
-      
-      VerifyFactor(prime, k, c, bPowNModP);
-
-      fpu_pop();
-   }
+      VerifyExternalFactor(true, prime, k, ii_Base, ii_N, c);
 }
 
-void  TwinWorker::VerifyFactor(uint64_t prime, uint64_t k, int32_t c, uint64_t bPowNModP)
+bool  TwinWorker::VerifyExternalFactor(bool badFactorIsFatal, uint64_t prime, uint64_t k, uint32_t b, uint32_t n, int32_t c)
+{
+   uint64_t  bPowNModP;
+   
+   fpu_push_1divp(prime);
+
+   bPowNModP = fpu_powmod(b, n, prime);
+   
+   bool isValid = VerifyFactor(badFactorIsFatal, prime, k, c, bPowNModP);
+
+   fpu_pop();
+   
+   return isValid;
+}
+
+bool  TwinWorker::VerifyFactor(bool badFactorIsFatal, uint64_t prime, uint64_t k, int32_t c, uint64_t bPowNModP)
 {
    uint64_t rem;
    
    rem = fpu_mulmod(bPowNModP, k, prime);
    
    if (c == +1 && rem != prime - 1)
-      FatalError("%" PRIu64"*%u^%u%+d mod %" PRIu64" = %" PRIu64"", k, ii_Base, ii_N, c, prime, rem + 1);
-      
+   {
+      if (badFactorIsFatal)
+         FatalError("%" PRIu64"*%u^%u%+d mod %" PRIu64" = %" PRIu64"", k, ii_Base, ii_N, c, prime, rem + 1);
+         
+      return false;
+   }
+   
    if (c == -1 && rem != 1)
-      FatalError("%" PRIu64"*%u^%u%+d mod %" PRIu64" = %" PRIu64"", k, ii_Base, ii_N, c, prime, rem - 1);
+   {
+      if (badFactorIsFatal)
+         FatalError("%" PRIu64"*%u^%u%+d mod %" PRIu64" = %" PRIu64"", k, ii_Base, ii_N, c, prime, rem - 1);
+         
+      return false;
+   }
+   
+   return true;
 }
 
 void    TwinWorker::BuildBaseInverses(void)

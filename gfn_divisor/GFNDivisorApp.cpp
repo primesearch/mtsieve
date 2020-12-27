@@ -79,9 +79,7 @@ GFNDivisorApp::GFNDivisorApp(void) : FactorApp()
 
    SetAppMinPrime(3);
    
-#ifdef HAVE_GPU_WORKERS
-   ib_SupportsGPU = true;
-#endif
+   ip_FactorValidator = new GFNDivisorWorker(0, this);
 }
 
 void GFNDivisorApp::Help(void)
@@ -539,7 +537,7 @@ void GFNDivisorApp::ProcessInputTermsFile(bool haveBitMap, FILE *fPtr, char *fil
    }
 }
 
-bool  GFNDivisorApp::ApplyFactor(const char *term)
+bool  GFNDivisorApp::ApplyFactor(uint64_t thePrime, const char *term)
 {
    uint64_t k;
    uint32_t b, n;
@@ -913,7 +911,7 @@ bool  GFNDivisorApp::IsFermatDivisor(uint64_t k, uint32_t n)
          mpn_tdiv_qr(A+2,A,0L,TWO128,3,N,(N[1]>0)?2:1);
 
          /* A <-- 2^2^(n-1) mod N, in Montgomery form */
-         inv = inv_proth(k,n);
+         inv = invproth(k,n);
          for (i = n-1-PRE_SQUARE; i > 0; i--)
             sqrmod128_proth0(A,N,inv);
 

@@ -15,7 +15,7 @@
 #include "TwinWorker.h"
 
 #define APP_NAME        "twinsieve"
-#define APP_VERSION     "1.2"
+#define APP_VERSION     "1.3"
 
 #define NMAX_MAX        (1 << 31)
 #define BMAX_MAX        (1 << 31)
@@ -47,6 +47,8 @@ TwinApp::TwinApp() : FactorApp()
    iv_TwinTerms.clear();
    iv_MinusTerms.clear();
    iv_PlusTerms.clear();
+   
+   ip_FactorValidator = new TwinWorker(0, this);
 }
 
 void TwinApp::Help(void)
@@ -435,12 +437,12 @@ void TwinApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool TwinApp::ApplyFactor(const char *term)
+bool TwinApp::ApplyFactor(uint64_t thePrime,  const char *term)
 {
    uint64_t k;
    uint32_t b, n;
    int32_t  c;
-   
+      
    if (sscanf(term, "%" SCNu64"*%u^%u%u", &k, &b, &n, &c) != 4)
       FatalError("Could not parse term %s", term);
 
@@ -455,6 +457,15 @@ bool TwinApp::ApplyFactor(const char *term)
         
    if (k < il_MinK || k > il_MaxK)
       return false;
+   
+   TwinWorker *tWorker = (TwinWorker *) ip_FactorValidator;
+   
+   if (!tWorker->VerifyExternalFactor(false, thePrime, k, b, n, c))
+   {
+      WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of %" PRIu64"*%u^%u%+d and was rejected", thePrime, k, b, n, c);
+      
+      return false;
+   }
 
    uint64_t bit = k - il_MinK;
    

@@ -21,7 +21,8 @@ Device::Device(void)
 {
    cl_int status;
 
-   ip_Locker = new SharedMemoryItem("gpu_time");
+   ip_GpuBytes = new SharedMemoryItem("gpu_bytes");
+   ip_GpuMicroseconds = new SharedMemoryItem("gpu_microseconds");
 
    ii_PlatformId = -1;
    ii_DeviceId = -1;
@@ -29,7 +30,7 @@ Device::Device(void)
    ii_TotalDeviceCount = 0;
    ib_HavePlatform = false;
    ib_HaveDevice = false;
-   il_GPUClockTime = 0;
+   ib_PrintDetails = false;
 
    status = clGetPlatformIDs(0, NULL, &ii_PlatformCount);
 
@@ -54,7 +55,8 @@ Device::~Device(void)
    for (pp=0; pp<ii_PlatformCount; pp++)
       clReleaseContext(ip_Platforms[pp].context);
 
-   delete ip_Locker;
+   delete ip_GpuBytes;
+   delete ip_GpuMicroseconds;
    
    for (ii=0; ii<ii_PlatformCount; ii++)
       xfree(ip_Platforms[ii].devices);
@@ -66,14 +68,16 @@ void  Device::Help(void)
 {
    printf("-D --platform=D       Use platform D instead of 0\n");
    printf("-d --device=d         Use device d instead of 0\n");
+   printf("-H --showgpudetail    Show device and kernel details\n");
    
    ListAllDevices();
 }
 
 void  Device::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
 {
-   shortOpts += "D:d:";
+   shortOpts += "HD:d:";
 
+   AppendLongOpt(longOpts, "showgpudetail", no_argument, 0, 'H');
    AppendLongOpt(longOpts, "platform",      required_argument, 0, 'D');
    AppendLongOpt(longOpts, "device",        required_argument, 0, 'd');
 }
@@ -90,6 +94,11 @@ parse_t Device::ParseOption(int opt, char *arg, const char *source)
 
    switch (opt)
    {
+      case 'H':
+         status = P_SUCCESS;
+         ib_PrintDetails = true;
+         break;
+
       case 'D':
          status = Parser::Parse(arg, 0, INT32_MAX, ii_PlatformId);
          ib_HavePlatform = true;
@@ -102,28 +111,6 @@ parse_t Device::ParseOption(int opt, char *arg, const char *source)
   }
 
   return status;
-}
-
-void  Device::AddGPUClockTime(uint64_t clocks)
-{
-   ip_Locker->Lock();
-
-   il_GPUClockTime += clocks;
-
-   ip_Locker->Release();
-}
-
-uint64_t Device::GetGPUClockTime(void)
-{
-   uint64_t clocks;
-
-   ip_Locker->Lock();
-
-   clocks = il_GPUClockTime;
-
-   ip_Locker->Release();
-
-   return clocks;
 }
 
 void Device::GetPlatforms(void)
@@ -205,19 +192,23 @@ void Device::GetDevicesForPlatform(platform_t *thePlatform)
       thePlatform->devices[ii].deviceId = devices[ii];
       theDevice = &thePlatform->devices[ii];
 
-      clGetDeviceInfo(devices[ii], CL_DEVICE_VENDOR, sizeof(theDevice->vendor), theDevice->vendor, NULL);
+      status = clGetDeviceInfo(devices[ii], CL_DEVICE_VENDOR, sizeof(theDevice->vendor), theDevice->vendor, NULL);
       ErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get device vendor");
 
-      clGetDeviceInfo(devices[ii], CL_DEVICE_NAME, sizeof(theDevice->name), theDevice->name, NULL);
+      status = clGetDeviceInfo(devices[ii], CL_DEVICE_NAME, sizeof(theDevice->name), theDevice->name, NULL);
       ErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get device name");
 
 #ifdef CL_DEVICE_DOUBLE_FP_CONFIG
       theDevice->fpConfig = 0;
-      clGetDeviceInfo(devices[ii], CL_DEVICE_DOUBLE_FP_CONFIG, sizeof(theDevice->fpConfig), &theDevice->fpConfig, NULL);
-      ErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get device FP config");
+      status = clGetDeviceInfo(devices[ii], CL_DEVICE_DOUBLE_FP_CONFIG, sizeof(theDevice->fpConfig), &theDevice->fpConfig, NULL);
+      ErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get CL_DEVICE_DOUBLE_FP_CONFIG of device");
 #endif
 
-      clGetDeviceInfo(theDevice->deviceId, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(cl_uint), &theDevice->maxComputeUnits, NULL);
+      status = clGetDeviceInfo(theDevice->deviceId, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(theDevice->maxComputeUnits), &theDevice->maxComputeUnits, NULL);
+      ErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get CL_DEVICE_MAX_COMPUTE_UNITS of device");
+
+      status = clGetDeviceInfo(theDevice->deviceId, CL_DEVICE_LOCAL_MEM_SIZE, sizeof(theDevice->localMemSize), &theDevice->localMemSize, NULL);
+      ErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get CL_DEVICE_LOCAL_MEM_SIZE of device");
    }
 
    xfree(devices);
@@ -270,16 +261,6 @@ void Device::Validate(void)
       ListAllDevices();
       exit(0);
    }
-
-   //VerboseOutput("Platform %d is a%s %s %s, version %s", ii_PlatformId, 
-   //              (IsVowel(ip_Platforms[ii_PlatformId].vendor[0]) ? "n" : ""),
-   //              ip_Platforms[ii_PlatformId].vendor,
-   //              ip_Platforms[ii_PlatformId].name, 
-   //              ip_Platforms[ii_PlatformId].version);
-   //VerboseOutput("Device %d is a%s %s %s", ii_DeviceId,
-   //              (IsVowel(ip_Platforms[ii_PlatformId].devices[ii_DeviceId].vendor[0]) ? "n" : ""),
-   //              ip_Platforms[ii_PlatformId].devices[ii_DeviceId].vendor,  
-   //              ip_Platforms[ii_PlatformId].devices[ii_DeviceId].name);
 }
 
 bool Device::IsVowel(char ch)
@@ -288,4 +269,3 @@ bool Device::IsVowel(char ch)
  
   return (c == 'A' || c == 'E' || c == 'I' || c == 'O' || c == 'U');
 }
-

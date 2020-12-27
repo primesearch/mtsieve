@@ -14,6 +14,7 @@
 #include "../core/Clock.h"
 #include "SierpinskiRieselApp.h"
 #include "AlgebraicFactorHelper.h"
+#include "GenericWorker.h"
 #include "../x86_asm/fpu-asm-x86.h"
 
 #include "GenericSubsequenceHelper.h"
@@ -51,6 +52,8 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    ii_SequenceCapacity = 0;
    ib_UseLengendreTables = false;
    is_LegendreFileName = "";
+   
+   ip_FactorValidator = new GenericWorker(0, this, NULL);
 }
 
 void SierpinskiRieselApp::Help(void)
@@ -143,7 +146,7 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
 void SierpinskiRieselApp::ValidateOptions(void)
 {
    if (it_Format == FF_UNKNOWN)
-      FatalError("the specified file format in not valid, use A (ABC), D (ABCD), or P (ABC with number_primes))");
+      FatalError("the specified file format in not valid, use A (ABC), D (ABCD), P (ABC with number_primes), or B (BOINC)");
    
    if (is_InputTermsFileName.length() > 0)
    {
@@ -487,6 +490,9 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
                   currentSequence = GetSequence(k, c, d);
                else
                   AddSequence(k, c, d);
+                  
+               if (ii_MinN == 0)
+                  ii_MinN = ii_MaxN = n;
                break;
                
             case FF_NUMBER_PRIMES:
@@ -528,7 +534,7 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
       FatalError("No sequences in input file %s", is_InputTermsFileName.c_str());
 }
 
-bool SierpinskiRieselApp::ApplyFactor(const char *term)
+bool SierpinskiRieselApp::ApplyFactor(uint64_t thePrime, const char *term)
 {
    uint64_t k;
    uint32_t b, n, d;
@@ -858,6 +864,7 @@ void  SierpinskiRieselApp::MakeSubsequences(bool newSieve)
       }
 
       ip_Sequences[seqIdx].nTerms.clear();
+      ip_Sequences[seqIdx].legendreMap.clear();
       
       WriteToConsole(COT_OTHER, "Sequence %" PRIu64"*%u^n%+" PRId64" removed as all terms have a factor", 
                      ip_Sequences[seqIdx].k, ii_Base, ip_Sequences[seqIdx].c);

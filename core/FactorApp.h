@@ -33,7 +33,7 @@ protected:
    virtual void      ProcessInputTermsFile(bool haveBitMap) = 0;
    virtual bool      IsWritingOutputTermsFile(void) = 0;
    virtual void      WriteOutputTermsFile(uint64_t largestPrime) = 0;
-   virtual bool      ApplyFactor(const char *term) = 0;
+   virtual bool      ApplyFactor(uint64_t thePrime, const char *term) = 0;
    virtual void      GetExtraTextForSieveStartedMessage(char *extraText) = 0;
    
    void              ParentHelp(void);
@@ -52,6 +52,7 @@ protected:
    void              LogFactor(uint64_t p, const char *fmt, ...);
    void              LogFactor(char *factor, const char *fmt, ...);
    
+   Worker           *ip_FactorValidator;
    SharedMemoryItem *ip_FactorAppLock;
    
    // These are only updated by the child class, but any reads/writes of these
@@ -63,7 +64,7 @@ protected:
    string            is_InputFactorsFileName;
    string            is_OutputTermsFileName;
    string            is_OutputFactorsFileName;
-      
+   
 private:
    bool              BuildFactorsPerSecondRateString(uint32_t currentStatusEntry, double cpuUtilization, char *factoringRate);
    bool              BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, double cpuUtilization, char *factoringRate);

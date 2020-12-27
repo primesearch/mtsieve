@@ -23,6 +23,7 @@ public:
    void              TestMegaPrimeChunk(void);
    void              TestMiniPrimeChunk(uint64_t *miniPrimeChunk);
    void              CleanUp(void);
+   bool              VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t n, int32_t c);
 
 private:   
    void              TestSmallPrimesFPU(uint64_t *ps);
@@ -31,7 +32,6 @@ private:
    void              CheckAVXResult(uint32_t theN, uint64_t *ps, double *dps);
    
    void              BuildListOfPowers(uint64_t a, uint64_t p, uint32_t count, uint64_t *powers);
-   void              VerifyFactor(uint64_t p, uint32_t n, int32_t c);
    uint64_t          ComputeMultiplicativeInverse(uint64_t a, uint64_t p);
 
    CullenWoodallApp *ip_CullenWoodallApp;

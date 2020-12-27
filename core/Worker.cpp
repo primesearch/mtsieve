@@ -47,9 +47,13 @@ Worker::Worker(uint32_t myId, App *theApp)
    il_PrimesTested = 0;
 
    ib_GpuWorker = false;
+
+   ii_WorkSize = ip_App->GetCpuWorkSize();
    
+#ifdef HAVE_GPU_WORKERS
    // This is only used by GPU workers.
    il_PrimeList = 0;
+#endif
 
    ii_MiniChunkSize = 0;
    il_MinPrimeForMiniChunkMode = PMAX_MAX_62BIT;
@@ -75,8 +79,10 @@ Worker::~Worker()
    delete ip_StatsLocker;
    delete ip_WorkerStatus;
 
+#ifdef HAVE_GPU_WORKERS
    if (il_PrimeList)
       xfree(il_PrimeList);
+#endif
 }
 
 #ifdef WIN32
@@ -92,7 +98,6 @@ static void *ThreadEntryPoint(void *threadInfo)
    while (!worker->IsInitialized())
       Sleep(10);
 
-   worker->DetermineWorkSize();
    worker->WaitForHandOff();
 
 #ifdef WIN32
@@ -102,14 +107,7 @@ static void *ThreadEntryPoint(void *threadInfo)
 #endif
 }
 
-void  Worker::DetermineWorkSize(void)
-{
-   // The worksize for GPU workers is set by a call to AllocatePrimeList,
-   // which is called by the child class's constructor.
-   if (!ib_GpuWorker)
-      ii_WorkSize = ip_App->GetCpuWorkSize();
-}
-
+#ifdef HAVE_GPU_WORKERS
 void  Worker::AllocatePrimeList(uint32_t workGroupSize)
 {
    ip_App->SetGpuWorkGroupSize(workGroupSize);
@@ -118,6 +116,7 @@ void  Worker::AllocatePrimeList(uint32_t workGroupSize)
    
    il_PrimeList = (uint64_t *) xmalloc(ii_WorkSize*sizeof(uint64_t));
 }
+#endif
 
 // This is called by the main thread to determine if this worker
 // is waiting for work.
@@ -206,7 +205,8 @@ void  Worker::WaitForHandOff(void)
       // This is so the worker classes don't need to do this.
       savedFpuMode = fpu_mod_init();
       savedSseMode = sse_mod_init();
-      
+
+#ifdef HAVE_GPU_WORKERS
       if (ib_GpuWorker)
       {
          vector<uint64_t>::iterator it = iv_Primes.begin();
@@ -220,6 +220,7 @@ void  Worker::WaitForHandOff(void)
             idx++;
          }
       }
+#endif
 
       if (ii_MiniChunkSize > 0 && 
          iv_Primes.front() > il_MinPrimeForMiniChunkMode &&
@@ -237,7 +238,14 @@ void  Worker::WaitForHandOff(void)
       il_WorkerCpuUS += (Clock::GetThreadMicroseconds() - startTime);
       
       ip_StatsLocker->Release();
-      
+
+#ifdef HAVE_GPU_WORKERS      
+      // If this is the special CPU worker and we no longer need it,
+      // then we can break out of this loop and stop this thread.
+      if (ii_MyId == 0 && il_LargestPrimeTested > ip_App->GetMinGpuPrime())
+         break;
+#endif
+
       ip_WorkerStatus->SetValueNoLock(WS_WAITING_FOR_WORK);
    }
 

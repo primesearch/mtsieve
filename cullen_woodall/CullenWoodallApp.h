@@ -15,6 +15,8 @@
 
 #include "../core/AlgebraicFactorApp.h"
 
+typedef enum { FF_UNKNOWN = 1, FF_ABC, FF_LLR } format_t;
+
 class CullenWoodallApp : public AlgebraicFactorApp
 {
 public:
@@ -26,7 +28,7 @@ public:
    void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(const char *term);
+   bool              ApplyFactor(uint64_t thePrime,  const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
    bool              ReportFactor(uint64_t p, uint32_t n, int32_t c);
@@ -37,11 +39,16 @@ public:
    int32_t           GetBase(void) { return ii_Base; };
    int32_t           GetMinN(void) { return ii_MinN; };
    int32_t           GetMaxN(void) { return ii_MaxN; };
-   int32_t           GetGpuSteps(void) { return ii_GpuSteps; };
+
+
+#ifdef HAVE_GPU_WORKERS
+   uint32_t          GetMaxGpuSteps(void) { return ii_MaxGpuSteps; };
+   uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
+#endif
    
    uint64_t          GetTermCount(void) { return il_TermCount; };
    
-   uint32_t          GetTerms(uint32_t *terms, uint32_t minGroupSize, uint32_t maxGroupSize);
+   uint32_t          GetTerms(uint32_t *terms, uint32_t maxTermsInGroup, uint32_t groupSize);
    
 protected:
    void              PreSieveHook(void) {};
@@ -62,16 +69,22 @@ private:
    void              EliminateTermsWithAlgebraicFactors(void);
    bool              CheckAlgebraicFactor(uint32_t n, int32_t c, const char *fmt, ...);
    
+   format_t          it_Format;
    vector<bool>      iv_CullenTerms;
    vector<bool>      iv_WoodallTerms;
-      
+
+   Worker           *ip_FactorValidator;
+   
    uint32_t          ii_Base;
    uint32_t          ii_MinN;
    uint32_t          ii_MaxN;
    bool              ib_Woodall;
    bool              ib_Cullen;
    
-   uint32_t          ii_GpuSteps;
+#ifdef HAVE_GPU_WORKERS
+   uint32_t          ii_MaxGpuSteps;
+   uint32_t          ii_MaxGpuFactors;
+#endif
 };
 
 #endif

@@ -35,6 +35,8 @@ KBBApp::KBBApp() : AlgebraicFactorApp()
    ii_MaxB = 0;
    
    ii_CpuWorkSize = 10000;
+
+   ip_FactorValidator = new KBBWorker(0, this);
 }
 
 void KBBApp::Help(void)
@@ -240,7 +242,7 @@ void KBBApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool KBBApp::ApplyFactor(const char *term)
+bool KBBApp::ApplyFactor(uint64_t thePrime, const char *term)
 {
    uint64_t k;
    uint32_t b1, b2;

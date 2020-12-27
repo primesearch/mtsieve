@@ -16,7 +16,7 @@
 #include "CarolKyneaWorker.h"
 
 #define APP_NAME        "cksieve"
-#define APP_VERSION     "1.2"
+#define APP_VERSION     "1.3"
 
 #define BIT(n)          ((n) - ii_MinN)
 
@@ -35,6 +35,8 @@ CarolKyneaApp::CarolKyneaApp() : FactorApp()
    ii_Base = 0;
    ii_MinN = 1;
    ii_MaxN = 0;
+   
+   ip_FactorValidator = new CarolKyneaWorker(0, this);
 }
 
 void CarolKyneaApp::Help(void)
@@ -213,11 +215,11 @@ void CarolKyneaApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool CarolKyneaApp::ApplyFactor(const char *term)
+bool CarolKyneaApp::ApplyFactor(uint64_t thePrime, const char *term)
 {
    uint32_t b, n;
    int32_t  c;
-   
+      
    if (sscanf(term, "(%u^%u%d)^2-2", &b, &n, &c) != 3)
       FatalError("Could not parse term %s", term);
 
@@ -229,6 +231,15 @@ bool CarolKyneaApp::ApplyFactor(const char *term)
         
    if (n < ii_MinN || n > ii_MaxN)
       return false;
+
+   CarolKyneaWorker *ckWorker = (CarolKyneaWorker *) ip_FactorValidator;
+   
+   if (!ckWorker->VerifyFactor(false, thePrime, n, c))
+   {
+      WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of (%u^%u%+d)-2 and was rejected", thePrime, b, n, c);
+      
+      return false;
+   }
 
    uint32_t bit = BIT(n);
    

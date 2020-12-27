@@ -29,7 +29,7 @@ public:
    void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(const char *term);
+   bool              ApplyFactor(uint64_t thePrime, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
    uint64_t          GetMinK(void) { return il_MinK; };
@@ -53,6 +53,8 @@ protected:
 private:
    uint64_t          WriteABCDTermsFile(uint64_t maxPrime, FILE *termsFile);
    uint64_t          WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsFile);
+   
+   Worker           *ip_FactorValidator;
    
    vector<bool>      iv_Terms;
    

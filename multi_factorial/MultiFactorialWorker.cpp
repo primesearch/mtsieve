@@ -9,270 +9,278 @@
 #include "MultiFactorialWorker.h"
 #include "../x86_asm/fpu-asm-x86.h"
 #include "../x86_asm/avx-asm-x86.h"
+#include "../core/inline.h"
+#include "../core/MpArithVector.h"
 
 extern "C" int mfsieve(uint32_t start, uint32_t mf, uint32_t minmax, uint64_t *P);
 extern "C" int multifactorial(uint32_t start, uint32_t mf, uint32_t minmax, uint64_t *P);
 
 MultiFactorialWorker::MultiFactorialWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
 {
-   uint32_t  maxN;
-   
    ip_MultiFactorialApp = (MultiFactorialApp *) theApp;
+   
+   ii_MinN = ip_MultiFactorialApp->GetMinN();
+   ii_MaxN = ip_MultiFactorialApp->GetMaxN();
+   ii_MultiFactorial = ip_MultiFactorialApp->GetMultiFactorial();
 
    ib_Initialized = true;
-   
-   if (CpuSupportsAvx())
-   {
-      maxN = ip_MultiFactorialApp->GetMaxN();
-      
-      id_Terms = (double *) xmalloc((maxN + 1) * sizeof(double));
-      
-      for (uint32_t i=0; i<=maxN; i++)
-         id_Terms[i] = (double) i;
-
-      SetMiniChunkRange(maxN + 1, PMAX_MAX_52BIT, AVX_ARRAY_SIZE);
-   }   
 }
 
 void  MultiFactorialWorker::CleanUp(void)
 {
-   if (CpuSupportsAvx())
-      xfree(id_Terms);
 }
 
 void  MultiFactorialWorker::TestMegaPrimeChunk(void)
 {
-   uint64_t  p[4], maxPrime = ip_App->GetMaxPrime();
-   uint32_t  gotFactor, maxN = ip_MultiFactorialApp->GetMaxN();
-   uint32_t  mf = ip_MultiFactorialApp->GetMultiFactorial();
-   vector<uint64_t>::iterator it = iv_Primes.begin();
+   if (ii_MultiFactorial == 1)
+      TestFactorial();
+   else
+      TestMultiFactorial();
+}
 
+void  MultiFactorialWorker::TestFactorial(void)
+{
+   uint64_t  ps[4], maxPrime = ip_App->GetMaxPrime();
+   vector<uint64_t>::iterator it = iv_Primes.begin();
+   uint32_t  n;
+   // if i <= n_pair then (i - 1) * i < p. Compute n! = (2 * 3) * (4 * 5) * ... * ((n - 1) * n)
+   uint32_t n_pair = std::max(2u, std::min(ii_MinN, uint32_t(std::sqrt(double(*it))) & ~1u));
+      
    while (it != iv_Primes.end())
    {
-      p[0] = *it;
+      ps[0] = *it;
       it++;
       
-      p[1] = *it;
+      ps[1] = *it;
       it++;
       
-      p[2] = *it;
+      ps[2] = *it;
       it++;
       
-      p[3] = *it;
+      ps[3] = *it;
       it++;
 
-      for (uint32_t n=1; n<=mf; n++)
+      MpArithVec mp(ps);
+
+      const MpResVec one = mp.one();
+      const MpResVec minus_one = mp.sub(mp.zero(), one);
+      const MpResVec two = mp.add(one, one);
+      const MpResVec four = mp.add(two, two);
+      const MpResVec eight = mp.add(four, four);
+
+      // ri = residue of i, rf = residue of i!
+      MpResVec ri = one, rf = one;
+      // residue of i * (i + 1), the step is (i + 2) * (i + 3) - i * (i + 1) = 4 * i + 6
+      MpResVec r_ixip1 = mp.zero(), r_step = mp.add(four, two);
+
+      // Factorial with pairs of numbers: i! = ((i - 1) * i) * (i - 2)!
+      for (n = 2; n < n_pair; n += 2)
       {
-         // If i is odd and mf is even, then i!mf is always odd, thus
-         // n!mf+1 and n!mf-1 are always even.
-         if (!(mf & 1) && (n & 1))
-            continue;
-         
-         // The sieving routine requires that p > mf so that mf % p = mf.
-         // As mf is small compared to p and as most small p will divide
-         // at least one multi-factorial, this will have a negligable
-         // affect on efficiency.
-         if (p[0] > mf)
-            gotFactor = mfsieve(n, mf, maxN, p);
-         else 
-            gotFactor = 1;
-      
-         if (gotFactor)
+         r_ixip1 = mp.add(r_ixip1, r_step);
+         r_step = mp.add(r_step, eight);
+         rf = mp.mul(rf, r_ixip1);
+      }
+
+      // Factorial: i! = i * (i - 1)!
+      ri = mp.toMp(n_pair - 1);
+      for (n = n_pair; n < ii_MinN; ++n)
+      {
+         ri = mp.add(ri, one);
+         rf = mp.mul(rf, ri);
+      }
+
+      // Factorial and check if i! = +/-1
+      for (; n <= ii_MaxN; ++n)
+      {
+         ri = mp.add(ri, one);
+         rf = mp.mul(rf, ri);
+
+         if (MpArithVec::at_least_one_is_equal(rf, one) | MpArithVec::at_least_one_is_equal(rf, minus_one))
          {
-            ExtractFactors(n, p[0]);
-            ExtractFactors(n, p[1]);
-            ExtractFactors(n, p[2]);
-            ExtractFactors(n, p[3]);
+            for (size_t k = 0; k < VECTOR_SIZE; ++k)
+            {
+               if (rf[k] == one[k])
+                  if (ip_MultiFactorialApp->ReportFactor(ps[k], n, -1))
+                     VerifyFactor(true, ps[k], n, -1);
+                  
+               if (rf[k] == minus_one[k]) 
+                  if (ip_MultiFactorialApp->ReportFactor(ps[k], n, +1))
+                     VerifyFactor(true, ps[k], n, +1);
+            }
          }
       }
       
-      SetLargestPrimeTested(p[3], 4);
+      SetLargestPrimeTested(ps[3], 4);
       
-      if (p[3] >= maxPrime)
+      if (ps[3] >= maxPrime)
          break;
    }
 }
 
-void  MultiFactorialWorker::ExtractFactors(uint32_t start, uint64_t p)
+void  MultiFactorialWorker::TestMultiFactorial(void)
 {
-   // Note that p is limited to 2^52, so we are not using extended precision
-   // in this function.
+   uint64_t  ps[4], qs[4], mfrs[4];
+   uint64_t  mOne[4], pOne[4];
+   uint64_t  ri[4], rf[4];
+   uint64_t  maxPrime = ip_App->GetMaxPrime();
+   uint32_t  maxNFirstLoop = ii_MinN - ii_MultiFactorial;
+   uint32_t  n, startN;
    
-   // We know that a factor was found, but the call to MultiFactorialWorker
-   // doesn't tell us the term or the p for it, so we will use
-   // the long way to find it.
-   double   inverse, qd;
-   uint32_t mf = ip_MultiFactorialApp->GetMultiFactorial();
-   uint32_t maxN = ip_MultiFactorialApp->GetMaxN();
-   uint32_t term, value;
-   int64_t  q, r;
-   long double pmax, vd;
-
-   inverse = 1.0/p;
-   r = 1;
-
-   term = start;
-   value = 1;
-   
-   pmax = (long double) (p + 1);
-   vd = (long double) value;   
-   
-   while (term <= maxN)
-   {
-      vd *= (long double) term;
-      value *= term;
-
-      // If the current value is greater than the
-      // the max, then the value cannot be prime.      
-      if (vd > pmax)
-         break;
+   vector<uint64_t>::iterator it = iv_Primes.begin();
       
-      if (value == p+1) 
-         ip_MultiFactorialApp->ReportPrime(p, term, -1);
-         
-      if (value == p-1) 
-         ip_MultiFactorialApp->ReportPrime(p, term, +1);
+   while (it != iv_Primes.end())
+   {
+      ps[0] = *it;
+      it++;
+      
+      ps[1] = *it;
+      it++;
+      
+      ps[2] = *it;
+      it++;
+      
+      ps[3] = *it;
+      it++;
+
+      for (uint32_t idx=0; idx<4; idx++)
+      {
+         pOne[idx] = mmmOne(ps[idx]);
+         mOne[idx] = mmmSub(0, pOne[idx], ps[idx]);
+         qs[idx] = mmmInvert(ps[idx]);
+         mfrs[idx] = mmmN(ii_MultiFactorial, ps[idx]);
+      }
+      
+      for (startN=1; startN<=ii_MultiFactorial; startN++)
+      {
+         // If startN is odd and mf is even, then i!mf is always odd, thus
+         // startN!mf+1 and startN!mf-1 are always even.
+         if (!(ii_MultiFactorial & 1) && (startN & 1))
+            continue;
             
-      term += mf;
-   }
+         for (uint32_t idx=0; idx<4; idx++)
+         {
+            if (startN > ps[idx])
+               ri[idx] = mmmN(startN%ps[idx], ps[idx]);
+            else
+               ri[idx] = mmmN(startN, ps[idx]);
+            rf[idx] = ri[idx];
+         }
+ 
+         // At this time we have:
+         //    ri = residual of startN (mod p)
+         //    rf = residual of startN!mf (mod p)
+         
+         n = startN + ii_MultiFactorial;
+         for (; n<maxNFirstLoop; n+=ii_MultiFactorial)
+         {
+            ri[0] = mmmAdd(ri[0], mfrs[0], ps[0]);
+            rf[0] = mmmMulmod(rf[0], ri[0], ps[0], qs[0]);
+            
+            ri[1] = mmmAdd(ri[1], mfrs[1], ps[1]);
+            rf[1] = mmmMulmod(rf[1], ri[1], ps[1], qs[1]);
+            
+            ri[2] = mmmAdd(ri[2], mfrs[2], ps[2]);
+            rf[2] = mmmMulmod(rf[2], ri[2], ps[2], qs[2]);
+            
+            ri[3] = mmmAdd(ri[3], mfrs[3], ps[3]);
+            rf[3] = mmmMulmod(rf[3], ri[3], ps[3], qs[3]);
 
-   term = start;
-   
-   while (term <= maxN)
-   {
-      qd = ((double) r * (double) term);
-
-      q = (int64_t) (qd * inverse);
-
-      r = (r*term) - p*q;
-
-      if (r < 0)
-         r += p;
-      else if (r >= (int64_t) p)
-         r -= p;
+            //if (ps[0] == 110125033) printf("n=%u %llu %llu\n", n, ri[0], rf[0]);
+            //if (ps[1] == 110125033) printf("n=%u %llu %llu\n", n, ri[1], rf[1]);
+            //if (ps[2] == 110125033) printf("n=%u %llu %llu\n", n, ri[2], rf[2]);
+            //if (ps[3] == 110125033) printf("n=%u %llu %llu\n", n, ri[3], rf[3]);
+         }
+         
+         // At this time we have:
+         //    ri = residual of mn (mod p)
+         //    rf = residual of mn!mf (mod p)
+         // where mn is the max n < ii_MinN for this starting n
+         for (; n <=ii_MaxN; n+=ii_MultiFactorial)
+         {
+            ri[0] = mmmAdd(ri[0], mfrs[0], ps[0]);
+            rf[0] = mmmMulmod(rf[0], ri[0], ps[0], qs[0]);
+            
+            ri[1] = mmmAdd(ri[1], mfrs[1], ps[1]);
+            rf[1] = mmmMulmod(rf[1], ri[1], ps[1], qs[1]);
+            
+            ri[2] = mmmAdd(ri[2], mfrs[2], ps[2]);
+            rf[2] = mmmMulmod(rf[2], ri[2], ps[2], qs[2]);
+            
+            ri[3] = mmmAdd(ri[3], mfrs[3], ps[3]);
+            rf[3] = mmmMulmod(rf[3], ri[3], ps[3], qs[3]);
+            
+            //if (ps[0] == 110125033) printf("n=%u %llu %llu\n", n, ri[0], rf[0]);
+            //if (ps[1] == 110125033) printf("n=%u %llu %llu\n", n, ri[1], rf[1]);
+            //if (ps[2] == 110125033) printf("n=%u %llu %llu\n", n, ri[2], rf[2]);
+            //if (ps[3] == 110125033) printf("n=%u %llu %llu\n", n, ri[3], rf[3]);
+            
+            for (uint32_t idx=0; idx<4; idx++)
+            {
+               if (rf[idx] == pOne[idx])
+                  if (ip_MultiFactorialApp->ReportFactor(ps[idx], n, -1))
+                     VerifyFactor(true, ps[idx], n, -1);
+                  
+               if (rf[idx] == mOne[idx])
+                  if (ip_MultiFactorialApp->ReportFactor(ps[idx], n, +1))
+                     VerifyFactor(true, ps[idx], n, +1);
+            }
+         }
+      }
+            
+      SetLargestPrimeTested(ps[3], 4);
       
-      if (r == +1) 
-         ip_MultiFactorialApp->ReportFactor(p, term, -1);
-      
-      if (r == (int64_t) p-1) 
-         ip_MultiFactorialApp->ReportFactor(p, term, +1);
-      
-      term += mf;
+      if (ps[3] >= maxPrime)
+         break;
    }
 }
-
 void  MultiFactorialWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 {
-   double __attribute__((aligned(32))) dps[AVX_ARRAY_SIZE];
-   double __attribute__((aligned(32))) reciprocals[AVX_ARRAY_SIZE];
-   double __attribute__((aligned(32))) nextTerm[1];
-   uint32_t term;
-   uint32_t maxN = ip_MultiFactorialApp->GetMaxN();
-   uint32_t mf = ip_MultiFactorialApp->GetMultiFactorial();
-   
-   // compute the inverse of b (mod p)
-   for (int i=0; i<AVX_ARRAY_SIZE; i++)
-      dps[i] = (double) miniPrimeChunk[i];
-   
-   avx_compute_reciprocal(dps, reciprocals);
-
-   for (uint32_t n=1; n<=mf; n++)
-   {
-      nextTerm[0] = (double) n;
-      
-      avx_set_1a(nextTerm);
-      
-      for (term=n+mf; term<=maxN; term+=mf)
-      {
-         nextTerm[0] = id_Terms[term];
-         avx_set_1b(nextTerm);
-         avx_mulmod(dps, reciprocals);
-         
-         CheckAVXResult(miniPrimeChunk, dps, term);
-      }
-   }
+   FatalError("MultiFactorialWorker::TestMiniPrimeChunk not implemented");
 }
 
-void  MultiFactorialWorker::CheckAVXResult(uint64_t *ps, double *dps, uint32_t theN)
+bool  MultiFactorialWorker::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t theN, int32_t theC)
 {
-   uint32_t idx;
-   double __attribute__((aligned(32))) comparator[1];
-   double __attribute__((aligned(32))) rems[AVX_ARRAY_SIZE];
-      
-   comparator[0] = 1.0;
-   
-   // Only go further if one or more of the 16 primes yielded a factor for this n
-   if (avx_pos_compare_1v(comparator) > 0)
-   {
-      avx_get_16a(rems);
-      
-      for (idx=0; idx<AVX_ARRAY_SIZE; idx++)
-         if (rems[idx] == comparator[0])
-            VerifyAVXFactor(ps[idx], theN, -1);
-   }
-      
-   // Only go further if one or more of the 16 primes yielded a factor for this n
-   if (avx_neg_compare_1v(comparator, dps))
-   {
-      avx_get_16a(rems);
-      
-      for (idx=0; idx<AVX_ARRAY_SIZE; idx++)
-         if (rems[idx] == dps[idx] - comparator[0])
-            VerifyAVXFactor(ps[idx], theN, +1);
-   }
-}
-
-void  MultiFactorialWorker::VerifyAVXFactor(uint64_t p, uint32_t theN, int32_t theC)
-{
-   // Yes, I know that this doesn't check for primes like ExtractFactors, but we know
-   // all primorial primes < 2^128, so it isn't important that this doesn't catch them.
    uint64_t rem = 1;
    int32_t  n = (int32_t) theN;
-   uint32_t mf = ip_MultiFactorialApp->GetMultiFactorial();
-   bool     found = false;
-   bool     modded = false;
+   bool     termIsPrime = true;
    
    fpu_push_1divp(p);
    
    while (n > 1)
    {      
       if (rem * n > p + 1)
-         modded = true;
+         termIsPrime = false;
       
       rem = fpu_mulmod(rem, n, p);
       
-      n -= mf;
+      n -= ii_MultiFactorial;
    }
    
    fpu_pop();
       
    if (rem == +1)
    {
-      if (modded)
-         ip_MultiFactorialApp->ReportFactor(p, theN, -1);
-      else
+      if (termIsPrime)
          ip_MultiFactorialApp->ReportPrime(p, theN, -1);
    
-      if (theC == -1)
-         found = true;
+      return true;
    }
    
    if (p == rem + 1)
    {
-      if (modded)
-         ip_MultiFactorialApp->ReportFactor(p, theN, +1);
-      else
+      if (termIsPrime)
          ip_MultiFactorialApp->ReportPrime(p, theN, +1);
-   
-      if (theC == +1)
-         found = true;
+
+      return true;
    }   
- 
-   if (found)
-      return;
+
+   if (badFactorIsFatal)
+   {
+      if (ii_MultiFactorial == 1)
+         FatalError("%" PRIu64" is not a factor of %u!%+d", p, theN, theC);
+      else
+         FatalError("%" PRIu64" is not a factor of %u!%u%+d", p, theN, ii_MultiFactorial, theC);
+   }
    
-   if (mf == 1)
-      FatalError("The AVX routine found factor %" PRIu64" of %u!%+d, but it could not be validated", p, theN, theC);
-   else
-      FatalError("The AVX routine found factor %" PRIu64" of %u!%u%+d, but it could not be validated", p, theN, mf, theC);
+   return false;
 }
