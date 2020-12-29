@@ -146,7 +146,7 @@ Worker *PrimorialApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largest
 void PrimorialApp::ProcessInputTermsFile(bool haveBitMap)
 {
    FILE    *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
-   char     buffer[200], *pos;
+   char     buffer[1000], *pos;
    uint32_t n;
    int32_t  c;
    uint64_t sieveLimit;
@@ -154,7 +154,7 @@ void PrimorialApp::ProcessInputTermsFile(bool haveBitMap)
    if (!fPtr)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
 
-   if (fgets(buffer, 1000, fPtr) == NULL)
+   if (fgets(buffer, sizeof(buffer), fPtr) == NULL)
       FatalError("No data in input file %s", is_InputTermsFileName.c_str());
    
   if (memcmp(buffer, "ABC $a#$b", 9) && memcmp(buffer, "ABC $a#+$b", 10))
@@ -168,7 +168,7 @@ void PrimorialApp::ProcessInputTermsFile(bool haveBitMap)
    if (!haveBitMap)
       ii_MinN = ii_MaxN = 0;
    
-   while (fgets(buffer, 1000, fPtr) != NULL)
+   while (fgets(buffer, sizeof(buffer), fPtr) != NULL)
    {
       if (!StripCRLF(buffer))
          continue;

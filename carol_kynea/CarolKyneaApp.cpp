@@ -164,7 +164,7 @@ void CarolKyneaApp::ProcessInputTermsFile(bool haveBitMap)
    if (!fPtr)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
 
-   if (fgets(buffer, 1000, fPtr) == NULL)
+   if (fgets(buffer, sizeof(buffer), fPtr) == NULL)
       FatalError("No data in input file %s", is_InputTermsFileName.c_str());
    
    if (sscanf(buffer, "ABC (%u^$a$b)^2-2", &ii_Base) != 1)
@@ -178,7 +178,7 @@ void CarolKyneaApp::ProcessInputTermsFile(bool haveBitMap)
    if (!haveBitMap)
       ii_MinN = ii_MaxN = 0;
    
-   while (fgets(buffer, 1000, fPtr) != NULL)
+   while (fgets(buffer, sizeof(buffer), fPtr) != NULL)
    {
       if (!StripCRLF(buffer))
          continue;

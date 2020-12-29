@@ -238,7 +238,7 @@ Worker *CullenWoodallApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t lar
 void CullenWoodallApp::ProcessInputTermsFile(bool haveBitMap)
 {
    FILE    *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
-   char     buffer[200];
+   char     buffer[1000];
    uint32_t n, b;
    int32_t  c;
    uint64_t p;
@@ -249,7 +249,7 @@ void CullenWoodallApp::ProcessInputTermsFile(bool haveBitMap)
    if (!fPtr)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
 
-   if (fgets(buffer, 200,fPtr) == NULL)
+   if (fgets(buffer, sizeof(buffer), fPtr) == NULL)
       FatalError("File %s is empty", is_InputTermsFileName.c_str());
 
    if (sscanf(buffer, "ABC $a*%d^$a$b // Sieved to %" SCNu64"", &ii_Base, &p) == 2)
@@ -266,7 +266,7 @@ void CullenWoodallApp::ProcessInputTermsFile(bool haveBitMap)
 
    SetMinPrime(p);
 
-   while (fgets(buffer, 200,fPtr) != NULL)
+   while (fgets(buffer, sizeof(buffer), fPtr) != NULL)
    {
       if (format == FF_ABC)
       {

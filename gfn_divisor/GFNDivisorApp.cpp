@@ -460,7 +460,7 @@ void GFNDivisorApp::ProcessInputTermsFile(bool haveBitMap, FILE *fPtr, char *fil
    uint32_t n;
    uint64_t k, diff, minPrime;
 
-   if (fgets(buffer, 1000, fPtr) == NULL)
+   if (fgets(buffer, sizeof(buffer), fPtr) == NULL)
       FatalError("No data in input file %s", fileName);
    
    if (!memcmp(buffer, "ABCD ", 5))
@@ -494,7 +494,7 @@ void GFNDivisorApp::ProcessInputTermsFile(bool haveBitMap, FILE *fPtr, char *fil
    else
       FatalError("Input file %s has unknown format", fileName);
    
-   while (fgets(buffer, 1000, fPtr) != NULL)
+   while (fgets(buffer, sizeof(buffer), fPtr) != NULL)
    {
       if (!memcmp(buffer, "ABCD ", 5))
       {

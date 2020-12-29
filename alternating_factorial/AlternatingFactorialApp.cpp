@@ -153,7 +153,7 @@ Worker *AlternatingFactorialApp::CreateWorker(uint32_t id, bool gpuWorker, uint6
 void AlternatingFactorialApp::ProcessInputTermsFile(bool haveBitMap)
 {
    FILE    *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
-   char     buffer[200], *pos;
+   char     buffer[1000], *pos;
    uint32_t n;
    uint64_t sieveLimit;
 

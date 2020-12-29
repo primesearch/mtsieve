@@ -216,7 +216,7 @@ Worker *XYYXApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrime
 void XYYXApp::ProcessInputTermsFile(bool haveBitMap)
 {
    FILE    *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
-   char     buffer[200];
+   char     buffer[1000];
    uint32_t x, y;
    uint8_t  sign;
    uint64_t minPrime;
@@ -224,7 +224,7 @@ void XYYXApp::ProcessInputTermsFile(bool haveBitMap)
    if (!fPtr)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
 
-   if (fgets(buffer, 200,fPtr) == NULL)
+   if (fgets(buffer, sizeof(buffer), fPtr) == NULL)
       FatalError("File %s is empty", is_InputTermsFileName.c_str());
 
    if (sscanf(buffer, "ABC $a^$b%c$b^$a // Sieved to %" SCNu64"", &sign, &minPrime) != 2)
@@ -241,7 +241,7 @@ void XYYXApp::ProcessInputTermsFile(bool haveBitMap)
 
    SetMinPrime(minPrime);
 
-   while (fgets(buffer, 200, fPtr) != NULL)
+   while (fgets(buffer, sizeof(buffer), fPtr) != NULL)
    {
       if (!StripCRLF(buffer))
          continue;

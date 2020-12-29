@@ -199,7 +199,7 @@ void K1B2App::ProcessInputTermsFile(bool haveBitMap)
    if (!fPtr)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
 
-   if (fgets(buffer, 1000, fPtr) == NULL)
+   if (fgets(buffer, sizeof(buffer), fPtr) == NULL)
       FatalError("No data in input file %s", is_InputTermsFileName.c_str());
    
    if (!haveBitMap)
@@ -215,7 +215,7 @@ void K1B2App::ProcessInputTermsFile(bool haveBitMap)
    else
       FatalError("Input file %s has unknown format", is_InputTermsFileName.c_str());
    
-   while (fgets(buffer, 1000, fPtr) != NULL)
+   while (fgets(buffer, sizeof(buffer), fPtr) != NULL)
    {
       if (!StripCRLF(buffer))
          continue;
