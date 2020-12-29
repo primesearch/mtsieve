@@ -52,8 +52,6 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    ii_SequenceCapacity = 0;
    ib_UseLengendreTables = false;
    is_LegendreFileName = "";
-   
-   ip_FactorValidator = new GenericWorker(0, this, NULL);
 }
 
 void SierpinskiRieselApp::Help(void)

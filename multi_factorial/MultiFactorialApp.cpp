@@ -14,10 +14,11 @@
 #ifdef HAVE_GPU_WORKERS
 #include "MultiFactorialGpuWorker.h"
 #endif
+#include "../x86_asm/fpu-asm-x86.h"
 #include "../core/Parser.h"
 
 #define APP_NAME        "mfsieve"
-#define APP_VERSION     "1.7"
+#define APP_VERSION     "1.8"
 
 #define BIT(n)          ((n) - ii_MinN)
 
@@ -38,8 +39,6 @@ MultiFactorialApp::MultiFactorialApp() : FactorApp()
    ii_MaxN = 0;
    ii_CpuWorkSize = 50000;
    
-   ip_FactorValidator = new MultiFactorialWorker(0, this);
-
    // We'll remove all even terms manually
    SetAppMinPrime(3);
 
@@ -179,6 +178,8 @@ void MultiFactorialApp::ValidateOptions(void)
       }
    }
 
+   SetMinGpuPrime(ii_MaxN + 1);
+
    FactorApp::ParentValidateOptions();
 
    // The testing routine is optimized to test 4 primes at a time.
@@ -315,18 +316,9 @@ bool MultiFactorialApp::ApplyFactor(uint64_t thePrime, const char *term)
    
    if (n < ii_MinN || n > ii_MaxN)
       return false;
-  
-   MultiFactorialWorker *mfWorker = (MultiFactorialWorker *) ip_FactorValidator;
-   
-   if (!mfWorker->VerifyFactor(false, thePrime, n, c))
-   {
-      if (mf == 1)
-         WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of %u!%+d and was rejected", thePrime, n, c);
-      else
-         WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of %u!%u%+d and was rejected", thePrime, n, mf, c);
-      
+     
+   if (!VerifyFactor(false, thePrime, n, c))
       return false;
-   }
    
    uint64_t bit = BIT(n);
    
@@ -425,13 +417,66 @@ bool MultiFactorialApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
    
    ip_FactorAppLock->Release();
    
+   VerifyFactor(true, p, n, c);
+   
    return newFactor;
 }
 
-void MultiFactorialApp::ReportPrime(uint64_t p, uint32_t n, int32_t c)
+bool  MultiFactorialApp::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t n, int32_t c)
 {
+   uint64_t rem = 1;
+   int32_t  currN = (int32_t) n;
+   bool     termIsPrime = true;
+   bool     isValid = false;
+   char     buffer[100];
+   
+   fpu_push_1divp(p);
+   
+   while (currN > 1)
+   {      
+      if (rem * currN > p + 1)
+         termIsPrime = false;
       
-   WriteToConsole(COT_OTHER, "%d!%d%+d is prime! (%" PRId64")", n, ii_MultiFactorial, c, p);
+      rem = fpu_mulmod(rem, currN, p);
+      
+      currN -= ii_MultiFactorial;
+   }
+   
+   fpu_pop();
+      
 
-   WriteToLog("%d!%d%+d is prime! (%" PRId64")", n, ii_MultiFactorial, c, p);
+   if (c == -1)
+      isValid = (rem == +1);
+      
+   if (c == +1)
+      isValid = (rem == p-1);
+      
+   if (isValid)
+   {
+      if (termIsPrime)
+      {
+         if (ii_MultiFactorial == 1)
+            sprintf(buffer, "%u!%+d is prime! (%" PRId64")", n, c, p);
+         else
+            sprintf(buffer, "%u!%u%+d is prime! (%" PRId64")", n, ii_MultiFactorial, c, p);
+            
+         WriteToConsole(COT_OTHER, buffer);
+
+         WriteToLog(buffer);
+      }
+   
+      return isValid;
+   }
+
+   if (ii_MultiFactorial == 1)
+      sprintf(buffer, "%" PRIu64" is not a factor of not a factor of %u!%+d", p, n, c);
+   else
+      sprintf(buffer, "%" PRIu64" is not a factor of not a factor of %u!%u%+d", p, n, ii_MultiFactorial, c);
+
+   if (badFactorIsFatal)
+      FatalError(buffer);
+   else
+      WriteToConsole(COT_OTHER, buffer);
+
+   return isValid;
 }

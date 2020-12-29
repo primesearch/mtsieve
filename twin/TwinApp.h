@@ -56,8 +56,6 @@ private:
    uint64_t          WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsFile);
    void              AdjustMaxPrime(void);
 
-   Worker           *ip_FactorValidator;
-   
    vector<bool>      iv_TwinTerms;
    vector<bool>      iv_MinusTerms;
    vector<bool>      iv_PlusTerms;

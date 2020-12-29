@@ -40,7 +40,6 @@ AlternatingFactorialApp::AlternatingFactorialApp() : FactorApp()
    
    // This is because the assembly code is using SSE to do the mulmods
    SetAppMaxPrime(PMAX_MAX_52BIT);
-   ip_FactorValidator = new AlternatingFactorialWorker(0, this);
    
    // Override the default
    ii_CpuWorkSize = 10000;

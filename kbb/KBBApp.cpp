@@ -35,8 +35,6 @@ KBBApp::KBBApp() : AlgebraicFactorApp()
    ii_MaxB = 0;
    
    ii_CpuWorkSize = 10000;
-
-   ip_FactorValidator = new KBBWorker(0, this);
 }
 
 void KBBApp::Help(void)

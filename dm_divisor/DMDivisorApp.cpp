@@ -71,8 +71,6 @@ DMDivisorApp::DMDivisorApp() : FactorApp()
    il_TotalTermsEvaluated = 0;
    
    iv_MMPTerms.clear();
-
-   ip_FactorValidator = new DMDivisorWorker(0, this);
 }
 
 void DMDivisorApp::Help(void)

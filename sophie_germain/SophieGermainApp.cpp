@@ -42,8 +42,6 @@ SophieGermainApp::SophieGermainApp() : FactorApp()
    SetAppMinPrime(3);
    
    iv_Terms.clear();
-   
-   ip_FactorValidator = new SophieGermainWorker(0, this);
 }
 
 void SophieGermainApp::Help(void)
@@ -300,27 +298,6 @@ bool SophieGermainApp::ApplyFactor(uint64_t thePrime, const char *term)
         
    if (k < il_MinK || k > il_MaxK)
       return false;
-
-   SophieGermainWorker *sgWorker = (SophieGermainWorker *) ip_FactorValidator;
-   
-   if (n == ii_N)
-   {
-      if (!sgWorker->VerifyExternalFactor(false, thePrime, k, n, true))
-      {
-         WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of %" PRIu64"*2^%u+1 and was rejected", thePrime, n);
-         
-         return false;
-      }
-   }
-   else
-   {
-      if (!sgWorker->VerifyExternalFactor(false, thePrime, k, n, false))
-      {
-         WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of 2*(%" PRIu64"*2^%u+1)-1 and was rejected", thePrime, ii_N+1);
-         
-         return false;
-      }
-   }
   
    uint64_t bit = k - il_MinK;
    

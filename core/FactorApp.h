@@ -52,7 +52,6 @@ protected:
    void              LogFactor(uint64_t p, const char *fmt, ...);
    void              LogFactor(char *factor, const char *fmt, ...);
    
-   Worker           *ip_FactorValidator;
    SharedMemoryItem *ip_FactorAppLock;
    
    // These are only updated by the child class, but any reads/writes of these

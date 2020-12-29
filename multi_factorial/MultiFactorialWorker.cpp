@@ -10,7 +10,7 @@
 #include "MultiFactorialWorker.h"
 #include "../x86_asm/fpu-asm-x86.h"
 #include "../x86_asm/avx-asm-x86.h"
-#include "../core/inline.h"
+#include "../core/mmmInline.h"
 #include "../core/MpArithVector.h"
 
 extern "C" int mfsieve(uint32_t start, uint32_t mf, uint32_t minmax, uint64_t *P);
@@ -45,8 +45,8 @@ void  MultiFactorialWorker::TestFactorial(void)
    vector<uint64_t>::iterator it = iv_Primes.begin();
    uint32_t  n;
    // if i <= n_pair then (i - 1) * i < p. Compute n! = (2 * 3) * (4 * 5) * ... * ((n - 1) * n)
-   uint32_t n_pair = std::max(2u, std::min(ii_MinN, uint32_t(sqrt(double(*it))) & ~1u));
-      
+   uint32_t n_pair = std::max(2u, std::min(ii_MinN, uint32_t(sqrt(double(*it)))) & ~1u);
+
    while (it != iv_Primes.end())
    {
       ps[0] = *it;
@@ -101,12 +101,10 @@ void  MultiFactorialWorker::TestFactorial(void)
             for (size_t k = 0; k < VECTOR_SIZE; ++k)
             {
                if (rf[k] == one[k])
-                  if (ip_MultiFactorialApp->ReportFactor(ps[k], n, -1))
-                     VerifyFactor(true, ps[k], n, -1);
+                  ip_MultiFactorialApp->ReportFactor(ps[k], n, -1);
                   
                if (rf[k] == minus_one[k]) 
-                  if (ip_MultiFactorialApp->ReportFactor(ps[k], n, +1))
-                     VerifyFactor(true, ps[k], n, +1);
+                  ip_MultiFactorialApp->ReportFactor(ps[k], n, +1);
             }
          }
       }
@@ -126,6 +124,7 @@ void  MultiFactorialWorker::TestMultiFactorial(void)
    uint64_t  maxPrime = ip_App->GetMaxPrime();
    uint32_t  maxNFirstLoop = ii_MinN - ii_MultiFactorial;
    uint32_t  n, startN;
+   uint64_t  res2exp64[4];
    
    vector<uint64_t>::iterator it = iv_Primes.begin();
       
@@ -148,7 +147,8 @@ void  MultiFactorialWorker::TestMultiFactorial(void)
          pOne[idx] = mmmOne(ps[idx]);
          mOne[idx] = mmmSub(0, pOne[idx], ps[idx]);
          qs[idx] = mmmInvert(ps[idx]);
-         mfrs[idx] = mmmN(ii_MultiFactorial, ps[idx]);
+         res2exp64[idx] = mmm2exp64(ps[idx], qs[idx], pOne[idx]);
+         mfrs[idx] = mmmN(ii_MultiFactorial, ps[idx], qs[idx], res2exp64[idx]);
       }
       
       for (startN=1; startN<=ii_MultiFactorial; startN++)
@@ -161,9 +161,9 @@ void  MultiFactorialWorker::TestMultiFactorial(void)
          for (uint32_t idx=0; idx<4; idx++)
          {
             if (startN > ps[idx])
-               ri[idx] = mmmN(startN%ps[idx], ps[idx]);
+               ri[idx] = mmmN(startN%ps[idx], ps[idx], qs[idx], res2exp64[idx]);
             else
-               ri[idx] = mmmN(startN, ps[idx]);
+               ri[idx] = mmmN(startN, ps[idx], qs[idx], res2exp64[idx]);
             rf[idx] = ri[idx];
          }
  
@@ -218,12 +218,10 @@ void  MultiFactorialWorker::TestMultiFactorial(void)
             for (uint32_t idx=0; idx<4; idx++)
             {
                if (rf[idx] == pOne[idx])
-                  if (ip_MultiFactorialApp->ReportFactor(ps[idx], n, -1))
-                     VerifyFactor(true, ps[idx], n, -1);
+                  ip_MultiFactorialApp->ReportFactor(ps[idx], n, -1);
                   
                if (rf[idx] == mOne[idx])
-                  if (ip_MultiFactorialApp->ReportFactor(ps[idx], n, +1))
-                     VerifyFactor(true, ps[idx], n, +1);
+                  ip_MultiFactorialApp->ReportFactor(ps[idx], n, +1);
             }
          }
       }
@@ -237,51 +235,4 @@ void  MultiFactorialWorker::TestMultiFactorial(void)
 void  MultiFactorialWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 {
    FatalError("MultiFactorialWorker::TestMiniPrimeChunk not implemented");
-}
-
-bool  MultiFactorialWorker::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t theN, int32_t theC)
-{
-   uint64_t rem = 1;
-   int32_t  n = (int32_t) theN;
-   bool     termIsPrime = true;
-   
-   fpu_push_1divp(p);
-   
-   while (n > 1)
-   {      
-      if (rem * n > p + 1)
-         termIsPrime = false;
-      
-      rem = fpu_mulmod(rem, n, p);
-      
-      n -= ii_MultiFactorial;
-   }
-   
-   fpu_pop();
-      
-   if (rem == +1)
-   {
-      if (termIsPrime)
-         ip_MultiFactorialApp->ReportPrime(p, theN, -1);
-   
-      return true;
-   }
-   
-   if (p == rem + 1)
-   {
-      if (termIsPrime)
-         ip_MultiFactorialApp->ReportPrime(p, theN, +1);
-
-      return true;
-   }   
-
-   if (badFactorIsFatal)
-   {
-      if (ii_MultiFactorial == 1)
-         FatalError("%" PRIu64" is not a factor of %u!%+d", p, theN, theC);
-      else
-         FatalError("%" PRIu64" is not a factor of %u!%u%+d", p, theN, ii_MultiFactorial, theC);
-   }
-   
-   return false;
 }

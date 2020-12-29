@@ -47,8 +47,6 @@ TwinApp::TwinApp() : FactorApp()
    iv_TwinTerms.clear();
    iv_MinusTerms.clear();
    iv_PlusTerms.clear();
-   
-   ip_FactorValidator = new TwinWorker(0, this);
 }
 
 void TwinApp::Help(void)
@@ -458,15 +456,6 @@ bool TwinApp::ApplyFactor(uint64_t thePrime,  const char *term)
    if (k < il_MinK || k > il_MaxK)
       return false;
    
-   TwinWorker *tWorker = (TwinWorker *) ip_FactorValidator;
-   
-   if (!tWorker->VerifyExternalFactor(false, thePrime, k, b, n, c))
-   {
-      WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of %" PRIu64"*%u^%u%+d and was rejected", thePrime, k, b, n, c);
-      
-      return false;
-   }
-
    uint64_t bit = k - il_MinK;
    
    // No locking is needed because the Workers aren't running yet

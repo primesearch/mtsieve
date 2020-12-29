@@ -17,12 +17,13 @@ void collect_factor(int  n,
                     volatile __global int *factorsCount,
                      __global long4 *factors);
 
-ulong mmmInvert(ulong p);
+ulong mmmInvert(ulong _p);
 ulong mmmOne(ulong _p);
+ulong mmmR2(ulong _p, ulong _q, ulong _one);
 ulong mmmAdd(ulong a, ulong b, ulong _p);
 ulong mmmSub(ulong a, ulong b, ulong _p);
 ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q);
-ulong mmmN(ulong n, ulong _p);
+ulong mmmN(ulong n, ulong _p, ulong _q, ulong _r2);
 
 __kernel void mf_kernel(__global const  ulong  *primes,
                         __global        ulong2 *rems,
@@ -45,8 +46,9 @@ __kernel void mf_kernel(__global const  ulong  *primes,
    ulong _q = mmmInvert(thePrime);
    ulong pOne = mmmOne(thePrime);
    ulong mOne = mmmSub(0, pOne, thePrime);
+   ulong _r2 = mmmR2(thePrime, _q, pOne);
 
-   ulong mfrs = mmmN(D_MULTIFACTORIAL, thePrime);;
+   ulong mfrs = mmmN(D_MULTIFACTORIAL, thePrime, _q, _r2);
    ulong ri, rf;
    
    if (startN == currentN)
@@ -54,9 +56,9 @@ __kernel void mf_kernel(__global const  ulong  *primes,
       // Set ri = residual of startN (mod p)
       // Set rf = residual of startN!mf (mod p)
       if (startN > thePrime)
-         ri = mmmN(startN%thePrime, thePrime);
+         ri = mmmN(startN%thePrime, thePrime, _q, _r2);
       else
-         ri = mmmN(startN, thePrime);
+         ri = mmmN(startN, thePrime, _q, _r2);
       rf = ri;
    }
    else
@@ -102,7 +104,7 @@ __kernel void mf_kernel(__global const  ulong  *primes,
    rems[gid].y = rf;
 }
 
-ulong mmmInvert(ulong p)
+ulong mmmInvert(ulong _p)
 {
    ulong p_inv = 1;
    ulong prev = 0;
@@ -110,7 +112,7 @@ ulong mmmInvert(ulong p)
    while (p_inv != prev)
    {
       prev = p_inv;
-      p_inv *= (2 - p * p_inv);
+      p_inv *= (2 - _p * p_inv);
    }
    
    return p_inv;
@@ -120,6 +122,18 @@ ulong mmmInvert(ulong p)
 ulong mmmOne(ulong _p)
 {
    return ((-_p) % _p);
+}
+
+// Compute the residual of 2^64 (mod p)
+ulong mmmR2(ulong _p, ulong _q, ulong _one)
+{
+	ulong t = mmmAdd(_one, _one, _p);
+   
+   t = mmmAdd(t, t, _p);   // 4
+	for (size_t i=0; i<5; i++)
+      t = mmmMulmod(t, t, _p, _q);   // 4^{2^5} = 2^64
+      
+	return t;
 }
 
 ulong mmmAdd(ulong a, ulong b, ulong _p)
@@ -136,57 +150,39 @@ ulong mmmSub(ulong a, ulong b, ulong _p)
 
 ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q)
 {
-   ulong lo = a * b;
-   ulong hi = mul_hi(a, b);
-   
-   ulong m = lo * _q;
-   
-   ulong hi2 = mul_hi(m, _p);
-   long r = (long) hi - (long) hi2;
+   ulong lo, hi;
 
-   if (r < 0)
-      return (ulong) (r + _p);
-      
-   return (ulong) r;
+#ifdef __NV_CL_C_VERSION
+   const uint a0 = (uint)(a), a1 = (uint)(a >> 32);
+   const uint b0 = (uint)(b), b1 = (uint)(b >> 32);
+
+   uint c0 = a0 * b0, c1 = mul_hi(a0, b0), c2, c3;
+
+   asm volatile ("mad.lo.cc.u32 %0, %1, %2, %3;" : "=r" (c1) : "r" (a0), "r" (b1), "r" (c1));
+   asm volatile ("madc.hi.u32 %0, %1, %2, 0;" : "=r" (c2) : "r" (a0), "r" (b1));
+
+   asm volatile ("mad.lo.cc.u32 %0, %1, %2, %3;" : "=r" (c2) : "r" (a1), "r" (b1), "r" (c2));
+   asm volatile ("madc.hi.u32 %0, %1, %2, 0;" : "=r" (c3) : "r" (a1), "r" (b1));
+
+   asm volatile ("mad.lo.cc.u32 %0, %1, %2, %3;" : "=r" (c1) : "r" (a1), "r" (b0), "r" (c1));
+   asm volatile ("madc.hi.cc.u32 %0, %1, %2, %3;" : "=r" (c2) : "r" (a1), "r" (b0), "r" (c2));
+   asm volatile ("addc.u32 %0, %1, 0;" : "=r" (c3) : "r" (c3));
+
+   lo = upsample(c1, c0); hi = upsample(c3, c2);
+#else
+   lo = a * b; hi = mul_hi(a, b);
+#endif
+
+   ulong m = lo * _q;
+   ulong mp = mul_hi(m, _p);
+   long r = (long)(hi - mp);
+   return (r < 0) ? r + _p : r;
 }
 
 // Compute the residual of n (mod p)
-ulong   mmmN(ulong n, ulong _p)
+ulong mmmN(ulong n, ulong _p, ulong _q, ulong _r2)
 {
-   if (n == 1)
-      return mmmOne(_p);
-    
-   // list[0] = res(2^0), list[1] = res(2^1), list[2] = res(2^2), etc.
-   ulong list[64];
-   ulong bit = 0x01;
-   ulong value = 0;
-
-   list[0] = mmmOne(_p);
-   
-   if (n & bit)
-   {
-      value = list[0];
-      n &= ~bit;
-   }
-   
-   for (uint idx=1; idx<64; idx++)
-   {
-      bit <<= 1;
-      
-      // Need to compute for each power of 2
-      list[idx] = mmmAdd(list[idx-1], list[idx-1], _p);
-      
-      if (n & bit)
-      {
-         value = mmmAdd(list[idx], value, _p);
-         n &= ~bit;
-      }
-      
-      if (n == 0)
-         break;
-   }
-
-   return value;
+   return mmmMulmod(n, _r2, _p, _q);
 }
 
 void collect_factor(int  n,

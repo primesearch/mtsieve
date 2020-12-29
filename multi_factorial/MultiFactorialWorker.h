@@ -24,8 +24,6 @@ public:
    void              TestMegaPrimeChunk(void);
    void              TestMiniPrimeChunk(uint64_t *miniPrimeChunk);
    void              CleanUp(void);
-   
-   bool              VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t theN, int32_t theC);
 
 protected:
    MultiFactorialApp      *ip_MultiFactorialApp;

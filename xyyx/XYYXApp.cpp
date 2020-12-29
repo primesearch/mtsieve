@@ -47,8 +47,6 @@ XYYXApp::XYYXApp(void) : FactorApp()
    ib_IsMinus = false;
    SetAppMinPrime(3);
    ib_UseAvx = true;
-   
-   ip_FactorValidator = new XYYXWorker(0, this);
 }
 
 void XYYXApp::Help(void)
@@ -297,18 +295,6 @@ bool XYYXApp::ApplyFactor(uint64_t thePrime, const char *term)
    
    if (y1 < ii_MinY || y1 > ii_MaxY)
       return false;
-
-   XYYXWorker *xyyxWorker = (XYYXWorker *) ip_FactorValidator;
-   
-   if (!xyyxWorker->VerifyFactor(false, thePrime, x1, y1, c))
-   {
-      if (c == '-')
-         WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of %u^%u-%u^%u and was rejected", thePrime, x1, y1);
-      else
-         WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of %u^%u+%u^%u and was rejected", thePrime, x1, y1);
-         
-      return false;
-   }
 
    uint64_t bit = BIT(x1, y1);
    

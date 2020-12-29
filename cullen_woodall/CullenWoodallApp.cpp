@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <time.h>
+#include "../x86_asm/fpu-asm-x86.h"
 
 #include "CullenWoodallApp.h"
 #include "CullenWoodallWorker.h"
@@ -42,7 +43,6 @@ CullenWoodallApp::CullenWoodallApp(void) : AlgebraicFactorApp()
    ib_Woodall = false;
    it_Format = FF_ABC;
 
-   ip_FactorValidator = new CullenWoodallWorker(0, this);
    SetAppMinPrime(3);
    
 #ifdef HAVE_GPU_WORKERS
@@ -336,26 +336,20 @@ bool CullenWoodallApp::ApplyFactor(uint64_t thePrime, const char *term)
    if (n1 < ii_MinN || n1 > ii_MaxN)
       return false;
    
-   CullenWoodallWorker *cwWorker = (CullenWoodallWorker *) ip_FactorValidator;
-   
-   if (!cwWorker->VerifyFactor(false, thePrime, n1, c))
-   {
-      WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of %u*%u^%u%+d and was rejected", thePrime, n1, ii_Base, c);
-      
+   if (!VerifyFactor(false, thePrime, n1, c))
       return false;
-   }
-   
+      
    uint64_t bit = BIT(n1);
    
    // No locking is needed because the Workers aren't running yet
-   if (c == '+' && iv_CullenTerms[bit])
+   if (c == +1 && iv_CullenTerms[bit])
    {
       iv_CullenTerms[bit] = false;
       il_TermCount--;
       return true;
    }
    
-   if (c == '-' && iv_WoodallTerms[bit])
+   if (c == -1 && iv_WoodallTerms[bit])
    {
       iv_WoodallTerms[bit] = false;
       il_TermCount--;
@@ -422,41 +416,6 @@ void CullenWoodallApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
       sprintf(extraTtext, "%u <= n <= %u, n*%u^n+1", ii_MinN, ii_MaxN, ii_Base);
    else
       sprintf(extraTtext, "%u <= n <= %u, n*%u^n-1", ii_MinN, ii_MaxN, ii_Base);
-}
-
-bool CullenWoodallApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
-{
-   uint64_t bit;
-   bool     removedTerm = false;
-   
-   if (n < ii_MinN || n > ii_MaxN)
-      return false;
-      
-   ip_FactorAppLock->Lock();
-
-   bit = BIT(n);
-   
-   if (ib_Cullen && c == +1 && iv_CullenTerms[bit])
-   {
-      iv_CullenTerms[bit] = false;
-      il_TermCount--;
-      il_FactorCount++;
-      removedTerm = true;
-      LogFactor(p, "%u*%u^%u+1", n, ii_Base, n);
-   }
-   
-   if (ib_Woodall && c == -1 && iv_WoodallTerms[bit])
-   {
-      iv_WoodallTerms[bit] = false;
-      il_TermCount--;
-      il_FactorCount++;
-      removedTerm = true;
-      LogFactor(p, "%u*%u^%u-1", n, ii_Base, n);
-   }
-   
-   ip_FactorAppLock->Release();
-
-   return removedTerm;
 }
 
 void  CullenWoodallApp::NotifyAppToRebuild(void)
@@ -650,4 +609,74 @@ uint32_t  CullenWoodallApp::GetTerms(uint32_t *terms, uint32_t maxTermsInGroup, 
    ip_FactorAppLock->Release();
 
    return groupCount + 1;
+}
+
+bool CullenWoodallApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
+{
+   uint64_t bit;
+   bool     removedTerm = false;
+   
+   if (n < ii_MinN || n > ii_MaxN)
+      return false;
+      
+   ip_FactorAppLock->Lock();
+
+   bit = BIT(n);
+   
+   if (ib_Cullen && c == +1 && iv_CullenTerms[bit])
+   {
+      iv_CullenTerms[bit] = false;
+      il_TermCount--;
+      il_FactorCount++;
+      removedTerm = true;
+      LogFactor(p, "%u*%u^%u+1", n, ii_Base, n);
+   }
+   
+   if (ib_Woodall && c == -1 && iv_WoodallTerms[bit])
+   {
+      iv_WoodallTerms[bit] = false;
+      il_TermCount--;
+      il_FactorCount++;
+      removedTerm = true;
+      LogFactor(p, "%u*%u^%u-1", n, ii_Base, n);
+   }
+   
+   ip_FactorAppLock->Release();
+
+   VerifyFactor(true, p, n, c);
+   
+   return removedTerm;
+}
+
+bool  CullenWoodallApp::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t n, int32_t c)
+{
+   uint64_t rem;
+   bool     isValid = true;
+      
+   fpu_push_1divp(p);
+   
+   rem = fpu_powmod(ii_Base, n, p);
+   rem = fpu_mulmod(rem, n, p);
+   
+   fpu_pop();
+   
+   if (c == -1)
+      isValid = (rem == +1);
+      
+   if (c == +1)
+      isValid = (rem == p-1);
+      
+   if (isValid)
+      return isValid;
+   
+   char buffer[100];
+   
+   sprintf(buffer, "%" PRIu64" is not a factor of %u*%u^%u%+d", p, n, ii_Base, n, c);
+   
+   if (badFactorIsFatal)
+      FatalError(buffer);
+   else
+      WriteToConsole(COT_OTHER, buffer);
+
+   return isValid;
 }

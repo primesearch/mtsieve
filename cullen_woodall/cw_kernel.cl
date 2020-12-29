@@ -11,49 +11,35 @@
 void collect_factor(int  n,
                     int  c,
                     long p,
-                    volatile __global uint *factorsCount,
-                     __global long4 *factors);
+                    volatile __global uint *factorCount,
+                    __global long4 *factors);
 
-long compute_inverse(long a, long modulus);
+long compute_inverse(long a, long p);
 
-ulong mmmInvert(ulong p);
+ulong mmmInvert(ulong _p);
 ulong mmmOne(ulong _p);
+ulong mmmR2(ulong _p, ulong _q, ulong _one);
 ulong mmmAdd(ulong a, ulong b, ulong _p);
 ulong mmmSub(ulong a, ulong b, ulong _p);
 ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q);
-ulong mmmN(ulong n, ulong _p);
-ulong mmmPowmod(ulong base, ulong exp, ulong _p, ulong _q);
+ulong mmmN(ulong n, ulong _p, ulong _q, ulong _r2);
+ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one, ulong _r2);
 
 #define MAX_POWERS 50
 
 __kernel void cw_kernel(__global const  long  *primes,
                         __global const  int   *terms,
-               volatile __global        uint  *factorsCount,
+               volatile __global        uint  *factorCount,
                         __global        long4 *factors)
 {
    int gid = get_global_id(0);
 
-   int   termIndex;
-   int   theN, prevN;
-   int   power, idx;
-
-   long  thePrime = primes[gid];
-   long  rem = 0;
-   
-#ifdef CHECK_CULLEN
-   ulong cullen;
-#endif
-
-#ifdef CHECK_WOODALL
-   ulong woodall;
-#endif
-   
-   ulong inverse;
+   ulong thePrime = primes[gid];
 
    ulong powers[MAX_POWERS+1];
    ulong resC[MAX_POWERS+1];
    ulong resW[MAX_POWERS+1];
-   
+
    // We're trying to determine if n*b^n (mod p) = +1/-1.  This requires an two
    // operations, an exponentiation (b^n) and a multiplcation (n).  We can make a
    // change to eliminate one of those operations.  Doing this requires us to
@@ -79,43 +65,46 @@ __kernel void cw_kernel(__global const  long  *primes,
    // can use mulmods instead of expmods as we iterate through n.
    //    -> +n/-n (mod p) = B^n * b^n (mod p)
 
-   // compute the inverse of b (mod p)
-   inverse = compute_inverse(BASE, thePrime);
-      
    ulong _q = mmmInvert(thePrime);
-   
-   theN = terms[0];
-      
-   rem = mmmPowmod(inverse, theN, thePrime, _q);
+   ulong _one = mmmOne(thePrime);
+   ulong _r2 = mmmR2(thePrime, _q, _one);
+
+   // compute the inverse of b (mod p)
+   ulong inverse = compute_inverse(BASE, thePrime);
+
+   int theN = terms[0];
+
+   ulong resI = mmmN(inverse, thePrime, _q, _r2);
+   ulong rem = mmmPowmod(resI, theN, thePrime, _q, _one, _r2);
 
 #ifdef CHECK_CULLEN
-   cullen  = mmmN(thePrime - theN, thePrime);
-   
+   ulong cullen  = mmmN(thePrime - theN, thePrime, _q, _r2);
+
    if (rem == cullen)
-      collect_factor(theN, +1, thePrime, factorsCount, factors);
+      collect_factor(theN, +1, thePrime, factorCount, factors);
 #endif
 
 #ifdef CHECK_WOODALL
-   woodall = mmmN(theN, thePrime);
-   
+   ulong woodall = mmmN(theN, thePrime, _q, _r2);
+
    if (rem == woodall)
-      collect_factor(theN, -1, thePrime, factorsCount, factors);
+      collect_factor(theN, -1, thePrime, factorCount, factors);
 #endif
 
-   powers[1] = mmmN(BASE, thePrime);
+   powers[1] = mmmN(BASE, thePrime, _q, _r2);
    powers[2] = mmmMulmod(powers[1], powers[1], thePrime, _q);
 
-   resC[1] = mmmN(thePrime - 1, thePrime);
-   resW[1] = mmmN(1, thePrime);
-   
+   resC[1] = mmmN(thePrime - 1, thePrime, _q, _r2);
+   resW[1] = _one;
+
    resC[2] = mmmAdd(resC[1], resC[1], thePrime);
    resW[2] = mmmAdd(resW[1], resW[1], thePrime);
-   
+
    if (BASE & 1)
    {
       // If the base is odd, then all n must be even and thus the difference
       // between any two remaining n for the base must also be even.
-      for (idx=4; idx<MAX_POWERS+1; idx+=2)
+      for (size_t idx=4; idx<MAX_POWERS+1; idx+=2)
       {
          powers[idx] = mmmMulmod(powers[idx-2], powers[2], thePrime, _q);
          resC[idx] = mmmAdd(resC[idx-2], resC[2], thePrime);
@@ -124,49 +113,60 @@ __kernel void cw_kernel(__global const  long  *primes,
    }
    else
    {
-      powers[idx] = mmmMulmod(powers[idx-1], powers[1], thePrime, _q);
-      resC[idx] = mmmAdd(resC[idx-1], resC[1], thePrime);
-      resW[idx] = mmmAdd(resW[idx-1], resW[1], thePrime);
+      for (size_t idx=3; idx<MAX_POWERS+1; idx++)
+      {
+        powers[idx] = mmmMulmod(powers[idx-1], powers[1], thePrime, _q);
+        resC[idx] = mmmAdd(resC[idx-1], resC[1], thePrime);
+        resW[idx] = mmmAdd(resW[idx-1], resW[1], thePrime);
+      }
    }
-      
-   prevN = terms[0];
-   
+
+   int prevN = terms[0];
+
    // Note that the terms start at max N and decrease
-   termIndex = 1;
+   size_t termIndex = 1;
    while (terms[termIndex] > 0)
    {
       theN = terms[termIndex];
 
-      power = prevN - theN;
+      size_t power = (size_t)(prevN - theN);
 
       // Our table isn't infinite in size, so we'll break down the power into smaller
       // chunks.  At worst this might cause an extra mulmod or two every once in a while.
       while (power > MAX_POWERS)
       {
          rem = mmmMulmod(rem, powers[MAX_POWERS], thePrime, _q);
-         
+#ifdef CHECK_CULLEN
          cullen = mmmSub(cullen, resC[MAX_POWERS], thePrime);
+#endif
+
+#ifdef CHECK_WOODALL
          woodall = mmmSub(woodall, resW[MAX_POWERS], thePrime);
-         
+#endif
          power -= MAX_POWERS;
       }
-      
+
       rem = mmmMulmod(rem, powers[power], thePrime, _q);
+#ifdef CHECK_CULLEN
       cullen = mmmSub(cullen, resC[power], thePrime);
+#endif
+
+#ifdef CHECK_WOODALL
       woodall = mmmSub(woodall, resW[power], thePrime);
-      
+#endif
+
       // At this point we have computed (1/b)^n (mod p).
       // If (1/b)^n (mod p) == n then we have a Woodall factor.
       // If (1/b)^n (mod p) == thePrime - n then we have a Cullen factor.
 
 #ifdef CHECK_CULLEN
       if (rem == cullen)
-         collect_factor(theN, +1, thePrime, factorsCount, factors);
+         collect_factor(theN, +1, thePrime, factorCount, factors);
 #endif
 
 #ifdef CHECK_WOODALL
       if (rem == woodall)
-         collect_factor(theN, -1, thePrime, factorsCount, factors);
+         collect_factor(theN, -1, thePrime, factorCount, factors);
 #endif
 
       prevN = theN;
@@ -174,17 +174,17 @@ __kernel void cw_kernel(__global const  long  *primes,
    };
 }
 
-ulong mmmInvert(ulong p)
+ulong mmmInvert(ulong _p)
 {
    ulong p_inv = 1;
    ulong prev = 0;
-   
+
    while (p_inv != prev)
    {
       prev = p_inv;
-      p_inv *= (2 - p * p_inv);
+      p_inv *= (2 - _p * p_inv);
    }
-   
+
    return p_inv;
 }
 
@@ -192,6 +192,18 @@ ulong mmmInvert(ulong p)
 ulong mmmOne(ulong _p)
 {
    return ((-_p) % _p);
+}
+
+// Compute the residual of 2^64 (mod p)
+ulong mmmR2(ulong _p, ulong _q, ulong _one)
+{
+	ulong t = mmmAdd(_one, _one, _p);
+   
+   t = mmmAdd(t, t, _p);   // 4
+	for (size_t i=0; i<5; i++)
+      t = mmmMulmod(t, t, _p, _q);   // 4^{2^5} = 2^64
+      
+	return t;
 }
 
 ulong mmmAdd(ulong a, ulong b, ulong _p)
@@ -208,65 +220,47 @@ ulong mmmSub(ulong a, ulong b, ulong _p)
 
 ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q)
 {
-   ulong lo = a * b;
-   ulong hi = mul_hi(a, b);
-   
-   ulong m = lo * _q;
-   
-   ulong hi2 = mul_hi(m, _p);
-   long r = (long) hi - (long) hi2;
+   ulong lo, hi;
 
-   if (r < 0)
-      return (ulong) (r + _p);
-      
-   return (ulong) r;
+#ifdef __NV_CL_C_VERSION
+   const uint a0 = (uint)(a), a1 = (uint)(a >> 32);
+   const uint b0 = (uint)(b), b1 = (uint)(b >> 32);
+
+   uint c0 = a0 * b0, c1 = mul_hi(a0, b0), c2, c3;
+
+   asm volatile ("mad.lo.cc.u32 %0, %1, %2, %3;" : "=r" (c1) : "r" (a0), "r" (b1), "r" (c1));
+   asm volatile ("madc.hi.u32 %0, %1, %2, 0;" : "=r" (c2) : "r" (a0), "r" (b1));
+
+   asm volatile ("mad.lo.cc.u32 %0, %1, %2, %3;" : "=r" (c2) : "r" (a1), "r" (b1), "r" (c2));
+   asm volatile ("madc.hi.u32 %0, %1, %2, 0;" : "=r" (c3) : "r" (a1), "r" (b1));
+
+   asm volatile ("mad.lo.cc.u32 %0, %1, %2, %3;" : "=r" (c1) : "r" (a1), "r" (b0), "r" (c1));
+   asm volatile ("madc.hi.cc.u32 %0, %1, %2, %3;" : "=r" (c2) : "r" (a1), "r" (b0), "r" (c2));
+   asm volatile ("addc.u32 %0, %1, 0;" : "=r" (c3) : "r" (c3));
+
+   lo = upsample(c1, c0); hi = upsample(c3, c2);
+#else
+   lo = a * b; hi = mul_hi(a, b);
+#endif
+
+   ulong m = lo * _q;
+   ulong mp = mul_hi(m, _p);
+   long r = (long)(hi - mp);
+   return (r < 0) ? r + _p : r;
 }
 
 // Compute the residual of n (mod p)
-ulong   mmmN(ulong n, ulong _p)
+ulong mmmN(ulong n, ulong _p, ulong _q, ulong _r2)
 {
-   if (n == 1)
-      return mmmOne(_p);
-    
-   // list[0] = res(2^0), list[1] = res(2^1), list[2] = res(2^2), etc.
-   ulong list[64];
-   ulong bit = 0x01;
-   ulong value = 0;
-
-   list[0] = mmmOne(_p);
-   
-   if (n & bit)
-   {
-      value = list[0];
-      n &= ~bit;
-   }
-   
-   for (uint idx=1; idx<64; idx++)
-   {
-      bit <<= 1;
-      
-      // Need to compute for each power of 2
-      list[idx] = mmmAdd(list[idx-1], list[idx-1], _p);
-      
-      if (n & bit)
-      {
-         value = mmmAdd(list[idx], value, _p);
-         n &= ~bit;
-      }
-      
-      if (n == 0)
-         break;
-   }
-
-   return value;
+   return mmmMulmod(n, _r2, _p, _q);
 }
 
 // Compute the residual of b ^ n (mod p)
-ulong   mmmPowmod(ulong base, ulong exp, ulong _p, ulong _q)
+ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one, ulong _r2)
 {
-   ulong x = mmmN(base, _p);
-   ulong y = mmmN(1, _p);
-   
+   ulong x = resB;
+   ulong y = _one;
+
    while (true)
    {
       if (exp & 1)
@@ -287,16 +281,16 @@ ulong   mmmPowmod(ulong base, ulong exp, ulong _p, ulong _q)
 void collect_factor(int  n,
                     int  c,
                     long p,
-                    volatile __global uint *factorsCount,
-                     __global long4 *factors)
+                    volatile __global uint *factorCount,
+                    __global long4 *factors)
 {
-   int old = atomic_inc(factorsCount);
+   int old = atomic_inc(factorCount);
 
    // If we reach the end, stop adding to the buffer.  The CPU code will end
    // with an error as the buffer is not large enough to capture all factors.
    if (old >= MAX_FACTORS)
       return;
-   
+
    factors[old].x = n;
    factors[old].y = c;
    factors[old].z = p;

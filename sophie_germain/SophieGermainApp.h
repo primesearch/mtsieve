@@ -54,8 +54,6 @@ private:
    uint64_t          WriteABCDTermsFile(uint64_t maxPrime, FILE *termsFile);
    uint64_t          WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsFile);
    
-   Worker           *ip_FactorValidator;
-   
    vector<bool>      iv_Terms;
    
    format_t          it_Format;

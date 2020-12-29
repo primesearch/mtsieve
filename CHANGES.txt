@@ -1,3 +1,18 @@
+2.1.1 - December 29, 2020
+   framework:
+      Fixed an infinite loop that occurs with the special CPU worker in GPU builds.
+      
+      Removed the factor validation logic added in 2.1.0 do to an issue with how I
+      implemented it.
+   
+   gcwsieve, gcwsievecl:  version 1.5
+      Added working factor validation logic with -I.
+      Improved GPU speed by another 10%.  Thanks to Yves Gallot for the code.
+   
+   mfsieve, mfsievecl:  version 1.8
+      Added working factor validation logic with -I.
+      Fix bug triggering invalid factor in the CPU code when minN is odd with factorials.
+   
 2.1.0 - December 27, 2020
    framework:
       On Windows, switched to using gcc from msys2 instead of gcc from mingw64.  -O3

@@ -48,8 +48,6 @@ protected:
 private:
    vector<bool>      iv_PlusTerms;
    vector<bool>      iv_MinusTerms;
-
-   Worker           *ip_FactorValidator;
    
    uint32_t          ii_Base;
    uint32_t          ii_MinN;

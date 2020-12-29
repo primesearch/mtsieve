@@ -12,6 +12,8 @@
 
 #include "App.h"
 #include "Clock.h"
+#include "../x86_asm/fpu-asm-x86.h"
+#include "../x86_asm/sse-asm-x86.h"
 
 // Do not change this as some parts of the framework assume that this is set to 60 seconds
 #define REPORT_SECONDS        60
@@ -19,7 +21,10 @@
 #define LOG_STRFTIME_FORMAT    "%Y-%m-%d %H:%M:%S"
 
 App::App(void)
-{
+{   
+   ii_SavedFpuMode = fpu_mod_init();
+   ii_SavedSseMode = sse_mod_init();
+   
    il_TotalClockTime = 0;
    il_WorkerClockTime = 0;
    il_InitUS = Clock::GetCurrentMicrosecond();
@@ -68,6 +73,9 @@ App::~App(void)
    xfree(ip_Workers);
    
    delete ip_Console;
+
+   sse_mod_fini(ii_SavedSseMode);
+   fpu_mod_fini(ii_SavedFpuMode);
 }
 
 void App::Banner(void)
@@ -370,6 +378,9 @@ void  App::Run(void)
    bool isDone;
 
    ValidateOptions();
+
+   ii_SavedFpuMode = fpu_mod_init();
+   ii_SavedSseMode = sse_mod_init();
    
    do
    {
@@ -431,12 +442,12 @@ void  App::Sieve(void)
 
       il_TotalSieveUS += (Clock::GetThreadMicroseconds() - sieveStartUS);
 
-      // If we are using a single thread, then this will effectively block other Workers from getting work 
-      // until both this Worker is done and the largest prime tested for this workr exceeds the max prime
-      // for a single CPU thread.
-      if (useSingleThread)
+      // If we are using a single thread, then this will effectively block other Workers
+      // from getting work until both this Worker is done and the largest prime tested for
+      // this workr exceeds the max prime for a single CPU thread.
+      if (th == 0 || useSingleThread)
       {
-         while (!ip_Workers[th]->IsWaitingForWork(false))
+         while (!ip_Workers[th]->IsWaitingForWork(false) && !ip_Workers[th]->IsStopped())
          {
             CheckReportStatus();
             

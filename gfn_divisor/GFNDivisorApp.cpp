@@ -78,8 +78,6 @@ GFNDivisorApp::GFNDivisorApp(void) : FactorApp()
    il_TotalTermsEvaluated = 0;
 
    SetAppMinPrime(3);
-   
-   ip_FactorValidator = new GFNDivisorWorker(0, this);
 }
 
 void GFNDivisorApp::Help(void)

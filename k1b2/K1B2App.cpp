@@ -17,10 +17,6 @@
 #include "K1B2Worker.h"
 #include "../x86_asm_ext/asm-ext-x86.h"
 
-#ifdef HAVE_GPU_WORKERS
-#include "K1B2GpuWorker.h"
-#endif
-
 #define CMAX_MAX (UINT64_C(1)<<62)
 #define NMAX_MAX (1 << 31)
 
@@ -44,8 +40,6 @@ K1B2App::K1B2App(void) : FactorApp()
    il_MaxC = 0;
 
    SetAppMinPrime(3);
-   
-   ip_FactorValidator = new K1B2Worker(0, this);
 }
 
 void K1B2App::Help(void)

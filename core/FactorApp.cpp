@@ -35,7 +35,6 @@ FactorApp::FactorApp(void)
    if_FactorFile = 0;
    
    ib_ApplyAndExit = false;
-   ip_FactorValidator = NULL;
 }
 
 FactorApp::~FactorApp(void)
@@ -157,9 +156,13 @@ void  FactorApp::ParentValidateOptions(void)
             applied++;
       }
       
-      WriteToConsole(COT_OTHER, "Read %u factors from %s.  Removed %u terms", factors, is_InputFactorsFileName.c_str(), applied);
-      
       fclose(factorFile);
+      
+      sprintf(buffer,  "Read %u factors from %s which removed %u terms.", factors, is_InputFactorsFileName.c_str(), applied);
+      
+      WriteToConsole(COT_OTHER, buffer);
+
+      WriteToLog(buffer);
    }
    
    // I know this is dirty, but it is much easier than other options.
@@ -175,13 +178,6 @@ void  FactorApp::ParentValidateOptions(void)
       
       if (if_FactorFile == NULL)
          FatalError("Could not open factor file %s for output", is_OutputFactorsFileName.c_str());
-   }
-
-   // We no longer need this;
-   if (ip_FactorValidator != NULL)
-   {
-      delete ip_FactorValidator;
-      ip_FactorValidator = NULL;
    }
 }
 
@@ -252,9 +248,8 @@ void  FactorApp::LogStartSievingMessage(void)
          sprintf(fullMessage, "%s", startOfMessage);
       
    WriteToConsole(COT_OTHER, fullMessage);
-           
-   WriteToLog(fullMessage);
 
+   WriteToLog(fullMessage);
 }
 
 void  FactorApp::Finish(const char *finishMethod, uint64_t elapsedTimeUS, uint64_t largestPrimeTested, uint64_t primesTested)

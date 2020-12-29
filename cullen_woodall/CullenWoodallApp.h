@@ -68,13 +68,12 @@ private:
    void              EliminateGfnAndMersenneTerms(void);
    void              EliminateTermsWithAlgebraicFactors(void);
    bool              CheckAlgebraicFactor(uint32_t n, int32_t c, const char *fmt, ...);
+   bool              VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t n, int32_t c);
    
    format_t          it_Format;
    vector<bool>      iv_CullenTerms;
    vector<bool>      iv_WoodallTerms;
 
-   Worker           *ip_FactorValidator;
-   
    uint32_t          ii_Base;
    uint32_t          ii_MinN;
    uint32_t          ii_MaxN;

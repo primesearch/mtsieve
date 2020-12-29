@@ -40,8 +40,6 @@ PrimorialApp::PrimorialApp() : FactorApp()
    
    // This is because the assembly code is using SSE to do the mulmods
    SetAppMaxPrime(PMAX_MAX_52BIT);
-   
-   ip_FactorValidator = new PrimorialWorker(0, this);
 }
 
 void PrimorialApp::Help(void)

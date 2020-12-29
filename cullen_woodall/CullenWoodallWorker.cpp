@@ -163,12 +163,10 @@ void  CullenWoodallWorker::TestSmallPrimesFPU(uint64_t *ps)
          cwrem = fpu_mulmod(powrem, theN, thePrime);
          
          if (cwrem == +1)
-            if (ip_CullenWoodallApp->ReportFactor(thePrime, theN, -1))
-               VerifyFactor(false, thePrime, theN, -1);
-            
+            ip_CullenWoodallApp->ReportFactor(thePrime, theN, -1);
+
          if (cwrem == thePrime - 1)
-            if (ip_CullenWoodallApp->ReportFactor(thePrime, theN, +1))
-               VerifyFactor(false, thePrime, theN, +1);
+            ip_CullenWoodallApp->ReportFactor(thePrime, theN, +1);
 
          prevN = theN;
          termIndex--;
@@ -228,12 +226,10 @@ void  CullenWoodallWorker::TestLargePrimesFPU(uint64_t *ps)
       theN = ii_Terms[0];
       
       if (powinvs[i] == theN)
-         if (ip_CullenWoodallApp->ReportFactor(thePrime, theN, -1))
-            VerifyFactor(true, thePrime, theN, -1);
+         ip_CullenWoodallApp->ReportFactor(thePrime, theN, -1);
          
       if (powinvs[i] == thePrime - theN)
-         if (ip_CullenWoodallApp->ReportFactor(thePrime, theN, +1))
-            VerifyFactor(true, thePrime, theN, +1);
+         ip_CullenWoodallApp->ReportFactor(thePrime, theN, +1);
    }
    
    fpu_push_1divp(ps[3]);
@@ -304,36 +300,28 @@ void  CullenWoodallWorker::TestLargePrimesFPU(uint64_t *ps)
       // If (1/b)^n (mod p) == thePrime - n then we have a Cullen factor.
 
       if (rems[0] == theN)
-         if (ip_CullenWoodallApp->ReportFactor(ps[0], theN, -1))
-            VerifyFactor(true, ps[0], theN, -1);
+         ip_CullenWoodallApp->ReportFactor(ps[0], theN, -1);
          
       if (rems[0] == ps[0] - theN)
-         if (ip_CullenWoodallApp->ReportFactor(ps[0], theN, +1))
-            VerifyFactor(true, ps[0], theN, +1);
+         ip_CullenWoodallApp->ReportFactor(ps[0], theN, +1);
          
       if (rems[1] == theN)
-         if (ip_CullenWoodallApp->ReportFactor(ps[1], theN, -1))
-            VerifyFactor(true, ps[1], theN, -1);
+         ip_CullenWoodallApp->ReportFactor(ps[1], theN, -1);
          
       if (rems[1] == ps[1] - theN)
-         if (ip_CullenWoodallApp->ReportFactor(ps[1], theN, +1))
-            VerifyFactor(true, ps[1], theN, +1);
+         ip_CullenWoodallApp->ReportFactor(ps[1], theN, +1);
          
       if (rems[2] == theN)
-         if (ip_CullenWoodallApp->ReportFactor(ps[2], theN, -1))
-            VerifyFactor(true, ps[2], theN, -1);
+         ip_CullenWoodallApp->ReportFactor(ps[2], theN, -1);
          
       if (rems[2] == ps[2] - theN)
-         if (ip_CullenWoodallApp->ReportFactor(ps[2], theN, +1))
-            VerifyFactor(true, ps[2], theN, +1);
+         ip_CullenWoodallApp->ReportFactor(ps[2], theN, +1);
          
       if (rems[3] == theN)
-         if (ip_CullenWoodallApp->ReportFactor(ps[3], theN, -1))
-            VerifyFactor(true, ps[3], theN, -1);
+         ip_CullenWoodallApp->ReportFactor(ps[3], theN, -1);
          
       if (rems[3] == ps[3] - theN)
-         if (ip_CullenWoodallApp->ReportFactor(ps[3], theN, +1))
-            VerifyFactor(true, ps[3], theN, +1);
+         ip_CullenWoodallApp->ReportFactor(ps[3], theN, +1);
          
       prevN = theN;
       termIndex++;
@@ -443,10 +431,7 @@ void  CullenWoodallWorker::CheckAVXResult(uint32_t theN, uint64_t *ps, double *d
       
       for (idx=0; idx<AVX_ARRAY_SIZE; idx++)
          if (rems[idx] == comparator[0])
-         {
-            if (ip_CullenWoodallApp->ReportFactor(ps[idx], theN, -1))
-               VerifyFactor(true, ps[idx], theN, -1);
-         }
+            ip_CullenWoodallApp->ReportFactor(ps[idx], theN, -1);
    }
       
    // Only go further if one or more of the 16 primes yielded a factor for this n
@@ -456,10 +441,7 @@ void  CullenWoodallWorker::CheckAVXResult(uint32_t theN, uint64_t *ps, double *d
       
       for (idx=0; idx<AVX_ARRAY_SIZE; idx++)
          if (rems[idx] == dps[idx] - comparator[0])
-         {
-            if (ip_CullenWoodallApp->ReportFactor(ps[idx], theN, +1))
-               VerifyFactor(true, ps[idx], theN, +1);
-         }
+            ip_CullenWoodallApp->ReportFactor(ps[idx], theN, +1);
    }
 }
    
@@ -508,34 +490,4 @@ void  CullenWoodallWorker::BuildListOfPowers(uint64_t a, uint64_t p, uint32_t co
        powers[index] = fpu_mulmod_iter(powers[index-1], a, p);
 
    fpu_pop();
-}
-
-bool  CullenWoodallWorker::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t n, int32_t c)
-{
-   uint64_t rem;
-      
-   fpu_push_1divp(p);
-   
-   rem = fpu_powmod(ii_Base, n, p);
-   rem = fpu_mulmod(rem, n, p);
-   
-   fpu_pop();
-   
-   if (c == -1 && rem != +1)
-   {
-      if (badFactorIsFatal)
-         FatalError("%" PRIu64" does not divide %u*%u^%u-1", p, n, ii_Base, n);
-      else
-         return false;
-   }
-   
-   if (c == +1 && rem != p-1)
-   {
-      if (badFactorIsFatal)
-         FatalError("%" PRIu64" does not divide %u*%u^%u+1", p, n, ii_Base, n);
-      else
-         return false;
-   }
-   
-   return true;
 }

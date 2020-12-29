@@ -1,35 +1,21 @@
 This document is a list of future items along with when they were added to the list.
+Once these are completed, they will be removed from this file and documented in CHANGES.txt.
 
-2.0.7 - December 22, 2020
+Added on December 22, 2020
    framework:
       Replace AMD SDK on Windows with open source SDK for OpenCL.
       
       Add more output for -H for GPU executables.
-      
+   
+   all by gcwsieve/gcwsievecl:
+      Add factor validation when using -I.
+   
    afsieve, afsievecl:
       Replace logic with Montgomery multiplcation.
-      Add factor validation when using -I.
- 
-   dmdsieve:
-      Add factor validation when using -I.
-      
-   fbncsieve:
-      Add factor validation when using -I.
-      
-   fkbnsieve:
-      Add factor validation when using -I.
-      
-   gfndsieve:
-      Add factor validation when using -I.
-      
-   kbbsieve:
-      Add factor validation when using -I.
-      
-   psieve:
-      Add factor validation when using -I.
-      
-   pixsieve:
    
+   mfsievecl:
+      For factorial, add logic to multiply n in pairs similar to CPU code.
+      
    srsieve2:
       Implement sr1sieve and sr2sieve logic.
-      Add factor validation when using -I.
+      Add support for p > 2^52.

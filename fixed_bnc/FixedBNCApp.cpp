@@ -39,8 +39,6 @@ FixedBNCApp::FixedBNCApp() : FactorApp()
    ib_Remove = false;
    
    il_MaxPrimeForValidFactor = PMAX_MAX_62BIT;
-   
-   ip_FactorValidator = new FixedBNCWorker(0, this);
 }
 
 void FixedBNCApp::Help(void)

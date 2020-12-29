@@ -38,8 +38,6 @@ PrimesInXApp::PrimesInXApp() : FactorApp()
    // This is because the assembly code is using SSE to do the mulmods
    SetAppMaxPrime(PMAX_MAX_52BIT);
    
-   ip_FactorValidator = new PrimesInXWorker(0, this);
-
    ii_MinLength = 0;
    ii_MinLengthRemaining = 0;
    ii_MaxLength = 0;

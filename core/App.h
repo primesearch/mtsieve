@@ -165,6 +165,9 @@ private:
    
    void              Finish(void);
    
+   uint32_t          ii_SavedSseMode;
+   uint16_t          ii_SavedFpuMode;
+   
 #ifdef HAVE_GPU_WORKERS
    Device           *ip_Device;
 #endif

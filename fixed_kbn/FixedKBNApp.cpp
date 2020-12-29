@@ -33,8 +33,6 @@ FixedKBNApp::FixedKBNApp() : FactorApp()
    
    il_MinC = 0;
    il_MaxC = 0;
-   
-   ip_FactorValidator = new FixedKBNWorker(0, this);
 }
 
 void FixedKBNApp::Help(void)

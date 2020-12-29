@@ -1,8 +1,4 @@
-/* FactorialSieve.cpp -- (C) Mark Rodenkirch, September 2016
-
-   This class sets up the call to the FSieve GPU function and parses the output
-   from the GPU to determine if we have a factor.
-
+/* MultiFactorialGpuWorker.cpp -- (C) Mark Rodenkirch, September 2016
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -141,8 +137,7 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
             c = (int32_t) il_FactorList[idx+1];
             prime = il_FactorList[idx+2];
          
-            if (ip_MultiFactorialApp->ReportFactor(prime, n, c))
-               VerifyFactor(prime, n, c);
+            ip_MultiFactorialApp->ReportFactor(prime, n, c);
             
             if (ii_FactorCount >= ii_MaxGpuFactors)
                break;
@@ -168,46 +163,4 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
 void  MultiFactorialGpuWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 {
    FatalError("MultiFactorialGpuWorker::TestMiniPrimeChunk not implemented");
-}
-
-void  MultiFactorialGpuWorker::VerifyFactor(uint64_t p, uint32_t theN, int32_t theC)
-{
-   uint64_t rem = 1;
-   int32_t  n = (int32_t) theN;
-   bool     termIsPrime = true;
-   
-   fpu_push_1divp(p);
-   
-   while (n > 1)
-   {      
-      if (rem * n > p + 1)
-         termIsPrime = false;
-      
-      rem = fpu_mulmod(rem, n, p);
-      
-      n -= ii_MultiFactorial;
-   }
-   
-   fpu_pop();
-      
-   if (rem == +1)
-   {
-      if (termIsPrime)
-         ip_MultiFactorialApp->ReportPrime(p, theN, -1);
-   
-      return;
-   }
-   
-   if (p == rem + 1)
-   {
-      if (termIsPrime)
-         ip_MultiFactorialApp->ReportPrime(p, theN, +1);
-
-      return;
-   }   
-
-   if (ii_MultiFactorial == 1)
-      FatalError("%" PRIu64" is not a factor of %u!%+d", p, theN, theC);
-   else
-      FatalError("%" PRIu64" is not a factor of %u!%u%+d", p, theN, ii_MultiFactorial, theC);
 }

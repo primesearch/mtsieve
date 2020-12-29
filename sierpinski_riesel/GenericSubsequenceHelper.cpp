@@ -21,10 +21,11 @@ GenericSubsequenceHelper::GenericSubsequenceHelper(App *theApp, seq_t *sequences
 
 Worker   *GenericSubsequenceHelper::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested)
 {
-   GenericWorker *theWorker;
+   AbstractWorker *theWorker;
 
    // Note that GenericWorker inherits from Worker.  This will not
    // only create the worker, but also start it.
+   
    theWorker = new GenericWorker(id, ip_App, this);
       
    theWorker->SetSequences(largestPrimeTested, ii_BestQ, ip_Sequences, ii_SequenceCount, ip_Subsequences, ii_SubsequenceCount);

@@ -35,8 +35,6 @@ CarolKyneaApp::CarolKyneaApp() : FactorApp()
    ii_Base = 0;
    ii_MinN = 1;
    ii_MaxN = 0;
-   
-   ip_FactorValidator = new CarolKyneaWorker(0, this);
 }
 
 void CarolKyneaApp::Help(void)
@@ -231,15 +229,6 @@ bool CarolKyneaApp::ApplyFactor(uint64_t thePrime, const char *term)
         
    if (n < ii_MinN || n > ii_MaxN)
       return false;
-
-   CarolKyneaWorker *ckWorker = (CarolKyneaWorker *) ip_FactorValidator;
-   
-   if (!ckWorker->VerifyFactor(false, thePrime, n, c))
-   {
-      WriteToConsole(COT_OTHER, "%" PRIu64" is not a factor of (%u^%u%+d)-2 and was rejected", thePrime, b, n, c);
-      
-      return false;
-   }
 
    uint32_t bit = BIT(n);
    

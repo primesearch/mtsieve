@@ -51,9 +51,7 @@ protected:
    
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
    
-private: 
-   Worker           *ip_FactorValidator;
-   
+private:    
    vector<bool>      iv_Terms;
  
    uint32_t          ii_MinN;

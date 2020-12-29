@@ -31,8 +31,6 @@ public:
    void              CleanUp(void);
 
 protected:
-   void              VerifyFactor(uint64_t p, uint32_t theN, int32_t theC);
-   
    MultiFactorialApp *ip_MultiFactorialApp;
    
    uint32_t          ii_MinN;

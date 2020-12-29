@@ -135,8 +135,10 @@ void  CullenWoodallGpuWorker::TestMegaPrimeChunk(void)
          c = (int32_t) il_FactorList[idx+1];
          prime = il_FactorList[idx+2];
       
-         if (ip_CullenWoodallApp->ReportFactor(prime, n, c))
-            VerifyFactor(prime, n, c);
+         ip_CullenWoodallApp->ReportFactor(prime, n, c);
+         
+         if (ii_FactorCount >= ii_MaxGpuFactors)
+            break;
       }
 
       if (ii_FactorCount >= ii_MaxGpuFactors)
@@ -149,22 +151,4 @@ void  CullenWoodallGpuWorker::TestMegaPrimeChunk(void)
 void  CullenWoodallGpuWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 {
    FatalError("CullenWoodallGpuWorker::TestMiniPrimeChunk not implemented");
-}
-
-void  CullenWoodallGpuWorker::VerifyFactor(uint64_t p, uint32_t n, int32_t c)
-{
-   uint64_t rem;
-   
-   fpu_push_1divp(p);
-      
-   rem = fpu_powmod(ip_CullenWoodallApp->GetBase(), n, p);
-   rem = fpu_mulmod(rem, n, p);
-   
-   fpu_pop();
-   
-   if (c == -1 && rem != +1)
-      FatalError("%" PRIu64" does not divide %u*%u^%u-1", p, n, ii_Base, n);
-   
-   if (c == +1 && rem != p-1)
-      FatalError("%" PRIu64" does not divide %u*%u^%u+1", p, n, ii_Base, n);
 }

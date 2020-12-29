@@ -29,8 +29,6 @@ public:
    void              CleanUp(void);
 
 protected:
-   void              VerifyFactor(uint64_t p, uint32_t n, int32_t c);
-
    uint64_t          il_NextTermsBuild;   
    uint32_t          ii_MaxGpuSteps;
    uint32_t          ii_MaxGpuFactors;

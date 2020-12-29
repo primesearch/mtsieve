@@ -47,7 +47,6 @@ public:
 #endif
 
    bool              ReportFactor(uint64_t p, uint32_t n, int32_t c);
-   void              ReportPrime(uint64_t p, uint32_t n, int32_t c);
 
    terms_t          *GetTerms(void);
    
@@ -65,10 +64,11 @@ protected:
    
 
 private:
+   bool              VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t n, int32_t c);
+   
    vector<bool>      iv_PlusTerms;
    vector<bool>      iv_MinusTerms;
 
-   Worker           *ip_FactorValidator;
    uint32_t          ii_MultiFactorial;
    uint32_t          ii_MinN;
    uint32_t          ii_MaxN;
