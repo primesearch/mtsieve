@@ -9,7 +9,7 @@
 #ifndef _APP_H
 #define _APP_H
 
-#define FRAMEWORK_VERSION     "2.0.7"
+#define FRAMEWORK_VERSION     "2.1.2"
 
 #define MAX_WORKERS           100
 #define NO_WORKER             MAX_WORKERS + 99999

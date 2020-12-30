@@ -36,23 +36,26 @@ inline uint64_t   mmmOne(uint64_t p)
 }
 
 // Compute the residual of a + b (mod p)
-inline uint64_t   mmmAdd(uint64_t a, uint64_t b, uint64_t p)
+// Note that resA is residual of a (mod p) and resB is residual of b (mod p)
+inline uint64_t   mmmAdd(uint64_t resA, uint64_t resB, uint64_t p)
 {
-   uint64_t c = (a >= p - b) ? p : 0;
-   return a + b - c;
+   uint64_t c = (resA >= p - resB) ? p : 0;
+   return resA + resB - c;
 }
 
 // Compute the residual of a - b (mod p)
-inline uint64_t   mmmSub(uint64_t a, uint64_t b, uint64_t p)
+// Note that resA is residual of a (mod p) and resB is residual of b (mod p)
+inline uint64_t   mmmSub(uint64_t resA, uint64_t resB, uint64_t p)
 {
-   uint64_t c = (a < b) ? p : 0;
-   return a - b + c;
+   uint64_t c = (resA < resB) ? p : 0;
+   return resA - resB + c;
 }
 
 // Compute the residual of a * b (mod p)
-inline uint64_t   mmmMulmod(uint64_t a, uint64_t b, uint64_t p, uint64_t q)
+// Note that resA is residual of a (mod p) and resB is residual of b (mod p)
+inline uint64_t   mmmMulmod(uint64_t resA, uint64_t resB, uint64_t p, uint64_t q)
 {
-   __uint128_t t1 = a * __uint128_t(b);
+   __uint128_t t1 = resA * __uint128_t(resB);
    
    uint64_t m = uint64_t(t1) * q;
    
@@ -65,11 +68,13 @@ inline uint64_t   mmmMulmod(uint64_t a, uint64_t b, uint64_t p, uint64_t q)
       
    return (uint64_t) r;      
 }
+
 // Compute the residual of b ^ n (mod p)
-inline uint64_t   mmmPowmod(uint64_t resB, uint64_t exp, uint64_t p, uint64_t q)
+// Note that resB is residual of b (mod p) and resOne is residual of 1 (mod p)
+inline uint64_t   mmmPowmod(uint64_t resB, uint64_t exp, uint64_t p, uint64_t q, uint64_t resOne)
 {
    uint64_t x = resB;
-   uint64_t y = mmmOne(p);
+   uint64_t y = resOne;
    
    while (true)
    {
@@ -88,10 +93,52 @@ inline uint64_t   mmmPowmod(uint64_t resB, uint64_t exp, uint64_t p, uint64_t q)
    return 0;
 }
 
-// Compute the residual of 2^64 (mod p)
-inline uint64_t   mmm2exp64(uint64_t p, uint64_t q, uint64_t res1)
+// Set b to the residual of b ^ n (mod p)
+// Note that resB is residual of b (mod p) and resOne is residual of 1 (mod p)
+// resBexpP is output only and the other parameters are input only.
+inline void   mmmPowmodX4(uint64_t *resB, uint64_t exp, uint64_t *p, uint64_t *q, uint64_t *resOne, uint64_t *resBexpP)
 {
-	uint64_t t = mmmAdd(res1, res1, p);
+   uint64_t resX0 = resB[0];
+   uint64_t resX1 = resB[1];
+   uint64_t resX2 = resB[2];
+   uint64_t resX3 = resB[3];
+   
+   uint64_t resY0 = resOne[0];
+   uint64_t resY1 = resOne[1];
+   uint64_t resY2 = resOne[2];
+   uint64_t resY3 = resOne[3];
+   
+   while (true)
+   {
+      if (exp & 1)
+      {
+         resY0 = mmmMulmod(resX0, resY0, p[0], q[0]);
+         resY1 = mmmMulmod(resX1, resY1, p[1], q[1]);
+         resY2 = mmmMulmod(resX2, resY2, p[2], q[2]);
+         resY3 = mmmMulmod(resX3, resY3, p[3], q[3]);
+      }
+
+      exp >>= 1;
+
+      if (!exp)
+         break;
+
+      resX0 = mmmMulmod(resX0, resX0, p[0], q[0]);
+      resX1 = mmmMulmod(resX1, resX1, p[1], q[1]);
+      resX2 = mmmMulmod(resX2, resX2, p[2], q[2]);
+      resX3 = mmmMulmod(resX3, resX3, p[3], q[3]);
+   }
+   
+   resBexpP[0] = resY0;
+   resBexpP[1] = resY1;
+   resBexpP[2] = resY2;
+   resBexpP[3] = resY3;
+}
+
+// Compute the residual of 2^64 (mod p)
+inline uint64_t   mmm2exp64(uint64_t p, uint64_t q, uint64_t resOne)
+{
+	uint64_t t = mmmAdd(resOne, resOne, p);
    
    // t = res 4 (mod p)
    t = mmmAdd(t, t, p);   // 4
@@ -112,4 +159,9 @@ inline uint64_t   mmmN(uint64_t n, uint64_t p, uint64_t q, uint64_t res2exp64)
    return mmmMulmod(n, res2exp64, p, q);
 }
 
+// Convert the residual back to an remainer
+inline uint64_t   mmmToN(uint64_t res, uint64_t p, uint64_t q)
+{
+   return mmmMulmod(res, 1, p ,q);
+}
 #endif

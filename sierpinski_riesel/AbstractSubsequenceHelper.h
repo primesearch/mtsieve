@@ -14,8 +14,8 @@
 // from sr2sieve.h
 #define POWER_RESIDUE_DIVISORS 30
 
-#define SEQ_IDX(ssIdx)     (ip_Subsequences[(ssIdx)].seqIdx)
-#define N_TERM(ssIdx, m)   ((m)*ii_BestQ + ip_Subsequences[(ssIdx)].q)
+#define SEQ_IDX(ssIdx)        (ip_Subsequences[(ssIdx)].seqIdx)
+#define N_TERM(ssIdx, i, j)   ((ii_SieveLow+(i)*ii_BabySteps+(j))*ii_BestQ + ip_Subsequences[(ssIdx)].q)
 
 // All of these fields are set before sieving is started, but only nTerms can be
 // modified after sieving has started.

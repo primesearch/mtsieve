@@ -1,6 +1,10 @@
 This document is a list of future items along with when they were added to the list.
 Once these are completed, they will be removed from this file and documented in CHANGES.txt.
 
+Added on December 29, 2020
+   framework:
+      Add ARM support
+
 Added on December 22, 2020
    framework:
       Replace AMD SDK on Windows with open source SDK for OpenCL.
@@ -18,4 +22,3 @@ Added on December 22, 2020
       
    srsieve2:
       Implement sr1sieve and sr2sieve logic.
-      Add support for p > 2^52.

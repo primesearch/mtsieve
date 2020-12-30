@@ -77,7 +77,7 @@ private:
    uint32_t          WriteABCNumberPrimesTermsFile(seq_t *seq, uint64_t maxPrime, FILE *termsFile, bool allSequencesHaveDEqual1);
    
    bool              IsPrime(uint64_t p, uint64_t k, uint32_t n, int64_t c);
-   bool              VerifyFactor(uint64_t thePrime, uint32_t seqIdx, uint32_t n);
+   bool              VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint32_t seqIdx, uint32_t n);
    
    uint64_t          il_SmallPrimeSieveLimit;
 

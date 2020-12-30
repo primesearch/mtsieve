@@ -10,8 +10,6 @@
 #include <stdint.h>
 
 #include "GenericWorker.h"
-#include "../x86_asm/fpu-asm-x86.h"
-#include "../x86_asm/sse-asm-x86.h"
 
 GenericWorker::GenericWorker(uint32_t myId, App *theApp, AbstractSubsequenceHelper *appHelper) : AbstractWorker(myId, theApp, appHelper)
 {
@@ -28,75 +26,9 @@ void  GenericWorker::CleanUp(void)
    for (idx=0; idx<4; idx++)
       delete ip_HashTable[idx];
    
-   for (idx=0; idx<ii_BestQ; idx++)
-   {
-      xfree(bd64[idx]);
-   }
-
-   xfree(bd64);
-   
-   for (idx=0; idx<ii_SubsequenceCount; idx++)
-   {
-      xfree(bdck64[idx]);
-   }
-
-   xfree(bdck64);
-   
-   for (idx=0; idx<ii_SequenceCount; idx++)
-   {
-      xfree(ck64[idx]);
-   }
-
-   xfree(ck64);
-}
-
-void  GenericWorker::TestMegaPrimeChunk(void)
-{
-   uint64_t maxPrime = ip_App->GetMaxPrime();
-   uint64_t primeList[4];
-
-   vector<uint64_t>::iterator it = iv_Primes.begin();
-   
-   if (il_SmallPrimeSieveLimit > 0 && il_SmallPrimeSieveLimit > *it)
-   {
-      maxPrime = ProcessSmallPrimes();
-
-      if (il_SmallPrimeSieveLimit <= maxPrime)
-      {
-         ip_SierpinskiRieselApp->SetRebuildNeeded();
-         
-         // This will trigger a retest of some primes between il_SmallPrimeSieveLimit and maxPrime
-         // using large primes logic.  This should only be a few primes, so no big performance hit.
-         SetLargestPrimeTested(il_SmallPrimeSieveLimit, 0);
-      }
-      
-      return;
-   }
-    
-   while (it != iv_Primes.end())
-   {
-      primeList[0] = *it;
-      it++;
-      
-      primeList[1] = *it;
-      it++;
-      
-      primeList[2] = *it;
-      it++;
-      
-      primeList[3] = *it;
-      it++;
-
-      DiscreteLogLargePrimes(primeList);
-      
-      SetLargestPrimeTested(primeList[3], 4);
-      
-      if (primeList[3] >= maxPrime)
-         return;
-   }
-   
-   if (il_GenericSeveLimit > 0 && il_GenericSeveLimit < primeList[3])
-      ip_SierpinskiRieselApp->SetRebuildNeeded();
+   xfree(mBD);
+   xfree(mCK);
+   xfree(mBDCK);
 }
 
 void  GenericWorker::SetSequences(uint64_t largestPrimeTested, uint32_t bestQ, seq_t *sequences, uint32_t sequenceCount, subseq_t *subsequences, uint32_t subsequenceCount)
@@ -124,7 +56,7 @@ void  GenericWorker::SetSequences(uint64_t largestPrimeTested, uint32_t bestQ, s
    ip_Subsequences = subsequences;
    ii_SubsequenceCount = subsequenceCount;
 
-   InitializeDiscreteLog();
+   InitializeWorker();
   
    il_SmallPrimeSieveLimit = ip_SierpinskiRieselApp->GetSmallSievePrimeLimit();
    
@@ -145,7 +77,7 @@ void  GenericWorker::SetSequences(uint64_t largestPrimeTested, uint32_t bestQ, s
    //   SetMiniChunkRange(il_SmallPrimeSieveLimit+1, PMAX_MAX_52BIT, AVX_ARRAY_SIZE);
 }
 
-void  GenericWorker::InitializeDiscreteLog(void)
+void  GenericWorker::InitializeWorker(void)
 {
    uint32_t idx;   
    uint32_t r = ii_MaxN/ii_BestQ - ii_MinN/ii_BestQ + 1;
@@ -177,36 +109,71 @@ void  GenericWorker::InitializeDiscreteLog(void)
       FatalError("ii_SieveRange was not computed correctly");
    ssHash = (uint32_t *) xmalloc(ii_SubsequenceCount*sizeof(uint32_t *));
    
-   ck64 = (uint64_t **) xmalloc(ii_SequenceCount*sizeof(uint64_t *));
-   
-   for (idx=0; idx<ii_SequenceCount; idx++)
-   {
-      ck64[idx] = (uint64_t *) xmalloc(4*sizeof(uint64_t));
-   }
-   
-   bdck64 = (uint64_t **) xmalloc(ii_SubsequenceCount*sizeof(uint64_t *));
-   
-   for (idx=0; idx<ii_SubsequenceCount; idx++)
-   {
-      bdck64[idx] = (uint64_t *) xmalloc(4*sizeof(uint64_t));
-   }
-   
-   bd64 = (uint64_t **) xmalloc(ii_BestQ*sizeof(uint64_t *));
-   
-   for (idx=0; idx<ii_BestQ; idx++)
-   {
-      bd64[idx] = (uint64_t *) xmalloc(4*sizeof(uint64_t));
-   }
-   
+   mCK = (MpResVec *) xmalloc(ii_SequenceCount*sizeof(MpResVec));
+   mBDCK = (MpResVec *) xmalloc(ii_SubsequenceCount*sizeof(MpResVec));
+   mBD = (MpResVec *) xmalloc(ii_BestQ*sizeof(MpResVec));
+
    for (idx=0; idx<4; idx++)
       ip_HashTable[idx] = new HashTable(ii_BabySteps);
+}
+
+void  GenericWorker::TestMegaPrimeChunk(void)
+{
+   uint64_t maxPrime = ip_App->GetMaxPrime();
+   uint64_t p[4];
+   uint32_t b[4];
+
+   vector<uint64_t>::iterator it = iv_Primes.begin();
+   
+   if (il_SmallPrimeSieveLimit > 0 && il_SmallPrimeSieveLimit > *it)
+   {
+      maxPrime = ProcessSmallPrimes();
+
+      if (il_SmallPrimeSieveLimit <= maxPrime)
+      {
+         ip_SierpinskiRieselApp->SetRebuildNeeded();
+         
+         // This will trigger a retest of some primes between il_SmallPrimeSieveLimit and maxPrime
+         // using large primes logic.  This should only be a few primes, so no big performance hit.
+         SetLargestPrimeTested(il_SmallPrimeSieveLimit, 0);
+      }
+      
+      return;
+   }
+
+   b[0] = b[1] = b[2] = b[3] = ii_Base;
+
+   while (it != iv_Primes.end())
+   {
+      p[0] = *it;
+      it++;
+      
+      p[1] = *it;
+      it++;
+      
+      p[2] = *it;
+      it++;
+      
+      p[3] = *it;
+      it++;
+         
+      DiscreteLogLargePrimes(b, p);
+      
+      SetLargestPrimeTested(p[3], 4);
+      
+      if (p[3] >= maxPrime)
+         return;
+   }
+   
+   if (il_GenericSeveLimit > 0 && il_GenericSeveLimit < p[3])
+      ip_SierpinskiRieselApp->SetRebuildNeeded();
 }
 
 uint64_t  GenericWorker::ProcessSmallPrimes(void)
 {
    uint64_t maxPrime = ip_App->GetMaxPrime();
-   uint64_t primeList[4];
-   uint64_t bases[4];
+   uint64_t p[4];
+   uint32_t b[4];
    uint64_t thePrime, lastPrime = 0;
    uint32_t primeCount = 0;
    uint32_t actualCount = 0;
@@ -221,20 +188,20 @@ uint64_t  GenericWorker::ProcessSmallPrimes(void)
       if (ii_Base % thePrime  == 0)
          continue;
 
-      primeList[primeCount] = thePrime;
-      bases[primeCount] = (ii_Base % thePrime);
+      p[primeCount] = thePrime;
+      b[primeCount] = (ii_Base % thePrime);
       
       primeCount++;
       
       if (primeCount == 4)
-      {
-         DiscreteLogSmallPrimes(primeList, bases);
+      {   
+         DiscreteLogSmallPrimes(b, p);
          
-         SetLargestPrimeTested(primeList[3], 4);
+         SetLargestPrimeTested(p[3], 4);
          
          primeCount = 0;
          
-         if (primeList[3] >= maxPrime)
+         if (p[3] >= maxPrime)
             return lastPrime;
       }
    }
@@ -246,58 +213,38 @@ uint64_t  GenericWorker::ProcessSmallPrimes(void)
    
    while (primeCount < 4)
    {
-      primeList[primeCount] = primeList[primeCount-1];
-      bases[primeCount] = bases[primeCount-1];
+      p[primeCount] = p[primeCount-1];
+      b[primeCount] = b[primeCount-1];
 
       primeCount++;
    }
+      
+   DiscreteLogSmallPrimes(b, p);
    
-   DiscreteLogSmallPrimes(primeList, bases);
-   
-   SetLargestPrimeTested(primeList[3], actualCount);
+   SetLargestPrimeTested(p[3], actualCount);
    
    return lastPrime;
 }
 
-void  GenericWorker::DiscreteLogSmallPrimes(uint64_t *primeList, uint64_t *bases)
+void  GenericWorker::DiscreteLogSmallPrimes(uint32_t *b, uint64_t *p)
 {
    uint32_t i, j, ssIdx;
    uint32_t pIdx;
    uint32_t orderOfB[4];
    uint32_t solutionCount;
    uint32_t firstSolution;
-   uint64_t baseList[4], b[4], bm64[4], bj0[4];
-   double   invp[4];
    
-   b[0] = baseList[0] = bases[0];
-   b[1] = baseList[1] = bases[1];
-   b[2] = baseList[2] = bases[2];
-   b[3] = baseList[3] = bases[3];
-  
-   invp[0] = 1.0 / (double) primeList[0];
-   invp[1] = 1.0 / (double) primeList[1];
-   invp[2] = 1.0 / (double) primeList[2];
-   invp[3] = 1.0 / (double) primeList[3];
-      
-   BuildTables(baseList, primeList, invp, bm64);
+   MpArithVec mp(p);
+   MpResVec mb = mp.toMp(b);
    
-   // b <- base^Q (mod p)
-   sse_powmod_4b_1n_4p(b, ii_BestQ, primeList, invp);
-     
-   bj0[0] = b[0];
-   bj0[1] = b[1];
-   bj0[2] = b[2];
-   bj0[3] = b[3];
+   SetupDicreteLog(b, p, mp, mb);
    
-   sse_powmod_4b_1n_4p(bj0, ii_SieveLow, primeList, invp);
-
-   BabyStepsSmallPrimes(primeList, b, bj0, orderOfB);
+   BabySteps(mp, mb, orderOfB);
    
+   // b <- 1/b^m (mod p)
    if (ii_GiantSteps > 1)
-      // b <- 1/b^m (mod p)
-      sse_powmod_4b_1n_4p(bm64, ii_BabySteps, primeList, invp);
-      //fpu_powmod_4b_1n_4p(bm64, ii_BabySteps, primeList);
-   
+      mBM = mp.pow(mBM, ii_BabySteps);
+
    for (pIdx=0; pIdx<4; pIdx++)
    {      
       solutionCount = 0;
@@ -310,11 +257,11 @@ void  GenericWorker::DiscreteLogSmallPrimes(uint64_t *primeList, uint64_t *bases
       {         
          for (ssIdx=0; ssIdx<ii_SubsequenceCount; ssIdx++)
          {
-            j = ip_HashTable[pIdx]->Lookup(bdck64[ssIdx][pIdx]);
+            j = ip_HashTable[pIdx]->Lookup(mBDCK[ssIdx][pIdx]);
 
             while (j < ii_SieveRange)
             {
-               ip_SierpinskiRieselApp->ReportFactor(primeList[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, ii_SieveLow+j));
+               ip_SierpinskiRieselApp->ReportFactor(p[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, 0, j));
                
                j += orderOfB[pIdx];
             }
@@ -326,7 +273,7 @@ void  GenericWorker::DiscreteLogSmallPrimes(uint64_t *primeList, uint64_t *bases
       // First giant step
       for (ssIdx=0; ssIdx<ii_SubsequenceCount; ssIdx++)
       {
-         j = ip_HashTable[pIdx]->Lookup(bdck64[ssIdx][pIdx]);
+         j = ip_HashTable[pIdx]->Lookup(mBDCK[ssIdx][pIdx]);
          
          if (j != HASH_NOT_FOUND)
          {
@@ -341,17 +288,15 @@ void  GenericWorker::DiscreteLogSmallPrimes(uint64_t *primeList, uint64_t *bases
       // Remaining giant steps
       if (ii_GiantSteps > 1)
       {
-         fpu_push_adivb(bm64[pIdx], primeList[pIdx]);
-         
          for (i=1; i<ii_GiantSteps && solutionCount<=ii_SubsequenceCount; i++)
          {
             for (ssIdx=0; ssIdx<ii_SubsequenceCount; ssIdx++)
             {
                if (ssHash[ssIdx] == HASH_NOT_FOUND || firstSolution == ssIdx)
-               {               
-                  bdck64[ssIdx][pIdx] = fpu_mulmod_iter(bdck64[ssIdx][pIdx], bm64[pIdx], primeList[pIdx]);
+               {
+                  mBDCK[ssIdx][pIdx] = mp.mul(mBDCK[ssIdx], mBM, pIdx);
 
-                  j = ip_HashTable[pIdx]->Lookup(bdck64[ssIdx][pIdx]);
+                  j = ip_HashTable[pIdx]->Lookup(mBDCK[ssIdx][pIdx]);
             
                   if (j != HASH_NOT_FOUND)
                   {
@@ -373,64 +318,55 @@ void  GenericWorker::DiscreteLogSmallPrimes(uint64_t *primeList, uint64_t *bases
                }
             }
          }
-
-         fpu_pop();
       }
    
       if (orderOfB[pIdx] > 0)
+      {
          for (ssIdx=0; ssIdx<ii_SubsequenceCount; ssIdx++)
-            for (j = ssHash[ssIdx]; j < ii_SieveRange; j += orderOfB[pIdx])
-               ip_SierpinskiRieselApp->ReportFactor(primeList[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, ii_SieveLow+j));
-      else
-         for (ssIdx=0; ssIdx<ii_SubsequenceCount; ssIdx++)
-            if (ssHash[ssIdx] != HASH_NOT_FOUND)
+         {
+            j = ssHash[ssIdx];
+
+            while (j < ii_SieveRange)
             {
-               uint32_t nTerm = N_TERM(ssIdx, ii_SieveLow+ssHash[ssIdx]);
+               ip_SierpinskiRieselApp->ReportFactor(p[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, 0, j));
                
-               while (nTerm < ii_MaxN)
-               {   
-                  ip_SierpinskiRieselApp->ReportFactor(primeList[pIdx], SEQ_IDX(ssIdx), nTerm);
-                  nTerm += (primeList[pIdx] - 1);
-               }
+               j += orderOfB[pIdx];
             }
+         }
+      
+         continue;
+      }
+      
+      for (ssIdx=0; ssIdx<ii_SubsequenceCount; ssIdx++)
+      {
+         j = ssHash[ssIdx];
+         
+         if (j != HASH_NOT_FOUND)
+         {
+            uint32_t nTerm = N_TERM(ssIdx, 0, j);
+            
+            while (nTerm < ii_MaxN)
+            {
+               ip_SierpinskiRieselApp->ReportFactor(p[pIdx], SEQ_IDX(ssIdx), nTerm);
+               nTerm += (p[pIdx] - 1);
+            }
+         }
+      }
    }
 }
 
-void  GenericWorker::DiscreteLogLargePrimes(uint64_t *primeList)
+void  GenericWorker::DiscreteLogLargePrimes(uint32_t *b, uint64_t *p)
 {
    uint32_t i, j, ssIdx;
    uint32_t pIdx;
-   uint32_t orderOfB[4];   
-   uint64_t b[4], bm64[4], bj0[4];
-   double   invp[4];
+   uint32_t orderOfB[4];
+   
+   MpArithVec mp(p);
+   MpResVec mb = mp.toMp(b);
+   
+   SetupDicreteLog(b, p, mp, mb);
       
-   b[0] = ii_Base;
-   b[1] = ii_Base;
-   b[2] = ii_Base;
-   b[3] = ii_Base;
-   
-   invp[0] = 1.0 / (double) primeList[0];
-   invp[1] = 1.0 / (double) primeList[1];
-   invp[2] = 1.0 / (double) primeList[2];
-   invp[3] = 1.0 / (double) primeList[3];
-   
-   BuildTables(b, primeList, invp, bm64);
-   
-   // b <- base^Q (mod p)
-   sse_powmod_4b_1n_4p(b, ii_BestQ, primeList, invp);
-   
-   bj0[0] = b[0];
-   bj0[1] = b[1];
-   bj0[2] = b[2];
-   bj0[3] = b[3];
-   
-   // This powmod routine doesn't support n = 0 and it is possible for ii_SieveLow to be 0
-   if (ii_SieveLow == 0)
-      bj0[0] = bj0[1] = bj0[2] = bj0[3] = 1;
-   else
-      sse_powmod_4b_1n_4p(bj0, ii_SieveLow, primeList, invp);
-   
-   BabyStepsBigPrimes(primeList, invp, b, bj0, orderOfB);
+   BabySteps(mp, mb, orderOfB);
 
    for (pIdx=0; pIdx<4; pIdx++)
    {
@@ -438,11 +374,11 @@ void  GenericWorker::DiscreteLogLargePrimes(uint64_t *primeList)
       {
          for (ssIdx=0; ssIdx<ii_SubsequenceCount; ssIdx++)
          {
-            j = ip_HashTable[pIdx]->Lookup(bdck64[ssIdx][pIdx]);
+            j = ip_HashTable[pIdx]->Lookup(mBDCK[ssIdx][pIdx]);
             
             while (j < ii_SieveRange)
             {
-               ip_SierpinskiRieselApp->ReportFactor(primeList[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, ii_SieveLow+j));
+               ip_SierpinskiRieselApp->ReportFactor(p[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, 0, j));
                
                j += orderOfB[pIdx];
             }
@@ -454,45 +390,46 @@ void  GenericWorker::DiscreteLogLargePrimes(uint64_t *primeList)
       // First giant step
       for (ssIdx=0; ssIdx<ii_SubsequenceCount; ssIdx++)
       {
-         j = ip_HashTable[pIdx]->Lookup(bdck64[ssIdx][pIdx]);
+         j = ip_HashTable[pIdx]->Lookup(mBDCK[ssIdx][pIdx]);
          
-         if (j != HASH_NOT_FOUND)               
-            ip_SierpinskiRieselApp->ReportFactor(primeList[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, ii_SieveLow+j));
+         if (j != HASH_NOT_FOUND)
+            ip_SierpinskiRieselApp->ReportFactor(p[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, 0, j));
       }
    }
    
    if (ii_GiantSteps < 2)
       return;
-   
+
    // b <- 1/b^m (mod p)
-   sse_powmod_4b_1n_4p(bm64, ii_BabySteps, primeList, invp);
-   //fpu_powmod_4b_1n_4p(bm64, ii_BabySteps, primeList);
+   mBM = mp.pow(mBM, ii_BabySteps);
    
-   fpu_push_1divp(primeList[3]);
-   fpu_push_1divp(primeList[2]);
-   fpu_push_1divp(primeList[1]);
-   fpu_push_1divp(primeList[0]);
-      
    for (i=1; i<ii_GiantSteps; i++)
    {
       for (ssIdx=0; ssIdx<ii_SubsequenceCount; ssIdx++)
       {
-         fpu_mulmod_4a_4b_4p(bdck64[ssIdx], bm64, primeList);
+         mBDCK[ssIdx] = mp.mul(mBDCK[ssIdx], mBM);
 
-         for (pIdx=0; pIdx<4; pIdx++)
-         {
-            j = ip_HashTable[pIdx]->Lookup(bdck64[ssIdx][pIdx]);
+         j = ip_HashTable[0]->Lookup(mBDCK[ssIdx][0]);
 
-            if (j != HASH_NOT_FOUND)
-               ip_SierpinskiRieselApp->ReportFactor(primeList[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, ii_SieveLow+i*ii_BabySteps+j));
-         }
+         if (j != HASH_NOT_FOUND)
+            ip_SierpinskiRieselApp->ReportFactor(p[0], SEQ_IDX(ssIdx), N_TERM(ssIdx, i, j));
+
+         j = ip_HashTable[1]->Lookup(mBDCK[ssIdx][1]);
+
+         if (j != HASH_NOT_FOUND)
+            ip_SierpinskiRieselApp->ReportFactor(p[1], SEQ_IDX(ssIdx), N_TERM(ssIdx, i, j));
+
+         j = ip_HashTable[2]->Lookup(mBDCK[ssIdx][2]);
+
+         if (j != HASH_NOT_FOUND)
+            ip_SierpinskiRieselApp->ReportFactor(p[2], SEQ_IDX(ssIdx), N_TERM(ssIdx, i, j));
+
+         j = ip_HashTable[3]->Lookup(mBDCK[ssIdx][3]);
+
+         if (j != HASH_NOT_FOUND)
+            ip_SierpinskiRieselApp->ReportFactor(p[3], SEQ_IDX(ssIdx), N_TERM(ssIdx, i, j));
       }
    }
-      
-   fpu_pop();
-   fpu_pop();
-   fpu_pop();
-   fpu_pop();
 }
 
 void  GenericWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
@@ -500,130 +437,87 @@ void  GenericWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
    FatalError("GenericWorker::TestMiniPrimeChunk not implemented");
 }
 
-void  GenericWorker::BabyStepsSmallPrimes(uint64_t *primeList, uint64_t *b, uint64_t *bj0, uint32_t *orderOfB)
+// Compute a number of values that we need for the discrete log
+void  GenericWorker::SetupDicreteLog(uint32_t *b, uint64_t *p, MpArithVec mp, MpResVec mb)
 {
-   uint32_t j, pIdx;
-   uint64_t bj;
-   
-   for (pIdx=0; pIdx<4; pIdx++)
-   {
-      ip_HashTable[pIdx]->Clear();
-      
-      orderOfB[pIdx] = 0;
-      bj = bj0[pIdx];
-      
-      fpu_push_adivb(b[pIdx], primeList[pIdx]);
-      
-      for (j=0; j<ii_BabySteps; j++)
-      {         
-         ip_HashTable[pIdx]->Insert(bj, j);
-         
-         bj = fpu_mulmod_iter(bj, b[pIdx], primeList[pIdx]);
-         
-         if (bj == bj0[pIdx])
-         {
-            orderOfB[pIdx] = j + 1;
-            break;
-         }
-      }
-      
-      fpu_pop();
-   }
-}
-
-void  GenericWorker::BabyStepsBigPrimes(uint64_t *primeList, double *invp, uint64_t *b, uint64_t *bj0, uint32_t *orderOfB)
-{
-   uint32_t j, pIdx;
-   uint64_t bj;
-   double   binvp;
-  
-   for (pIdx=0; pIdx<4; pIdx++)
-   {
-      ip_HashTable[pIdx]->Clear();
-      
-      orderOfB[pIdx] = 0;
-      bj = bj0[pIdx];
-      
-      binvp = invp[pIdx] * (double) b[pIdx];
-            
-      for (j=0; j<ii_BabySteps; j++)
-      {         
-         ip_HashTable[pIdx]->Insert(bj, j);
-         
-         bj = sse_mulmod(bj, b[pIdx], primeList[pIdx], &binvp);
-         
-         if (bj == bj0[pIdx])
-         {
-            orderOfB[pIdx] = j + 1;
-            break;
-         }
-      }
-   }
-}
-
-void   GenericWorker::BuildTables(uint64_t *baseToUse, uint64_t *primeList, double *invp, uint64_t *bm64)
-{
-   uint64_t inv_b[4];
    uint32_t qIdx, seqIdx, ssIdx;
-   uint64_t umod[4], inv[4];
+   uint64_t imod[4], umod[4], temp[4];
 
-   fpu_push_1divp(primeList[3]);
-   fpu_push_1divp(primeList[2]);
-   fpu_push_1divp(primeList[1]);
-   fpu_push_1divp(primeList[0]);
-   
-   // Precompute 1/b^d (mod p) for 0 <= d <= Q.
+   imod[0] = invmod64(b[0], p[0]);
+   imod[1] = invmod64(b[1], p[1]);
+   imod[2] = invmod64(b[2], p[2]);
+   imod[3] = invmod64(b[3], p[3]);
 
-   bd64[0][0] = bd64[0][1] = bd64[0][2] = bd64[0][3] = 1;
-   
-   bm64[0] = inv_b[0] = invmod64(baseToUse[0], primeList[0]);
-   bm64[1] = inv_b[1] = invmod64(baseToUse[1], primeList[1]);
-   bm64[2] = inv_b[2] = invmod64(baseToUse[2], primeList[2]);
-   bm64[3] = inv_b[3] = invmod64(baseToUse[3], primeList[3]);
-
+   MpResVec mI = mp.toMp(imod);
+   mBM = mI;
+   mBD[0] = mp.one();
+     
    for (qIdx=1; qIdx<ii_BestQ; qIdx++)
    {
-      bd64[qIdx][0] = bm64[0];
-      bd64[qIdx][1] = bm64[1];
-      bd64[qIdx][2] = bm64[2];
-      bd64[qIdx][3] = bm64[3];
-         
-      fpu_mulmod_4a_4b_4p(bm64, inv_b, primeList);
+      mBD[qIdx] = mBM;
+      
+      mBM = mp.mul(mBM, mI);
    }
     
    for (seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)
    {
-      ck64[seqIdx][0] = smod64(-ip_Sequences[seqIdx].c, primeList[0]);
-      ck64[seqIdx][1] = smod64(-ip_Sequences[seqIdx].c, primeList[1]);
-      ck64[seqIdx][2] = smod64(-ip_Sequences[seqIdx].c, primeList[2]);
-      ck64[seqIdx][3] = smod64(-ip_Sequences[seqIdx].c, primeList[3]);
+      temp[0] = lmod64(-ip_Sequences[seqIdx].c, p[0]);
+      temp[1] = lmod64(-ip_Sequences[seqIdx].c, p[1]);
+      temp[2] = lmod64(-ip_Sequences[seqIdx].c, p[2]);
+      temp[3] = lmod64(-ip_Sequences[seqIdx].c, p[3]);
       
-      umod[0] = umod64(ip_Sequences[seqIdx].k, primeList[0]);
-      umod[1] = umod64(ip_Sequences[seqIdx].k, primeList[1]);
-      umod[2] = umod64(ip_Sequences[seqIdx].k, primeList[2]);
-      umod[3] = umod64(ip_Sequences[seqIdx].k, primeList[3]);
+      umod[0] = umod64(ip_Sequences[seqIdx].k, p[0]);
+      umod[1] = umod64(ip_Sequences[seqIdx].k, p[1]);
+      umod[2] = umod64(ip_Sequences[seqIdx].k, p[2]);
+      umod[3] = umod64(ip_Sequences[seqIdx].k, p[3]);
       
-      inv[0] = invmod64(umod[0], primeList[0]);
-      inv[1] = invmod64(umod[1], primeList[1]);
-      inv[2] = invmod64(umod[2], primeList[2]);
-      inv[3] = invmod64(umod[3], primeList[3]);
+      imod[0] = invmod64(umod[0], p[0]);
+      imod[1] = invmod64(umod[1], p[1]);
+      imod[2] = invmod64(umod[2], p[2]);
+      imod[3] = invmod64(umod[3], p[3]);
       
-      fpu_mulmod_4a_4b_4p(ck64[seqIdx], inv, primeList);
+      MpResVec mTemp = mp.toMp(temp);
+      mI = mp.toMp(imod);
+
+      mCK[seqIdx] = mp.mul(mTemp, mI);
    }
 
    // Compute -c/(k*b^d) (mod p) for each subsequence.
    for (ssIdx=0; ssIdx<ii_SubsequenceCount; ssIdx++)
    {
-      bdck64[ssIdx][0] = ck64[ip_Subsequences[ssIdx].seqIdx][0];
-      bdck64[ssIdx][1] = ck64[ip_Subsequences[ssIdx].seqIdx][1];
-      bdck64[ssIdx][2] = ck64[ip_Subsequences[ssIdx].seqIdx][2];
-      bdck64[ssIdx][3] = ck64[ip_Subsequences[ssIdx].seqIdx][3];
-      
-      fpu_mulmod_4a_4b_4p(bdck64[ssIdx], bd64[ip_Subsequences[ssIdx].q], primeList);
+      seqIdx = ip_Subsequences[ssIdx].seqIdx;
+      qIdx = ip_Subsequences[ssIdx].q;
+
+      mBDCK[ssIdx] = mp.mul(mBD[qIdx], mCK[seqIdx]);
    }
+}
+
+void  GenericWorker::BabySteps(MpArithVec mp, MpResVec mb, uint32_t *orderOfB)
+{
+   uint32_t j, pIdx;
+   uint64_t resBJ;
    
-   fpu_pop();
-   fpu_pop();
-   fpu_pop();
-   fpu_pop();
+   const MpResVec mBexpQ = mp.pow(mb, ii_BestQ);
+   const MpResVec mBJ = mp.pow(mBexpQ, ii_SieveLow);
+      
+   for (pIdx=0; pIdx<4; pIdx++)
+   {
+      ip_HashTable[pIdx]->Clear();
+      
+      orderOfB[pIdx] = 0;
+      resBJ = mBJ[pIdx];
+            
+      for (j=0; j<ii_BabySteps; j++)
+      {
+         ip_HashTable[pIdx]->Insert(resBJ, j);
+         
+         resBJ = mp.mul(resBJ, mBexpQ, pIdx);
+         
+         if (resBJ == mBJ[pIdx])
+         {
+            orderOfB[pIdx] = j + 1;
+            break;
+         }
+      }
+   }
 }

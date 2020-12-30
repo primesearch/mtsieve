@@ -57,6 +57,7 @@ protected:
    // These are only updated by the child class, but any reads/writes of these
    // variables must use ip_FactorAppLock to lock them. 
    uint64_t          il_FactorCount;
+   uint64_t          il_PreviousFactorCount;
    uint64_t          il_TermCount;
    
    string            is_InputTermsFileName;

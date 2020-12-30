@@ -21,7 +21,7 @@
 #include "CisOneSubsequenceHelper.h"
 
 #define APP_NAME        "srsieve2"
-#define APP_VERSION     "1.2.3"
+#define APP_VERSION     "1.3"
 
 #define NBIT(n)         ((n) - ii_MinN)
 #define MBIT(m)         ((m) - ii_MinM)
@@ -39,7 +39,7 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    SetLogFileName("srsieve2.log");
    
    SetAppMinPrime(3);
-   SetAppMaxPrime(PMAX_MAX_52BIT);
+   SetAppMaxPrime(PMAX_MAX_62BIT);
 
    ii_MinN = 0;
    ii_MaxN = 0;
@@ -275,7 +275,7 @@ void  SierpinskiRieselApp::ValidateAndAddNewSequence(char *arg)
       d = 1;
       
       if (sscanf(arg, "%" SCNu64"*%u^n%" SCNd64"", &k, &b, &c) != 3)         
-         FatalError("sequence must be in form k*b^n+c or (k*b^n+c)/d where you specify values for k, b, c, and d");
+         FatalError("sequence %s must be in form k*b^n+c or (k*b^n+c)/d where you specify values for k, b, c, and d", arg);
    }
 
    if (ib_HaveNewSequences && b != ii_Base)
@@ -537,7 +537,7 @@ bool SierpinskiRieselApp::ApplyFactor(uint64_t thePrime, const char *term)
    uint64_t k;
    uint32_t b, n, d;
    int64_t  c;
-   seq_t   *seq;
+   uint32_t seqIdx;
    
    if (sscanf(term, "(%" SCNu64"*%u^%u%" SCNd64")/%u", &k, &b, &n, &c, &d) != 5)
    {
@@ -553,15 +553,22 @@ bool SierpinskiRieselApp::ApplyFactor(uint64_t thePrime, const char *term)
    if (n < ii_MinN || n > ii_MaxN)
       return false;
    
-   // No locking is needed because the Workers aren't running yet
-   seq = GetSequence(k, c, d);
-   
-   if (seq->nTerms[NBIT(n)])
-   {
-      seq->nTerms[NBIT(n)] = false;
-      il_TermCount--;
 
-      return true;
+   for (seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)
+   {      
+      if (ip_Sequences[seqIdx].k == k && ip_Sequences[seqIdx].c == c && ip_Sequences[seqIdx].d == d)
+      {
+         if (!VerifyFactor(false, thePrime, seqIdx, n))
+            return false;
+         
+         if (ip_Sequences[seqIdx].nTerms[NBIT(n)])
+         {
+            ip_Sequences[seqIdx].nTerms[NBIT(n)] = false;
+            il_TermCount--;
+
+            return true;
+         }
+      }
    }
       
    return false;
@@ -810,7 +817,7 @@ void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
 seq_t    *SierpinskiRieselApp::GetSequence(uint64_t k, int64_t c, uint32_t d) 
 {
    uint32_t seqIdx;
-   
+
    for (seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)
    {      
       if (ip_Sequences[seqIdx].k == k && ip_Sequences[seqIdx].c == c && ip_Sequences[seqIdx].d == d)
@@ -939,49 +946,74 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, uint32_t seqIdx, u
 
    nbit = NBIT(n);
    
-      
    if (thePrime > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
       
-   if (!ip_Sequences[seqIdx].nTerms[nbit])
-   {
-      ip_FactorAppLock->Release();
-      return;
-   }
-
-   if (VerifyFactor(thePrime, seqIdx, n))
+   if (ip_Sequences[seqIdx].nTerms[nbit])
    {
       il_TermCount--;
       il_FactorCount++;
       ip_Sequences[seqIdx].nTerms[nbit] = false;
-            
-      if (IsPrime(thePrime, ip_Sequences[seqIdx].k, n, ip_Sequences[seqIdx].c))
-      {
-         if (ip_Sequences[seqIdx].d > 1)
-         {
-            WriteToConsole(COT_OTHER, "(%" PRIu64"*%u^%u%+" PRId64")/%u is prime!", ip_Sequences[seqIdx].k, ii_Base, n,  ip_Sequences[seqIdx].c, ip_Sequences[seqIdx].d);
-
-            WriteToLog("(%" PRIu64"*%u^%u%+" PRId64")/%u is prime!", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c, ip_Sequences[seqIdx].d);
-
-         }
-         else
-         {
-            WriteToConsole(COT_OTHER, "%" PRIu64"*%u^%u%+" PRId64" is prime!", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c);
-
-            WriteToLog("%" PRIu64"*%u^%u%+" PRId64" is prime!", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c);
-         }
-      }
-      else
-      {
-         if (ip_Sequences[seqIdx].d > 1)
-            LogFactor(thePrime, "(%" PRIu64"*%u^%u%+" PRId64")/%u", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c, ip_Sequences[seqIdx].d);
-         else
-            LogFactor(thePrime, "%" PRIu64"*%u^%u%+" PRId64"", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c);
-      }
    }
-
+         
    if (thePrime > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
+
+   VerifyFactor(true, thePrime, seqIdx, n);
+   
+   char buffer[200];
+   
+   if (ip_Sequences[seqIdx].d > 1)
+      sprintf(buffer, "(%" PRIu64"*%u^%u%+" PRId64")/%u", ip_Sequences[seqIdx].k, ii_Base, n,  ip_Sequences[seqIdx].c, ip_Sequences[seqIdx].d);
+   else
+      sprintf(buffer, "%" PRIu64"*%u^%u%+" PRId64"", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c);
+
+   if (IsPrime(thePrime, ip_Sequences[seqIdx].k, n, ip_Sequences[seqIdx].c))
+   {
+      WriteToConsole(COT_OTHER, "%s is prime!", buffer);
+      WriteToLog("%s is prime!", buffer);
+   }
+   else
+      LogFactor(thePrime, buffer);
+
+}
+
+bool  SierpinskiRieselApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint32_t seqIdx, uint32_t n)
+{
+   uint64_t  rem;
+   bool      isValid;
+
+   fpu_push_1divp(thePrime);
+   
+   rem = fpu_powmod(ii_Base, n, thePrime);
+   rem = fpu_mulmod(rem, ip_Sequences[seqIdx].k, thePrime);
+
+   fpu_pop();
+   
+   if (ip_Sequences[seqIdx].c > 0)
+      rem += ip_Sequences[seqIdx].c;
+   else
+      rem += (thePrime + ip_Sequences[seqIdx].c);
+      
+   if (rem >= thePrime)
+      rem -= thePrime;
+
+   // At some point need logic if gcd(d, thePrime) != 1
+   isValid = (rem == 0);
+   
+   if (isValid)
+      return isValid;
+      
+   char buffer[200];
+   
+   sprintf(buffer, "Invalid factor: %" PRIu64"*%u^%u%+" PRId64" mod %" PRIu64" = %" PRIu64"", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c, thePrime, rem);
+   
+   if (badFactorIsFatal)
+      FatalError(buffer);
+   else
+      WriteToConsole(COT_OTHER, buffer);
+   
+   return isValid;
 }
 
 bool  SierpinskiRieselApp::IsPrime(uint64_t p, uint64_t k, uint32_t n, int64_t c)
@@ -1004,30 +1036,4 @@ bool  SierpinskiRieselApp::IsPrime(uint64_t p, uint64_t k, uint32_t n, int64_t c
 
    // if p != 1 and n != 0, then p != b^n
    return (n == 0 && p == 1);
-}
-
-bool  SierpinskiRieselApp::VerifyFactor(uint64_t thePrime, uint32_t seqIdx, uint32_t n)
-{
-   uint64_t  rem;
-
-   fpu_push_1divp(thePrime);
-   
-   rem = fpu_powmod(ii_Base, n, thePrime);
-   rem = fpu_mulmod(rem, ip_Sequences[seqIdx].k, thePrime);
-
-   fpu_pop();
-   
-   if (ip_Sequences[seqIdx].c > 0)
-      rem += ip_Sequences[seqIdx].c;
-   else
-      rem += (thePrime + ip_Sequences[seqIdx].c);
-      
-   if (rem >= thePrime)
-      rem -= thePrime;
-
-   if (rem != 0)
-      FatalError("%" PRIu64"*%u^%u%+" PRId64" mod %" PRIu64" = %" PRIu64"", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c, thePrime, rem);
-   
-   // At some point need logic if gcd(d, thePrime) != 1
-   return true;
 }

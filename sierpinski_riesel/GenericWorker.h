@@ -13,6 +13,7 @@
 #include "AbstractSubsequenceHelper.h"
 #include "AbstractWorker.h"
 #include "../core/HashTable.h"
+#include "../core/MpArithVector.h"
 
 using namespace std;
 
@@ -32,15 +33,16 @@ public:
 protected:
 
 private:
-   void              InitializeDiscreteLog(void);
+   void              InitializeWorker(void);
    
    uint64_t          ProcessSmallPrimes(void);
-   void              DiscreteLogSmallPrimes(uint64_t *primeList, uint64_t *bases);
-   void              DiscreteLogLargePrimes(uint64_t *primeList);
    
-   void              BabyStepsSmallPrimes(uint64_t *primeList, uint64_t *b, uint64_t *bj0, uint32_t *orderOfB);
-   void              BabyStepsBigPrimes(uint64_t *primeList, double *invp, uint64_t *b, uint64_t *bj0, uint32_t *orderOfB);
-   void              BuildTables(uint64_t *baseToUse, uint64_t *primeList, double *invp, uint64_t *bm64);
+   void              SetupDicreteLog(uint32_t *b, uint64_t *p, MpArithVec mp, MpResVec mb);
+   
+   void              DiscreteLogSmallPrimes(uint32_t *b, uint64_t *p);
+   void              DiscreteLogLargePrimes(uint32_t *b, uint64_t *p);   
+
+   void              BabySteps(MpArithVec mp, MpResVec mb, uint32_t *orderOfB);
       
    uint32_t          ii_SieveLow;
    uint32_t          ii_SieveRange;
@@ -55,9 +57,11 @@ private:
    
    uint32_t         *ssHash;        // there is one per subsequence
    
-   uint64_t        **ck64;          // there is one set of 4 per sequence
-   uint64_t        **bdck64;        // there is one set of 4 per subsequence
-   uint64_t        **bd64;          // there is one set of 4 per Q
+   MpResVec         *mBD;           // there is one set of 4 per Q
+   MpResVec         *mCK;           // there is one set of 4 per sequence
+   MpResVec         *mBDCK;         // there is one set of 4 per subsequence
+   
+   MpResVec          mBM;
 };
 
 #endif

@@ -26,7 +26,7 @@ public:
    virtual void         SetSequences(uint64_t largestPrimeTested, uint32_t bestQ, seq_t *sequences, uint32_t sequenceCount, subseq_t *subsequences, uint32_t subsequenceCount) = 0;
    
 protected:
-   virtual void         InitializeDiscreteLog(void) = 0;
+   virtual void         InitializeWorker(void) = 0;
    
    SierpinskiRieselApp *ip_SierpinskiRieselApp;
    AbstractSubsequenceHelper   *ip_AppHelper;
@@ -113,7 +113,7 @@ protected:
    }
 
    // return a (mod p), assuming -p < a < p
-   inline uint64_t  smod64(int64_t a, uint64_t p)
+   inline uint64_t  lmod64(int64_t a, uint64_t p)
    {
       uint64_t ua;
       if (a >= 0)

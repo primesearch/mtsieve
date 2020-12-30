@@ -31,6 +31,7 @@ FactorApp::FactorApp(void)
    
    it_CheckpointTime = time(NULL) + CHECKPOINT_SECONDS;
    il_FactorCount = 0;
+   il_PreviousFactorCount = 0;
    il_TermCount = 0;
    if_FactorFile = 0;
    
@@ -135,7 +136,7 @@ void  FactorApp::ParentValidateOptions(void)
       if (factorFile == NULL)
          FatalError("Could not open factor file %s for input", is_InputFactorsFileName.c_str());
    
-      while (fgets(buffer, 1000, factorFile) != NULL)
+      while (fgets(buffer, sizeof(buffer), factorFile) != NULL)
       {
          if (!StripCRLF(buffer))
             continue;
@@ -187,6 +188,7 @@ void  FactorApp::ResetFactorStats(void)
    ir_ReportStatus[0].factorsFound = 0;
    ii_NextStatusEntry = 1;
 
+   il_PreviousFactorCount += il_FactorCount;
    il_FactorCount = 0;
 }
       
@@ -264,10 +266,10 @@ void  FactorApp::Finish(const char *finishMethod, uint64_t elapsedTimeUS, uint64
    }
    
    WriteToConsole(COT_OTHER, "Primes tested: %" PRIu64".  Factors found: %" PRIu64".  Remaining terms: %" PRIu64".  Time: %.2f seconds.",
-           primesTested, il_FactorCount, il_TermCount, elapsedSeconds);
+           primesTested, il_FactorCount + il_PreviousFactorCount, il_TermCount, elapsedSeconds);
            
    WriteToLog("Sieve %s at p=%" PRIu64".  Primes tested %" PRIu64".  Found %" PRIu64" factors.  %" PRIu64" terms remaining.  Time %.2f seconds\n",
-           finishMethod, largestPrimeTested, primesTested, il_FactorCount, il_TermCount, elapsedSeconds);
+           finishMethod, largestPrimeTested, primesTested, il_FactorCount + il_PreviousFactorCount, il_TermCount, elapsedSeconds);
 }
 
 void  FactorApp::GetReportStats(char *reportStats, double cpuUtilization)
@@ -317,7 +319,7 @@ void  FactorApp::GetReportStats(char *reportStats, double cpuUtilization)
       if (!BuildFactorsPerSecondRateString(currnetStatusEntry, cpuUtilization, factoringRate))
          BuildSecondsPerFactorRateString(currnetStatusEntry, cpuUtilization, factoringRate);
    
-      sprintf(reportStats, "%" PRIu64" factors found at %s", il_FactorCount, factoringRate);
+      sprintf(reportStats, "%" PRIu64" factors found at %s", il_FactorCount + il_PreviousFactorCount, factoringRate);
    }
    else
       sprintf(reportStats, "no factors found");

@@ -1,4 +1,4 @@
-/* MpArith.h -- (C) Mark Rodenkirch, December 2020
+/* MpArithVector.h -- (C) Mark Rodenkirch, December 2020
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,14 +68,32 @@ public:
 	}
 
 	// Convert n to Montgomery representation
-	MpRes<N> toMp(const uint64_t n) const
+	MpRes<N> toMp(const uint64_t *n) const
+	{
+		// n * (2^64)^2 = (n * 2^64) * (1 * 2^64)
+		MpRes<N> r;
+		for (size_t k = 0; k < N; ++k) r[k] = n[k];
+		return mul(r, _r2);
+	}
+   
+	// Convert n to Montgomery representation
+	MpRes<N> toMp(uint32_t n) const
 	{
 		// n * (2^64)^2 = (n * 2^64) * (1 * 2^64)
 		MpRes<N> r;
 		for (size_t k = 0; k < N; ++k) r[k] = n;
 		return mul(r, _r2);
 	}
-
+   
+	// Convert n to Montgomery representation
+	MpRes<N> toMp(uint32_t *n) const
+	{
+		// n * (2^64)^2 = (n * 2^64) * (1 * 2^64)
+		MpRes<N> r;
+		for (size_t k = 0; k < N; ++k) r[k] = n[k];
+		return mul(r, _r2);
+	}
+   
 	static MpRes<N> zero()
 	{
 		MpRes<N> r;
@@ -85,6 +103,8 @@ public:
 
 	MpRes<N> one() const { return _one; }	// Montgomery form of 1
 
+	uint64_t p(size_t k) const { return _p[k]; }
+   
 	static bool at_least_one_is_equal(const MpRes<N> & a, const MpRes<N> & b)
 	{
 		bool is_equal = false;
@@ -113,7 +133,17 @@ public:
 		}
 		return r;
 	}
-
+   
+	uint64_t mul(const uint64_t a, const MpRes<N> & b, size_t k) const
+	{
+	   return REDC(a * __uint128_t(b[k]), _p[k], _q[k]);
+	}
+  
+   uint64_t mul(const MpRes<N> & a, const MpRes<N> & b, size_t k) const
+	{
+	   return REDC(a[k] * __uint128_t(b[k]), _p[k], _q[k]);
+	}
+   
 	MpRes<N> mul(const MpRes<N> & a, const MpRes<N> & b) const
 	{
 		MpRes<N> r;
@@ -122,6 +152,27 @@ public:
 			r[k] = REDC(a[k] * __uint128_t(b[k]), _p[k], _q[k]);
 		}
 		return r;
+	}
+   
+	MpRes<N> pow(const MpRes<N> & a, size_t exp) const
+	{
+      MpRes<N> x = a;
+      MpRes<N> y = _one;
+
+      while (true)
+      {
+         if (exp & 1)
+            y = mul(x, y);
+
+         exp >>= 1;
+
+         if (!exp)
+            break;
+
+         x = mul(x, x);
+      }
+      
+      return y;
 	}
 };
 
