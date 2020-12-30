@@ -1,11 +1,11 @@
-2.1.2 - 
+2.1.2 - December 30, 2020
    framework:
       Retain factor counts when workers are rebuilt.
 
    srsieve2:  version 1.3
       Added factor validation logic when using -I.
       Switched to Montgomery mulitplication, which is about 20% faster than the previous
-      logic.  This also gives a 20% speed bump and add support for p up to 2^62.
+      logic.  This also gives a 20% speed bump and adds support for p up to 2^62.
 
 2.1.1 - December 29, 2020
    framework:
