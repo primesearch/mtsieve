@@ -174,6 +174,16 @@ public:
       
       return y;
 	}
+   
+	MpRes<N> toRem(const MpRes<N> & a) const
+	{
+		MpRes<N> r;
+		for (size_t k = 0; k < N; ++k)
+		{
+			r[k] = REDC(a[k], _p[k], _q[k]);
+		}
+		return r;
+	}
 };
 
 

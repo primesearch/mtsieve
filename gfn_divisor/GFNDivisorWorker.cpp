@@ -136,19 +136,19 @@ void    GFNDivisorWorker::RemoveTermsSmallPrime(uint64_t k, uint32_t n, uint64_t
 
    if (k > il_MaxK)
       return;
-      
-   fpu_push_1divp(prime);
-   il_BpowN = fpu_powmod(2, n, prime);
+
+   uint32_t verifiedCount = 0;
    
    do
 	{
-      if (ip_GFNDivisorApp->ReportFactor(prime, k, n))
-         VerifyFactor(k, n, prime);
+      verifiedCount++;
+      
+      // If the first few are valid, then assume that the rest are valid.  This will
+      // speed up testing of small primes.
+      ip_GFNDivisorApp->ReportFactor(prime, k, n, (verifiedCount < 5));
 
 		k += (prime << 1); 
 	} while (k <= il_MaxK);
-   
-   fpu_pop();
 }
 
 // Using this bypasses a number of if checks that can be done when prime > il_MaxK.
@@ -162,25 +162,5 @@ void    GFNDivisorWorker::RemoveTermsBigPrime(uint64_t k, uint32_t n, uint64_t p
    if (!(k & 1))
       return;
    
-   if (ip_GFNDivisorApp->ReportFactor(prime, k, n))
-   {
-      fpu_push_1divp(prime);
-      
-      il_BpowN = fpu_powmod(2, n, prime);
-      
-      VerifyFactor(k, n, prime);
-      
-      fpu_pop();
-   }
+   ip_GFNDivisorApp->ReportFactor(prime, k, n, true);
 }
-
-void  GFNDivisorWorker::VerifyFactor(uint64_t k, uint32_t n, uint64_t prime)
-{
-   uint64_t rem;
-
-   rem = fpu_mulmod(il_BpowN, k, prime);
-   
-   if (rem != prime - 1)
-      FatalError("%" PRIu64"*2^%u+1 mod %" PRIu64" = %" PRIu64"", k, n, prime, rem + 1);
-}
-

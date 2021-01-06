@@ -21,7 +21,7 @@
 #include "CisOneSubsequenceHelper.h"
 
 #define APP_NAME        "srsieve2"
-#define APP_VERSION     "1.3"
+#define APP_VERSION     "1.3.1"
 
 #define NBIT(n)         ((n) - ii_MinN)
 #define MBIT(m)         ((m) - ii_MinM)
@@ -558,14 +558,14 @@ bool SierpinskiRieselApp::ApplyFactor(uint64_t thePrime, const char *term)
    {      
       if (ip_Sequences[seqIdx].k == k && ip_Sequences[seqIdx].c == c && ip_Sequences[seqIdx].d == d)
       {
-         if (!VerifyFactor(false, thePrime, seqIdx, n))
-            return false;
-         
          if (ip_Sequences[seqIdx].nTerms[NBIT(n)])
          {
             ip_Sequences[seqIdx].nTerms[NBIT(n)] = false;
             il_TermCount--;
 
+            if (!VerifyFactor(false, thePrime, seqIdx, n))
+               return false;
+         
             return true;
          }
       }
@@ -937,7 +937,7 @@ void  SierpinskiRieselApp::MakeSubsequences(bool newSieve)
       ip_AppHelper->MakeSubsequencesForOldSieve(ip_Sequences, il_TermCount);
 }
 
-void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, uint32_t seqIdx, uint32_t n)
+void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, uint32_t seqIdx, uint32_t n, bool verifyFactor)
 {
    uint32_t nbit;
                
@@ -959,7 +959,8 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, uint32_t seqIdx, u
    if (thePrime > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
 
-   VerifyFactor(true, thePrime, seqIdx, n);
+   if (verifyFactor)
+      VerifyFactor(true, thePrime, seqIdx, n);
    
    char buffer[200];
    

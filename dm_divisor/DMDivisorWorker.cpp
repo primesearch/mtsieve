@@ -18,7 +18,7 @@ DMDivisorWorker::DMDivisorWorker(uint32_t myId, App *theApp) : Worker(myId, theA
    
    il_MinK = ip_DMDivisorApp->GetMinK();
    il_MaxK = ip_DMDivisorApp->GetMaxK();
-   ii_Exp = ip_DMDivisorApp->GetN();
+   ii_N = ip_DMDivisorApp->GetN();
    
    // The thread can't start until initialization is done
    ib_Initialized = true;
@@ -52,7 +52,7 @@ void  DMDivisorWorker::TestMegaPrimeChunk(void)
       
       bs[0] = bs[1] = bs[2] = bs[3] = 2;
       
-      fpu_powmod_4b_1n_4p(bs, ii_Exp, ps);
+      fpu_powmod_4b_1n_4p(bs, ii_N, ps);
 
       // Now bs = 2^exp-1 (mod p)
       bs[0]--;
@@ -132,14 +132,16 @@ void    DMDivisorWorker::RemoveTermsSmallPrime(uint64_t prime, uint64_t k)
    if (k > il_MaxK)
       return;
    
+   uint32_t verifiedCount = 0;
+   
    do
 	{
-      if (ip_DMDivisorApp->ReportFactor(prime, k))
-         VerifyFactor(prime, k);
-
+      verifiedCount++;
+      
+      ip_DMDivisorApp->ReportFactor(prime, k, (verifiedCount < 5));
+      
 		k += prime; 
 	} while (k <= il_MaxK);
-   
 }
 
 // Using this bypasses a number of if checks that can be done when prime > il_MaxK.
@@ -149,33 +151,5 @@ void    DMDivisorWorker::RemoveTermsBigPrime(uint64_t prime, uint64_t k)
    if (k < il_MinK)
       return;
    
-   if (ip_DMDivisorApp->ReportFactor(prime, k))
-      VerifyFactor(prime, k);
-}
-
-void  DMDivisorWorker::VerifyFactor(uint64_t prime, uint64_t k)
-{
-   uint64_t rem;
-
-   fpu_push_1divp(prime);
-      
-   rem = fpu_powmod(2, ii_Exp, prime);
-   
-   if (rem == 0)
-      rem = prime - 1;
-   else
-      rem--;
-   
-   rem = fpu_mulmod(rem, k, prime);
-
-   rem <<= 1;
-   rem++;
-   
-   if (rem >= prime)
-      rem -= prime;
-   
-   if (rem != 0)
-      FatalError("2*%" PRIu64"*(2^%" PRIu64"-1)+1 mod %" PRIu64" = %" PRIu64"", k, ii_Exp, prime, rem);
-   
-   fpu_pop();
+   ip_DMDivisorApp->ReportFactor(prime, k, true);
 }

@@ -16,10 +16,11 @@
 #include "../core/Clock.h"
 #include "DMDivisorApp.h"
 #include "DMDivisorWorker.h"
+#include "../x86_asm/fpu-asm-x86.h"
 #include "../x86_asm_ext/asm-ext-x86.h"
 
 #define APP_NAME        "dmdsieve"
-#define APP_VERSION     "1.2"
+#define APP_VERSION     "1.3"
 
 #define BIT(k)          ((k) - il_MinK)
 
@@ -366,6 +367,9 @@ bool DMDivisorApp::ApplyFactor(uint64_t thePrime, const char *term)
    if (k < il_MinK || k > il_MaxK)
       return false;
 
+   if (!VerifyFactor(false, thePrime, k))
+      return false;
+      
    uint64_t bit = k - il_MinK;
    
    // No locking is needed because the Workers aren't running yet
@@ -435,7 +439,7 @@ void  DMDivisorApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
    sprintf(extraTtext, "%" PRIu64 " < k < %" PRIu64", 2*k*(2^%u-1)+1", il_MinK, il_MaxK, ii_N);
 }
 
-bool  DMDivisorApp::ReportFactor(uint64_t p, uint64_t k)
+bool  DMDivisorApp::ReportFactor(uint64_t p, uint64_t k, bool verifyFactor)
 {
    bool     removedTerm = false;
 
@@ -468,6 +472,9 @@ bool  DMDivisorApp::ReportFactor(uint64_t p, uint64_t k)
       
       il_FactorCount++;
       il_TermCount--;
+   
+      if (verifyFactor)
+         VerifyFactor(true, p, k);
    }
 
    if (p > GetMaxPrimeForSingleWorker())
@@ -763,4 +770,42 @@ void  DMDivisorApp::CheckRedc(mp_limb_t *xp, uint32_t xn, uint32_t b, uint64_t k
    mpz_clear(N);
    mpz_clear(E);
    mpz_clear(B);
+}
+
+bool  DMDivisorApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint64_t k)
+{
+   uint64_t rem;
+
+   fpu_push_1divp(thePrime);
+      
+   rem = fpu_powmod(2, ii_N, thePrime);
+   
+   if (rem == 0)
+      rem = thePrime - 1;
+   else
+      rem--;
+   
+   rem = fpu_mulmod(rem, k, thePrime);
+
+   rem <<= 1;
+   rem++;
+   
+   if (rem >= thePrime)
+      rem -= thePrime;
+   
+   fpu_pop();
+   
+   if (rem == 0)
+      return true;
+      
+   char buffer[200];
+   
+   sprintf(buffer, "Invalid factor: 2*%" PRIu64"*(2^%u-1)+1 mod %" PRIu64" = %" PRIu64"", k, ii_N, thePrime, rem);
+   
+   if (badFactorIsFatal)
+      FatalError(buffer);
+   else
+      WriteToConsole(COT_OTHER, buffer);
+   
+   return false;
 }

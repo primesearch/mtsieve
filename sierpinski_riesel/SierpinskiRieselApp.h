@@ -46,7 +46,7 @@ public:
    
    seq_t            *GetSequence(uint64_t k, int64_t c, uint32_t d);
 
-   void              ReportFactor(uint64_t thePrime, uint32_t seqIdx, uint32_t n);
+   void              ReportFactor(uint64_t thePrime, uint32_t seqIdx, uint32_t n, bool verifyFactor);
 
 protected:
    void              PreSieveHook(void) {};

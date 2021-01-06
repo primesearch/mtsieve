@@ -182,3 +182,20 @@ parse_t  Parser::Parse(const char *str, uint64_t lo, uint64_t hi, uint64_t &valu
    value = num;
    return P_SUCCESS;
 }
+
+parse_t  Parser::Parse(const char *str, double lo, double hi, double &value)
+{
+   double num;
+
+   if (*str == '-')
+      return P_OUT_OF_RANGE;
+
+   if (sscanf(str, "%lf", &num) != 1)
+      return P_FAILURE;
+   
+   if (num < lo || num > hi)
+      return P_OUT_OF_RANGE;
+   
+   value = num;
+   return P_SUCCESS;
+}

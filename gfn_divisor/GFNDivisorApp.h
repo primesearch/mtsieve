@@ -35,8 +35,12 @@ public:
    uint32_t          GetMaxN(void) { return ii_MaxN; };
    uint32_t          GetNCount(void) { return (ii_MaxN - ii_MinN + 1); };
 
-   bool              ReportFactor(uint64_t p, uint64_t k, uint32_t n);
-
+   bool              ReportFactor(uint64_t p, uint64_t k, uint32_t n, bool verifyFactor);
+   
+#ifdef HAVE_GPU_WORKERS
+   uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
+#endif
+   
 protected:
    void              PreSieveHook(void);
    bool              PostSieveHook(void);
@@ -55,6 +59,7 @@ private:
    void              TestRemainingTerms(void);
    bool              IsFermatDivisor(uint64_t k, uint32_t n);
    void              CheckRedc(mp_limb_t *xp, uint32_t xn, uint32_t b, uint32_t m, uint64_t k, uint32_t n);
+   bool              VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint64_t k, uint32_t n);
    
    vector<vector<bool>>  iv_Terms;
    string            is_OutputTermsFilePrefix;
@@ -81,6 +86,11 @@ private:
    uint64_t          il_TotalTerms;
    uint64_t          il_TotalTermsEvaluated;
    uint64_t          il_TotalTermsInChunk;
+
+#ifdef HAVE_GPU_WORKERS
+   uint32_t          ii_GpuFactorDensity;
+   uint32_t          ii_MaxGpuFactors;
+#endif
 };
 
 #endif

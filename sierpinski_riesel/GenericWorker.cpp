@@ -233,6 +233,7 @@ void  GenericWorker::DiscreteLogSmallPrimes(uint32_t *b, uint64_t *p)
    uint32_t orderOfB[4];
    uint32_t solutionCount;
    uint32_t firstSolution;
+   uint32_t verifiedFactors;
    
    MpArithVec mp(p);
    MpResVec mb = mp.toMp(b);
@@ -259,9 +260,15 @@ void  GenericWorker::DiscreteLogSmallPrimes(uint32_t *b, uint64_t *p)
          {
             j = ip_HashTable[pIdx]->Lookup(mBDCK[ssIdx][pIdx]);
 
+            verifiedFactors = 0;
+            
             while (j < ii_SieveRange)
             {
-               ip_SierpinskiRieselApp->ReportFactor(p[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, 0, j));
+               verifiedFactors++;
+               
+               // If the first few are valid, then assume that the rest are valid.  This will
+               // speed up testing of small primes.
+               ip_SierpinskiRieselApp->ReportFactor(p[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, 0, j), (verifiedFactors < 5));
                
                j += orderOfB[pIdx];
             }
@@ -326,9 +333,15 @@ void  GenericWorker::DiscreteLogSmallPrimes(uint32_t *b, uint64_t *p)
          {
             j = ssHash[ssIdx];
 
+            verifiedFactors = 0;
+            
             while (j < ii_SieveRange)
             {
-               ip_SierpinskiRieselApp->ReportFactor(p[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, 0, j));
+               verifiedFactors++;
+               
+               // If the first few are valid, then assume that the rest are valid.  This will
+               // speed up testing of small primes.
+               ip_SierpinskiRieselApp->ReportFactor(p[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, 0, j), (verifiedFactors < 5));
                
                j += orderOfB[pIdx];
             }
@@ -345,9 +358,16 @@ void  GenericWorker::DiscreteLogSmallPrimes(uint32_t *b, uint64_t *p)
          {
             uint32_t nTerm = N_TERM(ssIdx, 0, j);
             
+            verifiedFactors = 0;
+            
             while (nTerm < ii_MaxN)
             {
-               ip_SierpinskiRieselApp->ReportFactor(p[pIdx], SEQ_IDX(ssIdx), nTerm);
+               verifiedFactors++;
+               
+               // If the first few are valid, then assume that the rest are valid.  This will
+               // speed up testing of small primes.
+               ip_SierpinskiRieselApp->ReportFactor(p[pIdx], SEQ_IDX(ssIdx), nTerm, (verifiedFactors < 5));
+               
                nTerm += (p[pIdx] - 1);
             }
          }
@@ -378,7 +398,7 @@ void  GenericWorker::DiscreteLogLargePrimes(uint32_t *b, uint64_t *p)
             
             while (j < ii_SieveRange)
             {
-               ip_SierpinskiRieselApp->ReportFactor(p[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, 0, j));
+               ip_SierpinskiRieselApp->ReportFactor(p[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, 0, j), true);
                
                j += orderOfB[pIdx];
             }
@@ -393,7 +413,7 @@ void  GenericWorker::DiscreteLogLargePrimes(uint32_t *b, uint64_t *p)
          j = ip_HashTable[pIdx]->Lookup(mBDCK[ssIdx][pIdx]);
          
          if (j != HASH_NOT_FOUND)
-            ip_SierpinskiRieselApp->ReportFactor(p[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, 0, j));
+            ip_SierpinskiRieselApp->ReportFactor(p[pIdx], SEQ_IDX(ssIdx), N_TERM(ssIdx, 0, j), true);
       }
    }
    
@@ -412,22 +432,22 @@ void  GenericWorker::DiscreteLogLargePrimes(uint32_t *b, uint64_t *p)
          j = ip_HashTable[0]->Lookup(mBDCK[ssIdx][0]);
 
          if (j != HASH_NOT_FOUND)
-            ip_SierpinskiRieselApp->ReportFactor(p[0], SEQ_IDX(ssIdx), N_TERM(ssIdx, i, j));
+            ip_SierpinskiRieselApp->ReportFactor(p[0], SEQ_IDX(ssIdx), N_TERM(ssIdx, i, j), true);
 
          j = ip_HashTable[1]->Lookup(mBDCK[ssIdx][1]);
 
          if (j != HASH_NOT_FOUND)
-            ip_SierpinskiRieselApp->ReportFactor(p[1], SEQ_IDX(ssIdx), N_TERM(ssIdx, i, j));
+            ip_SierpinskiRieselApp->ReportFactor(p[1], SEQ_IDX(ssIdx), N_TERM(ssIdx, i, j), true);
 
          j = ip_HashTable[2]->Lookup(mBDCK[ssIdx][2]);
 
          if (j != HASH_NOT_FOUND)
-            ip_SierpinskiRieselApp->ReportFactor(p[2], SEQ_IDX(ssIdx), N_TERM(ssIdx, i, j));
+            ip_SierpinskiRieselApp->ReportFactor(p[2], SEQ_IDX(ssIdx), N_TERM(ssIdx, i, j), true);
 
          j = ip_HashTable[3]->Lookup(mBDCK[ssIdx][3]);
 
          if (j != HASH_NOT_FOUND)
-            ip_SierpinskiRieselApp->ReportFactor(p[3], SEQ_IDX(ssIdx), N_TERM(ssIdx, i, j));
+            ip_SierpinskiRieselApp->ReportFactor(p[3], SEQ_IDX(ssIdx), N_TERM(ssIdx, i, j), true);
       }
    }
 }

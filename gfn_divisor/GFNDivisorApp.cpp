@@ -15,6 +15,7 @@
 #include "../core/Clock.h"
 #include "GFNDivisorApp.h"
 #include "GFNDivisorWorker.h"
+#include "../x86_asm/fpu-asm-x86.h"
 #include "../x86_asm_ext/asm-ext-x86.h"
 
 #ifdef HAVE_GPU_WORKERS
@@ -25,7 +26,7 @@
 #define NMAX_MAX (1 << 31)
 
 #define APP_NAME        "gfndsieve"
-#define APP_VERSION     "1.8"
+#define APP_VERSION     "1.9"
 
 #define BIT(k)          (((k) - il_MinK) >> 1)
 
@@ -78,19 +79,27 @@ GFNDivisorApp::GFNDivisorApp(void) : FactorApp()
    il_TotalTermsEvaluated = 0;
 
    SetAppMinPrime(3);
+   
+#ifdef HAVE_GPU_WORKERS
+   ii_GpuFactorDensity = 100;
+#endif
 }
 
 void GFNDivisorApp::Help(void)
 {
    FactorApp::ParentHelp();
 
-   printf("-k --kmin=k           minimum k to search\n");
-   printf("-K --kmax=K           maximum k to search\n");
-   printf("-n --nmin=N           minimum n to search\n");
-   printf("-N --nmax=N           maximum n to search\n");
-   printf("-T --nsperfile=T      number of n per output file\n");
-   printf("-x --testterms        test remaining terms for GFN divisibility\n");
-   printf("-X --termsperchunk=X  when using -x, number of terms to sieve at a time (default 1e10)\n");
+   printf("-k --kmin=k               minimum k to search\n");
+   printf("-K --kmax=K               maximum k to search\n");
+   printf("-n --nmin=N               minimum n to search\n");
+   printf("-N --nmax=N               maximum n to search\n");
+   printf("-T --nsperfile=T          number of n per output file\n");
+   printf("-x --testterms            test remaining terms for GFN divisibility\n");
+   printf("-X --termsperchunk=X      when using -x, number of terms to sieve at a time (default 1e10)\n");
+   
+#ifdef HAVE_GPU_WORKERS
+   printf("-M --maxfactordensity=M   factors per 1e6 terms per GPU worker chunk (default %u)\n", ii_GpuFactorDensity);
+#endif
 }
 
 void  GFNDivisorApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
@@ -106,6 +115,12 @@ void  GFNDivisorApp::AddCommandLineOptions(string &shortOpts, struct option *lon
    AppendLongOpt(longOpts, "nsperfile",         required_argument, 0, 'T');
    AppendLongOpt(longOpts, "testterms",         no_argument,       0, 'x');
    AppendLongOpt(longOpts, "termsperchunk",     required_argument, 0, 'X');
+   
+#ifdef HAVE_GPU_WORKERS
+   shortOpts += "M:";
+   
+   AppendLongOpt(longOpts, "maxfactordensity",  required_argument, 0, 'M');
+#endif
 }
 
 parse_t GFNDivisorApp::ParseOption(int opt, char *arg, const char *source)
@@ -145,6 +160,12 @@ parse_t GFNDivisorApp::ParseOption(int opt, char *arg, const char *source)
       case 'X':
          status = Parser::Parse(arg, 1000000000, KMAX_MAX, il_KPerChunk);
          break;
+
+#ifdef HAVE_GPU_WORKERS
+      case 'M':
+         status = Parser::Parse(arg, 10, 10000000, ii_GpuFactorDensity);
+         break;
+#endif
    }
 
    return status;
@@ -268,7 +289,14 @@ void GFNDivisorApp::ValidateOptions(void)
    // will be removed due to small primes.
    SetMaxPrimeForSingleWorker(10000);
    
-   SetMinGpuPrime(il_MaxK+1);
+   // We want each p to divide a maximum of one k per n because the GPU kernel won't support more.
+   SetMinGpuPrime((il_MaxK-il_MinK) >> 1);
+   
+#ifdef HAVE_GPU_WORKERS
+   double factors = (double) (ii_MaxN - ii_MinN) * (double) (il_MaxK - il_MinK) / 1000000.0;
+
+   ii_MaxGpuFactors = GetGpuWorkGroups() * (uint64_t) (factors * (double) ii_GpuFactorDensity);
+#endif
 }
 
 void  GFNDivisorApp::PreSieveHook(void)
@@ -556,6 +584,9 @@ bool  GFNDivisorApp::ApplyFactor(uint64_t thePrime, const char *term)
    if (k < il_MinK || k > il_MaxK)
       return false;
 
+   if (!VerifyFactor(false, thePrime, k, n))
+      return false;
+      
    uint64_t bit = BIT(k);
    
    // No locking is needed because the Workers aren't running yet
@@ -682,7 +713,7 @@ void  GFNDivisorApp::GetExtraTextForSieveStartedMessage(char *extraText)
    sprintf(extraText, "%s <= k <= %s, %d <= n <= %d, k*2^n+1", minK, maxK, ii_MinN, ii_MaxN);
 }
 
-bool  GFNDivisorApp::ReportFactor(uint64_t p, uint64_t k, uint32_t n)
+bool  GFNDivisorApp::ReportFactor(uint64_t p, uint64_t k, uint32_t n, bool verifyFactor)
 {
    if (k < il_MinK || k > il_MaxK)
       return false;
@@ -717,6 +748,9 @@ bool  GFNDivisorApp::ReportFactor(uint64_t p, uint64_t k, uint32_t n)
 
       LogFactor(p, "%" PRIu64"*2^%u+1", k, n);
       removedTerm = true;
+
+      if (verifyFactor)
+         VerifyFactor(true, p, k, n);
    }
    
    if (p > GetMaxPrimeForSingleWorker())
@@ -1415,5 +1449,32 @@ void  GFNDivisorApp::CheckRedc(mp_limb_t *xp, uint32_t xn, uint32_t b, uint32_t 
    mpz_clear(N);
    mpz_clear(E);
    mpz_clear(B);
+}
+
+bool  GFNDivisorApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint64_t k, uint32_t n)
+{
+   uint64_t rem;
+
+   fpu_push_1divp(thePrime);
+   
+   rem = fpu_powmod(2, n, thePrime);
+
+   rem = fpu_mulmod(rem, k, thePrime);
+   
+   fpu_pop();
+   
+   if (rem == thePrime - 1)
+      return true;
+      
+   char buffer[200];
+   
+   sprintf(buffer, "Invalid factor: %" PRIu64"*2^%u+1 mod %" PRIu64" = %" PRIu64"", k, n, thePrime, rem+1);
+   
+   if (badFactorIsFatal)
+      FatalError(buffer);
+   else
+      WriteToConsole(COT_OTHER, buffer);
+   
+   return false;
 }
 

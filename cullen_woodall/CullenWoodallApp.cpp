@@ -630,6 +630,8 @@ bool CullenWoodallApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
       il_FactorCount++;
       removedTerm = true;
       LogFactor(p, "%u*%u^%u+1", n, ii_Base, n);
+
+      VerifyFactor(true, p, n, c);
    }
    
    if (ib_Woodall && c == -1 && iv_WoodallTerms[bit])
@@ -639,11 +641,11 @@ bool CullenWoodallApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
       il_FactorCount++;
       removedTerm = true;
       LogFactor(p, "%u*%u^%u-1", n, ii_Base, n);
+
+      VerifyFactor(true, p, n, c);
    }
    
    ip_FactorAppLock->Release();
-
-   VerifyFactor(true, p, n, c);
    
    return removedTerm;
 }

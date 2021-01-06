@@ -1,3 +1,37 @@
+The relative speed differnce between CPU and GPU is for an i7-8850H and NVIDIA Quadro P3200.
+
+2.1.3 - January 6, 2021
+   framework:
+      Improve determination of "largest prime" tested for per minute stats by ignoring
+      workers that haven't done any work.
+      
+   dmdsieve:  version 1.3
+      Added working factor validation logic with -I.
+      Modify factor validation logic to only verify the first 5 factors for each small
+      prime.  If there is a problem it will reveal itself immediately.  This improves 
+      the speed when starting a new sieve.
+      
+   gnfdsieve, gfndsievecl:  version 1.9
+      Added working factor validation logic with -I.
+      Modify factor validation logic to only verify the first 5 factors for each small
+      prime.  If there is a problem it will reveal itself immediately.  This improves 
+      the speed when starting a new sieve.
+      Allow the GPU to start sieving at (kMax-kMin)/2 instead of kMax.
+      Switched to Montgomery mulitplication in the GPU.
+      Changed GPU code to handle "too many factors" similar to other GPU sievers in the
+      framework as opposed to crashing if not enough GPU memory.
+      GPU code is about 9x faster than CPU code, but GPU code is only of value if one
+      needs to sieve more deeply than (kMax-kMin)/2, which is somwhere over n=1000.
+      
+   mfsieve:  version 1.9
+      Used vectorized Montgomery logic to get a 1% to 5% speed boost.
+      
+   srsieve2:  version 1.3.1
+      Modify factor validation logic to only verify the first 5 factors for each small
+      prime.  If there is a problem it will reveal itself immediately.  This improves 
+      the speed when starting a new sieve.
+      
+
 2.1.2 - December 30, 2020
    framework:
       Retain factor counts when workers are rebuilt.

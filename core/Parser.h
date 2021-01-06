@@ -27,6 +27,7 @@ public:
    static parse_t  Parse(const char *str, uint32_t lo, uint32_t hi, uint32_t &value);
    static parse_t  Parse(const char *str,  int64_t lo,  int64_t hi,  int64_t &value);
    static parse_t  Parse(const char *str, uint64_t lo, uint64_t hi, uint64_t &value);
+   static parse_t  Parse(const char *str,   double lo,   double hi,   double &value);
 };
 
 #endif

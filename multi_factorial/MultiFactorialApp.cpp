@@ -18,7 +18,7 @@
 #include "../core/Parser.h"
 
 #define APP_NAME        "mfsieve"
-#define APP_VERSION     "1.8"
+#define APP_VERSION     "1.9"
 
 #define BIT(n)          ((n) - ii_MinN)
 

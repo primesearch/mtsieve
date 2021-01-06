@@ -30,23 +30,22 @@ public:
 protected:
 
 private:
-   void              VerifyFactor(uint64_t k, uint32_t n, uint64_t prime);
-
    GFNDivisorApp    *ip_GFNDivisorApp;
-   
-   uint64_t         *il_KList;
-   
+      
    Kernel           *ip_GFNDivisorKernel;
    
    KernelArgument   *ip_KAPrime;
-   KernelArgument   *ip_KAKList;
+   KernelArgument   *ip_KAFactorCount;
+   KernelArgument   *ip_KAFactorList;
    
-   uint64_t          il_KCount;
-   uint32_t          ii_NCount;
    uint64_t          il_MinK;
    uint64_t          il_MaxK;
    uint32_t          ii_MinN;
    uint32_t          ii_MaxN;
+   uint32_t          ii_MaxGpuFactors;
+   uint32_t          ii_FactorCount;
+   
+   uint64_t         *il_FactorList;
 };
 
 #endif

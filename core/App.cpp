@@ -789,31 +789,60 @@ void  App::GetWorkerStats(uint64_t &workerCpuUS, uint64_t &largestPrimeTestedNoG
    for (uint32_t ii=0; ii<=ii_TotalWorkerCount; ii++)
    {
       // ip_Worker[0] is the special CPU worker (if we need one)
-      if (ii == 0 && ip_Workers[0] == NULL)
+      if (ii == 0)
          continue;
 
       ip_Workers[ii]->LockStats();
 
       workerLargestPrimeTested = ip_Workers[ii]->GetLargestPrimeTested();
-      
-      // If there are multiple workers, this will be the largest prime tested
-      // where we know that all primes less than this prime have been tested.
-      if (workerLargestPrimeTested < largestPrimeTestedNoGaps)
-         largestPrimeTestedNoGaps = workerLargestPrimeTested;
-      
-      if (workerLargestPrimeTested > largestPrimeTested)
-         largestPrimeTested = workerLargestPrimeTested;
+
+      // Ignore worker if it hasn't done any work.
+      if (workerLargestPrimeTested > 0)
+      {
+         // If this worker is waiting for work, then aasume that at least one worker
+         // will be working on the next chunk, so use its stats instead.
+         if (!ip_Workers[ii]->IsWaitingForWork(false))
+         {
+            // If there are multiple workers, this will be the largest prime tested
+            // where we know that all primes less than this prime have been tested.
+            if (workerLargestPrimeTested < largestPrimeTestedNoGaps)
+               largestPrimeTestedNoGaps = workerLargestPrimeTested;
+         }
+         
+         if (workerLargestPrimeTested > largestPrimeTested)
+            largestPrimeTested = workerLargestPrimeTested;
+      }
       
       primesTested += ip_Workers[ii]->GetPrimesTested();
       workerCpuUS += ip_Workers[ii]->GetWorkerCpuUS();
 
       ip_Workers[ii]->ReleaseStats();
    }
+      
+   if (ip_Workers[0] != NULL)
+   {
+      ip_Workers[0]->LockStats();
+
+      if (largestPrimeTested == 0)
+      {
+         largestPrimeTestedNoGaps = ip_Workers[0]->GetLargestPrimeTested();
+         largestPrimeTested = ip_Workers[0]->GetLargestPrimeTested();
+      }
+      
+      primesTested += ip_Workers[0]->GetPrimesTested();
+      workerCpuUS += ip_Workers[0]->GetWorkerCpuUS();
+
+      ip_Workers[0]->ReleaseStats();
+   }
+   
+   if (largestPrimeTestedNoGaps == PMAX_MAX_62BIT)
+      largestPrimeTestedNoGaps = largestPrimeTested;
 }
 
 uint64_t  App::GetLargestPrimeTested(bool finishedNormally)
 {
    uint64_t largestPrimeTested = (finishedNormally ? 0 : il_AppMaxPrime);
+   uint64_t workerLargestPrimeTested;
    
    if (!ib_HaveCreatedWorkers)
       return il_MinPrime;
@@ -821,27 +850,44 @@ uint64_t  App::GetLargestPrimeTested(bool finishedNormally)
    for (uint32_t ii=0; ii<=ii_TotalWorkerCount; ii++)
    {
       // ip_Worker[0] is the special CPU worker (if we need one)
-      if (ii == 0 && ip_Workers[0] == NULL)
+      if (ii == 0)
          continue;
 
       ip_Workers[ii]->LockStats();
       
-      // If the program finished normally, then the largest prime tested across all
-      // workers tells us that all primes below that value have been tested.  If not,
-      // then there might be gaps, so get the smallest prime from the workers that
-      // has been tested.
-      if (finishedNormally)
+      workerLargestPrimeTested = ip_Workers[ii]->GetLargestPrimeTested();
+      
+      // Ignore worker if it didn't do any work.
+      if (workerLargestPrimeTested > 0)
       {
-         if (ip_Workers[ii]->GetLargestPrimeTested() > largestPrimeTested)
-            largestPrimeTested = ip_Workers[ii]->GetLargestPrimeTested();
-      }
-      else
-      {
-         if (ip_Workers[ii]->GetLargestPrimeTested() < largestPrimeTested)
-            largestPrimeTested = ip_Workers[ii]->GetLargestPrimeTested();
+         // If the program finished normally, then the largest prime tested across all
+         // workers tells us that all primes below that value have been tested.  If not,
+         // then there might be gaps, so get the smallest prime from the workers that
+         // has been tested.
+         if (finishedNormally)
+         {
+            if (workerLargestPrimeTested > largestPrimeTested)
+               largestPrimeTested = workerLargestPrimeTested;
+         }
+         else
+         {
+            if (workerLargestPrimeTested < largestPrimeTested)
+               largestPrimeTested = workerLargestPrimeTested;
+         }
       }
       
       ip_Workers[ii]->ReleaseStats();
+   }
+   
+      
+   // If only the special worker has done work, then we will get the larger prime from it.
+   if (largestPrimeTested == 0 && ip_Workers[0] != NULL)
+   {
+      ip_Workers[0]->LockStats();
+
+      largestPrimeTested = ip_Workers[0]->GetLargestPrimeTested();
+      
+      ip_Workers[0]->ReleaseStats();
    }
    
    return largestPrimeTested;

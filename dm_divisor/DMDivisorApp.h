@@ -35,7 +35,7 @@ public:
    uint64_t          GetMaxK(void) { return il_MaxK; };
    uint32_t          GetN(void) { return ii_N; };
    
-   bool              ReportFactor(uint64_t p, uint64_t k);
+   bool              ReportFactor(uint64_t p, uint64_t k, bool verifyFactor);
 
 protected:
    void              PreSieveHook(void);
@@ -53,6 +53,7 @@ private:
    void              TestRemainingTerms(void);
    bool              IsDoubleMersenneDivisor(uint64_t k);
    void              CheckRedc(mp_limb_t *xp, uint32_t xn, uint32_t b, uint64_t k);
+   bool              VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint64_t k);
    
    vector<bool>      iv_MMPTerms;
    

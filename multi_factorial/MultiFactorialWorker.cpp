@@ -10,7 +10,6 @@
 #include "MultiFactorialWorker.h"
 #include "../x86_asm/fpu-asm-x86.h"
 #include "../x86_asm/avx-asm-x86.h"
-#include "../core/mmmInline.h"
 #include "../core/MpArithVector.h"
 
 extern "C" int mfsieve(uint32_t start, uint32_t mf, uint32_t minmax, uint64_t *P);
@@ -63,14 +62,14 @@ void  MultiFactorialWorker::TestFactorial(void)
 
       MpArithVec mp(ps);
 
-      const MpResVec one = mp.one();
-      const MpResVec minus_one = mp.sub(mp.zero(), one);
-      const MpResVec two = mp.add(one, one);
+      const MpResVec pOne = mp.one();
+      const MpResVec mOne = mp.sub(mp.zero(), pOne);
+      const MpResVec two = mp.add(pOne, pOne);
       const MpResVec four = mp.add(two, two);
       const MpResVec eight = mp.add(four, four);
 
       // ri = residue of i, rf = residue of i!
-      MpResVec ri = one, rf = one;
+      MpResVec ri = pOne, rf = pOne;
       // residue of i * (i + 1), the step is (i + 2) * (i + 3) - i * (i + 1) = 4 * i + 6
       MpResVec r_ixip1 = mp.zero(), r_step = mp.add(four, two);
 
@@ -86,24 +85,24 @@ void  MultiFactorialWorker::TestFactorial(void)
       ri = mp.toMp(n_pair - 1);
       for (n = n_pair; n < ii_MinN; ++n)
       {
-         ri = mp.add(ri, one);
+         ri = mp.add(ri, pOne);
          rf = mp.mul(rf, ri);
       }
 
       // Factorial and check if i! = +/-1
       for (; n <= ii_MaxN; ++n)
       {
-         ri = mp.add(ri, one);
+         ri = mp.add(ri, pOne);
          rf = mp.mul(rf, ri);
 
-         if (MpArithVec::at_least_one_is_equal(rf, one) | MpArithVec::at_least_one_is_equal(rf, minus_one))
+         if (MpArithVec::at_least_one_is_equal(rf, pOne) | MpArithVec::at_least_one_is_equal(rf, mOne))
          {
             for (size_t k = 0; k < VECTOR_SIZE; ++k)
             {
-               if (rf[k] == one[k])
+               if (rf[k] == pOne[k])
                   ip_MultiFactorialApp->ReportFactor(ps[k], n, -1);
                   
-               if (rf[k] == minus_one[k]) 
+               if (rf[k] == mOne[k]) 
                   ip_MultiFactorialApp->ReportFactor(ps[k], n, +1);
             }
          }
@@ -118,13 +117,9 @@ void  MultiFactorialWorker::TestFactorial(void)
 
 void  MultiFactorialWorker::TestMultiFactorial(void)
 {
-   uint64_t  ps[4], qs[4], mfrs[4];
-   uint64_t  mOne[4], pOne[4];
-   uint64_t  ri[4], rf[4];
-   uint64_t  maxPrime = ip_App->GetMaxPrime();
+   uint64_t  ps[4], maxPrime = ip_App->GetMaxPrime();
    uint32_t  maxNFirstLoop = ii_MinN - ii_MultiFactorial;
    uint32_t  n, startN;
-   uint64_t  res2exp64[4];
    
    vector<uint64_t>::iterator it = iv_Primes.begin();
       
@@ -142,31 +137,23 @@ void  MultiFactorialWorker::TestMultiFactorial(void)
       ps[3] = *it;
       it++;
 
-      for (uint32_t idx=0; idx<4; idx++)
-      {
-         pOne[idx] = mmmOne(ps[idx]);
-         mOne[idx] = mmmSub(0, pOne[idx], ps[idx]);
-         qs[idx] = mmmInvert(ps[idx]);
-         res2exp64[idx] = mmm2exp64(ps[idx], qs[idx], pOne[idx]);
-         mfrs[idx] = mmmN(ii_MultiFactorial, ps[idx], qs[idx], res2exp64[idx]);
-      }
-      
+
+      MpArithVec mp(ps);
+
+      const MpResVec pOne = mp.one();
+      const MpResVec mOne = mp.sub(mp.zero(), pOne);
+      const MpResVec resMf = mp.toMp(ii_MultiFactorial);
+
       for (startN=1; startN<=ii_MultiFactorial; startN++)
       {
          // If startN is odd and mf is even, then i!mf is always odd, thus
          // startN!mf+1 and startN!mf-1 are always even.
          if (!(ii_MultiFactorial & 1) && (startN & 1))
             continue;
-            
-         for (uint32_t idx=0; idx<4; idx++)
-         {
-            if (startN > ps[idx])
-               ri[idx] = mmmN(startN%ps[idx], ps[idx], qs[idx], res2exp64[idx]);
-            else
-               ri[idx] = mmmN(startN, ps[idx], qs[idx], res2exp64[idx]);
-            rf[idx] = ri[idx];
-         }
- 
+
+         MpResVec ri = mp.toMp(startN);
+         MpResVec rf = ri;
+         
          // At this time we have:
          //    ri = residual of startN (mod p)
          //    rf = residual of startN!mf (mod p)
@@ -174,22 +161,8 @@ void  MultiFactorialWorker::TestMultiFactorial(void)
          n = startN + ii_MultiFactorial;
          for (; n<maxNFirstLoop; n+=ii_MultiFactorial)
          {
-            ri[0] = mmmAdd(ri[0], mfrs[0], ps[0]);
-            rf[0] = mmmMulmod(rf[0], ri[0], ps[0], qs[0]);
-            
-            ri[1] = mmmAdd(ri[1], mfrs[1], ps[1]);
-            rf[1] = mmmMulmod(rf[1], ri[1], ps[1], qs[1]);
-            
-            ri[2] = mmmAdd(ri[2], mfrs[2], ps[2]);
-            rf[2] = mmmMulmod(rf[2], ri[2], ps[2], qs[2]);
-            
-            ri[3] = mmmAdd(ri[3], mfrs[3], ps[3]);
-            rf[3] = mmmMulmod(rf[3], ri[3], ps[3], qs[3]);
-
-            //if (ps[0] == 110125033) printf("n=%u %llu %llu\n", n, ri[0], rf[0]);
-            //if (ps[1] == 110125033) printf("n=%u %llu %llu\n", n, ri[1], rf[1]);
-            //if (ps[2] == 110125033) printf("n=%u %llu %llu\n", n, ri[2], rf[2]);
-            //if (ps[3] == 110125033) printf("n=%u %llu %llu\n", n, ri[3], rf[3]);
+            ri = mp.add(ri, resMf);
+            rf = mp.mul(rf, ri);
          }
          
          // At this time we have:
@@ -198,30 +171,19 @@ void  MultiFactorialWorker::TestMultiFactorial(void)
          // where mn is the max n < ii_MinN for this starting n
          for (; n <=ii_MaxN; n+=ii_MultiFactorial)
          {
-            ri[0] = mmmAdd(ri[0], mfrs[0], ps[0]);
-            rf[0] = mmmMulmod(rf[0], ri[0], ps[0], qs[0]);
-            
-            ri[1] = mmmAdd(ri[1], mfrs[1], ps[1]);
-            rf[1] = mmmMulmod(rf[1], ri[1], ps[1], qs[1]);
-            
-            ri[2] = mmmAdd(ri[2], mfrs[2], ps[2]);
-            rf[2] = mmmMulmod(rf[2], ri[2], ps[2], qs[2]);
-            
-            ri[3] = mmmAdd(ri[3], mfrs[3], ps[3]);
-            rf[3] = mmmMulmod(rf[3], ri[3], ps[3], qs[3]);
-            
-            //if (ps[0] == 110125033) printf("n=%u %llu %llu\n", n, ri[0], rf[0]);
-            //if (ps[1] == 110125033) printf("n=%u %llu %llu\n", n, ri[1], rf[1]);
-            //if (ps[2] == 110125033) printf("n=%u %llu %llu\n", n, ri[2], rf[2]);
-            //if (ps[3] == 110125033) printf("n=%u %llu %llu\n", n, ri[3], rf[3]);
-            
-            for (uint32_t idx=0; idx<4; idx++)
+            ri = mp.add(ri, resMf);
+            rf = mp.mul(rf, ri);
+
+            if (MpArithVec::at_least_one_is_equal(rf, pOne) | MpArithVec::at_least_one_is_equal(rf, mOne))
             {
-               if (rf[idx] == pOne[idx])
-                  ip_MultiFactorialApp->ReportFactor(ps[idx], n, -1);
-                  
-               if (rf[idx] == mOne[idx])
-                  ip_MultiFactorialApp->ReportFactor(ps[idx], n, +1);
+               for (size_t k = 0; k < VECTOR_SIZE; ++k)
+               {
+                  if (rf[k] == pOne[k])
+                     ip_MultiFactorialApp->ReportFactor(ps[k], n, -1);
+                     
+                  if (rf[k] == mOne[k]) 
+                     ip_MultiFactorialApp->ReportFactor(ps[k], n, +1);
+               }
             }
          }
       }

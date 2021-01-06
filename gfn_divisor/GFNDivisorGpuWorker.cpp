@@ -7,10 +7,7 @@
 */
 
 #include <cinttypes>
-
-#include <cinttypes>
 #include "GFNDivisorGpuWorker.h"
-#include "../x86_asm/fpu-asm-x86.h"
 #include "gfn_kernel.h"
 
 GFNDivisorGpuWorker::GFNDivisorGpuWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
@@ -25,21 +22,20 @@ GFNDivisorGpuWorker::GFNDivisorGpuWorker(uint32_t myId, App *theApp) : Worker(my
    ip_GFNDivisorApp = (GFNDivisorApp *) theApp;
    
    ib_GpuWorker = true;
-   
-   il_KCount = ip_GFNDivisorApp->GetKCount();
-   ii_NCount = ip_GFNDivisorApp->GetNCount();
-   
+      
    il_MinK = ip_GFNDivisorApp->GetMinK();
    il_MaxK = ip_GFNDivisorApp->GetMaxK();
    
    ii_MinN = ip_GFNDivisorApp->GetMinN();
    ii_MaxN = ip_GFNDivisorApp->GetMaxN();
+      
+   ii_MaxGpuFactors = ip_GFNDivisorApp->GetMaxGpuFactors();
    
    sprintf(define1, "#define N_MIN %u\n", ii_MinN);
    sprintf(define2, "#define N_MAX %u\n", ii_MaxN);
-   sprintf(define3, "#define N_COUNT %u\n", ii_NCount);
-   sprintf(define4, "#define K_MIN %" PRIu64"\n", il_MinK);
-   sprintf(define5, "#define K_MAX %" PRIu64"\n", il_MaxK);
+   sprintf(define3, "#define K_MIN %" PRIu64"\n", il_MinK);
+   sprintf(define4, "#define K_MAX %" PRIu64"\n", il_MaxK);
+   sprintf(define5, "#define MAX_FACTORS %d\n", ii_MaxGpuFactors);
    
    source[0] = define1;
    source[1] = define2;
@@ -53,13 +49,15 @@ GFNDivisorGpuWorker::GFNDivisorGpuWorker(uint32_t myId, App *theApp) : Worker(my
 
    AllocatePrimeList(ip_GFNDivisorKernel->GetWorkGroupSize());
 
-   il_KList = (uint64_t *) xmalloc(ii_WorkSize*ii_NCount*sizeof(int64_t));
+   il_FactorList  =  (uint64_t *) xmalloc(4*ii_MaxGpuFactors*sizeof(uint64_t));
 
-   ip_KAPrime     = new KernelArgument(ip_GFNDivisorApp->GetDevice(), "prime", KA_HOST_TO_GPU, il_PrimeList, ii_WorkSize);
-   ip_KAKList     = new KernelArgument(ip_GFNDivisorApp->GetDevice(), "ks", KA_GPU_TO_HOST, il_KList, ii_WorkSize*ip_GFNDivisorApp->GetNCount());
+   ip_KAPrime        = new KernelArgument(ip_GFNDivisorApp->GetDevice(), "prime", KA_HOST_TO_GPU, il_PrimeList, ii_WorkSize);
+   ip_KAFactorCount  = new KernelArgument(ip_GFNDivisorApp->GetDevice(), "factor_count", KA_BIDIRECTIONAL, &ii_FactorCount, 1);
+   ip_KAFactorList   = new KernelArgument(ip_GFNDivisorApp->GetDevice(), "factor_list", KA_GPU_TO_HOST, il_FactorList, 4*ii_MaxGpuFactors);
 
    ip_GFNDivisorKernel->AddArgument(ip_KAPrime);
-   ip_GFNDivisorKernel->AddArgument(ip_KAKList);
+   ip_GFNDivisorKernel->AddArgument(ip_KAFactorCount);
+   ip_GFNDivisorKernel->AddArgument(ip_KAFactorList);
    
    // The thread can't start until initialization is done
    ib_Initialized = true;
@@ -68,35 +66,38 @@ GFNDivisorGpuWorker::GFNDivisorGpuWorker(uint32_t myId, App *theApp) : Worker(my
 void  GFNDivisorGpuWorker::CleanUp(void)
 {  
    delete ip_KAPrime;
-   delete ip_KAKList;
+   delete ip_KAFactorCount;
+   delete ip_KAFactorList;
+   delete ip_GFNDivisorKernel;
 
-   xfree(il_KList);
+   xfree(il_FactorList);
 }
 
 void  GFNDivisorGpuWorker::TestMegaPrimeChunk(void)
 {
-   uint32_t index, pIndex, nIndex;
+   uint32_t idx, n;
+   uint64_t k, prime;
+   
+   ii_FactorCount = 0;
    
    ip_GFNDivisorKernel->Execute(ii_WorkSize);
 
-   for (pIndex=0; pIndex<ii_WorkSize; pIndex++)
-   {
-      index = pIndex * ii_NCount;
+   for (uint32_t ii=0; ii<ii_FactorCount; ii++)
+   {  
+      idx = ii*4;
       
-      for (nIndex=0; nIndex<ii_NCount; nIndex++)
-      {
-         uint64_t k = il_KList[index + nIndex];
-         
-         if (k > 0)
-         {
-            uint32_t n = nIndex + ii_MinN;
-            uint64_t prime = il_PrimeList[pIndex];
-            
-            if (ip_GFNDivisorApp->ReportFactor(prime, k, n))
-               VerifyFactor(k, n, prime);
-         }
-      }
+      k = (uint64_t) il_FactorList[idx+0];
+      n = (uint32_t) il_FactorList[idx+1];
+      prime = il_FactorList[idx+2];
+   
+      ip_GFNDivisorApp->ReportFactor(prime, k, n, true);
+      
+      if (ii_FactorCount >= ii_MaxGpuFactors)
+         break;
    }
+
+   if (ii_FactorCount >= ii_MaxGpuFactors)
+      FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factor density", ii_FactorCount, ii_MaxGpuFactors);
    
    SetLargestPrimeTested(il_PrimeList[ii_WorkSize-1], ii_WorkSize);
 }
@@ -105,20 +106,3 @@ void  GFNDivisorGpuWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 {
    FatalError("GFNDivisorGpuWorker::TestMiniPrimeChunk not implemented");
 }
-
-void  GFNDivisorGpuWorker::VerifyFactor(uint64_t k, uint32_t n, uint64_t prime)
-{
-   uint64_t rem, bPowN;
-
-   fpu_push_1divp(prime);
-
-   bPowN = fpu_powmod(2, n, prime);
-   
-   rem = fpu_mulmod(bPowN, k, prime);
-
-   fpu_pop();
-   
-   if (rem != prime - 1)
-      FatalError("%" PRIu64"*2^%u+1 mod %" PRIu64" = %" PRIu64"", k, n, prime, rem + 1);
-}
-
