@@ -15,11 +15,14 @@
 
 #include "CullenWoodallApp.h"
 #include "CullenWoodallWorker.h"
+
 #ifdef HAVE_GPU_WORKERS
 #include "CullenWoodallGpuWorker.h"
+#define APP_NAME        "gcwsievecl"
+#else
+#define APP_NAME        "gcwsieve"
 #endif
 
-#define APP_NAME        "gcwsieve"
 #define APP_VERSION     "1.4"
 
 #define BIT(n)        ((n) - ii_MinN)

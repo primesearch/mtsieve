@@ -30,6 +30,7 @@ public:
 
    // Add an function argument for this kernel
    void       AddArgument(KernelArgument *theArgument);
+   void       ReplaceArgument(KernelArgument *oldArgument, KernelArgument *newArgument);
 
    // Execute the function (kernel).  If necessary, it will copy host data to the GPU, execute,
    // then copy GPU data back to the host.  The idea is that the function calling this routine

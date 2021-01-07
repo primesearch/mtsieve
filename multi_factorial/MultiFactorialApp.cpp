@@ -11,13 +11,16 @@
 #include <time.h>
 #include "MultiFactorialApp.h"
 #include "MultiFactorialWorker.h"
-#ifdef HAVE_GPU_WORKERS
-#include "MultiFactorialGpuWorker.h"
-#endif
 #include "../x86_asm/fpu-asm-x86.h"
 #include "../core/Parser.h"
 
+#ifdef HAVE_GPU_WORKERS
+#include "MultiFactorialGpuWorker.h"
+#define APP_NAME        "mfsievecl"
+#else
 #define APP_NAME        "mfsieve"
+#endif
+
 #define APP_VERSION     "1.9"
 
 #define BIT(n)          ((n) - ii_MinN)

@@ -20,8 +20,13 @@
 #include "GenericSubsequenceHelper.h"
 #include "CisOneSubsequenceHelper.h"
 
-#define APP_NAME        "srsieve2"
 #define APP_VERSION     "1.3.1"
+
+#ifdef HAVE_GPU_WORKERS
+#define APP_NAME        "srsieve2cl"
+#else
+#define APP_NAME        "srsieve2"
+#endif
 
 #define NBIT(n)         ((n) - ii_MinN)
 #define MBIT(m)         ((m) - ii_MinM)
@@ -45,13 +50,16 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    ii_MaxN = 0;
    it_Format = FF_ABCD;
    ib_HaveNewSequences = false;
-   ib_UseAvx = false;
    
    ip_Sequences = 0;
    ii_SequenceCount = 0;
    ii_SequenceCapacity = 0;
    ib_UseLengendreTables = false;
    is_LegendreFileName = "";
+   
+#ifdef HAVE_GPU_WORKERS
+   ii_GpuFactorDensity = 10;
+#endif
 }
 
 void SierpinskiRieselApp::Help(void)
@@ -64,7 +72,10 @@ void SierpinskiRieselApp::Help(void)
    printf("-f --format=f         Format of output file (A=ABC, D=ABCD (default), B=BOINC, P=ABC with number_primes)\n");
    printf("-l --legendre         Use Legendre tables\n");
    printf("-L --legendrefile=L   Input/output file for Legendre tables (tables kept in memory only if -l used without -L)\n");
-//   printf("-D --disableavx       disableavx\n");
+   
+#ifdef HAVE_GPU_WORKERS
+   printf("-M --maxfactordensity=M   factors per 1e6 terms per GPU worker chunk (default %u)\n", ii_GpuFactorDensity);
+#endif
 }
 
 void  SierpinskiRieselApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
@@ -79,7 +90,12 @@ void  SierpinskiRieselApp::AddCommandLineOptions(string &shortOpts, struct optio
    AppendLongOpt(longOpts, "format",         required_argument, 0, 'f');
    AppendLongOpt(longOpts, "legendre",       no_argument, 0, 'l');
    AppendLongOpt(longOpts, "legendrefile",   required_argument, 0, 'L');
-//   AppendLongOpt(longOpts, "disableavx",     no_argument, 0, 'D');
+   
+#ifdef HAVE_GPU_WORKERS
+   shortOpts += "M:";
+   
+   AppendLongOpt(longOpts, "maxfactordensity",  required_argument, 0, 'M');
+#endif
 }
 
 parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
@@ -132,10 +148,11 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
          status = P_SUCCESS;
          break;
 
-      case 'D':
-         ib_UseAvx = false;
-         status = P_SUCCESS;
-         break;         
+#ifdef HAVE_GPU_WORKERS
+      case 'M':
+         status = Parser::Parse(arg, 10, 10000000, ii_GpuFactorDensity);
+         break;
+#endif
    }
 
    return status;
@@ -237,6 +254,14 @@ void SierpinskiRieselApp::ValidateOptions(void)
    // This will sieve beyond the limit, but we want to make sure that at least one prime
    // larger than this limit is passed to the worker even if the worker does not test it.
    SetMaxPrimeForSingleWorker(il_SmallPrimeSieveLimit + 1000);
+
+#ifdef HAVE_GPU_WORKERS
+   SetMinGpuPrime(1000000);
+   
+   double factors = (double) (ii_MaxN - ii_MinN) * (double) (ii_SequenceCount) / 1000000.0;
+
+   ii_MaxGpuFactors = GetGpuWorkGroups() * (uint64_t) (factors * (double) ii_GpuFactorDensity);
+#endif
 }
 
 bool  SierpinskiRieselApp::LoadSequencesFromFile(char *fileName)
@@ -579,6 +604,11 @@ void SierpinskiRieselApp::WriteOutputTermsFile(uint64_t largestPrime)
    uint32_t nCount = 0;
    uint32_t seqIdx;
    bool     allSequencesHaveDEqual1 = true;
+   
+   // With super large ranges, wait until we can lock because without locking
+   // the term count can change between opening and closing the file.
+   if (IsRunning() && largestPrime < GetMaxPrimeForSingleWorker())
+      return;
    
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
 
@@ -976,7 +1006,6 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, uint32_t seqIdx, u
    }
    else
       LogFactor(thePrime, buffer);
-
 }
 
 bool  SierpinskiRieselApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint32_t seqIdx, uint32_t n)

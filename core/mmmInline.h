@@ -159,6 +159,18 @@ inline uint64_t   mmmN(uint64_t n, uint64_t p, uint64_t q, uint64_t res2exp64)
    return mmmMulmod(n, res2exp64, p, q);
 }
 
+// Compute the residual of 2^64 (mod p)
+inline uint64_t mmmR2(uint64_t _p, uint64_t _q, uint64_t _one)
+{
+	uint64_t t = mmmAdd(_one, _one, _p);
+   
+   t = mmmAdd(t, t, _p);   // 4
+	for (size_t i=0; i<5; i++)
+      t = mmmMulmod(t, t, _p, _q);   // 4^{2^5} = 2^64
+      
+	return t;
+}
+
 // Convert the residual back to an remainer
 inline uint64_t   mmmToN(uint64_t res, uint64_t p, uint64_t q)
 {

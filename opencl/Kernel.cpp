@@ -131,6 +131,17 @@ void Kernel::AddArgument(KernelArgument *kernelArgument)
    ip_Arguments[ii_ArgumentCount++] = kernelArgument;
 }
 
+void Kernel::ReplaceArgument(KernelArgument *oldArgument, KernelArgument *newArgument)
+{
+   int     aa;
+   
+   for (aa=0; aa<ii_ArgumentCount; aa++)
+   {
+      if (ip_Arguments[ii_ArgumentCount] == oldArgument)
+         ip_Arguments[ii_ArgumentCount] = newArgument;
+   }
+}
+
 void Kernel::Execute(uint32_t workSize)
 {
    cl_int status;

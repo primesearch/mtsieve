@@ -389,7 +389,12 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    uint64_t kCount = 0;
    uint64_t k;
    uint64_t bit;
-   
+
+   // With super large ranges, wait until we can lock because without locking
+   // the term count can change between opening and closing the file.
+   if (IsRunning() && largestPrime < GetMaxPrimeForSingleWorker())
+      return;   
+
    k = il_MinK;
    
    bit = BIT(k);

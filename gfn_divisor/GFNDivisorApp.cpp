@@ -18,15 +18,17 @@
 #include "../x86_asm/fpu-asm-x86.h"
 #include "../x86_asm_ext/asm-ext-x86.h"
 
+#define APP_VERSION     "1.9"
+
 #ifdef HAVE_GPU_WORKERS
 #include "GFNDivisorGpuWorker.h"
+#define APP_NAME        "gfndsievecl"
+#else
+#define APP_NAME        "gfndsieve"
 #endif
 
 #define KMAX_MAX (UINT64_C(1)<<62)
 #define NMAX_MAX (1 << 31)
-
-#define APP_NAME        "gfndsieve"
-#define APP_VERSION     "1.9"
 
 #define BIT(k)          (((k) - il_MinK) >> 1)
 
@@ -606,6 +608,11 @@ void GFNDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    uint64_t termsCounted = 0;
    uint32_t fileCount, n;
    char     fileName[200];
+
+   // With super large ranges, wait until we can lock because without locking
+   // the term count can change between opening and closing the file.
+   if (IsRunning() && largestPrime < GetMaxPrimeForSingleWorker())
+      return;
 
    ip_FactorAppLock->Lock();
    

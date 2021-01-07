@@ -10,6 +10,10 @@
 #include "GenericSubsequenceHelper.h"
 #include "GenericWorker.h"
 
+#ifdef HAVE_GPU_WORKERS
+#include "GenericGpuWorker.h"
+#endif
+
 #define NBIT(n)         ((n) - ii_MinN)
 #define MBIT(m)         ((m) - ii_MinM)
 
@@ -26,7 +30,12 @@ Worker   *GenericSubsequenceHelper::CreateWorker(uint32_t id, bool gpuWorker, ui
    // Note that GenericWorker inherits from Worker.  This will not
    // only create the worker, but also start it.
    
-   theWorker = new GenericWorker(id, ip_App, this);
+#ifdef HAVE_GPU_WORKERS
+   if (gpuWorker)
+      theWorker = new GenericGpuWorker(id, ip_App, this);
+   else
+#endif
+      theWorker = new GenericWorker(id, ip_App, this);
       
    theWorker->SetSequences(largestPrimeTested, ii_BestQ, ip_Sequences, ii_SequenceCount, ip_Subsequences, ii_SubsequenceCount);
 

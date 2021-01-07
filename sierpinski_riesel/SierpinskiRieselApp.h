@@ -36,7 +36,6 @@ public:
    uint32_t          GetMinN(void) { return ii_MinN; };
    uint32_t          GetMaxN(void) { return ii_MaxN; };
    uint64_t          GetSmallSievePrimeLimit(void) { return il_SmallPrimeSieveLimit; };
-   bool              UseAvxIfAvailable(void) { return ib_UseAvx; };
       
    AbstractSubsequenceHelper   *GetAppHelper(void) { return ip_AppHelper; };
    
@@ -47,6 +46,10 @@ public:
    seq_t            *GetSequence(uint64_t k, int64_t c, uint32_t d);
 
    void              ReportFactor(uint64_t thePrime, uint32_t seqIdx, uint32_t n, bool verifyFactor);
+
+#ifdef HAVE_GPU_WORKERS
+   uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
+#endif
 
 protected:
    void              PreSieveHook(void) {};
@@ -81,7 +84,6 @@ private:
    
    uint64_t          il_SmallPrimeSieveLimit;
 
-   bool              ib_UseAvx;
    bool              ib_UseLengendreTables;
    bool              ib_HaveNewSequences;
    format_t          it_Format;
@@ -93,6 +95,11 @@ private:
 
    uint32_t          ii_SequenceCount;
    uint32_t          ii_SequenceCapacity;
+   
+#ifdef HAVE_GPU_WORKERS
+   uint32_t          ii_GpuFactorDensity;
+   uint32_t          ii_MaxGpuFactors;
+#endif
 };
 
 #endif

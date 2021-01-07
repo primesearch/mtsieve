@@ -655,7 +655,7 @@ void  App::Finish(void)
 #else
    // This outputs statistics regarding CPU time, i.e. time the CPU (or cores) spent
    // on this program, thus not including time spent working on other processes
-   WriteToConsole(COT_OTHER, "Processor time: %.2f sec. (%.2f sieving) (%.2f cores)",
+   WriteToConsole(COT_OTHER, "CPU time: %.2f sec. (%.2f sieving) (%.2f cores)",
             processCpuUS/1000000.0,
             il_TotalSieveUS/1000000.0,
             cpuUtilization);

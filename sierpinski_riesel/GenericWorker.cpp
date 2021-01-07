@@ -120,6 +120,10 @@ void  GenericWorker::InitializeWorker(void)
 void  GenericWorker::TestMegaPrimeChunk(void)
 {
    uint64_t maxPrime = ip_App->GetMaxPrime();
+   uint64_t lastPrime = 0;
+#ifdef HAVE_GPU_WORKERS
+   uint64_t minGpuPrime = ip_App->GetMinGpuPrime();
+#endif
    uint64_t p[4];
    uint32_t b[4];
 
@@ -127,13 +131,13 @@ void  GenericWorker::TestMegaPrimeChunk(void)
    
    if (il_SmallPrimeSieveLimit > 0 && il_SmallPrimeSieveLimit > *it)
    {
-      maxPrime = ProcessSmallPrimes();
+      lastPrime = ProcessSmallPrimes();
 
-      if (il_SmallPrimeSieveLimit <= maxPrime)
+      if (il_SmallPrimeSieveLimit <= lastPrime)
       {
          ip_SierpinskiRieselApp->SetRebuildNeeded();
          
-         // This will trigger a retest of some primes between il_SmallPrimeSieveLimit and maxPrime
+         // This will trigger a retest of some primes between il_SmallPrimeSieveLimit and lastPrime
          // using large primes logic.  This should only be a few primes, so no big performance hit.
          SetLargestPrimeTested(il_SmallPrimeSieveLimit, 0);
       }
@@ -163,6 +167,14 @@ void  GenericWorker::TestMegaPrimeChunk(void)
       
       if (p[3] >= maxPrime)
          return;
+
+#ifdef HAVE_GPU_WORKERS
+      if (lastPrime < minGpuPrime && p[3] > minGpuPrime)
+      {      
+         ip_SierpinskiRieselApp->SetRebuildNeeded();
+         return;
+      }
+#endif
    }
    
    if (il_GenericSeveLimit > 0 && il_GenericSeveLimit < p[3])
