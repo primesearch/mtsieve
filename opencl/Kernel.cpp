@@ -52,7 +52,9 @@ Kernel::Kernel(Device *device, const char *kernelName, const char *kernelSource[
  
     // Create an OpenCL command queue
 #ifdef __APPLE__
-   im_CommandQueue = clCreateCommandQueueWithPropertiesAPPLE(ip_Device->GetContext(), ip_Device->GetDeviceId(), 0, &status);
+   const cl_queue_properties_APPLE queue_properties = 0;
+
+   im_CommandQueue = clCreateCommandQueueWithPropertiesAPPLE(ip_Device->GetContext(), ip_Device->GetDeviceId(), &queue_properties, &status);
 #else
    im_CommandQueue = clCreateCommandQueueWithProperties(ip_Device->GetContext(), ip_Device->GetDeviceId(), 0, &status);
 #endif
