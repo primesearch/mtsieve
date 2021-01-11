@@ -151,7 +151,7 @@ inline uint64_t   mmm2exp64(uint64_t p, uint64_t q, uint64_t resOne)
 }
 
 // Compute the residual of n (mod p)
-inline uint64_t   mmmN(uint64_t n, uint64_t p, uint64_t q, uint64_t res2exp64)
+inline uint64_t   mmmNToRes(uint64_t n, uint64_t p, uint64_t q, uint64_t res2exp64)
 {
    if (n == 1)
       return mmmOne(p);
@@ -172,8 +172,8 @@ inline uint64_t mmmR2(uint64_t _p, uint64_t _q, uint64_t _one)
 }
 
 // Convert the residual back to an remainer
-inline uint64_t   mmmToN(uint64_t res, uint64_t p, uint64_t q)
+inline uint64_t   mmmResToN(uint64_t res, uint64_t p, uint64_t q)
 {
-   return mmmMulmod(res, 1, p ,q);
+   return mmmMulmod(res, 1, p, q);
 }
 #endif
