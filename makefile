@@ -90,8 +90,10 @@ PRIM_OBJS=primorial/PrimorialApp.o primorial/PrimorialWorker.o primorial/primori
 TWIN_OBJS=twin/TwinApp.o twin/TwinWorker.o
 SG_OBJS=sophie_germain/SophieGermainApp.o sophie_germain/SophieGermainWorker.o
 SR2_OBJS=sierpinski_riesel/SierpinskiRieselApp_cpu.o sierpinski_riesel/AlgebraicFactorHelper_cpu.o \
-   sierpinski_riesel/AbstractSubsequenceHelper_cpu.o sierpinski_riesel/AbstractWorker_cpu.o \
-   sierpinski_riesel/GenericSubsequenceHelper_cpu.o sierpinski_riesel/GenericWorker_cpu.o 
+   sierpinski_riesel/AbstractSequenceHelper_cpu.o sierpinski_riesel/AbstractWorker_cpu.o \
+   sierpinski_riesel/GenericSequenceHelper_cpu.o sierpinski_riesel/GenericWorker_cpu.o \
+   sierpinski_riesel/CisOneSequenceHelper_cpu.o sierpinski_riesel/CisOneWithOneSequenceHelper_cpu.o \
+   sierpinski_riesel/CisOneWithOneSequenceWorker_cpu.o
 XYYX_OBJS=xyyx/XYYXApp_cpu.o xyyx/XYYXWorker_cpu.o
 
 AF_GPU_OBJS=alternating_factorial/AlternatingFactorialApp_gpu.o alternating_factorial/AlternatingFactorialWorker_gpu.o alternating_factorial/afsieve.o alternating_factorial/AlternatingFactorialGpuWorker_gpu.o
@@ -100,8 +102,10 @@ GFND_GPU_OBJS=gfn_divisor/GFNDivisorApp_gpu.o gfn_divisor/GFNDivisorWorker_gpu.o
 MF_GPU_OBJS=multi_factorial/MultiFactorialApp_gpu.o multi_factorial/MultiFactorialWorker_gpu.o multi_factorial/MultiFactorialGpuWorker_gpu.o
 PIX_GPU_OBJS=primes_in_x/PrimesInXApp_gpu.o primes_in_x/PrimesInXWorker_gpu.o primes_in_x/pixsieve.o primes_in_x/PrimesInXGpuWorker_gpu.o
 SR2_GPU_OBJS=sierpinski_riesel/SierpinskiRieselApp_gpu.o sierpinski_riesel/AlgebraicFactorHelper_gpu.o \
-   sierpinski_riesel/AbstractSubsequenceHelper_gpu.o sierpinski_riesel/AbstractWorker_gpu.o \
-   sierpinski_riesel/GenericSubsequenceHelper_gpu.o sierpinski_riesel/GenericWorker_gpu.o sierpinski_riesel/GenericGpuWorker_gpu.o 
+   sierpinski_riesel/AbstractSequenceHelper_gpu.o sierpinski_riesel/AbstractWorker_gpu.o \
+   sierpinski_riesel/GenericSequenceHelper_gpu.o sierpinski_riesel/GenericWorker_gpu.o sierpinski_riesel/GenericGpuWorker_gpu.o \
+   sierpinski_riesel/CisOneSequenceHelper_gpu.o sierpinski_riesel/CisOneWithOneSequenceHelper_gpu.o \
+   sierpinski_riesel/CisOneWithOneSequenceWorker_gpu.o
 XYYX_GPU_OBJS=xyyx/XYYXApp_gpu.o xyyx/XYYXWorker_gpu.o xyyx/XYYXGpuWorker_gpu.o
 
 ALL_OBJS=$(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(CPU_CORE_OBJS) $(GPU_CORE_OBJS) \

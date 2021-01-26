@@ -65,6 +65,8 @@ MultiFactorialGpuWorker::MultiFactorialGpuWorker(uint32_t myId, App *theApp) : W
    ip_FactorialKernel->AddArgument(ip_KAFactorCount);
    ip_FactorialKernel->AddArgument(ip_KAFactorList);
    
+   ip_FactorialKernel->PrintStatistics(0);
+   
    // The thread can't start until initialization is done
    ib_Initialized = true;
 }

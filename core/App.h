@@ -1,4 +1,4 @@
-/* App.h -- (c) mark rodenkirch, January 2018
+/* App.h -- (c) Mark Rodenkirch, January 2018
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -9,7 +9,7 @@
 #ifndef _APP_H
 #define _APP_H
 
-#define FRAMEWORK_VERSION     "2.1.4"
+#define FRAMEWORK_VERSION     "2.1.5"
 
 #define MAX_WORKERS           100
 #define NO_WORKER             MAX_WORKERS + 99999

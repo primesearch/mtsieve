@@ -10,6 +10,7 @@
 
 #include "Kernel.h"
 #include "ErrorChecker.h"
+#include "../core/App.h"
 #include "../core/Clock.h"
 
 Kernel::Kernel(Device *device, const char *kernelName, const char *kernelSource[], bool useFMA)
@@ -99,24 +100,15 @@ Kernel::Kernel(Device *device, const char *kernelName, const char *kernelSource[
                                      sizeof(privateMemorySize), &privateMemorySize, NULL);
    ErrorChecker::ExitIfError("clGetKernelWorkGroupInfo", status, "kernelName: %s  argument CL_KERNEL_PRIVATE_MEM_SIZE", kernelName);
    
+   ii_DeviceGlobalMemorySize = deviceGlobalMemorySize;
    ii_DeviceLocalMemorySize = deviceLocalMemorySize;
    ii_LocalMemorySize = localMemorySize;
-   ii_PrivateMemorySize = privateMemorySize;   
+   ii_PrivateMemorySize = privateMemorySize;
+   ii_WorkGroupSizeMultiple = workGroupSizeMultiple;
       
    computeUnits = ip_Device->GetMaxComputeUnits();
 
    ii_WorkGroupSize = computeUnits * ii_KernelWorkGroupSize;
-   
-   if (ip_Device->IsPrintDetails())
-   {
-      printf("CL_DEVICE_MAX_COMPUTE_UNITS = %u\n", (uint32_t) computeUnits);
-      printf("CL_DEVICE_GLOBAL_MEM_SIZE = %u\n", (uint32_t) deviceGlobalMemorySize);
-      printf("CL_DEVICE_LOCAL_MEM_SIZE = %u\n", (uint32_t) deviceLocalMemorySize);
-      printf("CL_KERNEL_WORK_GROUP_SIZE = %u\n", (uint32_t) ii_KernelWorkGroupSize);
-      printf("CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE = %u\n", (uint32_t) workGroupSizeMultiple);
-      printf("CL_KERNEL_LOCAL_MEM_SIZE = %u\n", (uint32_t) localMemorySize);
-      printf("CL_KERNEL_PRIVATE_MEM_SIZE = %u\n", (uint32_t) privateMemorySize);
-   }
    
    xfree(sourceSize);
 }
@@ -135,12 +127,35 @@ void Kernel::AddArgument(KernelArgument *kernelArgument)
 
 void Kernel::ReplaceArgument(KernelArgument *oldArgument, KernelArgument *newArgument)
 {
-   int     aa;
+   uint32_t   aa;
    
    for (aa=0; aa<ii_ArgumentCount; aa++)
    {
       if (ip_Arguments[ii_ArgumentCount] == oldArgument)
          ip_Arguments[ii_ArgumentCount] = newArgument;
+   }
+}
+
+void Kernel::PrintStatistics(uint32_t bytesPerWorkGroup)
+{
+   if (ip_Device->IsPrintDetails())
+   {
+      App *theApp = get_app();
+      
+      uint64_t privateBytes = bytesPerWorkGroup;
+      
+      theApp->WriteToConsole(COT_OTHER, "CL_DEVICE_MAX_COMPUTE_UNITS = %u", ip_Device->GetMaxComputeUnits());
+      theApp->WriteToConsole(COT_OTHER, "CL_DEVICE_GLOBAL_MEM_SIZE = %u", ii_DeviceGlobalMemorySize);
+      theApp->WriteToConsole(COT_OTHER, "CL_DEVICE_LOCAL_MEM_SIZE = %u", ii_DeviceLocalMemorySize);
+      theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_WORK_GROUP_SIZE = %u", ii_KernelWorkGroupSize);
+      theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE = %u", ii_WorkGroupSizeMultiple);
+      theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_LOCAL_MEM_SIZE = %u", ii_LocalMemorySize);
+      theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_PRIVATE_MEM_SIZE = %u", ii_PrivateMemorySize);
+      
+      theApp->WriteToConsole(COT_OTHER, "GPU global bytes allocated = %llu", ip_Device->GetGpuBytes());
+      
+      if (privateBytes > 0)
+         theApp->WriteToConsole(COT_OTHER, "GPU private bytes allocated = %llu", bytesPerWorkGroup * ii_KernelWorkGroupSize);
    }
 }
 
@@ -167,8 +182,8 @@ void Kernel::Execute(uint32_t workSize)
 
 void Kernel::SetGPUInput(void)
 {
-   cl_int  status;
-   int     aa;
+   cl_int     status;
+   uint32_t   aa;
 
    for (aa=0; aa<ii_ArgumentCount; aa++)
    {
@@ -182,7 +197,7 @@ void Kernel::SetGPUInput(void)
 
 void Kernel::GetGPUOutput(void)
 {
-   int     aa;
+   uint32_t   aa;
 
    for (aa=0; aa<ii_ArgumentCount; aa++)
       ip_Arguments[aa]->ReadFromGPU(im_CommandQueue);

@@ -77,11 +77,10 @@ void  Device::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
 {
    shortOpts += "HD:d:";
 
-   AppendLongOpt(longOpts, "showgpudetail", no_argument, 0, 'H');
+   AppendLongOpt(longOpts, "showgpudetail", no_argument,       0, 'H');
    AppendLongOpt(longOpts, "platform",      required_argument, 0, 'D');
    AppendLongOpt(longOpts, "device",        required_argument, 0, 'd');
 }
-
 
 // Returns:
 //    0 if the option is OK

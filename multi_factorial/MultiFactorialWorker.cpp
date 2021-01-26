@@ -82,7 +82,7 @@ void  MultiFactorialWorker::TestFactorial(void)
       }
 
       // Factorial: i! = i * (i - 1)!
-      ri = mp.toMp(n_pair - 1);
+      ri = mp.nToRes(n_pair - 1);
       for (n = n_pair; n < ii_MinN; ++n)
       {
          ri = mp.add(ri, pOne);
@@ -142,7 +142,7 @@ void  MultiFactorialWorker::TestMultiFactorial(void)
 
       const MpResVec pOne = mp.one();
       const MpResVec mOne = mp.sub(mp.zero(), pOne);
-      const MpResVec resMf = mp.toMp(ii_MultiFactorial);
+      const MpResVec resMf = mp.nToRes(ii_MultiFactorial);
 
       for (startN=1; startN<=ii_MultiFactorial; startN++)
       {
@@ -151,7 +151,7 @@ void  MultiFactorialWorker::TestMultiFactorial(void)
          if (!(ii_MultiFactorial & 1) && (startN & 1))
             continue;
 
-         MpResVec ri = mp.toMp(startN);
+         MpResVec ri = mp.nToRes(startN);
          MpResVec rf = ri;
          
          // At this time we have:

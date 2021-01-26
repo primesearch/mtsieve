@@ -69,6 +69,7 @@ inline uint64_t inv_mont(uint64_t y)
    return -i;
 }
 
+// Return (a/p) if gcd(a,p)==1, 0 otherwise.
 inline int32_t jacobi(int32_t a, uint32_t p)
 {
    uint32_t x, y, t;
@@ -92,6 +93,43 @@ inline int32_t jacobi(int32_t a, uint32_t p)
    }
 
    return ((y == 1) ? sign : 0);
+}
+
+// Return the value of the Legendre symbol (a/p), where gcd(a,p)=1, p prime.
+// If gcd(a,p)!=1 then return value undefined.
+inline int64_t legendre(int64_t a, uint64_t p)
+{
+   uint64_t x, y, t;
+   int sign;
+
+   if (a < 0)
+   {
+      a = -a;
+      sign = (p % 4 == 1) ? 1 : -1;
+   }
+   else
+      sign = 1;
+
+   for (y = a; y % 2 == 0; y /= 2)
+      if (p % 8 == 3 || p % 8 == 5)
+         sign = -sign;
+
+   if (p % 4 == 3 && y % 4 == 3)
+      sign = -sign;
+
+   for (x = p % y; x > 0; x %= y)
+   {
+      for ( ; x % 2 == 0; x /= 2)
+         if (y % 8 == 3 || y % 8 == 5)
+            sign = -sign;
+
+      t = x, x = y, y = t;
+
+      if (x % 4 == 3 && y % 4 == 3)
+         sign = -sign;
+   }
+
+   return sign;
 }
 
 #endif

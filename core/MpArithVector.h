@@ -9,13 +9,16 @@
    Peter L. Montgomery, Modular multiplication without trial division, Math. Comp.44 (1985), 519–521.
 */
 
+#ifndef _MpArithVector_H
+#define _MpArithVector_H
+
 #define		VECTOR_SIZE		4		// must be a power of two
 
 // Arithmetic on vectors: hide the latency of the MUL instruction.
 
 // Montgomery form: if 0 <= a < p then r is 2^64 * a mod p
 template <size_t N>
-class MpRes
+class MpResVector
 {
 private:
 	uint64_t _r[N];
@@ -27,19 +30,23 @@ public:
 
 // Montgomery modular arithmetic in Z/pZ
 template <size_t N>
-class MpArith
+class MpArithVector
 {
 private:
 	uint64_t _p[N], _q[N];
-	MpRes<N> _one;		// 2^64 mod p
-	MpRes<N> _r2;		// (2^64)^2 mod p
+	MpResVector<N> _one;		// 2^64 mod p
+	MpResVector<N> _r2;		// (2^64)^2 mod p
 
 private:
 	// p * p_inv = 1 (mod 2^64) (Newton's method)
 	constexpr uint64_t invert(const uint64_t p) const
 	{
 		uint64_t p_inv = 1, prev = 0;
-		while (p_inv != prev) { prev = p_inv; p_inv *= 2 - p * p_inv; }
+      while (p_inv != prev)
+      {
+         prev = p_inv;
+         p_inv *= 2 - p * p_inv;
+      }
 		return p_inv;
 	}
 
@@ -52,7 +59,7 @@ private:
 	}
 
 public:
-	MpArith(const uint64_t * const p)
+	MpArithVector(const uint64_t * const p)
 	{
 		for (size_t k = 0; k < N; ++k)
 		{
@@ -62,59 +69,32 @@ public:
 			_one[k] = (-p_k) % p_k;
 		}
 		
-		MpRes<N> t = add(_one, _one); t = add(t, t);	// 4
+		MpResVector<N> t = add(_one, _one); t = add(t, t);	// 4
 		for (size_t i = 0; i < 5; ++i) t = mul(t, t);	// 4^{2^5} = 2^64
 		_r2 = t;
 	}
 
-	// Convert n to Montgomery representation
-	MpRes<N> toMp(const uint64_t *n) const
+	static MpResVector<N> zero()
 	{
-		// n * (2^64)^2 = (n * 2^64) * (1 * 2^64)
-		MpRes<N> r;
-		for (size_t k = 0; k < N; ++k) r[k] = n[k];
-		return mul(r, _r2);
-	}
-   
-	// Convert n to Montgomery representation
-	MpRes<N> toMp(uint32_t n) const
-	{
-		// n * (2^64)^2 = (n * 2^64) * (1 * 2^64)
-		MpRes<N> r;
-		for (size_t k = 0; k < N; ++k) r[k] = n;
-		return mul(r, _r2);
-	}
-   
-	// Convert n to Montgomery representation
-	MpRes<N> toMp(uint32_t *n) const
-	{
-		// n * (2^64)^2 = (n * 2^64) * (1 * 2^64)
-		MpRes<N> r;
-		for (size_t k = 0; k < N; ++k) r[k] = n[k];
-		return mul(r, _r2);
-	}
-   
-	static MpRes<N> zero()
-	{
-		MpRes<N> r;
+		MpResVector<N> r;
 		for (size_t k = 0; k < N; ++k) r[k] = 0;
 		return r;
 	}
 
-	MpRes<N> one() const { return _one; }	// Montgomery form of 1
+	MpResVector<N> one() const { return _one; }	// Montgomery form of 1
 
 	uint64_t p(size_t k) const { return _p[k]; }
    
-	static bool at_least_one_is_equal(const MpRes<N> & a, const MpRes<N> & b)
+	static bool at_least_one_is_equal(const MpResVector<N> & a, const MpResVector<N> & b)
 	{
 		bool is_equal = false;
 		for (size_t k = 0; k < N; ++k) is_equal |= (a[k] == b[k]);
 		return is_equal;
 	}
 
-	MpRes<N> add(const MpRes<N> & a, const MpRes<N> & b) const
+	MpResVector<N> add(const MpResVector<N> & a, const MpResVector<N> & b) const
 	{
-		MpRes<N> r;
+		MpResVector<N> r;
 		for (size_t k = 0; k < N; ++k)
 		{
 			const uint64_t c = (a[k] >= _p[k] - b[k]) ? _p[k] : 0;
@@ -123,9 +103,9 @@ public:
 		return r;
 	}
 
-	MpRes<N> sub(const MpRes<N> & a, const MpRes<N> & b) const
+	MpResVector<N> sub(const MpResVector<N> & a, const MpResVector<N> & b) const
 	{
-		MpRes<N> r;
+		MpResVector<N> r;
 		for (size_t k = 0; k < N; ++k)
 		{
 			const uint64_t c = (a[k] < b[k]) ? _p[k] : 0;
@@ -134,19 +114,19 @@ public:
 		return r;
 	}
    
-	uint64_t mul(const uint64_t a, const MpRes<N> & b, size_t k) const
+	uint64_t mul(const uint64_t a, const MpResVector<N> & b, size_t k) const
 	{
 	   return REDC(a * __uint128_t(b[k]), _p[k], _q[k]);
 	}
   
-   uint64_t mul(const MpRes<N> & a, const MpRes<N> & b, size_t k) const
+   uint64_t mul(const MpResVector<N> & a, const MpResVector<N> & b, size_t k) const
 	{
 	   return REDC(a[k] * __uint128_t(b[k]), _p[k], _q[k]);
 	}
    
-	MpRes<N> mul(const MpRes<N> & a, const MpRes<N> & b) const
+	MpResVector<N> mul(const MpResVector<N> & a, const MpResVector<N> & b) const
 	{
-		MpRes<N> r;
+		MpResVector<N> r;
 		for (size_t k = 0; k < N; ++k)
 		{
 			r[k] = REDC(a[k] * __uint128_t(b[k]), _p[k], _q[k]);
@@ -154,10 +134,10 @@ public:
 		return r;
 	}
    
-	MpRes<N> pow(const MpRes<N> & a, size_t exp) const
+	MpResVector<N> pow(const MpResVector<N> & a, size_t exp) const
 	{
-      MpRes<N> x = a;
-      MpRes<N> y = _one;
+      MpResVector<N> x = a;
+      MpResVector<N> y = _one;
 
       while (true)
       {
@@ -174,10 +154,47 @@ public:
       
       return y;
 	}
-   
-	MpRes<N> toRem(const MpRes<N> & a) const
+
+	// Convert n to Montgomery representation
+	MpResVector<N> nToRes(const uint64_t *n) const
 	{
-		MpRes<N> r;
+		// n * (2^64)^2 = (n * 2^64) * (1 * 2^64)
+		MpResVector<N> r;
+      
+		for (size_t k = 0; k < N; ++k)
+         r[k] = n[k];
+         
+		return mul(r, _r2);
+	}
+   
+	// Convert n to Montgomery representation
+	MpResVector<N> nToRes(uint32_t n) const
+	{
+		// n * (2^64)^2 = (n * 2^64) * (1 * 2^64)
+		MpResVector<N> r;
+      
+		for (size_t k = 0; k < N; ++k)
+         r[k] = n;
+         
+		return mul(r, _r2);
+	}
+   
+	// Convert n to Montgomery representation
+	MpResVector<N> nToRes(uint32_t *n) const
+	{
+		// n * (2^64)^2 = (n * 2^64) * (1 * 2^64)
+		MpResVector<N> r;
+      
+		for (size_t k = 0; k < N; ++k)
+         r[k] = n[k];
+         
+		return mul(r, _r2);
+	}
+   
+   // Convert Montgomery representation to n
+	MpResVector<N> resToN(const MpResVector<N> & a) const
+	{
+		MpResVector<N> r;
 		for (size_t k = 0; k < N; ++k)
 		{
 			r[k] = REDC(a[k], _p[k], _q[k]);
@@ -187,5 +204,7 @@ public:
 };
 
 
-typedef MpRes<VECTOR_SIZE> MpResVec;
-typedef MpArith<VECTOR_SIZE> MpArithVec;
+typedef MpResVector<VECTOR_SIZE> MpResVec;
+typedef MpArithVector<VECTOR_SIZE> MpArithVec;
+
+#endif

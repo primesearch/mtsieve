@@ -37,8 +37,8 @@ void  MemoryLeakExit(void);
 // Local variables
 bool  help_opt = false;
 
-int64_t cpuBytes = 0;
-App  *theApp = 0;
+uint64_t cpuBytes = 0;
+App     *theApp = 0;
 
 volatile bool gb_ForceQuit = false;
 

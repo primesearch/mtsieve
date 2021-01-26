@@ -9,6 +9,8 @@ Added on December 22, 2020
    framework:
       Replace AMD SDK on Windows with open source SDK for OpenCL.
       
+      Update primesieve
+      
       Add more output for -H for GPU executables.
    
    all by gcwsieve/gcwsievecl:
@@ -21,4 +23,5 @@ Added on December 22, 2020
       For factorial, add logic to multiply n in pairs similar to CPU code.
       
    srsieve2:
-      Implement sr1sieve and sr2sieve logic.
+      Implement sr2sieve logic.
+      Add support to remove sequences as srfile can do.

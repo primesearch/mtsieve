@@ -12,13 +12,15 @@
 #define HASH_NOT_FOUND     UINT32_MAX
 #define HASH_MASK1         (1<<15)
 #define HASH_MASK2         (HASH_MASK1-1)
-#define HASH_MAX_ELTS      HASH_MASK2
+#define HASH_MAX_ELTS      HASH_MASK2-1
 #define HASH_MINIMUM_SHIFT 10
 
 class HashTable
 {
 public:
    HashTable(uint32_t elements);
+   HashTable(uint32_t babySteps, uint32_t bestQ, uint32_t powerResidueLcm);
+   
    ~HashTable(void);
 
    void  Cleanup(void);
@@ -27,6 +29,8 @@ public:
    {
       memset(htable, 0, hsize*sizeof(uint16_t));
    }
+   
+   inline uint64_t get(uint32_t x) {return BJ64[x]; };
    
    inline void Insert(uint64_t bj, uint32_t j)
    {

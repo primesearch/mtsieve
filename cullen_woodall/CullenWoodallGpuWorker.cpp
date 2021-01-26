@@ -77,10 +77,12 @@ CullenWoodallGpuWorker::CullenWoodallGpuWorker(uint32_t myId, App *theApp) : Wor
    ip_GCWKernel->AddArgument(ip_KAFactorCount);
    ip_GCWKernel->AddArgument(ip_KAFactorList);
 
+   ip_GCWKernel->PrintStatistics(0);
+   
+   il_NextTermsBuild = 0;
+   
    // The thread can't start until initialization is done
    ib_Initialized = true;
-
-   il_NextTermsBuild = 0;
 }
 
 void  CullenWoodallGpuWorker::CleanUp(void)

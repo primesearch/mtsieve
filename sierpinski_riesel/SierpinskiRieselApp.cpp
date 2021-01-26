@@ -388,10 +388,15 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
       if (!StripCRLF(buffer))
          continue;
 
-      if (strstr(buffer, ":P:") != NULL)
+      if (!memcmp(buffer, "pmin=", 5))
+      {
+         if (sscanf(buffer, "pmin=%" SCNu64"", &lastPrime) != 1)
+            FatalError("Line %u is not a valid pmin line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+      }
+      else if (strstr(buffer, ":P:") != NULL)
       {
          if (sscanf(buffer, "%" SCNu64":P:1:%u:257", &lastPrime, &ii_Base) != 2)
-            FatalError("Line %u is not a valid BOINC line in intput file %s", lineNumber, is_InputTermsFileName.c_str());
+            FatalError("Line %u is not a valid BOINC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
          
          format = FF_BOINC;
          c = +1;
@@ -399,7 +404,7 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
       else if (strstr(buffer, ":M:") != NULL)
       {
          if (sscanf(buffer, "%" SCNu64":M:1:%u:258", &lastPrime, &ii_Base) != 2)
-            FatalError("Line %u is not a valid BOINC line in intput file %s", lineNumber, is_InputTermsFileName.c_str());
+            FatalError("Line %u is not a valid BOINC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
          
          format = FF_BOINC;
          c = -1;
