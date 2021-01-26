@@ -16,38 +16,36 @@
 #define HASH_MINIMUM_ELTS  8
 #define HASH_MINIMUM_SHIFT 10
 
-GenericGpuWorker::GenericGpuWorker(uint32_t myId, App *theApp, AbstractSubsequenceHelper *appHelper) : AbstractWorker(myId, theApp, appHelper)
+GenericGpuWorker::GenericGpuWorker(uint32_t myId, App *theApp, AbstractSequenceHelper *appHelper) : AbstractWorker(myId, theApp, appHelper)
 {
    ib_GpuWorker = true;
+   ip_FirstSequence = appHelper->GetFirstSequenceAndSequenceCount(ii_SequenceCount);
+   ip_Subsequences = appHelper->GetSubsequences(ii_SubsequenceCount);
 
    ii_MaxGpuFactors = ip_SierpinskiRieselApp->GetMaxGpuFactors();
 }
 
-void  GenericGpuWorker::SetSequences(uint64_t largestPrimeTested, uint32_t bestQ, seq_t *sequences, uint32_t sequenceCount, subseq_t *subsequences, uint32_t subsequenceCount)
+void  GenericGpuWorker::Prepare(uint64_t largestPrimeTested, uint32_t bestQ)
 {
    const char *srSource[20];
-   char define01[50];
-   char define02[50];
-   char define03[50];
-   char define04[50];
-   char define05[50];
-   char define06[50];
-   char define07[50];
-   char define08[50];
-   char define09[50];
-   char define10[100];
-   char define11[50];
-   char define12[50];
-   char define13[50];
+   char      define01[50];
+   char      define02[50];
+   char      define03[50];
+   char      define04[50];
+   char      define05[50];
+   char      define06[50];
+   char      define07[50];
+   char      define08[50];
+   char      define09[50];
+   char      define10[100];
+   char      define11[50];
+   char      define12[50];
+   char      define13[50];
+   seq_t    *seq;
+   uint32_t  seqIdx;
    
    ii_BestQ = bestQ;
    
-   ip_Sequences = sequences;
-   ii_SequenceCount = sequenceCount;
-
-   ip_Subsequences = subsequences;
-   ii_SubsequenceCount = subsequenceCount;
-
    uint32_t r = ii_MaxN/ii_BestQ - ii_MinN/ii_BestQ + 1;
    double babyStepFactor = 1.0; // DEFAULT_BABY_STEP_FACTOR from srsieve
 
@@ -78,8 +76,8 @@ void  GenericGpuWorker::SetSequences(uint64_t largestPrimeTested, uint32_t bestQ
    sprintf(define05, "#define BABY_STEPS %u\n", babySteps);
    sprintf(define06, "#define GIANT_STEPS %u\n", giantSteps);
    sprintf(define07, "#define SIEVE_RANGE %u\n", sieveRange);
-   sprintf(define08, "#define SEQUENCES %u\n", sequenceCount);
-   sprintf(define09, "#define SUBSEQUENCES %u\n", subsequenceCount);
+   sprintf(define08, "#define SEQUENCES %u\n", ii_SequenceCount);
+   sprintf(define09, "#define SUBSEQUENCES %u\n", ii_SubsequenceCount);
    sprintf(define10, "#define N_TERM(ssIdx, i, j)  ((SIEVE_LOW + (i)*BABY_STEPS + (j))*BESTQ + SUBSEQ_Q[(ssIdx)])\n"); 
    sprintf(define11, "#define HASH_ELEMENTS %u\n", elements);
    sprintf(define12, "#define HASH_SIZE %u\n", hsize);
@@ -111,18 +109,23 @@ void  GenericGpuWorker::SetSequences(uint64_t largestPrimeTested, uint32_t bestQ
    ii_SeqIdx      =  (uint32_t *) xmalloc(ii_SubsequenceCount*sizeof(uint32_t));
    ii_Q           =  (uint32_t *) xmalloc(ii_SubsequenceCount*sizeof(uint32_t));
    
-   for (uint32_t seqIdx=0; seqIdx<sequenceCount; seqIdx++)
+   seq = ip_FirstSequence;
+   seqIdx = 0;
+   while (seq != NULL)
    {
-      il_K[seqIdx] = ip_Sequences[seqIdx].k;
-      il_C[seqIdx] = ip_Sequences[seqIdx].c;   
+      il_K[seqIdx] = seq->k;
+      il_C[seqIdx] = seq->c;
+
+      for (uint32_t ssIdx=seq->ssIdxFirst; ssIdx<=seq->ssIdxLast; ssIdx++)
+      {
+         ii_SeqIdx[ssIdx] = seqIdx;
+         ii_Q[ssIdx] = ip_Subsequences[ssIdx].q;
+      }      
+
+      seq = (seq_t *) seq->next;
+      seqIdx++;
    }
    
-   for (uint32_t ssIdx=0; ssIdx<subsequenceCount; ssIdx++)
-   {
-      ii_SeqIdx[ssIdx] = ip_Subsequences[ssIdx].seqIdx;
-      ii_Q[ssIdx] = ip_Subsequences[ssIdx].q;
-   }
-
    ip_KAPrime          = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "prime", KA_HOST_TO_GPU, il_PrimeList, ii_WorkSize);
    ip_KASeqK           = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "k", KA_HOST_TO_GPU, il_K, ii_SequenceCount);
    ip_KASeqC           = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "c", KA_HOST_TO_GPU, il_C, ii_SequenceCount);
@@ -138,6 +141,8 @@ void  GenericGpuWorker::SetSequences(uint64_t largestPrimeTested, uint32_t bestQ
    ip_SRKernel->AddArgument(ip_KASubSeqQ);
    ip_SRKernel->AddArgument(ip_KAFactorCount);
    ip_SRKernel->AddArgument(ip_KAFactorList);
+
+   ip_SRKernel->PrintStatistics(hsize * 2 + elements * 2 + (elements+1)*8 + ii_SubsequenceCount*8);
 
    // The thread can't start until initialization is done
    ib_Initialized = true;
@@ -164,7 +169,7 @@ void  GenericGpuWorker::CleanUp(void)
 
 void  GenericGpuWorker::TestMegaPrimeChunk(void)
 {
-   uint32_t idx, seqIdx;
+   uint32_t idx, ssIdx;
    uint32_t n;
    uint64_t prime;
 
@@ -176,11 +181,11 @@ void  GenericGpuWorker::TestMegaPrimeChunk(void)
    {  
       idx = ii*4;
       
-      seqIdx = (uint32_t) il_FactorList[idx+0];
+      ssIdx = (uint32_t) il_FactorList[idx+0];
       n = (uint32_t) il_FactorList[idx+1];
       prime = il_FactorList[idx+2];
    
-      ip_SierpinskiRieselApp->ReportFactor(prime, seqIdx, n, true);
+      ip_SierpinskiRieselApp->ReportFactor(prime, ip_Subsequences[ssIdx].seqPtr, n, true);
       
       if (ii_FactorCount >= ii_MaxGpuFactors)
          break;

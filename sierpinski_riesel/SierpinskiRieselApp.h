@@ -12,7 +12,7 @@
 #define _SierpinskiRieselApp_H
 
 #include "../core/FactorApp.h"
-#include "AbstractSubsequenceHelper.h"
+#include "AbstractSequenceHelper.h"
 
 #define NMAX_MAX (1 << 31)
 
@@ -36,17 +36,23 @@ public:
    uint32_t          GetMinN(void) { return ii_MinN; };
    uint32_t          GetMaxN(void) { return ii_MaxN; };
    uint64_t          GetSmallSievePrimeLimit(void) { return il_SmallPrimeSieveLimit; };
-      
-   AbstractSubsequenceHelper   *GetAppHelper(void) { return ip_AppHelper; };
+   uint32_t          GetSquareFreeBase(void) { return ii_SquareFreeB; };
    
-   uint32_t          GetSequenceCount(void) { return ii_SequenceCount; };
+   AbstractSequenceHelper   *GetAppHelper(void) { return ip_AppHelper; };
    
    void              AddSequence(uint64_t k, int64_t c, uint32_t d);
    
    seq_t            *GetSequence(uint64_t k, int64_t c, uint32_t d);
 
-   void              ReportFactor(uint64_t thePrime, uint32_t seqIdx, uint32_t n, bool verifyFactor);
+   void              ReportFactor(uint64_t thePrime, seq_t *seq, uint32_t n, bool verifyFactor);
 
+   bool              CanUseCIsOneLogic(void) { return ib_CanUseCIsOneLogic; };
+   uint64_t          GetMaxK(void) { return il_MaxK; };
+   bool              UseLegendreTables(void) { return ib_UseLengendreTables; };
+   string            GetLegendreFileName(void) { return is_LegendreFileName; };
+   
+   seq_t            *GetFirstSequenceAndSequenceCount(uint32_t &count) { count = ii_SequenceCount; return ip_FirstSequence; };
+   
 #ifdef HAVE_GPU_WORKERS
    uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
 #endif
@@ -63,8 +69,8 @@ protected:
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
 
 private:
-   seq_t            *ip_Sequences;
-   AbstractSubsequenceHelper   *ip_AppHelper; 
+   seq_t            *ip_FirstSequence;
+   AbstractSequenceHelper   *ip_AppHelper; 
    
    string            is_LegendreFileName;
    
@@ -72,15 +78,21 @@ private:
    void              ValidateAndAddNewSequence(char *arg);
 
    void              MakeSubsequences(bool newSieve);
-   void              ComputeSmallSieveLimit(void);
+   
+   void              RemoveSequencesWithNoTerms(void);
+   void              CheckForLegendreSupport(void);
       
    uint32_t          WriteABCDTermsFile(seq_t *seq, uint64_t maxPrime, FILE *termsFile);
    uint32_t          WriteABCTermsFile(seq_t *seq, uint64_t maxPrime, FILE *termsFile);
    uint32_t          WriteBoincTermsFile(seq_t *seq, uint64_t maxPrime, FILE *termsFile);
    uint32_t          WriteABCNumberPrimesTermsFile(seq_t *seq, uint64_t maxPrime, FILE *termsFile, bool allSequencesHaveDEqual1);
    
-   bool              IsPrime(uint64_t p, uint64_t k, uint32_t n, int64_t c);
-   bool              VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint32_t seqIdx, uint32_t n);
+   bool              IsPrime(uint64_t p, seq_t *seq, uint32_t n);
+   bool              VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, seq_t *seq, uint32_t n);
+   
+   uint64_t          GetSquareFreeFactor(uint64_t n, vector<uint64_t> primes);
+   
+   bool              ib_CanUseCIsOneLogic;
    
    uint64_t          il_SmallPrimeSieveLimit;
 
@@ -89,12 +101,14 @@ private:
    format_t          it_Format;
    
    uint32_t          ii_Base;
+   uint32_t          ii_SquareFreeB;    // product of squery free factors of the base
    
    uint32_t          ii_MinN;
    uint32_t          ii_MaxN;
+   uint64_t          il_MaxK;
+   uint64_t          il_MaxAbsC;
 
    uint32_t          ii_SequenceCount;
-   uint32_t          ii_SequenceCapacity;
    
 #ifdef HAVE_GPU_WORKERS
    uint32_t          ii_GpuFactorDensity;

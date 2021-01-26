@@ -10,7 +10,7 @@
 #define _GenericGpuWorker_H
 
 #include "SierpinskiRieselApp.h"
-#include "AbstractSubsequenceHelper.h"
+#include "AbstractSequenceHelper.h"
 #include "AbstractWorker.h"
 #include "../opencl/Kernel.h"
 #include "../opencl/KernelArgument.h"
@@ -20,19 +20,17 @@ using namespace std;
 class GenericGpuWorker : public AbstractWorker
 {
 public:
-   GenericGpuWorker(uint32_t myId, App *theApp, AbstractSubsequenceHelper *appHelper);
+   GenericGpuWorker(uint32_t myId, App *theApp, AbstractSequenceHelper *appHelper);
 
    ~GenericGpuWorker() {};
 
-   void              SetSequences(uint64_t largestPrimeTested, uint32_t bestQ, seq_t *sequences, uint32_t sequenceCount, subseq_t *subsequences, uint32_t subsequenceCount);
+   void              Prepare(uint64_t largestPrimeTested, uint32_t bestQ);
    void              TestMegaPrimeChunk(void);
    void              TestMiniPrimeChunk(uint64_t *miniPrimeChunk);
    
    void              CleanUp(void);
 
-protected:
-   void              InitializeWorker(void) {};
-   
+protected:   
    uint32_t          ii_MaxGpuFactors;
    uint64_t         *il_FactorList;
    uint32_t          ii_FactorCount;

@@ -41,7 +41,7 @@ const char *sr_kernel= \
 "void  hashInsert(ulong bj, uint j, ushort *h_table, ushort *h_olist, ulong *h_BJ64);\n" \
 "uint  hashLookup(ulong bj, ushort *h_table, ushort *h_olist, ulong *h_BJ64);\n" \
 "void collectFactor(ulong   p,\n" \
-"uint    seqIdx,\n" \
+"uint    ssIdx,\n" \
 "uint    n,\n" \
 "volatile __global uint   *factorCount,\n" \
 "__global ulong4 *factors);\n" \
@@ -85,7 +85,7 @@ const char *sr_kernel= \
 "j = hashLookup(resBDCK64[ssIdx], h_table, h_olist, h_BJ64);\n" \
 "while (j < SIEVE_RANGE)\n" \
 "{\n" \
-"collectFactor(thePrime, SUBSEQ_SEQ[ssIdx], N_TERM(ssIdx, 0, j), factorCount, factors);\n" \
+"collectFactor(thePrime, ssIdx, N_TERM(ssIdx, 0, j), factorCount, factors);\n" \
 "j += orderOfB;\n" \
 "}\n" \
 "}\n" \
@@ -96,7 +96,7 @@ const char *sr_kernel= \
 "{\n" \
 "j = hashLookup(resBDCK64[ssIdx], h_table, h_olist, h_BJ64);\n" \
 "if (j != HASH_NOT_FOUND)\n" \
-"collectFactor(thePrime, SUBSEQ_SEQ[ssIdx], N_TERM(ssIdx, 0, j), factorCount, factors);\n" \
+"collectFactor(thePrime, ssIdx, N_TERM(ssIdx, 0, j), factorCount, factors);\n" \
 "}\n" \
 "}\n" \
 "if (GIANT_STEPS < 2)\n" \
@@ -109,7 +109,7 @@ const char *sr_kernel= \
 "resBDCK64[ssIdx] = mmmMulmod(resBDCK64[ssIdx], resBM64, thePrime, _q);\n" \
 "uint j = hashLookup(resBDCK64[ssIdx], h_table, h_olist, h_BJ64);\n" \
 "if (j != HASH_NOT_FOUND)\n" \
-"collectFactor(thePrime, SUBSEQ_SEQ[ssIdx], N_TERM(ssIdx, i, j), factorCount, factors);\n" \
+"collectFactor(thePrime, ssIdx, N_TERM(ssIdx, i, j), factorCount, factors);\n" \
 "}\n" \
 "}\n" \
 "}\n" \
@@ -306,7 +306,7 @@ const char *sr_kernel= \
 "return HASH_NOT_FOUND;\n" \
 "}\n" \
 "void collectFactor(ulong   p,\n" \
-"uint    seqIdx,\n" \
+"uint    ssIdx,\n" \
 "uint    n,\n" \
 "volatile __global uint   *factorCount,\n" \
 "__global ulong4 *factors)\n" \
@@ -314,7 +314,7 @@ const char *sr_kernel= \
 "int old = atomic_inc(factorCount);\n" \
 "if (old >= MAX_FACTORS)\n" \
 "return;\n" \
-"factors[old].x = seqIdx;\n" \
+"factors[old].x = ssIdx;\n" \
 "factors[old].y = n;\n" \
 "factors[old].z = p;\n" \
 "}\n" \

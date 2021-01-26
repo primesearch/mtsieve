@@ -12,15 +12,15 @@
 #include "../core/inline.h"
 #include "../core/Parser.h"
 #include "../core/Clock.h"
+#include "../sieve/primesieve.hpp"
 #include "SierpinskiRieselApp.h"
 #include "AlgebraicFactorHelper.h"
-#include "GenericWorker.h"
 #include "../x86_asm/fpu-asm-x86.h"
 
-#include "GenericSubsequenceHelper.h"
-#include "CisOneSubsequenceHelper.h"
+#include "GenericSequenceHelper.h"
+#include "CisOneWithOneSequenceHelper.h"
 
-#define APP_VERSION     "1.3.1"
+#define APP_VERSION     "1.4"
 
 #ifdef HAVE_GPU_WORKERS
 #define APP_NAME        "srsieve2cl"
@@ -29,7 +29,6 @@
 #endif
 
 #define NBIT(n)         ((n) - ii_MinN)
-#define MBIT(m)         ((m) - ii_MinM)
 
 // This is declared in App.h, but implemented here.  This means that App.h
 // can remain unchanged if using the mtsieve framework for other applications.
@@ -50,11 +49,12 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    ii_MaxN = 0;
    it_Format = FF_ABCD;
    ib_HaveNewSequences = false;
+   il_MaxK = 0;
+   il_MaxAbsC = 0;
    
-   ip_Sequences = 0;
+   ip_FirstSequence = NULL;
    ii_SequenceCount = 0;
-   ii_SequenceCapacity = 0;
-   ib_UseLengendreTables = false;
+   ii_SquareFreeB = 0;
    is_LegendreFileName = "";
    
 #ifdef HAVE_GPU_WORKERS
@@ -70,7 +70,7 @@ void SierpinskiRieselApp::Help(void)
    printf("-N --nmax=N           Maximum n to search\n");
    printf("-s --sequence=s       Sequence to find factors of in form k*b^n+c where k, b, and c are decimal values\n");
    printf("-f --format=f         Format of output file (A=ABC, D=ABCD (default), B=BOINC, P=ABC with number_primes)\n");
-   printf("-l --legendre         Use Legendre tables\n");
+   printf("-l --legendre         Distable use of Legendre tables\n");
    printf("-L --legendrefile=L   Input/output file for Legendre tables (tables kept in memory only if -l used without -L)\n");
    
 #ifdef HAVE_GPU_WORKERS
@@ -88,7 +88,7 @@ void  SierpinskiRieselApp::AddCommandLineOptions(string &shortOpts, struct optio
    AppendLongOpt(longOpts, "nmax",           required_argument, 0, 'N');
    AppendLongOpt(longOpts, "sequence",       required_argument, 0, 's');
    AppendLongOpt(longOpts, "format",         required_argument, 0, 'f');
-   AppendLongOpt(longOpts, "legendre",       no_argument, 0, 'l');
+   AppendLongOpt(longOpts, "legendre",       no_argument,       0, 'l');
    AppendLongOpt(longOpts, "legendrefile",   required_argument, 0, 'L');
    
 #ifdef HAVE_GPU_WORKERS
@@ -116,7 +116,7 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
          break;
          
       case 'l':
-         ib_UseLengendreTables = true;
+         ib_UseLengendreTables = false;
          status = P_SUCCESS;
          break;
 
@@ -160,6 +160,9 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
 
 void SierpinskiRieselApp::ValidateOptions(void)
 {
+   seq_t     *seq;
+   ib_CanUseCIsOneLogic = true;
+   
    if (it_Format == FF_UNKNOWN)
       FatalError("the specified file format in not valid, use A (ABC), D (ABCD), P (ABC with number_primes), or B (BOINC)");
    
@@ -170,11 +173,14 @@ void SierpinskiRieselApp::ValidateOptions(void)
          
       ProcessInputTermsFile(false);
       
-      for (uint32_t seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)
+      seq = ip_FirstSequence;
+      do
       {
-         ip_Sequences[seqIdx].nTerms.resize(ii_MaxN - ii_MinN + 1);
-         std::fill(ip_Sequences[seqIdx].nTerms.begin(), ip_Sequences[seqIdx].nTerms.end(), false);
-      }
+         seq->nTerms.resize(ii_MaxN - ii_MinN + 1);
+         std::fill(seq->nTerms.begin(), seq->nTerms.end(), false);
+
+         seq = (seq_t *) seq->next;
+      } while (seq != NULL);
 
       ProcessInputTermsFile(true);
       
@@ -196,15 +202,18 @@ void SierpinskiRieselApp::ValidateOptions(void)
       
       AlgebraicFactorHelper *afh = new AlgebraicFactorHelper(this, ii_Base, ii_MinN, ii_MaxN);
       
-      for (uint32_t seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)
+      seq = ip_FirstSequence;
+      do
       {
-         ip_Sequences[seqIdx].nTerms.resize(ii_MaxN - ii_MinN + 1);
-         std::fill(ip_Sequences[seqIdx].nTerms.begin(), ip_Sequences[seqIdx].nTerms.end(), true);
+         seq->nTerms.resize(ii_MaxN - ii_MinN + 1);
+         std::fill(seq->nTerms.begin(), seq->nTerms.end(), true);
          
          il_TermCount += (ii_MaxN - ii_MinN + 1);
          
-         il_TermCount -= afh->RemoveTermsWithAlgebraicFactors(&ip_Sequences[seqIdx]);
-      }
+         il_TermCount -= afh->RemoveTermsWithAlgebraicFactors(seq);
+         
+         seq = (seq_t *) seq->next;
+      } while (seq != NULL);
       
       delete afh;
       
@@ -213,14 +222,17 @@ void SierpinskiRieselApp::ValidateOptions(void)
 
    if (it_Format == FF_BOINC)
    {
-      for (uint32_t seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)
+      seq = ip_FirstSequence;
+      do
       {
-         if (abs(ip_Sequences[seqIdx].c) != 1)
+         if (abs(seq->c) != 1)
             FatalError("When using BOINC format, all sequences must have c=+1 or c=-1");
          
-         if (ip_Sequences[0].c != ip_Sequences[seqIdx].c)
+         if (seq->c != ip_FirstSequence->c)
             FatalError("When using BOINC format, cannot mix c=+1 and c=-1 sequences");
-      }
+
+         seq = (seq_t *) seq->next;
+      } while (seq != NULL);
    }
 
    if (is_OutputTermsFileName.length() == 0)
@@ -241,10 +253,10 @@ void SierpinskiRieselApp::ValidateOptions(void)
 
    if (!ib_UseLengendreTables && is_LegendreFileName.length() > 0)
    {
-      WriteToConsole(COT_OTHER, "Ingoring -L option since -l was not specified");
+      WriteToConsole(COT_OTHER, "Ingoring -L option since Legendre tables cannot be used");
       is_LegendreFileName = "";
    }
-   
+
    FactorApp::ParentValidateOptions();
    
    // Allow only one worker to do work when processing small primes.  This allows us to avoid 
@@ -559,10 +571,10 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
 
 bool SierpinskiRieselApp::ApplyFactor(uint64_t thePrime, const char *term)
 {
-   uint64_t k;
-   uint32_t b, n, d;
-   int64_t  c;
-   uint32_t seqIdx;
+   uint64_t   k;
+   uint32_t   b, n, d;
+   int64_t    c;
+   seq_t     *seq;
    
    if (sscanf(term, "(%" SCNu64"*%u^%u%" SCNd64")/%u", &k, &b, &n, &c, &d) != 5)
    {
@@ -578,32 +590,34 @@ bool SierpinskiRieselApp::ApplyFactor(uint64_t thePrime, const char *term)
    if (n < ii_MinN || n > ii_MaxN)
       return false;
    
-
-   for (seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)
-   {      
-      if (ip_Sequences[seqIdx].k == k && ip_Sequences[seqIdx].c == c && ip_Sequences[seqIdx].d == d)
+   seq = ip_FirstSequence;
+   do
+   {
+      if (seq->k == k && seq->c == c && seq->d == d)
       {
-         if (ip_Sequences[seqIdx].nTerms[NBIT(n)])
+         if (seq->nTerms[NBIT(n)])
          {
-            ip_Sequences[seqIdx].nTerms[NBIT(n)] = false;
+            seq->nTerms[NBIT(n)] = false;
             il_TermCount--;
 
-            if (!VerifyFactor(false, thePrime, seqIdx, n))
+            if (!VerifyFactor(false, thePrime, seq, n))
                return false;
          
             return true;
          }
       }
-   }
-      
+
+      seq = (seq_t *) seq->next;
+   } while (seq != NULL);
+
    return false;
 }
 
 void SierpinskiRieselApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
-   uint32_t nCount = 0;
-   uint32_t seqIdx;
-   bool     allSequencesHaveDEqual1 = true;
+   uint32_t   nCount = 0; 
+   bool       allSequencesHaveDEqual1 = true;
+   seq_t     *seq;
    
    // With super large ranges, wait until we can lock because without locking
    // the term count can change between opening and closing the file.
@@ -621,9 +635,14 @@ void SierpinskiRieselApp::WriteOutputTermsFile(uint64_t largestPrime)
 
    if (it_Format == FF_NUMBER_PRIMES)
    {
-      for (seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)
-         if (ip_Sequences[seqIdx].d != 1)
+      seq = ip_FirstSequence;
+      do
+      {
+         if (seq->d != 1)
             allSequencesHaveDEqual1 = false;
+            
+         seq = (seq_t *) seq->next;
+      } while (seq != NULL);
          
       if (allSequencesHaveDEqual1)
          fprintf(termsFile, "ABC $a*%u^$b$c // {number_primes,$a,1} Sieved to %" PRIu64"\n", ii_Base, largestPrime);
@@ -633,26 +652,29 @@ void SierpinskiRieselApp::WriteOutputTermsFile(uint64_t largestPrime)
 
    if (it_Format == FF_BOINC)
    {
-      if (ip_Sequences[0].c == +1)
+      if (ip_FirstSequence->c == +1)
          fprintf(termsFile, "%" PRIu64":P:1:%u:257\n", largestPrime, ii_Base);
       else
          fprintf(termsFile, "%" PRIu64":M:1:%u:258\n", largestPrime, ii_Base);
    }
    
-   for (seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)
+   seq = ip_FirstSequence;
+   do
    {
       if (it_Format == FF_ABCD)
-         nCount += WriteABCDTermsFile(&ip_Sequences[seqIdx], largestPrime, termsFile);
+         nCount += WriteABCDTermsFile(seq, largestPrime, termsFile);
       
       if (it_Format == FF_ABC)
-         nCount += WriteABCTermsFile(&ip_Sequences[seqIdx], largestPrime, termsFile);
+         nCount += WriteABCTermsFile(seq, largestPrime, termsFile);
       
       if (it_Format == FF_BOINC)
-         nCount += WriteBoincTermsFile(&ip_Sequences[seqIdx], largestPrime, termsFile);
+         nCount += WriteBoincTermsFile(seq, largestPrime, termsFile);
       
       if (it_Format == FF_NUMBER_PRIMES)
-         nCount += WriteABCNumberPrimesTermsFile(&ip_Sequences[seqIdx], largestPrime, termsFile, allSequencesHaveDEqual1);
-   }
+         nCount += WriteABCNumberPrimesTermsFile(seq, largestPrime, termsFile, allSequencesHaveDEqual1);
+            
+      seq = (seq_t *) seq->next;
+   } while (seq != NULL);
    
    fclose(termsFile);
    
@@ -661,7 +683,6 @@ void SierpinskiRieselApp::WriteOutputTermsFile(uint64_t largestPrime)
    
    ip_FactorAppLock->Release();
 }
-
 
 uint32_t SierpinskiRieselApp::WriteABCDTermsFile(seq_t *seq, uint64_t maxPrime, FILE *termsFile)
 {
@@ -789,7 +810,7 @@ void  SierpinskiRieselApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
 
 void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
 {
-   uint32_t seqIdx;
+   seq_t  *seq;
 
    // If base, k, and c are odd then all terms are even
    if ((ii_Base % 2) && (k % 2) && (c % 2) && (d == 1))
@@ -805,54 +826,66 @@ void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
       return;
    }
    
-   // If the sequence already exists, then nothing to do.
-   for (seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)
+   if (ip_FirstSequence != NULL)
    {
-      if (ip_Sequences[seqIdx].k == k && ip_Sequences[seqIdx].c == c)
-         return;
-   }
-   
-   if (ii_SequenceCapacity == ii_SequenceCount)
-   {
-      ii_SequenceCapacity += 100;
-      
-      seq_t *newPtr = (seq_t *) xmalloc(ii_SequenceCapacity * sizeof(seq_t));
-      
-      if (ip_Sequences)
+      // If the sequence already exists, then nothing to do.
+      seq = ip_FirstSequence;
+      do
       {
-         // We only need to copy these fields as the other fields will be
-         // populated after we know all of the sequences.
-         for (seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)
-         {
-            newPtr[seqIdx].k = ip_Sequences[seqIdx].k;
-            newPtr[seqIdx].c = ip_Sequences[seqIdx].c;
-            newPtr[seqIdx].d = ip_Sequences[seqIdx].d;
-         }
-         
-         xfree(ip_Sequences);
-      }
-      
-      ip_Sequences = newPtr;
-   }
+         if (seq->k == k && seq->c == c && seq->d == d)
+            return;
 
-   seq_t *seq = &ip_Sequences[ii_SequenceCount];
+         seq = (seq_t *) seq->next;
+      } while (seq != NULL);
+   }
+       
+   seq_t *newPtr = (seq_t *) xmalloc(sizeof(seq_t));
    
-   seq->k = k;
-   seq->c = c;
-   seq->d = d;
+   uint64_t absc = abs(c);
+
+   if (absc != 1)
+      ib_CanUseCIsOneLogic = false;
+   
+   if (il_MaxK < k) il_MaxK = k;
+   if (il_MaxAbsC < absc) il_MaxAbsC = absc;
+
+   newPtr->k = k;
+   newPtr->c = c;
+   newPtr->d = d;
+   newPtr->next = NULL;
+   
+   if (ii_SequenceCount == 0)
+      ip_FirstSequence = newPtr;
+   else
+   {
+      seq = ip_FirstSequence;
+      do
+      {
+         if (seq->next == NULL)
+         {
+            seq->next = newPtr;
+            break;
+         }
+   
+         seq = (seq_t *) seq->next;
+      } while (seq != NULL);
+   }
    
    ii_SequenceCount++;
 }
 
 seq_t    *SierpinskiRieselApp::GetSequence(uint64_t k, int64_t c, uint32_t d) 
 {
-   uint32_t seqIdx;
+   seq_t     *seq;
 
-   for (seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)
-   {      
-      if (ip_Sequences[seqIdx].k == k && ip_Sequences[seqIdx].c == c && ip_Sequences[seqIdx].d == d)
-         return &ip_Sequences[seqIdx];
-   }
+   seq = ip_FirstSequence;
+   do
+   {
+      if (seq->k == k && seq->c == c && seq->d == d)
+         return seq;
+
+      seq = (seq_t *) seq->next;
+   } while (seq != NULL);
    
    FatalError("Sequence for %" PRIu64" and c=%" PRId64" was not found", k, c);
    
@@ -866,110 +899,181 @@ void  SierpinskiRieselApp::NotifyAppToRebuild(void)
    
    delete ip_AppHelper;
    
-   // This allows us to choose the best AbstractSubsequenceHelper based upon the current status
+   // This allows us to choose the best AbstractSequenceHelper based upon the current status
    MakeSubsequences(false);
 }
 
 void  SierpinskiRieselApp::MakeSubsequences(bool newSieve)
 {
-   uint64_t max_k = 0;
-   uint64_t max_c = 0;
-   uint64_t c;
-   uint64_t largestPrimeTested = GetLargestPrimeTested(false);
-   uint32_t seqIdx;
+   uint64_t   largestPrimeTested = GetLargestPrimeTested(false);
+
+   RemoveSequencesWithNoTerms();
+
+   if (ii_SequenceCount == 0)
+      FatalError("All sequences have been removed");
+      
+   // 65536 is from srsieve.  I don't understand the limit, but if this
+   // value is too large, then factors are missed.
+   il_SmallPrimeSieveLimit = MAX(257, ii_Base);
    
-   seqIdx = 0;
-   while (seqIdx < ii_SequenceCount)
+   if (il_MaxK < 65536 && il_MaxAbsC < 65536)
+   {
+      il_SmallPrimeSieveLimit = MAX(il_SmallPrimeSieveLimit, il_MaxK);
+      il_SmallPrimeSieveLimit = MAX(il_SmallPrimeSieveLimit, il_MaxAbsC);
+   }
+   
+   CheckForLegendreSupport();
+   
+   // The constructors will make a copy of the sequences.
+   if (newSieve || il_MaxK > largestPrimeTested || !ib_CanUseCIsOneLogic)
+      ip_AppHelper = new GenericSequenceHelper(this, largestPrimeTested);
+   else
+   {
+      if (ii_SequenceCount == 1 && GetGpuWorkerCount() == 0)
+         ip_AppHelper = new CisOneWithOneSequenceHelper(this, largestPrimeTested);
+      else
+      {
+         if (GetGpuWorkerCount() > 0)
+            WriteToConsole(COT_OTHER, "Must use generic sieving logic because GPU workers are not supported yet");
+         else
+            WriteToConsole(COT_OTHER, "Must use generic sieving logic because there is more than one sequence");
+         
+         ip_AppHelper = new GenericSequenceHelper(this, largestPrimeTested);
+      }
+   }
+
+   if (newSieve)
+   {
+      uint64_t termCount = ip_AppHelper->MakeSubsequencesForNewSieve();
+      
+      if (termCount != il_TermCount)
+         FatalError("Expected %" PRIu64" terms, but only set %" PRIu64"", il_TermCount, termCount);
+   }
+   else
+      ip_AppHelper->MakeSubsequencesForOldSieve(il_TermCount);
+   
+   ip_AppHelper->LastChanceLogicBeforeSieving();
+}
+
+void  SierpinskiRieselApp::RemoveSequencesWithNoTerms(void)
+{
+   seq_t     *seq, *nextSeq, *prevSeq;
+   
+   prevSeq = seq = ip_FirstSequence;
+   do
    {
       bool haveTerm = false;
       
       for (uint32_t n=ii_MinN; n<=ii_MaxN; n++)
       {
-         if (ip_Sequences[seqIdx].nTerms[NBIT(n)])
+         if (seq->nTerms[NBIT(n)])
          {
             haveTerm = true;
             break;
          }
       }
       
-      if (haveTerm)
+      if (!haveTerm)
       {
-         seqIdx++;
-         continue;
-      }
-
-      ip_Sequences[seqIdx].nTerms.clear();
-      ip_Sequences[seqIdx].legendreMap.clear();
-      
-      WriteToConsole(COT_OTHER, "Sequence %" PRIu64"*%u^n%+" PRId64" removed as all terms have a factor", 
-                     ip_Sequences[seqIdx].k, ii_Base, ip_Sequences[seqIdx].c);
+         seq->nTerms.clear();
+         
+         nextSeq = (seq_t *) seq->next;
+         
+         if (seq == ip_FirstSequence)
+            ip_FirstSequence = (seq_t *) seq->next;
+         else
+            prevSeq->next = seq->next;
             
-      for (uint32_t seqIdx2=seqIdx; seqIdx2+1<ii_SequenceCount; seqIdx2++)
-         memcpy(&ip_Sequences[seqIdx2], &ip_Sequences[seqIdx2+1], sizeof(seq_t));
-      
-      ii_SequenceCount--;
-   }
-
-   if (ii_SequenceCount == 0)
-      FatalError("All sequences have been removed");
-   
-   for (seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)
-   {
-      c = abs(ip_Sequences[seqIdx].c);
-      
-      max_k = MAX(max_k, ip_Sequences[seqIdx].k);
-      max_c = MAX(max_c, c);
-   }
-
-   if (max_c > 1 && ib_UseLengendreTables)
-   {
-      WriteToConsole(COT_OTHER, "Cannot use Legendre tables because at least one sequence has abs(c) > 1");
-      ib_UseLengendreTables = false;
-      is_LegendreFileName = "";
-   }
-   
-   il_SmallPrimeSieveLimit = 0;
-   
-   // 65536 is from srsieve.  I don't understand the limit, but if this
-   // value is too large, then factors are missed.
-   il_SmallPrimeSieveLimit = MAX(257, ii_Base);
-   
-   if (max_k < 65536 && max_c < 65536)
-   {
-      il_SmallPrimeSieveLimit = MAX(il_SmallPrimeSieveLimit, max_k);
-      il_SmallPrimeSieveLimit = MAX(il_SmallPrimeSieveLimit, max_c);
-   }
-   
-   // The constructors will make a copy of the sequences.
-   if (newSieve || max_c > 1 || max_k > largestPrimeTested)
-      ;
-   
-      ip_AppHelper = new GenericSubsequenceHelper(this, ip_Sequences, ii_SequenceCount);
-   //else
-   //{
-   //   bool builtLegendreTables = false;
-   //  
-   //   if (ib_UseLengendreTables)
-   //   {
-   //      CIsOneSubsequenceHelper *lah = new CIsOneSubsequenceHelper(this, ip_Sequences, ii_SequenceCount, ib_UseLengendreTables, is_LegendreFileName);
-   //    
-   //      builtLegendreTables = lah->BuildLegendreTables();
-   //}
-   
-   if (newSieve)
-   {
-      uint64_t termCount = ip_AppHelper->MakeSubsequencesForNewSieve(ip_Sequences);
-      
-      if (termCount != il_TermCount)
-         FatalError("Expected %" PRIu64" terms, but only set %" PRIu64"", il_TermCount, termCount);
-   }
-   else
-      ip_AppHelper->MakeSubsequencesForOldSieve(ip_Sequences, il_TermCount);
+         if (seq->d == 1)
+            WriteToConsole(COT_OTHER, "Sequence %" PRIu64"*%u^n%+" PRId64" removed as all terms have a factor", 
+               seq->k, ii_Base, seq->c);
+         else
+            WriteToConsole(COT_OTHER, "Sequence (%" PRIu64"*%u^n%+" PRId64")/%u removed as all terms have a factor", 
+               seq->k, ii_Base, seq->c, seq->d);
+                  
+         xfree(seq);
+         
+         seq = nextSeq;
+         ii_SequenceCount--;
+      }
+      else
+      {
+         prevSeq = seq;
+         seq = (seq_t *) seq->next;
+      }
+   } while (seq != NULL);
 }
 
-void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, uint32_t seqIdx, uint32_t n, bool verifyFactor)
+void  SierpinskiRieselApp::CheckForLegendreSupport(void)
+{
+   seq_t  *seq;
+
+   // If we have computed this value, then we don't need to do this again.
+   if (ii_SquareFreeB > 0)
+      return;
+
+   if (!ib_CanUseCIsOneLogic)
+   {
+      WriteToConsole(COT_OTHER, "Must use generic sieving logic because abs(c) != 1 for at least one sequence");
+         
+      if (ib_UseLengendreTables)
+      {
+         WriteToConsole(COT_OTHER, "Cannot use Legendre tables because abs(c) != 1 for at least one sequence");
+         ib_UseLengendreTables = false;
+      }
+      
+      ii_SquareFreeB = 1;
+      return;
+   }
+
+   // If we can use CisOne logic, then we need to compute squareFreeK and squareFreeB even if
+   // Legendre tables cannot be used.
+   vector<uint64_t> primes;
+   
+   primesieve::generate_n_primes(sqrt(il_MaxK) + 1, &primes);
+
+   // Note that GetSquareFreeFactor() must return a value >= 1
+   ii_SquareFreeB = GetSquareFreeFactor(ii_Base, primes);
+   
+   seq = ip_FirstSequence;
+   do
+   {
+      seq->squareFreeK = GetSquareFreeFactor(seq->k, primes);
+               
+      seq->kcCore = -1 * seq->c * seq->squareFreeK;
+
+      seq = (seq_t *) seq->next;
+   } while (seq != NULL);
+   
+   seq = ip_FirstSequence;
+   do
+   {
+      // This can only happen if k is prime and k > INT64_MAX
+      if (seq->squareFreeK > INT64_MAX)
+      {
+         WriteToConsole(COT_OTHER, "Must use generic sieving logic because square-free part of k is too large");
+         ib_CanUseCIsOneLogic = false;
+         ib_UseLengendreTables = false;
+         break;
+      }
+      
+      if (ib_UseLengendreTables && seq->squareFreeK > INT32_MAX/ii_SquareFreeB)
+      {
+         WriteToConsole(COT_OTHER, "Cannot use Legendre tables because square-free part of k is too large");
+         ib_UseLengendreTables = false;
+         break;
+      }
+
+      seq = (seq_t *) seq->next;
+   } while (seq != NULL);
+   
+   primes.clear();
+}
+
+void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, seq_t *seq, uint32_t n, bool verifyFactor)
 {
    uint32_t nbit;
+   bool     wasRemoved = false;
                
    if (n < ii_MinN || n > ii_MaxN)
       return;
@@ -979,27 +1083,31 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, uint32_t seqIdx, u
    if (thePrime > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
       
-   if (ip_Sequences[seqIdx].nTerms[nbit])
+   if (seq->nTerms[nbit])
    {
       il_TermCount--;
       il_FactorCount++;
-      ip_Sequences[seqIdx].nTerms[nbit] = false;
+      seq->nTerms[nbit] = false;
+      wasRemoved = true;
    }
          
    if (thePrime > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
 
    if (verifyFactor)
-      VerifyFactor(true, thePrime, seqIdx, n);
-   
+      VerifyFactor(true, thePrime, seq, n);
+
+   if (!wasRemoved)
+      return;   
+ 
    char buffer[200];
    
-   if (ip_Sequences[seqIdx].d > 1)
-      sprintf(buffer, "(%" PRIu64"*%u^%u%+" PRId64")/%u", ip_Sequences[seqIdx].k, ii_Base, n,  ip_Sequences[seqIdx].c, ip_Sequences[seqIdx].d);
+   if (seq->d > 1)
+      sprintf(buffer, "(%" PRIu64"*%u^%u%+" PRId64")/%u", seq->k, ii_Base, n, seq->c, seq->d);
    else
-      sprintf(buffer, "%" PRIu64"*%u^%u%+" PRId64"", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c);
+      sprintf(buffer, "%" PRIu64"*%u^%u%+" PRId64"", seq->k, ii_Base, n, seq->c);
 
-   if (IsPrime(thePrime, ip_Sequences[seqIdx].k, n, ip_Sequences[seqIdx].c))
+   if (IsPrime(thePrime, seq, n))
    {
       WriteToConsole(COT_OTHER, "%s is prime!", buffer);
       WriteToLog("%s is prime!", buffer);
@@ -1008,7 +1116,7 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, uint32_t seqIdx, u
       LogFactor(thePrime, buffer);
 }
 
-bool  SierpinskiRieselApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint32_t seqIdx, uint32_t n)
+bool  SierpinskiRieselApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, seq_t *seq, uint32_t n)
 {
    uint64_t  rem;
    bool      isValid;
@@ -1016,14 +1124,14 @@ bool  SierpinskiRieselApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime
    fpu_push_1divp(thePrime);
    
    rem = fpu_powmod(ii_Base, n, thePrime);
-   rem = fpu_mulmod(rem, ip_Sequences[seqIdx].k, thePrime);
+   rem = fpu_mulmod(rem, seq->k, thePrime);
 
    fpu_pop();
    
-   if (ip_Sequences[seqIdx].c > 0)
-      rem += ip_Sequences[seqIdx].c;
+   if (seq->c > 0)
+      rem += seq->c;
    else
-      rem += (thePrime + ip_Sequences[seqIdx].c);
+      rem += (thePrime + seq->c);
       
    if (rem >= thePrime)
       rem -= thePrime;
@@ -1036,7 +1144,10 @@ bool  SierpinskiRieselApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime
       
    char buffer[200];
    
-   sprintf(buffer, "Invalid factor: %" PRIu64"*%u^%u%+" PRId64" mod %" PRIu64" = %" PRIu64"", ip_Sequences[seqIdx].k, ii_Base, n, ip_Sequences[seqIdx].c, thePrime, rem);
+   if (seq->d > 1)
+      sprintf(buffer, "Invalid factor: (%" PRIu64"*%u^%u%+" PRId64")/%u mod %" PRIu64" = %" PRIu64"", seq->k, ii_Base, n, seq->c, seq->d, thePrime, rem);
+   else
+      sprintf(buffer, "Invalid factor: %" PRIu64"*%u^%u%+" PRId64" mod %" PRIu64" = %" PRIu64"", seq->k, ii_Base, n, seq->c, thePrime, rem);
    
    if (badFactorIsFatal)
       FatalError(buffer);
@@ -1046,24 +1157,89 @@ bool  SierpinskiRieselApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime
    return isValid;
 }
 
-bool  SierpinskiRieselApp::IsPrime(uint64_t p, uint64_t k, uint32_t n, int64_t c)
+bool  SierpinskiRieselApp::IsPrime(uint64_t p, seq_t *seq, uint32_t n)
 {
-   if (n > 64 || (c > 0 && p <= (uint64_t) c))
+   __uint128_t bigP;
+   
+   // Won't try if n is too large
+   if (n > 64)
       return false;
 
-   // p = k*b^n+c --> p = k*b^n
-   p -= c;
+   // Just to make sure that our term isn't too big for this logic
+   if (log10(ii_Base)*n > 18.0)
+      return false;
 
-   if (p % k > 0)
+   bigP = __uint128_t(p);
+      
+   bigP *= seq->d;
+   
+   // p = k*b^n+c --> p = k*b^n
+   bigP -= seq->c;
+
+   if (bigP % seq->k > 0)
       return false;
    
    // p = k*b^n --> p = b^n
-   p /= k;
+   bigP /= seq->k;
 
-   // keep dividing by b until p%b != 0
-   for ( ; p % ii_Base == 0; p /= ii_Base)
+   // At this if bigP = b^n, then (k*b^n+c)/d is prime
+   do
+   {
+      // If b doesn't divide bigP, then the number is not prime
+      if (bigP % ii_Base != 0)
+         return false;
+         
+      bigP /= ii_Base;
       n--;
+   } while (n > 0);
+   
+   // If we divided by b^n and bigP == 1, then the number is prime
+   return (bigP == 1);
+}
 
-   // if p != 1 and n != 0, then p != b^n
-   return (n == 0 && p == 1);
+// This will return the product of the prime factors of the square free part of n.
+//
+// Examples:
+//    n =  18 --> 3^2 * 2       --> return 2
+//    n =  27 --> 3^2 * 3       --> return 3
+//    n =  28 --> 2^2 * 7       --> return 7
+//    n =  36 --> 2^2 * 3^2 * 1 --> return 1
+//    n =  91 --> 7 * 13        --> return 91
+//    n = 180 --> 2^2 * 3^2 * 5 --> return 5
+uint64_t    SierpinskiRieselApp::GetSquareFreeFactor(uint64_t n, vector<uint64_t> primes)
+{
+   uint64_t c = 1, q, r;
+   
+   vector<uint64_t>::iterator it = primes.begin();
+   
+   r = sqrt(n);
+   
+   while (it != primes.end())
+   {
+      q = *it;
+      it++;
+      
+      if (n % q != 0)
+         continue;
+   
+      while (n % q == 0)
+      {
+         n /= q;
+         
+         if (n % q != 0)
+         {
+            c *= q;
+            break;
+         }
+         
+         n /= q;
+      };
+      
+      r = sqrt(n);
+      
+      if (r*r == n)
+         return c;
+   }
+   
+   return c * n;
 }

@@ -56,7 +56,7 @@ void  hashInsert(ulong bj, uint j, ushort *h_table, ushort *h_olist, ulong *h_BJ
 uint  hashLookup(ulong bj, ushort *h_table, ushort *h_olist, ulong *h_BJ64);
 
 void collectFactor(ulong   p,
-                   uint    seqIdx,
+                   uint    ssIdx,
                    uint    n,
  volatile __global uint   *factorCount,
           __global ulong4 *factors);
@@ -113,7 +113,7 @@ __kernel void sr_kernel(__global const ulong  *primes,
          
          while (j < SIEVE_RANGE)
          {
-            collectFactor(thePrime, SUBSEQ_SEQ[ssIdx], N_TERM(ssIdx, 0, j), factorCount, factors);
+            collectFactor(thePrime, ssIdx, N_TERM(ssIdx, 0, j), factorCount, factors);
             
             j += orderOfB;
          }
@@ -126,7 +126,7 @@ __kernel void sr_kernel(__global const ulong  *primes,
          j = hashLookup(resBDCK64[ssIdx], h_table, h_olist, h_BJ64);
          
          if (j != HASH_NOT_FOUND)
-            collectFactor(thePrime, SUBSEQ_SEQ[ssIdx], N_TERM(ssIdx, 0, j), factorCount, factors);
+            collectFactor(thePrime, ssIdx, N_TERM(ssIdx, 0, j), factorCount, factors);
       }
    }
    
@@ -144,7 +144,7 @@ __kernel void sr_kernel(__global const ulong  *primes,
          uint j = hashLookup(resBDCK64[ssIdx], h_table, h_olist, h_BJ64);
          
          if (j != HASH_NOT_FOUND)
-            collectFactor(thePrime, SUBSEQ_SEQ[ssIdx], N_TERM(ssIdx, i, j), factorCount, factors);
+            collectFactor(thePrime, ssIdx, N_TERM(ssIdx, i, j), factorCount, factors);
       }
    }
 }
@@ -402,7 +402,7 @@ uint hashLookup(ulong bj, ushort *h_table, ushort *h_olist, ulong *h_BJ64)
 }
 
 void collectFactor(ulong   p,
-                   uint    seqIdx,
+                   uint    ssIdx,
                    uint    n,
  volatile __global uint   *factorCount,
           __global ulong4 *factors)
@@ -414,7 +414,7 @@ void collectFactor(ulong   p,
    if (old >= MAX_FACTORS)
       return;
    
-   factors[old].x = seqIdx;
+   factors[old].x = ssIdx;
    factors[old].y = n;
    factors[old].z = p;
 }

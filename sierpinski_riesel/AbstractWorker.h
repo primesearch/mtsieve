@@ -10,7 +10,7 @@
 #define _AbstractWorker_H
 
 #include "SierpinskiRieselApp.h"
-#include "AbstractSubsequenceHelper.h"
+#include "AbstractSequenceHelper.h"
 #include "../core/Worker.h"
 #include "../core/HashTable.h"
 
@@ -19,24 +19,22 @@ using namespace std;
 class AbstractWorker : public Worker
 {
 public:
-   AbstractWorker(uint32_t myId, App *theApp, AbstractSubsequenceHelper *appHelper);
+   AbstractWorker(uint32_t myId, App *theApp, AbstractSequenceHelper *appHelper);
 
    ~AbstractWorker(void) {};
    
-   virtual void         SetSequences(uint64_t largestPrimeTested, uint32_t bestQ, seq_t *sequences, uint32_t sequenceCount, subseq_t *subsequences, uint32_t subsequenceCount) = 0;
+   virtual void         Prepare(uint64_t largestPrimeTested, uint32_t bestQ) = 0;
    
-protected:
-   virtual void         InitializeWorker(void) = 0;
-   
+protected:   
    SierpinskiRieselApp *ip_SierpinskiRieselApp;
-   AbstractSubsequenceHelper   *ip_AppHelper;
+   AbstractSequenceHelper   *ip_AppHelper;
    
    uint32_t             ii_Base;
    uint32_t             ii_MinN;
    uint32_t             ii_MaxN;
    
    // The sequences and subsequences are read only in the worker classes
-   seq_t               *ip_Sequences;
+   seq_t               *ip_FirstSequence;
    subseq_t            *ip_Subsequences;
    
    uint32_t             ii_SequenceCount;

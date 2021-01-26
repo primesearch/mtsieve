@@ -12,7 +12,7 @@
 #include "AbstractWorker.h"
 #include "../x86_asm/sse-asm-x86.h"
 
-AbstractWorker::AbstractWorker(uint32_t myId, App *theApp, AbstractSubsequenceHelper *appHelper) : Worker(myId, theApp)
+AbstractWorker::AbstractWorker(uint32_t myId, App *theApp, AbstractSequenceHelper *appHelper) : Worker(myId, theApp)
 {
    ip_SierpinskiRieselApp = (SierpinskiRieselApp *) theApp;
    ip_AppHelper = appHelper;
@@ -21,7 +21,7 @@ AbstractWorker::AbstractWorker(uint32_t myId, App *theApp, AbstractSubsequenceHe
    ii_MinN = ip_SierpinskiRieselApp->GetMinN();
    ii_MaxN = ip_SierpinskiRieselApp->GetMaxN();
    
-   ip_Sequences = 0;
+   ip_FirstSequence = 0;
    ii_SequenceCount = 0;
    
    ip_Subsequences = 0;
