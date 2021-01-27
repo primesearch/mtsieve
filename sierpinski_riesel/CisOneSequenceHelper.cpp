@@ -10,7 +10,6 @@
 #include <assert.h>
 #include "CisOneSequenceHelper.h"
 #include "CisOneWithOneSequenceWorker.h"
-#include "HashTable.h"
 #include "../core/inline.h"
 
 #define NBIT(n)         ((n) - ii_MinN)
