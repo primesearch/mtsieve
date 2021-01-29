@@ -242,6 +242,9 @@ uint32_t  CisOneWithOneSequenceWorker::SetupDiscreteLog(MpArith mp, MpRes resBas
       // p = 1 (mod 2) is all we know, check for quadratic residues only.
       ip_CssQs = ip_CisOneHelper->GetCongruenceList(parity, 1, 0);
       
+      if (ip_CssQs == NULL)
+         return 0;
+
       // For each subsequence (k*b^d)*(b^Q)^(n/Q)+c, compute -c/(k*b^d) (mod p)
       return BuildHashTableAndClimbLadder(mp, resBase, resNegCK, parity, 1, 0);
    }
