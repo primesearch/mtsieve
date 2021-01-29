@@ -46,11 +46,9 @@ void  CisOneWithOneSequenceWorker::CleanUp(void)
 
 void  CisOneWithOneSequenceWorker::Prepare(uint64_t largestPrimeTested, uint32_t bestQ)
 {
-   ii_BestQ = bestQ;
+   ii_BestQ = bestQ;   
+   ii_SieveLow = ii_MinN / ii_BestQ;
 
-   ii_SieveLow = ip_CisOneHelper->GetSieveLow();
-   ii_SieveHigh = ip_CisOneHelper->GetSieveHigh();
-   
    resX = (MpRes *) xmalloc((POWER_RESIDUE_LCM+5) * sizeof(MpRes));
    resBD = (MpRes *) xmalloc((ii_SubsequenceCount+4)*sizeof(MpRes));
    resBJ = (MpRes *) xmalloc((ii_SubsequenceCount+4)*sizeof(MpRes));

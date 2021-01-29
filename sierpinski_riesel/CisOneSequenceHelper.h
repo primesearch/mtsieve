@@ -37,8 +37,6 @@ public:
    
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested) = 0;
 
-   uint32_t          GetSieveLow(void) { return ii_SieveLow; };
-   uint32_t          GetSieveHigh(void) { return ii_SieveHigh; };
    uint32_t          GetMaxBabySteps(void) { return ii_MaxBabySteps; };
    
    int16_t          *GetDivisorShifts(void) { return ii_DivisorShifts; };
@@ -61,12 +59,12 @@ protected:
    void              MakeSubseqCongruenceTables(void);
    bool              CongruentTerms(uint32_t ssIdx, uint32_t a, uint32_t b);
    uint16_t         *MakeLadder(uint16_t *ssList, uint32_t len);
-   
-   uint32_t          ii_SieveLow;
-   uint32_t          ii_SieveHigh;
+
    uint32_t          ii_MaxBabySteps;
    
-   uint64_t          ii_MaxQs;
+   uint32_t          ii_ResidueCount;
+   uint32_t          ii_LadderCount;
+   uint32_t          ii_MaxQs;
    uint32_t          ii_MaxLadderRungs;
    int16_t          *ii_DivisorShifts;
    

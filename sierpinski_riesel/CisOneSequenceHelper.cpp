@@ -45,6 +45,8 @@ CisOneSequenceHelper::CisOneSequenceHelper(App *theApp, uint64_t largestPrimeTes
          ii_DivisorShifts[i] = 0;
    }
    
+   ii_ResidueCount = 0;
+   ii_LadderCount = 0;
    ii_MaxLadderRungs = 0;
    ii_MaxQs = 0;
 }
@@ -71,14 +73,16 @@ void   CisOneSequenceHelper::CleanUp(void)
 void        CisOneSequenceHelper::LastChanceLogicBeforeSieving(void)
 {
    uint32_t ssIdx, babySteps, giantSteps;
-
+   uint32_t sieveLow = ii_MinN / ii_BestQ;
+   uint32_t sieveHigh = ii_MaxN / ii_BestQ;
+         
    ii_MaxBabySteps = 0;
    
    for (ssIdx=0; ssIdx<ii_SubsequenceCount; ssIdx++)
    {
       ChooseSteps(ii_BestQ, ssIdx+1, babySteps, giantSteps);
       
-      if (ii_SieveHigh >= ii_SieveLow + babySteps*giantSteps)
+      if (sieveHigh >= sieveLow + babySteps*giantSteps)
          FatalError("LastChanceLogicBeforeSieving miscomputed the steps");
          
       ip_Subsequences[ssIdx].babySteps = babySteps;
@@ -171,7 +175,9 @@ void  CisOneSequenceHelper::MakeSubseqCongruenceTables(void)
    {
       if (POWER_RESIDUE_LCM % j != 0)
          continue;
-            
+         
+      ii_ResidueCount++;
+
       if (parity == SP_MIXED)
       {
          ii_CssQs[SP_MIXED][j] = (uint16_t **) xmalloc(j*sizeof(uint16_t *));
@@ -231,6 +237,8 @@ void  CisOneSequenceHelper::MakeSubseqCongruenceTables(void)
             if (len[i] == 0)
                continue;
 
+            ii_LadderCount++;
+            
             qLen = len[i];
 
             if (qLen > ii_MaxQs)
@@ -250,7 +258,8 @@ void  CisOneSequenceHelper::MakeSubseqCongruenceTables(void)
    
    postBuildCpuBytes = GetCpuMemoryUsage();
    
-   ip_App->WriteToConsole(COT_OTHER, "%llu bytes used for congruence tables.  Max Qs = %u.  Max ladder size = %u", postBuildCpuBytes - preBuildCpuBytes, ii_MaxQs, ii_MaxLadderRungs);
+   ip_App->WriteToConsole(COT_OTHER, "%llu bytes used for congruence tables.  Residues = %u.  Ladders = %u.  Max Qs = %u.  Max ladder size = %u", 
+      postBuildCpuBytes - preBuildCpuBytes, ii_ResidueCount, ii_LadderCount, ii_MaxQs, ii_MaxLadderRungs);
 }
 
 // Return true iff subsequence h of k*b^n+c has any terms with n%a==b.

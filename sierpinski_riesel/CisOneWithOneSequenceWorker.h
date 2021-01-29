@@ -46,7 +46,6 @@ private:
    CisOneSequenceHelper *ip_CisOneHelper;
       
    uint32_t          ii_SieveLow;
-   uint32_t          ii_SieveHigh;
    
    bool              ib_UseLegendreTables;
    legendre_t       *ip_Legendre;
