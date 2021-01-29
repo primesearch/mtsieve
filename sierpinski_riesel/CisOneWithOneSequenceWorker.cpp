@@ -56,6 +56,7 @@ void  CisOneWithOneSequenceWorker::Prepare(uint64_t largestPrimeTested, uint32_t
    resBJ = (MpRes *) xmalloc((ii_SubsequenceCount+4)*sizeof(MpRes));
    
    ip_HashTable = new HashTable(ip_CisOneHelper->GetMaxBabySteps());
+   ip_DivisorShifts = ip_CisOneHelper->GetDivisorShifts();
 }
 
 void  CisOneWithOneSequenceWorker::TestMegaPrimeChunk(void)
@@ -69,7 +70,6 @@ void  CisOneWithOneSequenceWorker::TestMegaPrimeChunk(void)
    sp_t     parity;
 
    vector<uint64_t>::iterator it = iv_Primes.begin();
-   ii_DivisorShifts = ip_CisOneHelper->GetDivisorShifts();
    
    while (it != iv_Primes.end())
    {
@@ -80,8 +80,6 @@ void  CisOneWithOneSequenceWorker::TestMegaPrimeChunk(void)
 
       if (parity != SP_NO_PARITY)
       {
-         uint16_t ***cssList = ip_CisOneHelper->GetCongruenceLists(parity);
-         uint16_t ***cssLadder =  ip_CisOneHelper->GetCongruenceLadders(parity);
          MpArith mp(p);
 
          // compute 1/base (mod p)
@@ -90,7 +88,7 @@ void  CisOneWithOneSequenceWorker::TestMegaPrimeChunk(void)
          MpRes resB = mp.nToRes(ii_Base);
          MpRes resInvBase = mp.nToRes(invBase);
       
-         ssCount = SetupDiscreteLog(cssList, cssLadder, mp, resB, resInvBase);
+         ssCount = SetupDiscreteLog(mp, resB, resInvBase, parity);
          
          if (ssCount > 0)
          {
@@ -111,7 +109,7 @@ void  CisOneWithOneSequenceWorker::TestMegaPrimeChunk(void)
 
                    while (j < babySteps * giantSteps)
                    {
-                      ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(ii_CssQs[k], 0, j), true);
+                      ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(ip_CssQs[k], 0, j), true);
                       
                       j += orderOfB;
                    }
@@ -125,7 +123,7 @@ void  CisOneWithOneSequenceWorker::TestMegaPrimeChunk(void)
                   j = ip_HashTable->Lookup(resBD[k]);
 
                   if (j != HASH_NOT_FOUND)
-                     ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(ii_CssQs[k], 0, j), true);
+                     ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(ip_CssQs[k], 0, j), true);
                }
   
                // Remaining giant steps
@@ -142,7 +140,7 @@ void  CisOneWithOneSequenceWorker::TestMegaPrimeChunk(void)
                         j = ip_HashTable->Lookup(resBD[k]);
 
                         if (j != HASH_NOT_FOUND)
-                           ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(ii_CssQs[k], i, j), true);
+                           ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(ip_CssQs[k], i, j), true);
                      }
                   }
                }
@@ -219,7 +217,7 @@ sp_t   CisOneWithOneSequenceWorker::GetParity(uint64_t p)
 // residue with respect to p) and initialises the table D64[] with the
 // values -c/(k*b^d) (mod p). As a side effect, bQ is set to the value b^Q
 // (mod p) for use later in bsgs64(). Returns the number of subsequences listed in ii_CSS[].
-uint32_t  CisOneWithOneSequenceWorker::SetupDiscreteLog(uint16_t ***cssList, uint16_t ***cssLadder, MpArith mp, MpRes resBase, uint64_t resInvBase)
+uint32_t  CisOneWithOneSequenceWorker::SetupDiscreteLog(MpArith mp, MpRes resBase, uint64_t resInvBase, sp_t parity)
 {
    uint64_t   negCK, pShift, p = mp.p();
    uint32_t   sIdx;
@@ -237,18 +235,17 @@ uint32_t  CisOneWithOneSequenceWorker::SetupDiscreteLog(uint16_t ***cssList, uin
       negCK = p - negCK;
    
    sIdx = (p/2) % (POWER_RESIDUE_LCM/2);
-   shift = ii_DivisorShifts[sIdx];
+   shift = ip_DivisorShifts[sIdx];
    
    resNegCK = mp.nToRes(negCK);
    
    if (shift == 0)
    {
       // p = 1 (mod 2) is all we know, check for quadratic residues only.
-
-      ii_CssQs = cssList[1][0];
-
+      ip_CssQs = ip_CisOneHelper->GetCongruenceList(parity, 1, 0);
+      
       // For each subsequence (k*b^d)*(b^Q)^(n/Q)+c, compute -c/(k*b^d) (mod p)
-      return BuildHashTableAndClimbLadder(cssLadder[1][0], mp, resBase, resNegCK);
+      return BuildHashTableAndClimbLadder(mp, resBase, resNegCK, parity, 1, 0);
    }
    
    if (shift > 0)
@@ -280,50 +277,50 @@ uint32_t  CisOneWithOneSequenceWorker::SetupDiscreteLog(uint16_t ***cssList, uin
    // Find h such that resX[h] = resX[r], i.e. (-ckb^h)^((p-1)/r)=1 (mod p), or h=r if not found
    for (h=0; resX[r] != resX[h]; h++)
       ;
-      
-   if (h < r)
-   {
-      ii_CssQs = cssList[r][h];
-      
-      if (ii_CssQs == NULL)
-         return 0;
-      
-      // -ckb^d is an r-th power residue for at least one term (k*b^d)*(b^Q)^(n/Q)+c of this subsequence
-      return BuildHashTableAndClimbLadder(cssLadder[r][h], mp, resBase, resNegCK);
-   }
-      
-   return 0;
+
+   // If no h was found, then there is nothing further to do.
+   if (h == r)
+      return 0;
+
+   ip_CssQs = ip_CisOneHelper->GetCongruenceList(parity, r, h);
+
+   if (ip_CssQs == NULL)
+      return 0;
+
+   // -ckb^d is an r-th power residue for at least one term (k*b^d)*(b^Q)^(n/Q)+c of this subsequence
+   return BuildHashTableAndClimbLadder(mp, resBase, resNegCK, parity, r, h);
 }
 
 // Assign BJ64[i] = b^i (mod p) for each i in the ladder.
 // Return b^Q (mod p).
-uint32_t  CisOneWithOneSequenceWorker::BuildHashTableAndClimbLadder(uint16_t *cssLadder, MpArith mp, MpRes resBase, MpRes resNegCK)
+uint32_t  CisOneWithOneSequenceWorker::BuildHashTableAndClimbLadder(MpArith mp, MpRes resBase, MpRes resNegCK, sp_t parity, uint32_t r, uint32_t h)
 {
-   uint32_t   i, j, idx, qLen;
-      
+   uint32_t  i, j, idx, lLen, qLen;
+   uint16_t *ladder = ip_CisOneHelper->GetCongruenceLadder(parity, r, h);
+
+   lLen = *ladder;
+   qLen = *ip_CssQs;
+   ip_CssQs++;
+   
    // Precompute b^d (mod p) for 0 <= d <= Q, as necessary
    resX[0] = mp.one();
    resX[1] = resBase;
    resX[2] = mp.mul(resX[1], resX[1]);
    
-   idx = *cssLadder;
    i = 2;
-   while (idx > 0)
+   for (j=0; j<lLen; j++)
    {
+      idx = ladder[j+1];
+      
       resX[i+idx] = mp.mul(resX[i], resX[idx]);
-
+      
       i += idx;
-      cssLadder++;
-      idx = *cssLadder;
-   };
+   }
 
    resBexpQ = resX[ii_BestQ];
 
-   qLen = *ii_CssQs;
-   ii_CssQs++;
-   
    for (j=0; j<qLen; j++)
-      resBD[j] = mp.mul(resX[ii_CssQs[j]], resNegCK);
+      resBD[j] = mp.mul(resX[ip_CssQs[j]], resNegCK);
 
    return qLen;
 }

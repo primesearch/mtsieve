@@ -42,8 +42,8 @@ public:
    uint32_t          GetMaxBabySteps(void) { return ii_MaxBabySteps; };
    
    int16_t          *GetDivisorShifts(void) { return ii_DivisorShifts; };
-   uint16_t       ***GetCongruenceLists(uint32_t parity) { return ii_CssQs[parity]; };
-   uint16_t       ***GetCongruenceLadders(uint32_t parity) { return ii_CSSLadders[parity]; };
+   uint16_t         *GetCongruenceList(uint32_t parity, uint32_t r, uint32_t h) { return ii_CssQs[parity][r][h]; };
+   uint16_t         *GetCongruenceLadder(uint32_t parity, uint32_t r, uint32_t h) { return ii_CSSLadders[parity][r][h]; };
 
    bool              BuildLegendreTables(string legendreFileName);
    bool              UseLegendreTables(void) { return ib_UseLegendreTables; };
@@ -66,6 +66,7 @@ protected:
    uint32_t          ii_SieveHigh;
    uint32_t          ii_MaxBabySteps;
    
+   uint64_t          ii_MaxQs;
    uint32_t          ii_MaxLadderRungs;
    int16_t          *ii_DivisorShifts;
    

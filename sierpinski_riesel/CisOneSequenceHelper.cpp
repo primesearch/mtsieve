@@ -46,6 +46,7 @@ CisOneSequenceHelper::CisOneSequenceHelper(App *theApp, uint64_t largestPrimeTes
    }
    
    ii_MaxLadderRungs = 0;
+   ii_MaxQs = 0;
 }
 
 void   CisOneSequenceHelper::CleanUp(void)
@@ -231,6 +232,9 @@ void  CisOneSequenceHelper::MakeSubseqCongruenceTables(void)
                continue;
 
             qLen = len[i];
+
+            if (qLen > ii_MaxQs)
+               ii_MaxQs = qLen;
             
             qList = (uint16_t *) xmalloc((qLen+5)*sizeof(uint16_t));
             qList[0] = qLen;
@@ -246,7 +250,7 @@ void  CisOneSequenceHelper::MakeSubseqCongruenceTables(void)
    
    postBuildCpuBytes = GetCpuMemoryUsage();
    
-   ip_App->WriteToConsole(COT_OTHER, "%llu bytes used for congruence tables.  Max ladder size = %u", postBuildCpuBytes - preBuildCpuBytes, ii_MaxLadderRungs);
+   ip_App->WriteToConsole(COT_OTHER, "%llu bytes used for congruence tables.  Max Qs = %u.  Max ladder size = %u", postBuildCpuBytes - preBuildCpuBytes, ii_MaxQs, ii_MaxLadderRungs);
 }
 
 // Return true iff subsequence h of k*b^n+c has any terms with n%a==b.
@@ -258,7 +262,7 @@ bool  CisOneSequenceHelper::CongruentTerms(uint32_t ssIdx, uint32_t a, uint32_t 
    
    if (b % g == ip_Subsequences[ssIdx].q % g)
    {
-      for (m=ii_MinN; m<=ii_MaxN; m++)
+      for (m=ii_MinM; m<=ii_MaxM; m++)
       {
          if (ip_Subsequences[ssIdx].mTerms[m-ii_MinM])
             if ((m*ii_BestQ + ip_Subsequences[ssIdx].q) % a == b)
@@ -269,7 +273,7 @@ bool  CisOneSequenceHelper::CongruentTerms(uint32_t ssIdx, uint32_t a, uint32_t 
    return false;
 }
 
-uint16_t *CisOneSequenceHelper::MakeLadder(uint16_t *qs, uint32_t len)
+uint16_t *CisOneSequenceHelper::MakeLadder(uint16_t *qs, uint32_t qLen)
 {
    uint32_t  i, j, k, a;
    uint16_t *ladder;
@@ -280,7 +284,7 @@ uint16_t *CisOneSequenceHelper::MakeLadder(uint16_t *qs, uint32_t len)
 
    qList[ii_BestQ] = 1;
    
-   for (i=0, a=1; i<len; i++, a++)
+   for (i=0, a=1; i<qLen; i++, a++)
       qList[qs[i]] = 1;
 
    for (i = 0; i < 3; i++)
@@ -327,13 +331,20 @@ uint16_t *CisOneSequenceHelper::MakeLadder(uint16_t *qs, uint32_t len)
       }
    }
 
-   for (i=3, a=2; i <= ii_BestQ; i++)
+   a = 1;
+   for (i=3; i <= ii_BestQ; i++)
       if (qList[i] == 2)
          a++;
 
-   ladder = (uint16_t *) xmalloc((a-1)*sizeof(uint16_t));
+   ladder = (uint16_t *) xmalloc((a+1)*sizeof(uint16_t));
+   ladder[0] = a;
    
-   for (i=3, j=2, k=0; i<=ii_BestQ; i++)
+   if (a > ii_MaxLadderRungs)
+      ii_MaxLadderRungs = a;
+
+   j = 2;
+   k = 1;
+   for (i=3; i<=ii_BestQ; i++)
       if (qList[i] == 2)
       {
          assert(qList[i-j]==2);
@@ -342,12 +353,8 @@ uint16_t *CisOneSequenceHelper::MakeLadder(uint16_t *qs, uint32_t len)
          k++;
       }
    
-   assert(k+2 == a);
-   ladder[k] = 0;
-
-   if (k > ii_MaxLadderRungs)
-      ii_MaxLadderRungs = k;
-      
+   assert(k == a);
+         
    return ladder;
 }
 

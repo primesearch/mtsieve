@@ -37,9 +37,9 @@ public:
 private:   
    sp_t              GetParity(uint64_t p);
    
-   uint32_t          SetupDiscreteLog(uint16_t ***cssList, uint16_t ***cssLadder, MpArith mp, MpRes resBase, uint64_t resInvBase);
+   uint32_t          SetupDiscreteLog(MpArith mp, MpRes resBase, uint64_t resInvBase, sp_t parity);
    
-   uint32_t          BuildHashTableAndClimbLadder(uint16_t *cssLadder, MpArith mp, MpRes resBase, MpRes resNegCK);
+   uint32_t          BuildHashTableAndClimbLadder(MpArith mp, MpRes resBase, MpRes resNegCK, sp_t parity, uint32_t r, uint32_t h);
    
    uint32_t          BabySteps(MpArith mp, MpRes resBase, MpRes resInvBase, uint32_t babySteps);
 
@@ -62,8 +62,8 @@ private:
    
    bool              ib_HaveLegendreTables;
 
-   int16_t          *ii_DivisorShifts;
-   uint16_t         *ii_CssQs;
+   int16_t          *ip_DivisorShifts;
+   uint16_t         *ip_CssQs;
 };
 
 #endif
