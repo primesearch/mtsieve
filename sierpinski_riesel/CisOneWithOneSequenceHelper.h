@@ -27,7 +27,7 @@ protected:
    double      EstimateWork(uint32_t Q, uint32_t s);
 
    bool        BuildLegendreTableForSequence(seq_t *seq, legendre_t *legendre);
-   void        BuildLegendreMap(uint32_t size, int32_t r, const char *which, uint8_t *legendreMap);
+   void        BuildLegendreMap(uint32_t size, int64_t r, const char *which, uint8_t *legendreMap);
 };
 
 #endif

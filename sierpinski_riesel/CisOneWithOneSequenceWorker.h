@@ -47,11 +47,8 @@ private:
       
    uint32_t          ii_SieveLow;
    
-   bool              ib_UseLegendreTables;
    legendre_t       *ip_Legendre;
    HashTable        *ip_HashTable;
-   
-   uint32_t         *ssHash;        // there is one per subsequence
    
    MpRes            *resBJ;         // there is one per Q
    MpRes            *resBD;         // there is one per Q

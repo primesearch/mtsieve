@@ -166,7 +166,7 @@ bool   CisOneWithOneSequenceHelper::BuildLegendreTableForSequence(seq_t *seq, le
             return false;
          }
          
-         if ((r*ssqfb) >= INT32_MAX)
+         if (abs(r) * ssqfb >= INT32_MAX)
          {
             ip_App->WriteToConsole(COT_OTHER, "Cannot use Legendre tables because square-free part of b is too large");
             return false;
@@ -206,7 +206,7 @@ bool   CisOneWithOneSequenceHelper::BuildLegendreTableForSequence(seq_t *seq, le
    return true;
 }
 
-void    CisOneWithOneSequenceHelper::BuildLegendreMap(uint32_t size, int32_t r, const char *which, uint8_t *legendreMap)
+void    CisOneWithOneSequenceHelper::BuildLegendreMap(uint32_t size, int64_t r, const char *which, uint8_t *legendreMap)
 {
    uint32_t i;
    uint32_t reset = 0;
@@ -214,9 +214,9 @@ void    CisOneWithOneSequenceHelper::BuildLegendreMap(uint32_t size, int32_t r, 
    for (i=0; i<size; i++)
    {
       // Provide progress when building a large table
-      if (reset == 1000000)
+      if (reset == 10000000)
       {
-         ip_App->WriteToConsole(COT_OTHER, "Building %s parity Legendre symbol table: %.1f%%", which, 100.0*i/size);
+         ip_App->WriteToConsole(COT_OTHER, "Building %s parity Legendre symbol table: %.1f%% done", which, 100.0*i/size);
          reset = 0;
       }
 
