@@ -37,9 +37,11 @@ public:
 private:   
    sp_t              GetParity(uint64_t p);
    
-   uint32_t          SetupDiscreteLog(MpArith mp, MpRes resBase, uint64_t resInvBase, sp_t parity);
+   void              TestSinglePrime(uint64_t p, sp_t parity);
    
-   uint32_t          BuildHashTableAndClimbLadder(MpArith mp, MpRes resBase, MpRes resNegCK);
+   uint32_t          SetupDiscreteLog(MpArith mp, MpRes resBase, MpRes resInvBase, MpRes resNegCK, sp_t parity);
+   
+   uint32_t          BuildLookupsAndClimbLadder(MpArith mp, MpRes resBase, MpRes resNegCK);
    
    uint32_t          BabySteps(MpArith mp, MpRes resBase, MpRes resInvBase, uint32_t babySteps);
 

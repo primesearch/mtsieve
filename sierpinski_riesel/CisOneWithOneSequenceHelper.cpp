@@ -13,7 +13,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithOneSequenceWorker.h"
 #ifdef HAVE_GPU_WORKERS
-#include "GenericGpuWorker.h"
+#include "CisOneWithOneSequenceGpuWorker.h"
 #endif
 
 CisOneWithOneSequenceHelper::CisOneWithOneSequenceHelper(App *theApp, uint64_t largestPrimeTested) : CisOneSequenceHelper(theApp, largestPrimeTested)
@@ -32,7 +32,7 @@ Worker  *CisOneWithOneSequenceHelper::CreateWorker(uint32_t id, bool gpuWorker, 
    
 #ifdef HAVE_GPU_WORKERS
    if (gpuWorker)
-      theWorker = new GenericGpuWorker(id, ip_App, this);
+      theWorker = new CisOneWithOneSequenceGpuWorker(id, ip_App, this);
    else
 #endif
       theWorker = new CisOneWithOneSequenceWorker(id, ip_App, this);
@@ -235,8 +235,9 @@ void  CisOneWithOneSequenceHelper::MakeSubseqCongruenceTables(seq_t *seq)
    uint16_t   tempQs[SP_COUNT][POWER_RESIDUE_LCM];
    sp_t       parity = ip_FirstSequence->parity;
    
-   seq->congruentQIndices = (uint32_t *) xmalloc(SP_COUNT * ii_PrlCount * POWER_RESIDUE_LCM * sizeof(uint32_t));
-   seq->congruentLadderIndices = (uint32_t *) xmalloc(SP_COUNT * ii_PrlCount * POWER_RESIDUE_LCM * sizeof(uint32_t));
+   seq->congruentIndexCount = SP_COUNT * ii_PrlCount * POWER_RESIDUE_LCM;
+   seq->congruentQIndices = (uint32_t *) xmalloc(seq->congruentIndexCount * sizeof(uint32_t));
+   seq->congruentLadderIndices = (uint32_t *) xmalloc(seq->congruentIndexCount * sizeof(uint32_t));
 
    // We will not use the first element so that an index of 0 means "does not exist"
    ii_TempQIndex = ii_TempLadderIndex = 1;
@@ -281,14 +282,14 @@ void  CisOneWithOneSequenceHelper::MakeSubseqCongruenceTables(seq_t *seq)
       }
    }
 
-   seq->congruentQSize = ii_TempQIndex;
-   seq->congruentLadderSize = ii_TempLadderIndex;
+   seq->congruentQCount = ii_TempQIndex;
+   seq->congruentLadderCount = ii_TempLadderIndex;
    
-   seq->congruentQs = (uint16_t *) xmalloc(seq->congruentQSize * sizeof(uint16_t));
-   seq->congruentLadders = (uint16_t *) xmalloc(seq->congruentLadderSize * sizeof(uint16_t));
+   seq->congruentQs = (uint16_t *) xmalloc(seq->congruentQCount * sizeof(uint16_t));
+   seq->congruentLadders = (uint16_t *) xmalloc(seq->congruentLadderCount * sizeof(uint16_t));
    
-   mempcpy(seq->congruentQs, ip_TempQs, seq->congruentQSize * sizeof(uint16_t));
-   mempcpy(seq->congruentLadders, ip_TempLadders, seq->congruentLadderSize * sizeof(uint16_t));
+   mempcpy(seq->congruentQs, ip_TempQs, seq->congruentQCount * sizeof(uint16_t));
+   mempcpy(seq->congruentLadders, ip_TempLadders, seq->congruentLadderCount * sizeof(uint16_t));
 }
 
 // Return true iff subsequence h of k*b^n+c has any terms with n%a==b.

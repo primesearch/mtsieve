@@ -80,14 +80,14 @@ typedef struct
    // congruentQs is a list of qs for that parity, r, and h with the first entry the length of the list
    // for that pariry, r, and h.  The relationship for the ladder is the same.
    // This will also reduce the memory needed by the GPU to hold these structures.
+   uint32_t     congruentIndexCount;
    
    uint32_t    *congruentQIndices;
-   uint32_t    *congruentLadderIndices;
-   
-   uint32_t     congruentQSize;
-   uint32_t     congruentLadderSize;
-   
+   uint32_t     congruentQCount;
    uint16_t    *congruentQs;
+   
+   uint32_t    *congruentLadderIndices;
+   uint32_t     congruentLadderCount;
    uint16_t    *congruentLadders;
 } seq_t;
 

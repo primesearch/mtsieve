@@ -28,7 +28,6 @@ CisOneWithOneSequenceWorker::CisOneWithOneSequenceWorker(uint32_t myId, App *the
    
    ip_CisOneHelper = (CisOneSequenceHelper *) appHelper;
    
-   
    // Everything we need is done in the constuctor of the parent class
    ib_Initialized = true;
 }
@@ -65,10 +64,6 @@ void  CisOneWithOneSequenceWorker::TestMegaPrimeChunk(void)
 {
    uint64_t maxPrime = ip_App->GetMaxPrime();
    uint64_t p;
-   uint64_t invBase;
-   uint32_t k, orderOfB, ssCount;
-   uint32_t babySteps, giantSteps;
-   uint32_t i, j;
    sp_t     parity;
 
    vector<uint64_t>::iterator it = iv_Primes.begin();
@@ -81,75 +76,8 @@ void  CisOneWithOneSequenceWorker::TestMegaPrimeChunk(void)
       parity = GetParity(p);
 
       if (parity != SP_NO_PARITY)
-      {
-         MpArith mp(p);
+         TestSinglePrime(p, parity);
 
-         // compute 1/base (mod p)
-         invBase = invmod64(ii_Base, p);
-
-         MpRes resB = mp.nToRes(ii_Base);
-         MpRes resInvBase = mp.nToRes(invBase);
-      
-         ssCount = SetupDiscreteLog(mp, resB, resInvBase, parity);
-   
-         if (ssCount > 0)
-         {
-            ip_HashTable->Clear();
-   
-            babySteps = ip_Subsequences[ssCount-1].babySteps;
-            giantSteps = ip_Subsequences[ssCount-1].giantSteps;
- 
-            orderOfB = BabySteps(mp, resB, resInvBase, babySteps);
-            
-            if (orderOfB > 0)
-            {
-               // If orderOfB > 0, then this is all the information we need to
-               // determine every solution for this p, so no giant steps are neede
-               for (k=0; k<ssCount; k++)
-               {
-                   j = ip_HashTable->Lookup(resBD[k]);
-
-                   while (j < babySteps * giantSteps)
-                   {
-                      ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(ip_Qs[k], 0, j), true);
-                      
-                      j += orderOfB;
-                   }
-               }
-            }
-            else
-            {
-               // First giant step
-               for (k=0; k<ssCount; k++)
-               {
-                  j = ip_HashTable->Lookup(resBD[k]);
-
-                  if (j != HASH_NOT_FOUND)
-                     ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(ip_Qs[k], 0, j), true);
-               }
-  
-               // Remaining giant steps
-               if (giantSteps > 1)
-               {
-                  MpRes resBQM = mp.pow(resBexpQ, babySteps);
-                  
-                  for (i=1; i<giantSteps; i++)
-                  {
-                     for (k=0; k<ssCount; k++)
-                     {
-                        resBD[k] = mp.mul(resBD[k], resBQM);
-                        
-                        j = ip_HashTable->Lookup(resBD[k]);
-
-                        if (j != HASH_NOT_FOUND)
-                           ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(ip_Qs[k], i, j), true);
-                     }
-                  }
-               }
-            }
-         }
-      }
-      
       SetLargestPrimeTested(p, 1);
       
       if (p >= maxPrime)
@@ -214,18 +142,18 @@ sp_t   CisOneWithOneSequenceWorker::GetParity(uint64_t p)
    return SP_NO_PARITY;
 }
 
-// This function builds the list ii_CSSList[] of subsequences (k*b^d)*(b^Q)^m+c for
-// which p may be a factor (-ckb^d is a quadratic/cubic/quartic/quintic
-// residue with respect to p) and initialises the table D64[] with the
-// values -c/(k*b^d) (mod p). As a side effect, bQ is set to the value b^Q
-// (mod p) for use later in bsgs64(). Returns the number of subsequences listed in ii_CSS[].
-uint32_t  CisOneWithOneSequenceWorker::SetupDiscreteLog(MpArith mp, MpRes resBase, uint64_t resInvBase, sp_t parity)
+void  CisOneWithOneSequenceWorker::TestSinglePrime(uint64_t p, sp_t parity)
 {
-   uint64_t   negCK, pShift, p = mp.p();
-   uint32_t   idx;
-   uint32_t   h, r;
-   int16_t    shift;
-   MpRes      resNegCK;
+   uint64_t invBase, negCK;
+   uint32_t k, orderOfB, ssCount;
+   uint32_t babySteps, giantSteps;
+   uint32_t i, j;
+   uint32_t cssIndex, idx;
+
+   MpArith mp(p);
+
+   // compute 1/base (mod p)
+   invBase = invmod64(ii_Base, p);
 
    /* neg_ck <-- -k/c (mod p) == -ck (mod p) */
    if (p < ip_FirstSequence->k)
@@ -235,30 +163,107 @@ uint32_t  CisOneWithOneSequenceWorker::SetupDiscreteLog(MpArith mp, MpRes resBas
   
    if (ip_FirstSequence->c > 0)
       negCK = p - negCK;
+      
+   MpRes resBase = mp.nToRes(ii_Base);
+   MpRes resInvBase = mp.nToRes(invBase);
+   MpRes resNegCK = mp.nToRes(negCK);
+      
+   cssIndex = SetupDiscreteLog(mp, resBase, resInvBase, resNegCK, parity);
+   
+   idx = ip_FirstSequence->congruentQIndices[cssIndex];
+   
+   // If no qs for this p, then no factors, so return
+   if (idx == 0)
+      return;
+
+   ip_Qs = &ip_FirstSequence->congruentQs[idx];
+   
+   idx = ip_FirstSequence->congruentLadderIndices[cssIndex];
+   ip_Ladders = &ip_FirstSequence->congruentLadders[idx];
+      
+   // -ckb^d is an r-th power residue for at least one term (k*b^d)*(b^Q)^(n/Q)+c of this subsequence
+   ssCount = BuildLookupsAndClimbLadder(mp, resBase, resNegCK);
+   
+   // If no subsequences for this p, then no factors, so return
+   if (ssCount == 0)
+      return;
+
+   ip_HashTable->Clear();
+
+   babySteps = ip_Subsequences[ssCount-1].babySteps;
+   giantSteps = ip_Subsequences[ssCount-1].giantSteps;
+
+   orderOfB = BabySteps(mp, resBase, resInvBase, babySteps);
+   
+   if (orderOfB > 0)
+   {
+      // If orderOfB > 0, then this is all the information we need to
+      // determine every solution for this p, so no giant steps are neede
+      for (k=0; k<ssCount; k++)
+      {
+          j = ip_HashTable->Lookup(resBD[k]);
+
+          while (j < babySteps * giantSteps)
+          {
+             ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(ip_Qs[k], 0, j), true);
+             
+             j += orderOfB;
+          }
+      }
+   }
+   else
+   {
+      // First giant step
+      for (k=0; k<ssCount; k++)
+      {
+         j = ip_HashTable->Lookup(resBD[k]);
+
+         if (j != HASH_NOT_FOUND)
+            ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(ip_Qs[k], 0, j), true);
+      }
+
+      // Remaining giant steps
+      if (giantSteps > 1)
+      {
+         MpRes resBQM = mp.pow(resBexpQ, babySteps);
+         
+         for (i=1; i<giantSteps; i++)
+         {
+            for (k=0; k<ssCount; k++)
+            {
+               resBD[k] = mp.mul(resBD[k], resBQM);
+               
+               j = ip_HashTable->Lookup(resBD[k]);
+
+               if (j != HASH_NOT_FOUND)
+                  ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(ip_Qs[k], i, j), true);
+            }
+         }
+      }
+   }
+}
+
+// This function builds the list ii_CSSList[] of subsequences (k*b^d)*(b^Q)^m+c for
+// which p may be a factor (-ckb^d is a quadratic/cubic/quartic/quintic
+// residue with respect to p) and initialises the table D64[] with the
+// values -c/(k*b^d) (mod p). As a side effect, bQ is set to the value b^Q
+// (mod p) for use later in bsgs64(). Returns the number of subsequences listed in ii_CSS[].
+uint32_t  CisOneWithOneSequenceWorker::SetupDiscreteLog(MpArith mp, MpRes resBase, MpRes resInvBase, MpRes resNegCK, sp_t parity)
+{
+   uint64_t   pShift, p = mp.p();
+   uint32_t   idx;
+   uint32_t   h, r;
+   int16_t    shift;
    
    idx = (p/2) % (POWER_RESIDUE_LCM/2);
    shift = ip_DivisorShifts[idx];
-   
-   resNegCK = mp.nToRes(negCK);
-   
+      
    if (shift == 0)
    {
       r = ip_PrlIndices[1];
       h = 0;
    
-      // p = 1 (mod 2) is all we know, check for quadratic residues only.
-      idx = ip_FirstSequence->congruentQIndices[CSS_INDEX(parity, r, h)];
-   
-      if (idx == 0)
-         return 0;
-         
-      ip_Qs = &ip_FirstSequence->congruentQs[idx];
-
-      idx = ip_FirstSequence->congruentLadderIndices[CSS_INDEX(parity, r, h)];
-      ip_Ladders = &ip_FirstSequence->congruentLadders[idx];
-            
-      // For each subsequence (k*b^d)*(b^Q)^(n/Q)+c, compute -c/(k*b^d) (mod p)
-      return BuildHashTableAndClimbLadder(mp, resBase, resNegCK);
+      return CSS_INDEX(parity, r, h);
    }
    
    if (shift > 0)
@@ -296,24 +301,13 @@ uint32_t  CisOneWithOneSequenceWorker::SetupDiscreteLog(MpArith mp, MpRes resBas
       return 0;
 
    r = ip_PrlIndices[r];
-      
-   idx = ip_FirstSequence->congruentQIndices[CSS_INDEX(parity, r, h)];
    
-   if (idx == 0)
-      return 0;
-         
-   ip_Qs = &ip_FirstSequence->congruentQs[idx];
-   
-   idx = ip_FirstSequence->congruentLadderIndices[CSS_INDEX(parity, r, h)];
-   ip_Ladders = &ip_FirstSequence->congruentLadders[idx];
-      
-   // -ckb^d is an r-th power residue for at least one term (k*b^d)*(b^Q)^(n/Q)+c of this subsequence
-   return BuildHashTableAndClimbLadder(mp, resBase, resNegCK);
+   return CSS_INDEX(parity, r, h);
 }
 
 // Assign BJ64[i] = b^i (mod p) for each i in the ladder.
 // Return b^Q (mod p).
-uint32_t  CisOneWithOneSequenceWorker::BuildHashTableAndClimbLadder(MpArith mp, MpRes resBase, MpRes resNegCK)
+uint32_t  CisOneWithOneSequenceWorker::BuildLookupsAndClimbLadder(MpArith mp, MpRes resBase, MpRes resNegCK)
 {
    uint32_t  i, j, idx, lLen, qLen;
 

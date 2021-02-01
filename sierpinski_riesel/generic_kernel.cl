@@ -8,9 +8,10 @@
 
 #pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable
 
-#define HASH_NOT_FOUND     UINT_MAX
-#define HASH_MASK1         (1<<15)
-#define HASH_MASK2         (HASH_MASK1-1)
+#define N_TERM(ssIdx, i, j)   ((SIEVE_LOW + (i)*BABY_STEPS + (j))*BESTQ + SUBSEQ_Q[(ssIdx)])
+#define HASH_NOT_FOUND        UINT_MAX
+#define HASH_MASK1            (1<<15)
+#define HASH_MASK2            (HASH_MASK1-1)
 
 ulong  invmod(ulong a, ulong p);
 
@@ -67,16 +68,16 @@ ulong mmmR2(ulong _p, ulong _q, ulong _one);
 ulong mmmAdd(ulong a, ulong b, ulong _p);
 ulong mmmSub(ulong a, ulong b, ulong _p);
 ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q);
-ulong mmmN(ulong n, ulong _p, ulong _q, ulong _r2);
+ulong mmmNToRes(ulong n, ulong _p, ulong _q, ulong _r2);
 ulong mmmPowmod(ulong resbase, ulong exp, ulong _p, ulong _q, ulong _one);
    
-__kernel void sr_kernel(__global const ulong  *primes,
-                        __global const ulong  *SEQ_K,
-                        __global const  long  *SEQ_C,
-                        __global const uint   *SUBSEQ_SEQ,
-                        __global const uint   *SUBSEQ_Q,
-               volatile __global       uint   *factorCount,
-                        __global       ulong4 *factors)
+__kernel void generic_kernel(__global const ulong  *primes,
+                             __global const ulong  *SEQ_K,
+                             __global const  long  *SEQ_C,
+                             __global const uint   *SUBSEQ_SEQ,
+                             __global const uint   *SUBSEQ_Q,
+                    volatile __global       uint   *factorCount,
+                             __global       ulong4 *factors)
 {
    int gid = get_global_id(0);
    
@@ -194,7 +195,7 @@ inline ulong mmmSub(ulong a, ulong b, ulong _p)
 }
 
 // Compute the residual of n (mod p)
-inline ulong mmmN(ulong n, ulong _p, ulong _q, ulong _r2)
+inline ulong mmmNToRes(ulong n, ulong _p, ulong _q, ulong _r2)
 {
    return mmmMulmod(n, _r2, _p, _q);
 }
@@ -241,7 +242,7 @@ ulong   mmmPowmod(ulong resbase, ulong exp, ulong _p, ulong _q, ulong _one)
 ulong babySteps(ulong thePrime, ulong _q, ulong _r2, ulong _one, ushort *h_table, ushort *h_olist, ulong *h_BJ64)
 {
    uint    j;
-   ulong   resBase = mmmN(BASE, thePrime, _q, _r2);
+   ulong   resBase = mmmNToRes(BASE, thePrime, _q, _r2);
    ulong   resBexpQ = mmmPowmod(resBase, BESTQ, thePrime, _q, _one);
    ulong   firstResBJ = mmmPowmod(resBexpQ, SIEVE_LOW, thePrime, _q, _one);
    ulong   resBJ = firstResBJ;
@@ -269,7 +270,7 @@ ulong buildTables(ulong thePrime, ulong _q, ulong _r2, ulong _one, ulong *resBDC
    ulong resBD64[BESTQ];
    ulong resCK64[SEQUENCES];
    
-   ulong firstResBM64 = mmmN(invmod(BASE, thePrime), thePrime, _q, _r2);
+   ulong firstResBM64 = mmmNToRes(invmod(BASE, thePrime), thePrime, _q, _r2);
    ulong resBM64 = firstResBM64;
    
    resBD64[0] = _one;
@@ -289,8 +290,8 @@ ulong buildTables(ulong thePrime, ulong _q, ulong _r2, ulong _one, ulong *resBDC
            
       ulong v3 = invmod(v1, thePrime);
       
-      v2 = mmmN(v2, thePrime, _q, _r2);
-      v3 = mmmN(v3, thePrime, _q, _r2);
+      v2 = mmmNToRes(v2, thePrime, _q, _r2);
+      v3 = mmmNToRes(v3, thePrime, _q, _r2);
       
       resCK64[seqIdx] = mmmMulmod(v2, v3, thePrime, _q);
    }

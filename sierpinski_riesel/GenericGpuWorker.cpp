@@ -10,7 +10,7 @@
 #include <time.h>
 
 #include "GenericGpuWorker.h"
-#include "sr_kernel.h"
+#include "generic_kernel.h"
 
 #define DEFAULT_HASH_MAX_DENSITY 0.65
 #define HASH_MINIMUM_ELTS  8
@@ -37,10 +37,9 @@ void  GenericGpuWorker::Prepare(uint64_t largestPrimeTested, uint32_t bestQ)
    char      define07[50];
    char      define08[50];
    char      define09[50];
-   char      define10[100];
+   char      define10[50];
    char      define11[50];
    char      define12[50];
-   char      define13[50];
    seq_t    *seq;
    uint32_t  seqIdx;
    
@@ -75,13 +74,11 @@ void  GenericGpuWorker::Prepare(uint64_t largestPrimeTested, uint32_t bestQ)
    sprintf(define04, "#define SIEVE_RANGE %u\n", sieveRange);
    sprintf(define05, "#define BABY_STEPS %u\n", babySteps);
    sprintf(define06, "#define GIANT_STEPS %u\n", giantSteps);
-   sprintf(define07, "#define SIEVE_RANGE %u\n", sieveRange);
-   sprintf(define08, "#define SEQUENCES %u\n", ii_SequenceCount);
-   sprintf(define09, "#define SUBSEQUENCES %u\n", ii_SubsequenceCount);
-   sprintf(define10, "#define N_TERM(ssIdx, i, j)  ((SIEVE_LOW + (i)*BABY_STEPS + (j))*BESTQ + SUBSEQ_Q[(ssIdx)])\n"); 
-   sprintf(define11, "#define HASH_ELEMENTS %u\n", elements);
-   sprintf(define12, "#define HASH_SIZE %u\n", hsize);
-   sprintf(define13, "#define MAX_FACTORS %u\n", ii_MaxGpuFactors);
+   sprintf(define07, "#define SEQUENCES %u\n", ii_SequenceCount);
+   sprintf(define08, "#define SUBSEQUENCES %u\n", ii_SubsequenceCount);
+   sprintf(define09, "#define HASH_ELEMENTS %u\n", elements);
+   sprintf(define10, "#define HASH_SIZE %u\n", hsize);
+   sprintf(define11, "#define MAX_FACTORS %u\n", ii_MaxGpuFactors);
 
    srSource[00] = define01;
    srSource[01] = define02;
@@ -94,12 +91,10 @@ void  GenericGpuWorker::Prepare(uint64_t largestPrimeTested, uint32_t bestQ)
    srSource[0x08] = define09;
    srSource[0x09] = define10;
    srSource[10] = define11;
-   srSource[11] = define12;
-   srSource[12] = define13;
-   srSource[13] = sr_kernel;
-   srSource[14] = 0;
+   srSource[11] = generic_kernel;
+   srSource[12] = 0;
 
-   ip_SRKernel = new Kernel(ip_SierpinskiRieselApp->GetDevice(), "sr_kernel", srSource);
+   ip_SRKernel = new Kernel(ip_SierpinskiRieselApp->GetDevice(), "generic_kernel", srSource);
    
    AllocatePrimeList(ip_SRKernel->GetWorkGroupSize());
 
@@ -193,24 +188,6 @@ void  GenericGpuWorker::TestMegaPrimeChunk(void)
 
    if (ii_FactorCount >= ii_MaxGpuFactors)
       FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factor density", ii_FactorCount, ii_MaxGpuFactors);
-
-   // If we have far fewer factors than how many can fit into the buffer, shrink down the size of the buffer.
-   //if (ii_FactorCount < ii_MaxGpuFactors/2)
-   //{
-   //   printf("shrinking from %u to %u\n", ii_MaxGpuFactors, ii_FactorCount * 2);
-   //   ii_MaxGpuFactors = ii_FactorCount * 2;
-   //   
-   //   KernelArgument *oldArgument = ip_KAFactorList;
-   //   
-   //   delete oldArgument;
-   //   xfree(il_FactorList);
-   //   
-   //   il_FactorList  =  (uint64_t *) xmalloc(4*ii_MaxGpuFactors*sizeof(uint64_t));
-   //
-   //   ip_KAFactorList = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "factor_list", KA_GPU_TO_HOST, il_FactorList, 4*ii_MaxGpuFactors);
-   //   
-   //   ip_SRKernel->ReplaceArgument(oldArgument, ip_KAFactorList);
-   //}
 
    SetLargestPrimeTested(il_PrimeList[ii_WorkSize-1], ii_WorkSize);
 }

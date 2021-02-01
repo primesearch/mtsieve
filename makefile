@@ -105,7 +105,7 @@ SR2_GPU_OBJS=sierpinski_riesel/SierpinskiRieselApp_gpu.o sierpinski_riesel/Algeb
    sierpinski_riesel/AbstractSequenceHelper_gpu.o sierpinski_riesel/AbstractWorker_gpu.o \
    sierpinski_riesel/GenericSequenceHelper_gpu.o sierpinski_riesel/GenericWorker_gpu.o sierpinski_riesel/GenericGpuWorker_gpu.o \
    sierpinski_riesel/CisOneSequenceHelper_gpu.o sierpinski_riesel/CisOneWithOneSequenceHelper_gpu.o \
-   sierpinski_riesel/CisOneWithOneSequenceWorker_gpu.o
+   sierpinski_riesel/CisOneWithOneSequenceWorker_gpu.o sierpinski_riesel/CisOneWithOneSequenceGpuWorker_gpu.o
 XYYX_GPU_OBJS=xyyx/XYYXApp_gpu.o xyyx/XYYXWorker_gpu.o xyyx/XYYXGpuWorker_gpu.o
 
 ALL_OBJS=$(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(CPU_CORE_OBJS) $(GPU_CORE_OBJS) \

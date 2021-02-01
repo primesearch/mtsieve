@@ -1,11 +1,12 @@
 #ifdef __cplusplus
-#ifndef _SR_KERNEL_CL
-#define _SR_KERNEL_CL
-const char *sr_kernel= \
+#ifndef _GENERIC_KERNEL_CL
+#define _GENERIC_KERNEL_CL
+const char *generic_kernel= \
 "#pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable\n" \
-"#define HASH_NOT_FOUND     UINT_MAX\n" \
-"#define HASH_MASK1         (1<<15)\n" \
-"#define HASH_MASK2         (HASH_MASK1-1)\n" \
+"#define N_TERM(ssIdx, i, j)   ((SIEVE_LOW + (i)*BABY_STEPS + (j))*BESTQ + SUBSEQ_Q[(ssIdx)])\n" \
+"#define HASH_NOT_FOUND        UINT_MAX\n" \
+"#define HASH_MASK1            (1<<15)\n" \
+"#define HASH_MASK2            (HASH_MASK1-1)\n" \
 "ulong  invmod(ulong a, ulong p);\n" \
 "inline ulong  smod(long a, ulong p)\n" \
 "{\n" \
@@ -51,9 +52,9 @@ const char *sr_kernel= \
 "ulong mmmAdd(ulong a, ulong b, ulong _p);\n" \
 "ulong mmmSub(ulong a, ulong b, ulong _p);\n" \
 "ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q);\n" \
-"ulong mmmN(ulong n, ulong _p, ulong _q, ulong _r2);\n" \
+"ulong mmmNToRes(ulong n, ulong _p, ulong _q, ulong _r2);\n" \
 "ulong mmmPowmod(ulong resbase, ulong exp, ulong _p, ulong _q, ulong _one);\n" \
-"__kernel void sr_kernel(__global const ulong  *primes,\n" \
+"__kernel void generic_kernel(__global const ulong  *primes,\n" \
 "__global const ulong  *SEQ_K,\n" \
 "__global const  long  *SEQ_C,\n" \
 "__global const uint   *SUBSEQ_SEQ,\n" \
@@ -146,7 +147,7 @@ const char *sr_kernel= \
 "ulong c = (a < b) ? _p : 0;\n" \
 "return a - b + c;\n" \
 "}\n" \
-"inline ulong mmmN(ulong n, ulong _p, ulong _q, ulong _r2)\n" \
+"inline ulong mmmNToRes(ulong n, ulong _p, ulong _q, ulong _r2)\n" \
 "{\n" \
 "return mmmMulmod(n, _r2, _p, _q);\n" \
 "}\n" \
@@ -179,7 +180,7 @@ const char *sr_kernel= \
 "ulong babySteps(ulong thePrime, ulong _q, ulong _r2, ulong _one, ushort *h_table, ushort *h_olist, ulong *h_BJ64)\n" \
 "{\n" \
 "uint    j;\n" \
-"ulong   resBase = mmmN(BASE, thePrime, _q, _r2);\n" \
+"ulong   resBase = mmmNToRes(BASE, thePrime, _q, _r2);\n" \
 "ulong   resBexpQ = mmmPowmod(resBase, BESTQ, thePrime, _q, _one);\n" \
 "ulong   firstResBJ = mmmPowmod(resBexpQ, SIEVE_LOW, thePrime, _q, _one);\n" \
 "ulong   resBJ = firstResBJ;\n" \
@@ -201,7 +202,7 @@ const char *sr_kernel= \
 "uint  qIdx, seqIdx, ssIdx;\n" \
 "ulong resBD64[BESTQ];\n" \
 "ulong resCK64[SEQUENCES];\n" \
-"ulong firstResBM64 = mmmN(invmod(BASE, thePrime), thePrime, _q, _r2);\n" \
+"ulong firstResBM64 = mmmNToRes(invmod(BASE, thePrime), thePrime, _q, _r2);\n" \
 "ulong resBM64 = firstResBM64;\n" \
 "resBD64[0] = _one;\n" \
 "for (qIdx=1; qIdx<BESTQ; qIdx++)\n" \
@@ -214,8 +215,8 @@ const char *sr_kernel= \
 "ulong v1 = umod(SEQ_K[seqIdx], thePrime);\n" \
 "ulong v2 = lmod(-SEQ_C[seqIdx], thePrime);\n" \
 "ulong v3 = invmod(v1, thePrime);\n" \
-"v2 = mmmN(v2, thePrime, _q, _r2);\n" \
-"v3 = mmmN(v3, thePrime, _q, _r2);\n" \
+"v2 = mmmNToRes(v2, thePrime, _q, _r2);\n" \
+"v3 = mmmNToRes(v3, thePrime, _q, _r2);\n" \
 "resCK64[seqIdx] = mmmMulmod(v2, v3, thePrime, _q);\n" \
 "}\n" \
 "for (ssIdx=0; ssIdx<SUBSEQUENCES; ssIdx++)\n" \
