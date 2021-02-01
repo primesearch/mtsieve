@@ -13,15 +13,6 @@
 
 #include "AbstractSequenceHelper.h"
 
-// The maps are not vector<bool> because if I ever write an OpenCL
-// kernel for this, it has to be a simple datatype.
-typedef struct {
-   uint8_t          *oneParityMap;
-   uint8_t          *dualParityMapM1;
-   uint8_t          *dualParityMapP1;
-   uint32_t          mod;
-} legendre_t;
-
 class CisOneSequenceHelper : public AbstractSequenceHelper
 {
 public:
@@ -39,10 +30,8 @@ public:
 
    uint32_t          GetMaxBabySteps(void) { return ii_MaxBabySteps; };
    
-   int16_t          *GetDivisorShifts(void) { return ii_DivisorShifts; };
-   uint16_t         *GetCongruenceList(uint32_t parity, uint32_t r, uint32_t h) { return ii_CssQs[parity][r][h]; };
-   uint16_t         *GetCongruenceLadder(uint32_t parity, uint32_t r, uint32_t h) { return ii_CSSLadders[parity][r][h]; };
-
+   int16_t          *GetDivisorShifts(void) { return ip_DivisorShifts; };
+   
    bool              BuildLegendreTables(string legendreFileName);
    bool              UseLegendreTables(void) { return ib_UseLegendreTables; };
 
@@ -56,21 +45,20 @@ protected:
    virtual uint32_t  RateQ(uint32_t Q, uint32_t s) = 0;
    double            EstimateWork(uint32_t Q, uint32_t s, uint32_t r);
    
-   void              MakeSubseqCongruenceTables(void);
-   bool              CongruentTerms(uint32_t ssIdx, uint32_t a, uint32_t b);
-   uint16_t         *MakeLadder(uint16_t *ssList, uint32_t len);
+   virtual void      MakeSubseqCongruenceTables(seq_t *seq) = 0;
 
    uint32_t          ii_MaxBabySteps;
-   
-   uint32_t          ii_ResidueCount;
    uint32_t          ii_LadderCount;
    uint32_t          ii_MaxQs;
    uint32_t          ii_MaxLadderRungs;
-   int16_t          *ii_DivisorShifts;
+      
+   uint16_t         *ip_TempQs;
+   uint16_t         *ip_TempLadders;
    
-   // Congruent subsequence details
-   uint16_t       ***ii_CssQs[3];
-   uint16_t       ***ii_CSSLadders[3];
+   uint32_t          ii_TempQIndex;
+   uint32_t          ii_TempLadderIndex;
+   
+   int16_t          *ip_DivisorShifts;
 };
 
 #endif

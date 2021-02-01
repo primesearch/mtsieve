@@ -18,34 +18,36 @@
 
 // Allow sieving in base b^Q for Q chosen from the divisors of LIMIT_BASE.
 // Must be a multiple of BASE_MULTIPLE.
-#define LIMIT_BASE      720
+#define LIMIT_BASE         720
 
-#define NDIVISORS       (LIMIT_BASE/BASE_MULTIPLE)
+#define NDIVISORS          (LIMIT_BASE/BASE_MULTIPLE)
 
 // For a prime p that satisfies p=1 (mod r), an "r-th power residue test"
 // checks whether a subsequence of k*b^n+c can possibly contain any terms of
 // the form x^r (mod p). If there are none then that subsequence can be
 // omitted from the BSGS step.
 //
-// To conduct r-th power residue tests for each r in a set R of prime
-// powers, set POWER_RESIDUE_LCM to lcm(R), and set POWER_RESIDUE_DIVISORS
-// to the number of divisors of POWER_RESIDUE_LCM. POWER_RESIDUE_LCM must be
-// a multiple of BASE_MULTIPLE, a divisor of LIMIT_BASE, and must be less
-// than 2^15. E.g.
-//
-// R={2,3,4,5}: POWER_RESIDUE_LCM=60, POWER_RESIDUE_DIVISORS=12
-// R={2,3,4,5,8}: POWER_RESIDUE_LCM=120, POWER_RESIDUE_DIVISORS=16
-// R={2,3,4,5,8,9}: POWER_RESIDUE_LCM=360, POWER_RESIDUE_DIVISORS=24
-// R={2,3,4,5,8,9,16}: POWER_RESIDUE_LCM=720, POWER_RESIDUE_DIVISORS=30
-// R={2,3,4,5,7,8,9,16}: POWER_RESIDUE_LCM=5040, POWER_RESIDUE_DIVISORS=60
-//
-// Memory use is proportional to POWER_RESIDUE_LCM*POWER_RESIDUE_DIVISORS
-
-#define POWER_RESIDUE_DIVISORS 30
+// To conduct r-th power residue tests for each r in a set R of prime powers,
+// set POWER_RESIDUE_LCM to lcm(R). POWER_RESIDUE_LCM must be a multiple of
+// BASE_MULTIPLE, a divisor of LIMIT_BASE, and must be less than 2^15.
 #define POWER_RESIDUE_LCM      720
 
-#define SP_SIZE   3
+#define SP_COUNT   3
 typedef enum { SP_NO_PARITY = 999, SP_MIXED = 0, SP_EVEN = 1, SP_ODD = 2} sp_t;
+
+// This allows us to create a one dimensional array to access the qList and ladders.
+// Note that this goes from the largest dimension to the smallest so that each x/y/z
+// combination yeiel
+#define CSS_INDEX(x, y, z) (((((x) * ii_PrlCount) + (y)) * POWER_RESIDUE_LCM) + (z))
+
+// The maps are not vector<bool> because if I ever write an OpenCL
+// kernel for this, it has to be a simple datatype.
+typedef struct {
+   uint8_t          *oneParityMap;
+   uint8_t          *dualParityMapM1;
+   uint8_t          *dualParityMapP1;
+   uint32_t          mod;
+} legendre_t;
 
 // All of these fields are set before sieving is started, but only nTerms can be
 // modified after sieving has started.
@@ -66,8 +68,27 @@ typedef struct
    vector<bool> nTerms;       // remaining n for this sequences
    
    MpResVec     resCK;        // scratch space used by the workers
-   void        *legendrePtr;  // used by the CIsOne classes, points to Legendre details 
    void        *next;         // points to the next sequence
+
+   // The fields below are only used by the CisOne classes
+   legendre_t  *legendrePtr; 
+   
+   // Congruent subsequence details
+   // In sr1sieve, these handled via four dimensional arrays.
+   // For srsieve2, we will use two one dimensional arrays, which will be easier to pass to the GPU.
+   // congruentQIndices points to the first entry in congruentQs for a specific parity, r, and h.
+   // congruentQs is a list of qs for that parity, r, and h with the first entry the length of the list
+   // for that pariry, r, and h.  The relationship for the ladder is the same.
+   // This will also reduce the memory needed by the GPU to hold these structures.
+   
+   uint32_t    *congruentQIndices;
+   uint32_t    *congruentLadderIndices;
+   
+   uint32_t     congruentQSize;
+   uint32_t     congruentLadderSize;
+   
+   uint16_t    *congruentQs;
+   uint16_t    *congruentLadders;
 } seq_t;
 
 // All of these fields are set before sieving is started, but none of them are
@@ -112,7 +133,11 @@ public:
 
    seq_t            *GetFirstSequenceAndSequenceCount(uint32_t &count) { count = ii_SequenceCount; return ip_FirstSequence; };
    subseq_t         *GetSubsequences(uint32_t &count) { count = ii_SubsequenceCount; return ip_Subsequences; };
-      
+
+   // These are only used by the CisOne logic
+   uint32_t          GetPrlCount(void) { return ii_PrlCount; };
+   uint16_t         *GetPrlIndices(void) { return ip_PrlIndices; };
+   
 protected:
    void              CreateEmptySubsequences(uint32_t subsequenceCount);
    uint32_t          AddSubsequence(seq_t *seq, uint32_t q, uint32_t mTermCount);
@@ -138,7 +163,14 @@ protected:
    uint32_t          ii_BestQ;
    uint32_t          ii_MinM;
    uint32_t          ii_MaxM;
-   
+
+   // These are only used by the CisOne logic.
+   // Only a small subset of values < POWER_RESIDUE_LCM can generate values to populate
+   // the qList and ladders.  This is used to reduce the amount of memory needed for
+   // seq->congruentQIndices and seq->congruentLadderIndices, which will benefit the GPU.
+   uint32_t          ii_PrlCount;
+   uint16_t         *ip_PrlIndices;
+
    inline uint32_t   pow32(uint32_t b, uint32_t n)
    {
       uint32_t a = 1;

@@ -39,7 +39,7 @@ private:
    
    uint32_t          SetupDiscreteLog(MpArith mp, MpRes resBase, uint64_t resInvBase, sp_t parity);
    
-   uint32_t          BuildHashTableAndClimbLadder(MpArith mp, MpRes resBase, MpRes resNegCK, sp_t parity, uint32_t r, uint32_t h);
+   uint32_t          BuildHashTableAndClimbLadder(MpArith mp, MpRes resBase, MpRes resNegCK);
    
    uint32_t          BabySteps(MpArith mp, MpRes resBase, MpRes resInvBase, uint32_t babySteps);
 
@@ -56,10 +56,14 @@ private:
    
    MpRes             resBexpQ;
    
-   bool              ib_HaveLegendreTables;
+   bool              ib_UseLegendreTables;
 
    int16_t          *ip_DivisorShifts;
-   uint16_t         *ip_CssQs;
+   uint16_t         *ip_PrlIndices;
+   uint32_t          ii_PrlCount;
+   
+   uint16_t         *ip_Qs;
+   uint16_t         *ip_Ladders;
 };
 
 #endif

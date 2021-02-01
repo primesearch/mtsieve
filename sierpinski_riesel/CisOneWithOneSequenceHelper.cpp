@@ -226,3 +226,195 @@ void    CisOneWithOneSequenceHelper::BuildLegendreMap(uint32_t size, int64_t r, 
       reset++;
    }
 }
+
+// Build tables sc_lists[i][r] of pointers to lists of subsequences
+// whose terms k*b^m+c satisfy m = j (mod r)
+void  CisOneWithOneSequenceHelper::MakeSubseqCongruenceTables(seq_t *seq)
+{
+   uint32_t   ssIdx, h, r, len[SP_COUNT];
+   uint16_t   tempQs[SP_COUNT][POWER_RESIDUE_LCM];
+   sp_t       parity = ip_FirstSequence->parity;
+   
+   seq->congruentQIndices = (uint32_t *) xmalloc(SP_COUNT * ii_PrlCount * POWER_RESIDUE_LCM * sizeof(uint32_t));
+   seq->congruentLadderIndices = (uint32_t *) xmalloc(SP_COUNT * ii_PrlCount * POWER_RESIDUE_LCM * sizeof(uint32_t));
+
+   // We will not use the first element so that an index of 0 means "does not exist"
+   ii_TempQIndex = ii_TempLadderIndex = 1;
+   for (r=1; r<=POWER_RESIDUE_LCM; r++)
+   {
+      if (POWER_RESIDUE_LCM % r != 0)
+         continue;
+
+      for (h=0; h<r; h++)
+      {
+         len[0] = len[1] = len[2] = 0;
+         
+         for (ssIdx=0; ssIdx<ii_SubsequenceCount; ssIdx++)
+         {
+            if (CongruentTerms(ssIdx, r, h))
+            {
+               uint16_t q = ip_Subsequences[ssIdx].q;
+               
+               // odd and even
+               if (parity == SP_MIXED)
+               {
+                  tempQs[SP_MIXED][len[SP_MIXED]++] = q;
+                     
+                  if (ip_Subsequences[ssIdx].q%2 == 1)
+                     tempQs[SP_ODD][len[SP_ODD]++] = q;
+
+                  if (ip_Subsequences[ssIdx].q%2 == 0)
+                     tempQs[SP_EVEN][len[SP_EVEN]++] = q;
+               }
+               
+               if (parity == SP_ODD)
+                  tempQs[SP_ODD][len[SP_ODD]++] = q;
+
+               if (parity == SP_EVEN)
+                  tempQs[SP_EVEN][len[SP_EVEN]++] = q;
+            }
+         }
+
+         CopyQsAndMakeLadder(seq, SP_EVEN,  r, h, tempQs[SP_EVEN],  len[SP_EVEN]);
+         CopyQsAndMakeLadder(seq, SP_ODD,   r, h, tempQs[SP_ODD],   len[SP_ODD]);
+         CopyQsAndMakeLadder(seq, SP_MIXED, r, h, tempQs[SP_MIXED], len[SP_MIXED]);
+      }
+   }
+
+   seq->congruentQSize = ii_TempQIndex;
+   seq->congruentLadderSize = ii_TempLadderIndex;
+   
+   seq->congruentQs = (uint16_t *) xmalloc(seq->congruentQSize * sizeof(uint16_t));
+   seq->congruentLadders = (uint16_t *) xmalloc(seq->congruentLadderSize * sizeof(uint16_t));
+   
+   mempcpy(seq->congruentQs, ip_TempQs, seq->congruentQSize * sizeof(uint16_t));
+   mempcpy(seq->congruentLadders, ip_TempLadders, seq->congruentLadderSize * sizeof(uint16_t));
+}
+
+// Return true iff subsequence h of k*b^n+c has any terms with n%a==b.
+bool  CisOneWithOneSequenceHelper::CongruentTerms(uint32_t ssIdx, uint32_t a, uint32_t b)
+{
+   uint32_t g, m;
+
+   g = gcd32(a, ii_BestQ);
+   
+   if (b % g == ip_Subsequences[ssIdx].q % g)
+   {
+      for (m=ii_MinM; m<=ii_MaxM; m++)
+      {
+         if (ip_Subsequences[ssIdx].mTerms[m-ii_MinM])
+            if ((m*ii_BestQ + ip_Subsequences[ssIdx].q) % a == b)
+               return true;
+      }
+   }
+
+   return false;
+}
+
+bool  CisOneWithOneSequenceHelper::CopyQsAndMakeLadder(seq_t *seq, sp_t parity, uint32_t r, uint32_t h, uint16_t *qList, uint32_t qListLen)
+{
+   if (qListLen == 0)
+      return false;
+
+   r = ip_PrlIndices[r];
+
+   // These will contain the index to the qListLen/qList and ladderLen/ladder for this parity, r, and h
+   seq->congruentQIndices[CSS_INDEX(parity, r, h)] = ii_TempQIndex;
+   seq->congruentLadderIndices[CSS_INDEX(parity, r, h)] = ii_TempLadderIndex;
+
+
+   ip_TempQs[ii_TempQIndex] = qListLen;
+   ii_TempQIndex++;
+
+   if (qListLen > ii_MaxQs)
+      ii_MaxQs = qListLen;
+   
+   memcpy(&ip_TempQs[ii_TempQIndex], qList, qListLen * sizeof(uint16_t));
+   
+   ii_TempQIndex += qListLen;
+   
+   MakeLadder(seq, qList, qListLen);
+
+   return true;
+}
+         
+void   CisOneWithOneSequenceHelper::MakeLadder(seq_t *seq, uint16_t *qList, uint32_t qListLen)
+{
+   uint32_t  i, j, k, a;
+   uint8_t   tempQs[LIMIT_BASE+1];
+
+   ii_LadderCount++;
+   
+   for (i=0; i<ii_BestQ; i++)
+      tempQs[i] = 0;
+
+   tempQs[ii_BestQ] = 1;
+   
+   for (i=0, a=1; i<qListLen; i++, a++)
+      tempQs[qList[i]] = 1;
+
+   for (i = 0; i < 3; i++)
+   {
+      if (tempQs[i] == 1)
+        a--;
+      tempQs[i] = 2;
+   }
+
+   while (a > 0)
+   {
+      for (i=3, j=2; i<=ii_BestQ; i++)
+      {
+         if (tempQs[i] == 2)
+            j = i;
+         else
+            if (tempQs[i] == 1)
+               break;
+      }
+      
+      assert(i <= ii_BestQ);
+
+      if (tempQs[i-j] == 2)
+      {
+         /* We can use an existing rung */
+         tempQs[i] = 2;
+         a--; 
+      }
+      else
+      {
+         /* Need to create a new rung */
+         k = MIN(i-j,(i+1)/2); 
+         assert(tempQs[k]==0);
+         tempQs[k] = 1;
+         a++;
+         
+         /* Need to re-check rungs above the new one */
+         for (k++; k<=j; k++) 
+            if (tempQs[k] == 2)
+            {
+               tempQs[k] = 1;
+               a++;
+            }
+      }
+   }
+
+   a = 1;
+   for (i=3; i <= ii_BestQ; i++)
+      if (tempQs[i] == 2)
+         a++;
+
+   ip_TempLadders[ii_TempLadderIndex] = a;
+   ii_TempLadderIndex++;
+
+   if (a > ii_MaxLadderRungs)
+      ii_MaxLadderRungs = a;
+
+   j = 2;
+   for (i=3; i<=ii_BestQ; i++)
+      if (tempQs[i] == 2)
+      {
+         assert(tempQs[i-j]==2);
+         ip_TempLadders[ii_TempLadderIndex] = i - j;
+         ii_TempLadderIndex++;
+         j = i;
+      }
+}

@@ -28,6 +28,13 @@ protected:
 
    bool        BuildLegendreTableForSequence(seq_t *seq, legendre_t *legendre);
    void        BuildLegendreMap(uint32_t size, int64_t r, const char *which, uint8_t *legendreMap);
+   
+   void        MakeSubseqCongruenceTables(seq_t *seq);
+   bool        CongruentTerms(uint32_t ssIdx, uint32_t a, uint32_t b);
+
+   bool        CopyQsAndMakeLadder(seq_t *seq, sp_t parity, uint32_t r, uint32_t h, uint16_t *qList, uint32_t qListLen);
+
+   void        MakeLadder(seq_t *seq, uint16_t *qList, uint32_t qListLen);
 };
 
 #endif

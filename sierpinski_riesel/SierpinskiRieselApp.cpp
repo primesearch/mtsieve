@@ -20,7 +20,7 @@
 #include "GenericSequenceHelper.h"
 #include "CisOneWithOneSequenceHelper.h"
 
-#define APP_VERSION     "1.4.1"
+#define APP_VERSION     "1.4.2"
 
 #ifdef HAVE_GPU_WORKERS
 #define APP_NAME        "srsieve2cl"
@@ -56,6 +56,7 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    ii_SequenceCount = 0;
    ii_SquareFreeB = 0;
    is_LegendreFileName = "";
+   ib_UseLengendreTables = true;
    
 #ifdef HAVE_GPU_WORKERS
    ii_GpuFactorDensity = 10;
