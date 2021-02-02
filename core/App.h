@@ -60,6 +60,9 @@ public:
    
    void              SetRebuildNeeded(void) { ip_NeedToRebuild->SetValueNoLock(1); };
    
+   uint32_t          GetCpuWorkerCount(void) { return ii_CpuWorkerCount; };
+   uint32_t          GetGpuWorkerCount(void) { return ii_GpuWorkerCount; };
+   
 #ifdef HAVE_GPU_WORKERS
    uint32_t          GetGpuWorkSize(void) { return ii_GpuWorkGroupSize * ii_GpuWorkGroups; };
    uint32_t          GetGpuWorkGroups(void) { return ii_GpuWorkGroups; };
@@ -94,7 +97,7 @@ protected:
    virtual void      GetReportStats(char *reportStats, double cpuUtilization) = 0;
    virtual void      LogStartSievingMessage(void) = 0;
    virtual void      Finish(const char *finishMethod, uint64_t elapsedTimeUS, uint64_t largestPrimeTested, uint64_t primesTested) = 0;
-   virtual void      NotifyAppToRebuild(void) = 0;
+   virtual void      NotifyAppToRebuild(uint64_t largestPrimeTested) = 0;
    
    virtual void      PreSieveHook(void) = 0;
    virtual bool      PostSieveHook(void) = 0;
@@ -116,8 +119,6 @@ protected:
 
    bool              IsRebuildNeeded(void) { return (ip_NeedToRebuild->GetValueNoLock() > 0); };
    
-   uint32_t          GetCpuWorkerCount(void) { return ii_CpuWorkerCount; };
-   uint32_t          GetGpuWorkerCount(void) { return ii_GpuWorkerCount; };
    void              GetWorkerStats(uint64_t &workerCpuUS, uint64_t &largestPrimeTestedNoGaps, uint64_t &largestPrimeTested, uint64_t &primesTested);
    uint64_t          GetLargestPrimeTested(bool finishedNormally);
 

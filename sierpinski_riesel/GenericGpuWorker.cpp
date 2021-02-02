@@ -39,7 +39,6 @@ void  GenericGpuWorker::Prepare(uint64_t largestPrimeTested, uint32_t bestQ)
    char      define09[50];
    char      define10[50];
    char      define11[50];
-   char      define12[50];
    seq_t    *seq;
    uint32_t  seqIdx;
    

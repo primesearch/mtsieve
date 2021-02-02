@@ -59,6 +59,7 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    ib_UseLengendreTables = true;
    
 #ifdef HAVE_GPU_WORKERS
+   ib_UseGPUWorkersUponRebuild = false;
    ii_GpuFactorDensity = 10;
 #endif
 }
@@ -185,7 +186,7 @@ void SierpinskiRieselApp::ValidateOptions(void)
 
       ProcessInputTermsFile(true);
       
-      MakeSubsequences(false);
+      MakeSubsequences(false, GetMinPrime());
    }
    else
    {
@@ -218,7 +219,7 @@ void SierpinskiRieselApp::ValidateOptions(void)
       
       delete afh;
       
-      MakeSubsequences(true);  
+      MakeSubsequences(true, GetMinPrime());  
    }
 
    if (it_Format == FF_BOINC)
@@ -899,20 +900,23 @@ seq_t    *SierpinskiRieselApp::GetSequence(uint64_t k, int64_t c, uint32_t d)
 }
 
 // Note that this is only called if all workers are paused and waiting for work
-void  SierpinskiRieselApp::NotifyAppToRebuild(void)
+void  SierpinskiRieselApp::NotifyAppToRebuild(uint64_t largestPrimeTested)
 {
+#ifdef HAVE_GPU_WORKERS
+   if (ib_UseGPUWorkersUponRebuild)
+      return;
+#endif
+
    ip_AppHelper->CleanUp();
    
    delete ip_AppHelper;
    
    // This allows us to choose the best AbstractSequenceHelper based upon the current status
-   MakeSubsequences(false);
+   MakeSubsequences(false, largestPrimeTested);
 }
 
-void  SierpinskiRieselApp::MakeSubsequences(bool newSieve)
+void  SierpinskiRieselApp::MakeSubsequences(bool newSieve, uint64_t largestPrimeTested)
 {
-   uint64_t   largestPrimeTested = GetLargestPrimeTested(false);
-
    RemoveSequencesWithNoTerms();
 
    if (ii_SequenceCount == 0)
@@ -935,14 +939,11 @@ void  SierpinskiRieselApp::MakeSubsequences(bool newSieve)
       ip_AppHelper = new GenericSequenceHelper(this, largestPrimeTested);
    else
    {
-      if (ii_SequenceCount == 1 && GetGpuWorkerCount() == 0)
+      if (ii_SequenceCount == 1)
          ip_AppHelper = new CisOneWithOneSequenceHelper(this, largestPrimeTested);
       else
       {
-         if (GetGpuWorkerCount() > 0)
-            WriteToConsole(COT_OTHER, "Must use generic sieving logic because GPU workers are not supported yet");
-         else
-            WriteToConsole(COT_OTHER, "Must use generic sieving logic because there is more than one sequence");
+         WriteToConsole(COT_OTHER, "Must use generic sieving logic because there is more than one sequence");
          
          ip_AppHelper = new GenericSequenceHelper(this, largestPrimeTested);
       }

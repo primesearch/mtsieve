@@ -8,7 +8,7 @@ const char *cisonesingle_kernel= \
 "#define SP_ODD       2\n" \
 "#define SP_NO_PARITY 999\n" \
 "#define N_TERM(q, i, j)       ((SIEVE_LOW + (j) + (i)*bSteps)*BESTQ + q)\n" \
-"#define CSS_INDEX(x, y, z)    (((((x) * PRL_COUNT) + (y)) * POWER_RESIDUE_LCM) + (z))\n" \
+"#define CSS_INDEX(x, y, z)    (((((x) * (PRL_COUNT + 1)) + (y)) * (POWER_RESIDUE_LCM + 1)) + (z))\n" \
 "#define HASH_NOT_FOUND        UINT_MAX\n" \
 "#define HASH_MASK1            (1<<15)\n" \
 "#define HASH_MASK2            (HASH_MASK1-1)\n" \

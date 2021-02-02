@@ -55,13 +55,14 @@ public:
    
 #ifdef HAVE_GPU_WORKERS
    uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
+   void              UseGpuWorkersUponRebuild(void) { ib_UseGPUWorkersUponRebuild = true; };
 #endif
 
 protected:
    void              PreSieveHook(void) {};
    bool              PostSieveHook(void) { return true; };
    
-   void              NotifyAppToRebuild(void);
+   void              NotifyAppToRebuild(uint64_t largestPrimeTested);
    
    void              ProcessInputTermsFile(bool haveBitMap);
    bool              IsWritingOutputTermsFile(void){ return true; };
@@ -77,7 +78,7 @@ private:
    bool              LoadSequencesFromFile(char *fileName);
    void              ValidateAndAddNewSequence(char *arg);
 
-   void              MakeSubsequences(bool newSieve);
+   void              MakeSubsequences(bool newSieve, uint64_t largestPrimeTested);
    
    void              RemoveSequencesWithNoTerms(void);
    void              CheckForLegendreSupport(void);
@@ -93,6 +94,10 @@ private:
    uint64_t          GetSquareFreeFactor(uint64_t n, vector<uint64_t> primes);
    
    bool              ib_CanUseCIsOneLogic;
+   
+#ifdef HAVE_GPU_WORKERS
+   bool              ib_UseGPUWorkersUponRebuild;
+#endif
    
    uint64_t          il_SmallPrimeSieveLimit;
 

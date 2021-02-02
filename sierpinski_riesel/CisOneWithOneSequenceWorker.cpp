@@ -66,6 +66,19 @@ void  CisOneWithOneSequenceWorker::TestMegaPrimeChunk(void)
    uint64_t p;
    sp_t     parity;
 
+#ifdef HAVE_GPU_WORKERS
+   bool     switchToGPUWorkers = false;
+   
+   if (ip_App->GetCpuWorkerCount() == 0 && ip_App->GetGpuWorkerCount() > 0)
+   {
+      if (maxPrime > ip_App->GetMinGpuPrime())
+      {
+         maxPrime = ip_App->GetMinGpuPrime();
+         switchToGPUWorkers = true;
+      }
+   }
+#endif
+
    vector<uint64_t>::iterator it = iv_Primes.begin();
    
    while (it != iv_Primes.end())
@@ -81,7 +94,17 @@ void  CisOneWithOneSequenceWorker::TestMegaPrimeChunk(void)
       SetLargestPrimeTested(p, 1);
       
       if (p >= maxPrime)
+      {
+#ifdef HAVE_GPU_WORKERS
+         if (switchToGPUWorkers)
+         {
+            ip_SierpinskiRieselApp->UseGpuWorkersUponRebuild();
+            ip_SierpinskiRieselApp->SetRebuildNeeded();
+         }
+#endif
+         
          return;
+      }
    }
 }
 void  CisOneWithOneSequenceWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)

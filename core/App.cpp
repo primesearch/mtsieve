@@ -528,7 +528,7 @@ uint64_t  App::PauseSievingAndRebuild(void)
    // they have completed sieving their respective range of primes.
    largestPrimeTested = GetLargestPrimeTested(true);
     
-   NotifyAppToRebuild();
+   NotifyAppToRebuild(largestPrimeTested);
       
    DeleteWorkers();
 
