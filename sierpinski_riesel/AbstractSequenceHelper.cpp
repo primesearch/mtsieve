@@ -108,6 +108,10 @@ void        AbstractSequenceHelper::MakeSubsequencesForOldSieve(uint64_t expecte
    seq = ip_FirstSequence;
    do
    {
+      seq->ssCount = 0;
+      seq->ssIdxFirst = 0;
+      seq->ssIdxLast = 0;
+      
       std::fill(needss.begin(), needss.end(), false);
 
       bit = NBIT(ii_MinN);

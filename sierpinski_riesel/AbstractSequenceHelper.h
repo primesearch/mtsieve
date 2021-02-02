@@ -38,7 +38,7 @@ typedef enum { SP_NO_PARITY = 999, SP_MIXED = 0, SP_EVEN = 1, SP_ODD = 2} sp_t;
 // This allows us to create a one dimensional array to access the qList and ladders.
 // Note that this goes from the largest dimension to the smallest so that each x/y/z
 // combination yeiel
-#define CSS_INDEX(x, y, z) (((((x) * ii_PrlCount) + (y)) * POWER_RESIDUE_LCM) + (z))
+#define CSS_INDEX(x, y, z) (((((x) * (ii_PrlCount + 1)) + (y)) * (POWER_RESIDUE_LCM + 1)) + (z))
 
 // The maps are not vector<bool> because if I ever write an OpenCL
 // kernel for this, it has to be a simple datatype.

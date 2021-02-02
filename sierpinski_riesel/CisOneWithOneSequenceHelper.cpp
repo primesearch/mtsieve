@@ -235,10 +235,10 @@ void  CisOneWithOneSequenceHelper::MakeSubseqCongruenceTables(seq_t *seq)
    uint16_t   tempQs[SP_COUNT][POWER_RESIDUE_LCM];
    sp_t       parity = ip_FirstSequence->parity;
    
-   seq->congruentIndexCount = SP_COUNT * ii_PrlCount * POWER_RESIDUE_LCM;
+   seq->congruentIndexCount = SP_COUNT * (ii_PrlCount + 1) * (POWER_RESIDUE_LCM + 1);
    seq->congruentQIndices = (uint32_t *) xmalloc(seq->congruentIndexCount * sizeof(uint32_t));
    seq->congruentLadderIndices = (uint32_t *) xmalloc(seq->congruentIndexCount * sizeof(uint32_t));
-
+   
    // We will not use the first element so that an index of 0 means "does not exist"
    ii_TempQIndex = ii_TempLadderIndex = 1;
    for (r=1; r<=POWER_RESIDUE_LCM; r++)
@@ -319,9 +319,11 @@ bool  CisOneWithOneSequenceHelper::CopyQsAndMakeLadder(seq_t *seq, sp_t parity, 
 
    r = ip_PrlIndices[r];
 
+   uint32_t cssIndex = CSS_INDEX(parity, r, h);
+   
    // These will contain the index to the qListLen/qList and ladderLen/ladder for this parity, r, and h
-   seq->congruentQIndices[CSS_INDEX(parity, r, h)] = ii_TempQIndex;
-   seq->congruentLadderIndices[CSS_INDEX(parity, r, h)] = ii_TempLadderIndex;
+   seq->congruentQIndices[cssIndex] = ii_TempQIndex;
+   seq->congruentLadderIndices[cssIndex] = ii_TempLadderIndex;
 
 
    ip_TempQs[ii_TempQIndex] = qListLen;

@@ -14,7 +14,7 @@
 #define SP_NO_PARITY 999
 
 #define N_TERM(q, i, j)       ((SIEVE_LOW + (j) + (i)*bSteps)*BESTQ + q)
-#define CSS_INDEX(x, y, z)    (((((x) * PRL_COUNT) + (y)) * POWER_RESIDUE_LCM) + (z))
+#define CSS_INDEX(x, y, z)    (((((x) * (PRL_COUNT + 1)) + (y)) * (POWER_RESIDUE_LCM + 1)) + (z))
 
 #define HASH_NOT_FOUND        UINT_MAX
 #define HASH_MASK1            (1<<15)
