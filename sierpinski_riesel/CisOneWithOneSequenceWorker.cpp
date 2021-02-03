@@ -130,8 +130,8 @@ sp_t   CisOneWithOneSequenceWorker::GetParity(uint64_t p)
       {
          int32_t sym = legendre(ip_FirstSequence->kcCore, p);
          
-         qr_m1 = (sym == 1);
-         qr_p1 = (sym == legendre(ii_Base, p));
+         qr_p1 = (sym == 1);
+         qr_m1 = (sym == legendre(ii_Base, p));
       }
       
       if (qr_m1)
