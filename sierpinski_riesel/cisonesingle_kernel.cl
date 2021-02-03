@@ -38,7 +38,7 @@ short  legendre(long a, ulong p);
 uint  setupDiscreteLog(ulong thePrime, ulong _q, ulong _one,
                        ulong resBase, ulong resInvBase, ulong resNegCK, ushort parity,
                        __global const short  *divisorShifts,
-                       __global const uint   *prlIndices);
+                       __global const ushort *prlIndices);
 
 ulong buildLookupsAndClimbLadder(ulong thePrime, ulong _q, ulong _one,
                                   ulong resBase, ulong resNegCK, ulong *resBD,
@@ -78,7 +78,7 @@ __kernel void cisonesingle_kernel(__global const ulong  *primes,
                                   __global const uint   *babyStepsArray,
                                   __global const uint   *giantStepsArray,
                                   __global const short  *divisorShifts,
-                                  __global const uint   *prlIndices,
+                                  __global const ushort *prlIndices,
                                   __global const uint   *qIndices,
                                   __global const ushort *qs,
                                   __global const uint   *ladderIndices,
@@ -100,7 +100,7 @@ __kernel void cisonesingle_kernel(__global const ulong  *primes,
 #else
    parity = getParity(thePrime);
 #endif
-      
+    
    if (parity == SP_NO_PARITY)
       return;
    
@@ -129,12 +129,12 @@ __kernel void cisonesingle_kernel(__global const ulong  *primes,
    ulong   h_BJ64[HASH_ELEMENTS+1];
    ulong   resBD[SUBSEQUENCE_COUNT];
    uint    i, j, k, ssCount;
-   uint    idx, qIdx, ladderIdx;
+   uint    idx, qIdx, ladderIdx, cssIndex;
 
-   ushort cssIndex = setupDiscreteLog(thePrime, _q, _one, resBase, resInvBase, resNegCK, parity, divisorShifts, prlIndices);
-   
+   cssIndex = setupDiscreteLog(thePrime, _q, _one, resBase, resInvBase, resNegCK, parity, divisorShifts, prlIndices);
+      
    qIdx = qIndices[cssIndex];
-
+   
    // If no qs for this p, then no factors, so return
    if (qIdx == 0)
       return;
@@ -145,7 +145,7 @@ __kernel void cisonesingle_kernel(__global const ulong  *primes,
    resBexpQ = buildLookupsAndClimbLadder(thePrime, _q, _one, resBase, resNegCK, resBD, qIdx, ladderIdx, qs, ladders);
    
    ssCount = qs[qIdx];
-
+   
    for (idx=0; idx<HASH_SIZE; idx++)
       h_table[idx] = 0;  
       
@@ -301,9 +301,8 @@ ulong   mmmPowmod(ulong resbase, ulong exp, ulong _p, ulong _q, ulong _one)
 ushort getParity(ulong thePrime, __global const uchar *dualParityMapM1, __global const uchar *dualParityMapP1)
 {
    short qr_m1, qr_p1;
-   ulong p = thePrime / 2;
    
-   uint qr_mod = p - (p / LEGENDRE_MOD);
+   uint qr_mod = (thePrime / 2) % (LEGENDRE_MOD);
             
    qr_m1 = (dualParityMapM1[L_BYTE(qr_mod)] & L_BIT(qr_mod));
    qr_p1 = (dualParityMapP1[L_BYTE(qr_mod)] & L_BIT(qr_mod));
@@ -316,11 +315,10 @@ ushort getParity(ulong thePrime, __global const uchar *dualParityMapM1, __global
 #else    // HAVE_MIXED_PARITY
 ushort getParity(ulong thePrime, __global const uchar *singleParityMap)
 {
-   // Single parity sequences
    short qr;
-   ulong p = thePrime / 2;
    
-   uint qr_mod = p - (p / LEGENDRE_MOD);
+   // Single parity sequences 
+   uint qr_mod = (thePrime / 2) % (LEGENDRE_MOD);
    
    qr = (singleParityMap[L_BYTE(qr_mod)] & L_BIT(qr_mod));
 
@@ -338,8 +336,8 @@ ushort getParity(ulong thePrime)
 
    short sym = legendre(KC_CORE, thePrime);
    
-   qr_m1 = (sym == 1);
-   qr_p1 = (sym == legendre(BASE, thePrime));
+   qr_p1 = (sym == 1);
+   qr_m1 = (sym == legendre(BASE, thePrime));
 
    if (qr_m1)
       return (qr_p1 ? SP_MIXED : SP_ODD);
@@ -367,7 +365,7 @@ ushort getParity(ulong thePrime)
 uint setupDiscreteLog(ulong thePrime, ulong _q, ulong _one,
                       ulong resBase, ulong resInvBase, ulong resNegCK, ushort parity,
                       __global const short  *divisorShifts,
-                      __global const uint   *prlIndices)
+                       __global const ushort *prlIndices)
 {
    ulong pShift;
    uint  idx;
@@ -419,7 +417,7 @@ uint setupDiscreteLog(ulong thePrime, ulong _q, ulong _one,
    // If no h was found, then there is nothing further to do.
    if (h == r)
       return 0;
-
+   
    r = prlIndices[r];
    
    return CSS_INDEX(parity, r, h);

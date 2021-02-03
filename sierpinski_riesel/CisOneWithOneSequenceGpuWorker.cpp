@@ -129,11 +129,11 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
       else
          ip_KAOneParityMap    = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "oneParityMap", KA_HOST_TO_GPU, legendre->oneParityMap, legendre->mapSize);
    }
-   
+         
    ip_KASubSeqBS        = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "baby_steps", KA_HOST_TO_GPU, ip_BabySteps, ii_SubsequenceCount);
    ip_KASubSeqGS        = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "giant_steps", KA_HOST_TO_GPU, ip_GiantSteps, ii_SubsequenceCount);
    ip_KADivisorShifts   = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "divisor_shifts", KA_HOST_TO_GPU, ip_CisOneHelper->GetDivisorShifts(), POWER_RESIDUE_LCM / 2);
-   ip_KAPrlIndices      = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "prl_indices", KA_HOST_TO_GPU, ip_CisOneHelper->GetPrlIndices(), ip_CisOneHelper->GetPrlCount());
+   ip_KAPrlIndices      = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "prl_indices", KA_HOST_TO_GPU, ip_CisOneHelper->GetPrlIndices(), POWER_RESIDUE_LCM);
    
    ip_KAQIndices        = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "q_indices", KA_HOST_TO_GPU, ip_FirstSequence->congruentQIndices, ip_FirstSequence->congruentIndexCount);
    ip_KAQs              = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "qs", KA_HOST_TO_GPU, ip_FirstSequence->congruentQs, ip_FirstSequence->congruentQCount);

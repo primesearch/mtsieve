@@ -87,7 +87,7 @@ void  CisOneWithOneSequenceWorker::TestMegaPrimeChunk(void)
       it++;
 
       parity = GetParity(p);
-
+      
       if (parity != SP_NO_PARITY)
          TestSinglePrime(p, parity);
 
@@ -280,7 +280,7 @@ uint32_t  CisOneWithOneSequenceWorker::SetupDiscreteLog(MpArith mp, MpRes resBas
    
    idx = (p/2) % (POWER_RESIDUE_LCM/2);
    shift = ip_DivisorShifts[idx];
-      
+
    if (shift == 0)
    {
       r = ip_PrlIndices[1];

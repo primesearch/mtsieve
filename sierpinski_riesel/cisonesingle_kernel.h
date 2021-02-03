@@ -28,7 +28,7 @@ const char *cisonesingle_kernel= \
 "uint  setupDiscreteLog(ulong thePrime, ulong _q, ulong _one,\n" \
 "ulong resBase, ulong resInvBase, ulong resNegCK, ushort parity,\n" \
 "__global const short  *divisorShifts,\n" \
-"__global const uint   *prlIndices);\n" \
+"__global const ushort *prlIndices);\n" \
 "ulong buildLookupsAndClimbLadder(ulong thePrime, ulong _q, ulong _one,\n" \
 "ulong resBase, ulong resNegCK, ulong *resBD,\n" \
 "uint qIndex, uint ladderIndex,\n" \
@@ -62,7 +62,7 @@ const char *cisonesingle_kernel= \
 "__global const uint   *babyStepsArray,\n" \
 "__global const uint   *giantStepsArray,\n" \
 "__global const short  *divisorShifts,\n" \
-"__global const uint   *prlIndices,\n" \
+"__global const ushort *prlIndices,\n" \
 "__global const uint   *qIndices,\n" \
 "__global const ushort *qs,\n" \
 "__global const uint   *ladderIndices,\n" \
@@ -104,8 +104,8 @@ const char *cisonesingle_kernel= \
 "ulong   h_BJ64[HASH_ELEMENTS+1];\n" \
 "ulong   resBD[SUBSEQUENCE_COUNT];\n" \
 "uint    i, j, k, ssCount;\n" \
-"uint    idx, qIdx, ladderIdx;\n" \
-"ushort cssIndex = setupDiscreteLog(thePrime, _q, _one, resBase, resInvBase, resNegCK, parity, divisorShifts, prlIndices);\n" \
+"uint    idx, qIdx, ladderIdx, cssIndex;\n" \
+"cssIndex = setupDiscreteLog(thePrime, _q, _one, resBase, resInvBase, resNegCK, parity, divisorShifts, prlIndices);\n" \
 "qIdx = qIndices[cssIndex];\n" \
 "if (qIdx == 0)\n" \
 "return;\n" \
@@ -224,8 +224,7 @@ const char *cisonesingle_kernel= \
 "ushort getParity(ulong thePrime, __global const uchar *dualParityMapM1, __global const uchar *dualParityMapP1)\n" \
 "{\n" \
 "short qr_m1, qr_p1;\n" \
-"ulong p = thePrime / 2;\n" \
-"uint qr_mod = p - (p / LEGENDRE_MOD);\n" \
+"uint qr_mod = (thePrime / 2) % (LEGENDRE_MOD);\n" \
 "qr_m1 = (dualParityMapM1[L_BYTE(qr_mod)] & L_BIT(qr_mod));\n" \
 "qr_p1 = (dualParityMapP1[L_BYTE(qr_mod)] & L_BIT(qr_mod));\n" \
 "if (qr_m1)\n" \
@@ -236,8 +235,7 @@ const char *cisonesingle_kernel= \
 "ushort getParity(ulong thePrime, __global const uchar *singleParityMap)\n" \
 "{\n" \
 "short qr;\n" \
-"ulong p = thePrime / 2;\n" \
-"uint qr_mod = p - (p / LEGENDRE_MOD);\n" \
+"uint qr_mod = (thePrime / 2) % (LEGENDRE_MOD);\n" \
 "qr = (singleParityMap[L_BYTE(qr_mod)] & L_BIT(qr_mod));\n" \
 "if (qr)\n" \
 "return SEQ_PARITY;\n" \
@@ -250,8 +248,8 @@ const char *cisonesingle_kernel= \
 "#ifdef HAVE_MIXED_PARITY\n" \
 "short qr_m1, qr_p1;\n" \
 "short sym = legendre(KC_CORE, thePrime);\n" \
-"qr_m1 = (sym == 1);\n" \
-"qr_p1 = (sym == legendre(BASE, thePrime));\n" \
+"qr_p1 = (sym == 1);\n" \
+"qr_m1 = (sym == legendre(BASE, thePrime));\n" \
 "if (qr_m1)\n" \
 "return (qr_p1 ? SP_MIXED : SP_ODD);\n" \
 "return (qr_p1 ? SP_EVEN : SP_NO_PARITY);\n" \
@@ -272,7 +270,7 @@ const char *cisonesingle_kernel= \
 "uint setupDiscreteLog(ulong thePrime, ulong _q, ulong _one,\n" \
 "ulong resBase, ulong resInvBase, ulong resNegCK, ushort parity,\n" \
 "__global const short  *divisorShifts,\n" \
-"__global const uint   *prlIndices)\n" \
+"__global const ushort *prlIndices)\n" \
 "{\n" \
 "ulong pShift;\n" \
 "uint  idx;\n" \
