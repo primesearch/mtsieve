@@ -135,9 +135,9 @@ sp_t   CisOneWithOneSequenceWorker::GetParity(uint64_t p)
       }
       
       if (qr_m1)
-         return (qr_p1 ? SP_MIXED : SP_EVEN);
+         return (qr_p1 ? SP_MIXED : SP_ODD);
 
-      return (qr_p1 ? SP_ODD : SP_NO_PARITY);
+      return (qr_p1 ? SP_EVEN : SP_NO_PARITY);
    }
    
    // Single parity sequences
