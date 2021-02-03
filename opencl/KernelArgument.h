@@ -22,6 +22,8 @@ class KernelArgument
 {
 public:
    // Various constructors, each one handles a different datatype
+   KernelArgument(Device *theDevice, const char *argumentName, gpu_dir_t direction, int8_t *argument, int32_t count);
+   KernelArgument(Device *theDevice, const char *argumentName, gpu_dir_t direction, uint8_t *argument, int32_t count);
    KernelArgument(Device *theDevice, const char *argumentName, gpu_dir_t direction, int16_t *argument, int32_t count);
    KernelArgument(Device *theDevice, const char *argumentName, gpu_dir_t direction, uint16_t *argument, int32_t count);
    KernelArgument(Device *theDevice, const char *argumentName, gpu_dir_t direction, int32_t *argument, int32_t count);

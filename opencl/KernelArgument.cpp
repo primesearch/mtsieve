@@ -11,6 +11,20 @@
 #include "KernelArgument.h"
 #include "ErrorChecker.h"
 
+KernelArgument::KernelArgument(Device *theDevice, const char *argumentName, gpu_dir_t direction, int8_t *argument, int32_t count)
+{
+   is_ArgumentName = argumentName;
+   ip_Device = theDevice;
+   Initialize(direction, argument, sizeof(*argument), count);
+}
+
+KernelArgument::KernelArgument(Device *theDevice, const char *argumentName, gpu_dir_t direction, uint8_t *argument, int32_t count)
+{
+   is_ArgumentName = argumentName;
+   ip_Device = theDevice;
+   Initialize(direction, argument, sizeof(*argument), count);
+}
+
 KernelArgument::KernelArgument(Device *theDevice, const char *argumentName, gpu_dir_t direction, int16_t *argument, int32_t count)
 {
    is_ArgumentName = argumentName;
