@@ -40,13 +40,18 @@ typedef enum { SP_NO_PARITY = 999, SP_MIXED = 0, SP_EVEN = 1, SP_ODD = 2} sp_t;
 // combination yeiel
 #define CSS_INDEX(x, y, z) (((((x) * (ii_PrlCount + 1)) + (y)) * (POWER_RESIDUE_LCM + 1)) + (z))
 
+#define L_BYTES(x) (((1+x)>>3)+1)
+#define L_BYTE(x)  ((x)>>3)
+#define L_BIT(x)   (1<<((x)&7))
+
 // The maps are not vector<bool> because if I ever write an OpenCL
 // kernel for this, it has to be a simple datatype.
 typedef struct {
+   uint32_t          mod;
+   uint32_t          mapSize;
    uint8_t          *oneParityMap;
    uint8_t          *dualParityMapM1;
    uint8_t          *dualParityMapP1;
-   uint32_t          mod;
 } legendre_t;
 
 // All of these fields are set before sieving is started, but only nTerms can be

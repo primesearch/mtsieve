@@ -272,7 +272,7 @@ void SierpinskiRieselApp::ValidateOptions(void)
 #ifdef HAVE_GPU_WORKERS
    SetMinGpuPrime(1000000);
    
-   double factors = (double) (ii_MaxN - ii_MinN) * (double) (ii_SequenceCount) / 1000000.0;
+   double factors = (double) (ii_MaxN - ii_MinN) * (double) (ii_SequenceCount) / 1000.0;
 
    ii_MaxGpuFactors = GetGpuWorkGroups() * (uint64_t) (factors * (double) ii_GpuFactorDensity);
 #endif

@@ -110,10 +110,11 @@ double    CisOneWithOneSequenceHelper::EstimateWork(uint32_t Q, uint32_t s)
 // bit (p/2)%mod of seq_map[1] is set if and only if (-bck/p)=1.
 // 
 // In the worst case each table for k*b^n+c could be 4*b*k bits long.
-bool   CisOneWithOneSequenceHelper::BuildLegendreTableForSequence(seq_t *seq, legendre_t *legendre)
+bool   CisOneWithOneSequenceHelper::BuildLegendreTableForSequence(seq_t *seq)
 {
-   int64_t  r;
-   uint64_t mod, ssqfb;
+   int64_t     r;
+   uint64_t    mod, ssqfb;
+   legendre_t *legendre;
    SierpinskiRieselApp *srApp = (SierpinskiRieselApp *) ip_App;
 
    mod = seq->squareFreeK;
@@ -151,9 +152,14 @@ bool   CisOneWithOneSequenceHelper::BuildLegendreTableForSequence(seq_t *seq, le
         //  seq_map[0] = map0;
         //}
         //else
+         legendre = (legendre_t *) xmalloc(sizeof(legendre_t));
+
+         legendre->mapSize = L_BYTES(mod);
+         legendre->oneParityMap = (uint8_t *) xmalloc(legendre->mapSize * sizeof(uint8_t));
          
-         legendre->oneParityMap = (uint8_t *) xmalloc(L_BYTES(mod) * sizeof(uint8_t));
          BuildLegendreMap(mod, r, "single", legendre->oneParityMap);
+         
+         seq->legendrePtr = legendre;
          break;
 
       // odd and even n, test for (-ck/p)==1 and (-bck/p)==1
@@ -193,12 +199,17 @@ bool   CisOneWithOneSequenceHelper::BuildLegendreTableForSequence(seq_t *seq, le
      //  seq_map[1] = map1;
      //}
      //else
-               
-         legendre->dualParityMapP1 = (uint8_t *) xmalloc(L_BYTES(mod) * sizeof(uint8_t));
-         legendre->dualParityMapM1 = (uint8_t *) xmalloc(L_BYTES(mod) * sizeof(uint8_t));
+     
+         legendre = (legendre_t *) xmalloc(sizeof(legendre_t));
+         
+         legendre->mapSize = L_BYTES(mod);
+         legendre->dualParityMapP1 = (uint8_t *) xmalloc(legendre->mapSize * sizeof(uint8_t));
+         legendre->dualParityMapM1 = (uint8_t *) xmalloc(legendre->mapSize * sizeof(uint8_t));
 
-         BuildLegendreMap(mod, r, "even", legendre->dualParityMapP1);
-         BuildLegendreMap(mod, r*ssqfb, "odd", legendre->dualParityMapM1);
+         BuildLegendreMap(mod, r,       "even", legendre->dualParityMapP1);
+         BuildLegendreMap(mod, r*ssqfb, "odd",  legendre->dualParityMapM1);
+         
+         seq->legendrePtr = legendre;
          break;
    }
    

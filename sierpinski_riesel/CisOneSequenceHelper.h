@@ -36,7 +36,7 @@ public:
    bool              UseLegendreTables(void) { return ib_UseLegendreTables; };
 
 protected:
-   virtual bool      BuildLegendreTableForSequence(seq_t *seq, legendre_t *legendre) = 0;
+   virtual bool      BuildLegendreTableForSequence(seq_t *seq) = 0;
    
    bool              ib_UseLegendreTables;
    string            is_LegendreFileName;

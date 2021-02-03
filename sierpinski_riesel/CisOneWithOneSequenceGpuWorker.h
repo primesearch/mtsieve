@@ -43,6 +43,9 @@ protected:
    
    Kernel           *ip_SRKernel;
    KernelArgument   *ip_KAPrime;
+   KernelArgument   *ip_KADualParityMapM1;
+   KernelArgument   *ip_KADualParityMapP1;
+   KernelArgument   *ip_KAOneParityMap;
    KernelArgument   *ip_KASubSeqBS;
    KernelArgument   *ip_KASubSeqGS;
    KernelArgument   *ip_KADivisorShifts;

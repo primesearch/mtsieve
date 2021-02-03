@@ -26,7 +26,7 @@ protected:
    uint32_t    RateQ(uint32_t Q, uint32_t s);
    double      EstimateWork(uint32_t Q, uint32_t s);
 
-   bool        BuildLegendreTableForSequence(seq_t *seq, legendre_t *legendre);
+   bool        BuildLegendreTableForSequence(seq_t *seq);
    void        BuildLegendreMap(uint32_t size, int64_t r, const char *which, uint8_t *legendreMap);
    
    void        MakeSubseqCongruenceTables(seq_t *seq);

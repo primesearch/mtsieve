@@ -92,6 +92,18 @@ void   CisOneSequenceHelper::CleanUp(void)
       if (seq->congruentLadderIndices != NULL)
          xfree(seq->congruentLadderIndices);
  
+      if (seq->legendrePtr != NULL)
+      {
+         if (seq->legendrePtr->oneParityMap)
+            xfree(seq->legendrePtr->oneParityMap);
+            
+         if (seq->legendrePtr->dualParityMapM1)
+            xfree(seq->legendrePtr->dualParityMapM1);
+            
+         if (seq->legendrePtr->dualParityMapP1)
+            xfree(seq->legendrePtr->dualParityMapP1);
+      }
+ 
       seq = (seq_t *) seq->next;
    }
 }
@@ -204,7 +216,6 @@ bool   CisOneSequenceHelper::BuildLegendreTables(string legendreFileName)
 {
    uint64_t     preBuildCpuBytes;
    uint64_t     postBuildCpuBytes;
-   legendre_t  *legendre;
    bool         builtLegendreTables;
    seq_t       *seq;
       
@@ -213,11 +224,7 @@ bool   CisOneSequenceHelper::BuildLegendreTables(string legendreFileName)
    seq = ip_FirstSequence;
    do
    {
-      legendre = (legendre_t *) xmalloc(sizeof(legendre_t));
-      
-      seq->legendrePtr = legendre;
-
-      builtLegendreTables = BuildLegendreTableForSequence(seq, legendre);
+      builtLegendreTables = BuildLegendreTableForSequence(seq);
       
       if (!builtLegendreTables)
          break;

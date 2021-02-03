@@ -15,10 +15,6 @@
 #include "../core/HashTable.h"
 #include "../core/MpArith.h"
 
-#define L_BYTES(x) (((1+x)>>3)+1)
-#define L_BYTE(x)  ((x)>>3)
-#define L_BIT(x)   (1<<((x)&7))
-
 using namespace std;
 
 class CisOneWithOneSequenceWorker : public AbstractWorker

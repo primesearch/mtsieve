@@ -9,10 +9,20 @@ const char *cisonesingle_kernel= \
 "#define SP_NO_PARITY 999\n" \
 "#define N_TERM(q, i, j)       ((SIEVE_LOW + (j) + (i)*bSteps)*BESTQ + q)\n" \
 "#define CSS_INDEX(x, y, z)    (((((x) * (PRL_COUNT + 1)) + (y)) * (POWER_RESIDUE_LCM + 1)) + (z))\n" \
+"#define L_BYTE(x)  ((x)>>3)\n" \
+"#define L_BIT(x)   (1<<((x)&7))\n" \
 "#define HASH_NOT_FOUND        UINT_MAX\n" \
 "#define HASH_MASK1            (1<<15)\n" \
 "#define HASH_MASK2            (HASH_MASK1-1)\n" \
+"#ifdef HAVE_LEGENDRE_TABLES\n" \
+"#ifdef HAVE_MIXED_PARITY\n" \
+"ushort getParity(ulong thePrime, __global const uchar *dualParityMapM1, __global const uchar *dualParityMapP1);\n" \
+"#else\n" \
+"ushort getParity(ulong thePrime, __global const uchar *singleParityMap);\n" \
+"#endif\n" \
+"#else\n" \
 "ushort getParity(ulong thePrime);\n" \
+"#endif\n" \
 "ulong  invmod(ulong a, ulong p);\n" \
 "short  legendre(long a, ulong p);\n" \
 "uint  setupDiscreteLog(ulong thePrime, ulong _q, ulong _one,\n" \
@@ -41,6 +51,14 @@ const char *cisonesingle_kernel= \
 "ulong mmmNToRes(ulong n, ulong _p, ulong _q, ulong _r2);\n" \
 "ulong mmmPowmod(ulong resbase, ulong exp, ulong _p, ulong _q, ulong _one);\n" \
 "__kernel void cisonesingle_kernel(__global const ulong  *primes,\n" \
+"#ifdef HAVE_LEGENDRE_TABLES\n" \
+"#ifdef HAVE_MIXED_PARITY\n" \
+"__global const uchar  *dualParityMapM1,\n" \
+"__global const uchar  *dualParityMapP1,\n" \
+"#else\n" \
+"__global const uchar  *singleParityMap,\n" \
+"#endif\n" \
+"#endif\n" \
 "__global const uint   *babyStepsArray,\n" \
 "__global const uint   *giantStepsArray,\n" \
 "__global const short  *divisorShifts,\n" \
@@ -56,7 +74,15 @@ const char *cisonesingle_kernel= \
 "ulong  thePrime = primes[gid];\n" \
 "ulong  negCK;\n" \
 "ushort parity;\n" \
+"#ifdef HAVE_LEGENDRE_TABLES\n" \
+"#ifdef HAVE_MIXED_PARITY\n" \
+"parity = getParity(thePrime, dualParityMapM1, dualParityMapP1);\n" \
+"#else\n" \
+"parity = getParity(thePrime, singleParityMap);\n" \
+"#endif\n" \
+"#else\n" \
 "parity = getParity(thePrime);\n" \
+"#endif\n" \
 "if (parity == SP_NO_PARITY)\n" \
 "return;\n" \
 "if (thePrime < SEQ_K)\n" \
@@ -193,22 +219,44 @@ const char *cisonesingle_kernel= \
 "}\n" \
 "return 0;\n" \
 "}\n" \
-"ushort  getParity(ulong thePrime)\n" \
-"{\n" \
-"if (SEQ_PARITY == SP_MIXED)\n" \
+"#ifdef HAVE_LEGENDRE_TABLES\n" \
+"#ifdef HAVE_MIXED_PARITY\n" \
+"ushort getParity(ulong thePrime, __global const uchar *dualParityMapM1, __global const uchar *dualParityMapP1)\n" \
 "{\n" \
 "short qr_m1, qr_p1;\n" \
+"ulong p = thePrime / 2;\n" \
+"uint qr_mod = p - (p / LEGENDRE_MOD);\n" \
+"qr_m1 = (dualParityMapM1[L_BYTE(qr_mod)] & L_BIT(qr_mod));\n" \
+"qr_p1 = (dualParityMapP1[L_BYTE(qr_mod)] & L_BIT(qr_mod));\n" \
+"if (qr_m1)\n" \
+"return (qr_p1 ? SP_MIXED : SP_ODD);\n" \
+"return (qr_p1 ? SP_EVEN : SP_NO_PARITY);\n" \
+"}\n" \
+"#else\n" \
+"ushort getParity(ulong thePrime, __global const uchar *singleParityMap)\n" \
 "{\n" \
+"short qr;\n" \
+"ulong p = thePrime / 2;\n" \
+"uint qr_mod = p - (p / LEGENDRE_MOD);\n" \
+"qr = (singleParityMap[L_BYTE(qr_mod)] & L_BIT(qr_mod));\n" \
+"if (qr)\n" \
+"return SEQ_PARITY;\n" \
+"return SP_NO_PARITY;\n" \
+"}\n" \
+"#endif\n" \
+"#else\n" \
+"ushort getParity(ulong thePrime)\n" \
+"{\n" \
+"#ifdef HAVE_MIXED_PARITY\n" \
+"short qr_m1, qr_p1;\n" \
 "short sym = legendre(KC_CORE, thePrime);\n" \
 "qr_m1 = (sym == 1);\n" \
 "qr_p1 = (sym == legendre(BASE, thePrime));\n" \
-"}\n" \
 "if (qr_m1)\n" \
-"return (qr_p1 ? SP_MIXED : SP_EVEN);\n" \
-"return (qr_p1 ? SP_ODD : SP_NO_PARITY);\n" \
-"}\n" \
+"return (qr_p1 ? SP_MIXED : SP_ODD);\n" \
+"return (qr_p1 ? SP_EVEN : SP_NO_PARITY);\n" \
+"#else\n" \
 "short qr;\n" \
-"{\n" \
 "short sym = legendre(KC_CORE, thePrime);\n" \
 "if (SEQ_PARITY == SP_EVEN)\n" \
 "qr = (sym == 1);\n" \
@@ -218,7 +266,9 @@ const char *cisonesingle_kernel= \
 "if (qr)\n" \
 "return SEQ_PARITY;\n" \
 "return SP_NO_PARITY;\n" \
+"#endif\n" \
 "}\n" \
+"#endif\n" \
 "uint setupDiscreteLog(ulong thePrime, ulong _q, ulong _one,\n" \
 "ulong resBase, ulong resInvBase, ulong resNegCK, ushort parity,\n" \
 "__global const short  *divisorShifts,\n" \

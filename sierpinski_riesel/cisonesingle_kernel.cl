@@ -16,11 +16,22 @@
 #define N_TERM(q, i, j)       ((SIEVE_LOW + (j) + (i)*bSteps)*BESTQ + q)
 #define CSS_INDEX(x, y, z)    (((((x) * (PRL_COUNT + 1)) + (y)) * (POWER_RESIDUE_LCM + 1)) + (z))
 
+#define L_BYTE(x)  ((x)>>3)
+#define L_BIT(x)   (1<<((x)&7))
+
 #define HASH_NOT_FOUND        UINT_MAX
 #define HASH_MASK1            (1<<15)
 #define HASH_MASK2            (HASH_MASK1-1)
 
+#ifdef HAVE_LEGENDRE_TABLES
+#ifdef HAVE_MIXED_PARITY
+ushort getParity(ulong thePrime, __global const uchar *dualParityMapM1, __global const uchar *dualParityMapP1);
+#else
+ushort getParity(ulong thePrime, __global const uchar *singleParityMap);
+#endif
+#else
 ushort getParity(ulong thePrime);
+#endif
 ulong  invmod(ulong a, ulong p);
 short  legendre(long a, ulong p);
 
@@ -56,6 +67,14 @@ ulong mmmNToRes(ulong n, ulong _p, ulong _q, ulong _r2);
 ulong mmmPowmod(ulong resbase, ulong exp, ulong _p, ulong _q, ulong _one);
    
 __kernel void cisonesingle_kernel(__global const ulong  *primes,
+#ifdef HAVE_LEGENDRE_TABLES
+#ifdef HAVE_MIXED_PARITY
+                                  __global const uchar  *dualParityMapM1,
+                                  __global const uchar  *dualParityMapP1,
+#else
+                                  __global const uchar  *singleParityMap,
+#endif
+#endif
                                   __global const uint   *babyStepsArray,
                                   __global const uint   *giantStepsArray,
                                   __global const short  *divisorShifts,
@@ -71,8 +90,16 @@ __kernel void cisonesingle_kernel(__global const ulong  *primes,
    ulong  thePrime = primes[gid];
    ulong  negCK;
    ushort parity;
-   
+
+#ifdef HAVE_LEGENDRE_TABLES
+#ifdef HAVE_MIXED_PARITY
+   parity = getParity(thePrime, dualParityMapM1, dualParityMapP1);
+#else
+   parity = getParity(thePrime, singleParityMap);
+#endif
+#else
    parity = getParity(thePrime);
+#endif
       
    if (parity == SP_NO_PARITY)
       return;
@@ -269,58 +296,73 @@ ulong   mmmPowmod(ulong resbase, ulong exp, ulong _p, ulong _q, ulong _one)
    return 0;
 }
 
-ushort  getParity(ulong thePrime)
+#ifdef HAVE_LEGENDRE_TABLES
+#ifdef HAVE_MIXED_PARITY
+ushort getParity(ulong thePrime, __global const uchar *dualParityMapM1, __global const uchar *dualParityMapP1)
 {
-   // Mixed parity sequences
-   if (SEQ_PARITY == SP_MIXED)
-   {
-      short qr_m1, qr_p1;
-      
-     //if (ib_UseLegendreTables)
-     //{
-     //   uint32_t qr_mod = (thePrime/2) % ip_Legendre->mod;
-     //            
-     //   qr_m1 = (ip_Legendre->dualParityMapM1[L_BYTE(qr_mod)] & L_BIT(qr_mod));
-     //   qr_p1 = (ip_Legendre->dualParityMapP1[L_BYTE(qr_mod)] & L_BIT(qr_mod));
-     //}
-     //else
-      {
-         short sym = legendre(KC_CORE, thePrime);
-         
-         qr_m1 = (sym == 1);
-         qr_p1 = (sym == legendre(BASE, thePrime));
-      }
-      
-      if (qr_m1)
-         return (qr_p1 ? SP_MIXED : SP_EVEN);
-
-      return (qr_p1 ? SP_ODD : SP_NO_PARITY);
-   }
+   short qr_m1, qr_p1;
+   ulong p = thePrime / 2;
    
+   uint qr_mod = p - (p / LEGENDRE_MOD);
+            
+   qr_m1 = (dualParityMapM1[L_BYTE(qr_mod)] & L_BIT(qr_mod));
+   qr_p1 = (dualParityMapP1[L_BYTE(qr_mod)] & L_BIT(qr_mod));
+   
+   if (qr_m1)
+      return (qr_p1 ? SP_MIXED : SP_ODD);
+
+   return (qr_p1 ? SP_EVEN : SP_NO_PARITY);
+}
+#else    // HAVE_MIXED_PARITY
+ushort getParity(ulong thePrime, __global const uchar *singleParityMap)
+{
    // Single parity sequences
    short qr;
+   ulong p = thePrime / 2;
    
-   //if (ib_UseLegendreTables)
-   //{
-   //   uint32_t qr_mod = (p/2) % ip_Legendre->mod;
-   //      
-   //   qr = (ip_Legendre->oneParityMap[L_BYTE(qr_mod)] & L_BIT(qr_mod));
-   //}
-   //else
-   {
-      short sym = legendre(KC_CORE, thePrime);
+   uint qr_mod = p - (p / LEGENDRE_MOD);
+   
+   qr = (singleParityMap[L_BYTE(qr_mod)] & L_BIT(qr_mod));
+
+   if (qr)
+      return SEQ_PARITY;
       
-      if (SEQ_PARITY == SP_EVEN)
-         qr = (sym == 1);
-      else
-         qr = (sym == legendre(BASE, thePrime));
+   return SP_NO_PARITY;
+}
+#endif   // HAVE_MIXED_PARITY
+#else    // HAVE_LEGENDRE_TABLES
+ushort getParity(ulong thePrime)
+{
+#ifdef HAVE_MIXED_PARITY
+   short qr_m1, qr_p1;
+
+   short sym = legendre(KC_CORE, thePrime);
+   
+   qr_m1 = (sym == 1);
+   qr_p1 = (sym == legendre(BASE, thePrime));
+
+   if (qr_m1)
+      return (qr_p1 ? SP_MIXED : SP_ODD);
+
+   return (qr_p1 ? SP_EVEN : SP_NO_PARITY);
+#else    // HAVE_MIXED_PARITY
+   short qr;
+
+   short sym = legendre(KC_CORE, thePrime);
+   
+   if (SEQ_PARITY == SP_EVEN)
+      qr = (sym == 1);
+   else
+      qr = (sym == legendre(BASE, thePrime));
    }
    
    if (qr)
       return SEQ_PARITY;
       
    return SP_NO_PARITY;
+#endif   // HAVE_MIXED_PARITY
 }
+#endif   // HAVE_LEGENDRE_TABLES
 
 uint setupDiscreteLog(ulong thePrime, ulong _q, ulong _one,
                       ulong resBase, ulong resInvBase, ulong resNegCK, ushort parity,
