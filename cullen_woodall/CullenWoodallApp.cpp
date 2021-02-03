@@ -421,10 +421,6 @@ void CullenWoodallApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
       sprintf(extraTtext, "%u <= n <= %u, n*%u^n-1", ii_MinN, ii_MaxN, ii_Base);
 }
 
-void  CullenWoodallApp::NotifyAppToRebuild(void)
-{
-}
-
 void  CullenWoodallApp::SetInitialTerms(void)
 {
    uint32_t   n;

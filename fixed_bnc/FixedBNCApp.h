@@ -44,7 +44,7 @@ protected:
    void              PreSieveHook(void) {};
    bool              PostSieveHook(void) { return true; };
    
-   void              NotifyAppToRebuild(void) {};
+   void              NotifyAppToRebuild(uint64_t largestPrimeTested) {};
    
    void              ProcessInputTermsFile(bool haveBitMap);
    bool              IsWritingOutputTermsFile(void){ return true; };
