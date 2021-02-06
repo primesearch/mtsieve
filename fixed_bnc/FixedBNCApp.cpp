@@ -47,7 +47,7 @@ void FixedBNCApp::Help(void)
 
    printf("-k --kmin=k           Minimum k to search\n");
    printf("-K --kmax=K           Maximum k to search\n");
-   printf("-s --sequence=s       Sequence to find factors of in form k*b^n+c where b, n, and c are decimal values\n");
+   printf("-s --sequence=s       Sequence to find factors of in form k*b^n+c where b, n, and c are integer values\n");
    printf("-f --format=f         Format of output file (A=ABC, D=ABCD (default), N=NEWPGEN)\n");
    printf("-r --remove           Remove k where k %% base = 0\n");
 }

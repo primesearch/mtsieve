@@ -41,7 +41,7 @@ void FixedKBNApp::Help(void)
 
    printf("-c --cmin=c           Minimum c to search\n");
    printf("-C --cmax=C           Maximum c to search\n");
-   printf("-s --sequence=s       Sequence to find factors of in form k*b^n+c where k, b, and n are decimal values\n");
+   printf("-s --sequence=s       Sequence to find factors of in form k*b^n+c where k, b, and n are integer values\n");
 }
 
 void  FixedKBNApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
