@@ -58,6 +58,8 @@ typedef struct {
 // modified after sieving has started.
 typedef struct
 {
+   uint32_t     id;           // sequence id
+
    uint64_t     k;            // k in (k*b^n+c)/d
    int64_t      c;            // c in (k*b^n+c)/d
    uint32_t     d;            // d in (k*b^n+c)/d
@@ -72,7 +74,6 @@ typedef struct
    
    vector<bool> nTerms;       // remaining n for this sequences
    
-   MpResVec     resCK;        // scratch space used by the workers
    void        *next;         // points to the next sequence
 
    // The fields below are only used by the CisOne classes

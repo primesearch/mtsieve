@@ -99,6 +99,7 @@ void  GenericWorker::InitializeWorker(void)
    
    if (ii_MaxN/ii_BestQ >= ii_SieveLow+ii_SieveRange)
       FatalError("ii_SieveRange was not computed correctly");
+
    ssHash = (uint32_t *) xmalloc(ii_SubsequenceCount*sizeof(uint32_t *));
    
    mBDCK = (MpResVec *) xmalloc(ii_SubsequenceCount*sizeof(MpResVec));
@@ -465,6 +466,7 @@ void  GenericWorker::SetupDiscreteLog(uint32_t *b, uint64_t *p, MpArithVec mp, M
    imod[2] = invmod64(b[2], p[2]);
    imod[3] = invmod64(b[3], p[3]);
 
+   MpResVec mCK;
    MpResVec mI = mp.nToRes(imod);
    mBM = mI;
    mBD[0] = mp.one();
@@ -497,19 +499,19 @@ void  GenericWorker::SetupDiscreteLog(uint32_t *b, uint64_t *p, MpArithVec mp, M
       MpResVec mTemp = mp.nToRes(temp);
       mI = mp.nToRes(imod);
 
-      seq->resCK = mp.mul(mTemp, mI);
-      
+      mCK = mp.mul(mTemp, mI);
+
+      // Compute -c/(k*b^d) (mod p) for each subsequence.
+      for (ssIdx=seq->ssIdxFirst; ssIdx<=seq->ssIdxLast; ssIdx++)
+      {
+         qIdx = ip_Subsequences[ssIdx].q;
+
+         mBDCK[ssIdx] = mp.mul(mBD[qIdx], mCK);
+      }
+
       seq = (seq_t *) seq->next;
    } while (seq != NULL);
 
-   // Compute -c/(k*b^d) (mod p) for each subsequence.
-   for (ssIdx=0; ssIdx<ii_SubsequenceCount; ssIdx++)
-   {
-      seq = ip_Subsequences[ssIdx].seqPtr;
-      qIdx = ip_Subsequences[ssIdx].q;
-
-      mBDCK[ssIdx] = mp.mul(mBD[qIdx], seq->resCK);
-   }
 }
 
 void  GenericWorker::BabySteps(MpArithVec mp, MpResVec mb, uint32_t *orderOfB)
