@@ -86,10 +86,12 @@ void KernelArgument::Initialize(gpu_dir_t direction, void *argument, int32_t siz
    ii_Count = count;
    ii_Bytes = ii_Count * size;
 
-   im_GPUBuffer = clCreateBuffer(ip_Device->GetContext(), memFlags, ii_Bytes, NULL, &status);
+   im_GPUBuffer = clCreateBuffer(ip_Device->GetContext(), memFlags, ii_Bytes*2, NULL, &status);
    
    if (status != CL_SUCCESS)
       ErrorChecker::ExitIfError("clCreateBuffer", status, "bytes: %d", ii_Bytes);
+
+   // printf("%u for %s (%u %u) %x %x\n", ii_Bytes, is_ArgumentName.c_str(), size, count, (void *) im_GPUBuffer, ip_HostMemory);
 
    ip_Device->IncrementGpuBytes(ii_Bytes);
 }
@@ -113,7 +115,7 @@ void KernelArgument::ReadFromGPU(cl_command_queue commandQueue)
 
    if (im_GPUBuffer && (ie_Direction & KA_GPU_TO_HOST))
    {
-      //printf("reading %s %x %x %u, bytes %u\n", is_ArgumentName.c_str(), (void *) im_GPUBuffer, ip_HostMemory, ii_Count, ii_Bytes);
+      // printf("reading %s %x %x %u, bytes %u\n", is_ArgumentName.c_str(), (void *) im_GPUBuffer, ip_HostMemory, ii_Count, ii_Bytes);
       
       status = clEnqueueReadBuffer(commandQueue, im_GPUBuffer, CL_TRUE,
                                    0, ii_Bytes, ip_HostMemory, 0, NULL, NULL);
