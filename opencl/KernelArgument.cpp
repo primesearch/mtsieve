@@ -86,9 +86,7 @@ void KernelArgument::Initialize(gpu_dir_t direction, void *argument, int32_t siz
    ii_Count = count;
    ii_Bytes = ii_Count * size;
 
-   // Not certain why the I need ii_Bytes*2 instead if ii_Bytes, but without it I get
-   // "out of resources" on Windows.
-   im_GPUBuffer = clCreateBuffer(ip_Device->GetContext(), memFlags, ii_Bytes*2, NULL, &status);
+   im_GPUBuffer = clCreateBuffer(ip_Device->GetContext(), memFlags, ii_Bytes, NULL, &status);
    
    if (status != CL_SUCCESS)
       ErrorChecker::ExitIfError("clCreateBuffer", status, "bytes: %d", ii_Bytes);
