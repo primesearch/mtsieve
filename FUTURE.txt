@@ -7,9 +7,7 @@ Added on December 29, 2020
 
 Added on December 22, 2020
    framework:
-      Replace AMD SDK on Windows with open source SDK for OpenCL.
-      
-      Update primesieve
+      Rely on externally compiled primesieve library
          
    afsieve, afsievecl:
       Replace logic with Montgomery multiplcation.

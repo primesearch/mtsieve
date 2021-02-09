@@ -2,16 +2,16 @@
 /// @file   iterator-c.cpp
 /// @brief  C port of primesieve::iterator.
 ///
-/// Copyright (C) 2018 Kim Walisch, <kim.walisch@gmail.com>
+/// Copyright (C) 2019 Kim Walisch, <kim.walisch@gmail.com>
 ///
 /// This file is distributed under the BSD License. See the COPYING
 /// file in the top level directory.
 ///
 
 #include <primesieve.h>
+#include <primesieve/forward.hpp>
 #include <primesieve/IteratorHelper.hpp>
 #include <primesieve/PrimeGenerator.hpp>
-#include <primesieve/types.hpp>
 
 #include <stdint.h>
 #include <cerrno>
@@ -52,7 +52,7 @@ void primesieve_init(primesieve_iterator* it)
   it->stop_hint = get_max_stop();
   it->i = 0;
   it->last_idx = 0;
-  it->dist = PrimeGenerator::maxCachedPrime();
+  it->dist = 0;
   it->vector = new vector<uint64_t>;
   it->primeGenerator = nullptr;
   it->is_error = false;
@@ -67,7 +67,7 @@ void primesieve_skipto(primesieve_iterator* it,
   it->stop_hint = stop_hint;
   it->i = 0;
   it->last_idx = 0;
-  it->dist = PrimeGenerator::maxCachedPrime();
+  it->dist = 0;
   auto& primes = getPrimes(it);
   primes.clear();
   clearPrimeGenerator(it);
@@ -98,14 +98,23 @@ void primesieve_generate_next_primes(primesieve_iterator* it)
         IteratorHelper::next(&it->start, &it->stop, it->stop_hint, &it->dist);
         it->primeGenerator = new PrimeGenerator(it->start, it->stop);
         primeGenerator = getPrimeGenerator(it);
-        primes.resize(64);
+        primes.resize(256);
         it->primes = &primes[0];
       }
 
-      for (it->last_idx = 0; !it->last_idx;)
-        primeGenerator->fill(primes, &it->last_idx);
+      primeGenerator->fill(primes, &it->last_idx);
 
-      if (primeGenerator->finished())
+      // There are 3 different cases here:
+      // 1) The primes array contains a few primes (<= 256).
+      //    In this case we return the primes to the user.
+      // 2) The primes array is empty because the next
+      //    prime > stop. In this case we reset the
+      //    primeGenerator object, increase the start & stop
+      //    numbers and sieve the next segment.
+      // 3) The next prime > 2^64. In this case the primes
+      //    array contains an error code (UINT64_MAX) which
+      //    is returned to the user.
+      if (it->last_idx == 0)
         clearPrimeGenerator(it);
       else
         break;

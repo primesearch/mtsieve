@@ -1,7 +1,7 @@
 ///
 /// @file  iterator.cpp
 ///
-/// Copyright (C) 2018 Kim Walisch, <kim.walisch@gmail.com>
+/// Copyright (C) 2019 Kim Walisch, <kim.walisch@gmail.com>
 ///
 /// This file is distributed under the BSD License. See the COPYING
 /// file in the top level directory.
@@ -47,7 +47,7 @@ void iterator::skipto(uint64_t start,
   stop_hint_ = stop_hint;
   i_ = 0;
   last_idx_ = 0;
-  dist_ = PrimeGenerator::maxCachedPrime();
+  dist_ = 0;
   clear(primeGenerator_);
   primes_.clear();
 }
@@ -61,13 +61,22 @@ void iterator::generate_next_primes()
       IteratorHelper::next(&start_, &stop_, stop_hint_, &dist_);
       auto p = new PrimeGenerator(start_, stop_);
       primeGenerator_.reset(p);
-      primes_.resize(64);
+      primes_.resize(256);
     }
 
-    for (last_idx_ = 0; !last_idx_;)
-      primeGenerator_->fill(primes_, &last_idx_);
+    primeGenerator_->fill(primes_, &last_idx_);
 
-    if (primeGenerator_->finished())
+    // There are 3 different cases here:
+    // 1) The primes array contains a few primes (<= 256).
+    //    In this case we return the primes to the user.
+    // 2) The primes array is empty because the next
+    //    prime > stop. In this case we reset the
+    //    primeGenerator object, increase the start & stop
+    //    numbers and sieve the next segment.
+    // 3) The next prime > 2^64. In this case the primes
+    //    array contains an error code (UINT64_MAX) which
+    //    is returned to the user.
+    if (last_idx_ == 0)
       clear(primeGenerator_);
     else
       break;

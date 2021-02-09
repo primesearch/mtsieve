@@ -2,17 +2,17 @@
 /// @file   ParallelSieve.cpp
 /// @brief  Multi-threaded prime sieve using std::async.
 ///
-/// Copyright (C) 2018 Kim Walisch, <kim.walisch@gmail.com>
+/// Copyright (C) 2020 Kim Walisch, <kim.walisch@gmail.com>
 ///
 /// This file is distributed under the BSD License. See the COPYING
 /// file in the top level directory.
 ///
 
 #include <primesieve/config.hpp>
+#include <primesieve/forward.hpp>
 #include <primesieve/ParallelSieve.hpp>
 #include <primesieve/PrimeSieve.hpp>
 #include <primesieve/pmath.hpp>
-#include <primesieve/types.hpp>
 
 #include <stdint.h>
 #include <algorithm>
@@ -39,21 +39,10 @@ counts_t& operator+=(counts_t& v1, const counts_t& v2)
 
 namespace primesieve {
 
-ParallelSieve::ParallelSieve() :
-  shm_(nullptr)
+ParallelSieve::ParallelSieve()
 {
   int threads = get_num_threads();
   setNumThreads(threads);
-}
-
-void ParallelSieve::init(SharedMemory& shm)
-{
-  setStart(shm.start);
-  setStop(shm.stop);
-  setSieveSize(shm.sieveSize);
-  setFlags(shm.flags);
-  setNumThreads(shm.threads);
-  shm_ = &shm;
 }
 
 int ParallelSieve::getMaxThreads()
@@ -73,7 +62,7 @@ void ParallelSieve::setNumThreads(int threads)
 }
 
 /// Get an ideal number of threads for
-/// the start_ and stop_ numbers
+/// the start and stop numbers.
 ///
 int ParallelSieve::idealNumThreads() const
 {
@@ -99,9 +88,9 @@ uint64_t ParallelSieve::getThreadDistance(int threads) const
   uint64_t fastest = min(balanced, unbalanced);
   uint64_t iters = dist / fastest;
 
-  // the number of iterations should always be
+  // The number of iterations should always be
   // a multiple of threads in order to ensure
-  // all threads finish nearly at the same time
+  // all threads finish nearly at the same time.
   iters = (iters / threads) * threads;
   iters = max(iters, (uint64_t) threads);
 
@@ -112,8 +101,8 @@ uint64_t ParallelSieve::getThreadDistance(int threads) const
   return threadDist;
 }
 
-/// Align n to modulo (30 + 2) to prevent prime k-tuplet
-/// (twin primes, prime triplets) gaps
+/// (n % 30) == 2 ensures that prime k-tuplets
+/// cannot be split at thread boundaries.
 ///
 uint64_t ParallelSieve::align(uint64_t n) const
 {
@@ -121,12 +110,23 @@ uint64_t ParallelSieve::align(uint64_t n) const
 
   if (n32 >= stop_)
     return stop_;
-
-  return n32 - n % 30;
+  else
+    return n32 - n % 30;
 }
 
-/// Sieve the primes and prime k-tuplets in [start_, stop_]
-/// in parallel using multi-threading
+/// Print sieving status to stdout
+bool ParallelSieve::tryUpdateStatus(uint64_t dist)
+{
+  unique_lock<mutex> lock(mutex_, try_to_lock);
+
+  if (lock.owns_lock())
+    updateStatus(dist);
+
+  return lock.owns_lock();
+}
+
+/// Sieve the primes and prime k-tuplets in [start, stop]
+/// in parallel using multi-threading.
 ///
 void ParallelSieve::sieve()
 {
@@ -141,30 +141,32 @@ void ParallelSieve::sieve()
     PrimeSieve::sieve();
   else
   {
+    setStatus(0);
     auto t1 = chrono::system_clock::now();
     uint64_t dist = getDistance();
     uint64_t threadDist = getThreadDistance(threads);
     uint64_t iters = ((dist - 1) / threadDist) + 1;
     threads = inBetween(1, threads, iters);
-    atomic<uint64_t> i(0);
+    atomic<uint64_t> a(0);
 
-    // each thread executes 1 task
+    // Each thread executes 1 task
     auto task = [&]()
     {
       PrimeSieve ps(this);
-      uint64_t j;
+      uint64_t i;
       counts_t counts;
       counts.fill(0);
 
-      while ((j = i++) < iters)
+      while ((i = a.fetch_add(1, memory_order_relaxed)) < iters)
       {
-        uint64_t start = start_ + j * threadDist;
+        uint64_t start = start_ + threadDist * i;
         uint64_t stop = checkedAdd(start, threadDist);
         stop = align(stop);
+
         if (start > start_)
           start = align(start) + 1;
 
-        // sieve the range [start, stop]
+        // Sieve the primes inside [start, stop]
         ps.sieve(start, stop);
         counts += ps.getCounts();
       }
@@ -178,45 +180,14 @@ void ParallelSieve::sieve()
     for (int t = 0; t < threads; t++)
       futures.emplace_back(async(launch::async, task));
 
-    for (auto &f : futures)
+    for (auto& f : futures)
       counts_ += f.get();
 
     auto t2 = chrono::system_clock::now();
     chrono::duration<double> seconds = t2 - t1;
     seconds_ = seconds.count();
+    setStatus(100);
   }
-
-  if (shm_)
-  {
-    // communicate the sieving results to
-    // the primesieve GUI application
-    copy(counts_.begin(), counts_.end(), shm_->counts);
-    shm_->seconds = seconds_;
-  }
-}
-
-/// Print status in percent to stdout
-/// @processed: Sum of recently processed segments
-/// @tryLock:   Do not block if tryLock = true
-///
-bool ParallelSieve::updateStatus(uint64_t processed, bool tryLock)
-{
-  unique_lock<mutex> lock(lock_, defer_lock);
-
-  if (tryLock)
-    lock.try_lock();
-  else
-    lock.lock();
-
-  if (lock.owns_lock())
-  {
-    PrimeSieve::updateStatus(processed);
-    if (shm_)
-      shm_->status = getStatus();
-    return true;
-  }
-
-  return false;
 }
 
 } // namespace

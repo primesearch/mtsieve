@@ -1,8 +1,9 @@
 The relative speed differnce between CPU and GPU is for an i7-8850H and NVIDIA Quadro P3200.
 
-2.1.7 - February xx, 2021
+2.2.0 - February xx, 2021
    framework:
-      No changes.
+      Updated OpenCL on Windows.  See makefile for details.
+      Updated primesieve to 7.6.
    
    psieve, psievecl:  version 1.4
       Some refactoring to support OpenCL worker.

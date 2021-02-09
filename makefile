@@ -7,6 +7,9 @@
 
 # Set DEBUG=yes to compile with debugging information and internal checks.
 
+# On Windows, the OpenCL headers are cloned from:
+#    git clone --recursive https://github.com/KhronosGroup/OpenCL-SDK.git
+
 DEBUG=no
 CC=g++
 
@@ -24,9 +27,9 @@ endif
 ifeq ($(OS),Windows_NT)
    LDFLAGS+=-static
    CPPFLAGS+=-I"F:\stuff\gmp-6.1.2"
-   GPUCPPFLAGS+=-I"C:\Program Files (x86)\AMD APP SDK\3.0\include"
+   GPUCPPFLAGS+=-I"F:\stuff\OpenCL-SDK\external\OpenCL-Headers" -DCL_TARGET_OPENCL_VERSION=300
    GMPLDFLAGS=-L"F:\stuff\gmp-6.1.2\.libs" -lgmp
-   GPULDFLAGS="C:\Program Files (x86)\AMD APP SDK\3.0\lib\x86_64\OpenCl.lib"
+   GPULDFLAGS="C:\Windows\System32\OpenCl.dll"
 else
    UNAME_S := $(shell uname -s)
    
@@ -71,8 +74,8 @@ ASM_EXT_OBJS=x86_asm_ext/m320.o x86_asm_ext/m384.o x86_asm_ext/m448.o x86_asm_ex
    x86_asm_ext/redc.o
    
 PRIMESIEVE_OBJS=sieve/Erat.o sieve/EratBig.o sieve/EratMedium.o sieve/EratSmall.o sieve/PreSieve.o \
-   sieve/CpuInfo.o sieve/MemoryPool.o sieve/PrimeGenerator.o sieve/PrimeSieve.o sieve/Wheel.o \
-   sieve/IteratorHelper.o sieve/popcount.o sieve/nthPrime.o sieve/PrintPrimes.o \
+   sieve/CpuInfo.o sieve/MemoryPool.o sieve/PrimeGenerator.o sieve/PrimeSieve.o \
+   sieve/IteratorHelper.o sieve/LookupTables.o sieve/popcount.o sieve/nthPrime.o sieve/PrintPrimes.o \
    sieve/ParallelSieve.o sieve/iterator.o sieve/api.o sieve/SievingPrimes.o
 
 AF_OBJS=alternating_factorial/AlternatingFactorialApp_cpu.o alternating_factorial/AlternatingFactorialWorker_cpu.o alternating_factorial/afsieve.o
