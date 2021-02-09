@@ -141,7 +141,7 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
          
             ip_MultiFactorialApp->ReportFactor(prime, n, c);
             
-            if (ii_FactorCount >= ii_MaxGpuFactors)
+            if (ii >= ii_MaxGpuFactors)
                break;
          }
 

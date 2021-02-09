@@ -181,7 +181,7 @@ void  GenericGpuWorker::TestMegaPrimeChunk(void)
    
       ip_SierpinskiRieselApp->ReportFactor(prime, ip_Subsequences[ssIdx].seqPtr, n, true);
       
-      if (ii_FactorCount >= ii_MaxGpuFactors)
+      if (ii >= ii_MaxGpuFactors)
          break;
    }
 

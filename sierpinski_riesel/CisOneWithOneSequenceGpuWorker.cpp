@@ -224,7 +224,7 @@ void  CisOneWithOneSequenceGpuWorker::TestMegaPrimeChunk(void)
    
       ip_SierpinskiRieselApp->ReportFactor(prime, ip_FirstSequence, n, true);
       
-      if (ii_FactorCount >= ii_MaxGpuFactors)
+      if (ii >= ii_MaxGpuFactors)
          break;
    }
 
