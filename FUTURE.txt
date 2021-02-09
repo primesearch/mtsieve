@@ -11,10 +11,13 @@ Added on December 22, 2020
          
    afsieve, afsievecl:
       Replace logic with Montgomery multiplcation.
+      
+   pixsieve, pixsievecl:
+      Replace logic with Montgomery multiplcation.
    
    mfsievecl:
       For factorial, add logic to multiply n in pairs similar to CPU code.
       
    srsieve2:
       Implement sr2sieve logic.
-      Add support to remove sequences as srfile can do.
+      

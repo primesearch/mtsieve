@@ -74,11 +74,16 @@ private:
    AbstractSequenceHelper   *ip_AppHelper; 
    
    string            is_LegendreFileName;
+   string            is_SequencesToRemove;
    
    bool              LoadSequencesFromFile(char *fileName);
    void              ValidateAndAddNewSequence(char *arg);
 
    void              MakeSubsequences(bool newSieve, uint64_t largestPrimeTested);
+   
+   void              RemoveSequences(void);
+   void              RemoveSequence(const char *sequence);
+   void              RemoveSequence(uint64_t k, uint32_t b, int64_t c, uint32_t d);
    
    void              RemoveSequencesWithNoTerms(void);
    void              CheckForLegendreSupport(void);

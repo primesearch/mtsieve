@@ -57,6 +57,7 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    ii_SquareFreeB = 0;
    is_LegendreFileName = "";
    ib_UseLengendreTables = true;
+   is_SequencesToRemove = "";
    
 #ifdef HAVE_GPU_WORKERS
    ib_UseGPUWorkersUponRebuild = false;
@@ -70,10 +71,11 @@ void SierpinskiRieselApp::Help(void)
 
    printf("-n --nmin=n           Minimum n to search\n");
    printf("-N --nmax=N           Maximum n to search\n");
-   printf("-s --sequence=s       Sequence to find factors of in form k*b^n+c where k, b, and c are decimal values\n");
+   printf("-s --sequence=s       Sequence in form k*b^n+c where k, b, and c are decimal values\n");
    printf("-f --format=f         Format of output file (A=ABC, D=ABCD (default), B=BOINC, P=ABC with number_primes)\n");
-   printf("-l --legendre         Distable use of Legendre tables\n");
+   printf("-l --legendre         Disable use of Legendre tables\n");
    printf("-L --legendrefile=L   Input/output file for Legendre tables (tables kept in memory only if -l used without -L)\n");
+   printf("-R --remove=r         Remove sequences\n");
    
 #ifdef HAVE_GPU_WORKERS
    printf("-M --maxfactordensity=M   factors per 1e6 terms per GPU worker chunk (default %u)\n", ii_GpuFactorDensity);
@@ -84,7 +86,7 @@ void  SierpinskiRieselApp::AddCommandLineOptions(string &shortOpts, struct optio
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "n:N:s:f:lL:";
+   shortOpts += "n:N:s:f:lL:R:";
 
    AppendLongOpt(longOpts, "nmin",           required_argument, 0, 'n');
    AppendLongOpt(longOpts, "nmax",           required_argument, 0, 'N');
@@ -92,6 +94,7 @@ void  SierpinskiRieselApp::AddCommandLineOptions(string &shortOpts, struct optio
    AppendLongOpt(longOpts, "format",         required_argument, 0, 'f');
    AppendLongOpt(longOpts, "legendre",       no_argument,       0, 'l');
    AppendLongOpt(longOpts, "legendrefile",   required_argument, 0, 'L');
+   AppendLongOpt(longOpts, "remove",         required_argument, 0, 'R');
    
 #ifdef HAVE_GPU_WORKERS
    shortOpts += "M:";
@@ -150,6 +153,11 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
          status = P_SUCCESS;
          break;
 
+      case 'R':
+         is_SequencesToRemove = arg;
+         status = P_SUCCESS;
+         break;
+
 #ifdef HAVE_GPU_WORKERS
       case 'M':
          status = Parser::Parse(arg, 10, 10000000, ii_GpuFactorDensity);
@@ -185,6 +193,8 @@ void SierpinskiRieselApp::ValidateOptions(void)
       } while (seq != NULL);
 
       ProcessInputTermsFile(true);
+
+      RemoveSequences();
       
       MakeSubsequences(false, GetMinPrime());
    }
@@ -201,7 +211,7 @@ void SierpinskiRieselApp::ValidateOptions(void)
       
       if (ii_MaxN <= ii_MinN)
          FatalError("nmax must be greater than nmin");
-      
+
       AlgebraicFactorHelper *afh = new AlgebraicFactorHelper(this, ii_Base, ii_MinN, ii_MaxN);
       
       seq = ip_FirstSequence;
@@ -258,8 +268,6 @@ void SierpinskiRieselApp::ValidateOptions(void)
       WriteToConsole(COT_OTHER, "Ingoring -L option since Legendre tables cannot be used");
       is_LegendreFileName = "";
    }
-
-   FactorApp::ParentValidateOptions();
    
    // Allow only one worker to do work when processing small primes.  This allows us to avoid 
    // locking when factors are reported, which significantly hurts performance as most terms 
@@ -276,6 +284,8 @@ void SierpinskiRieselApp::ValidateOptions(void)
 
    ii_MaxGpuFactors = GetGpuWorkGroups() * (uint64_t) (factors * (double) ii_GpuFactorDensity);
 #endif
+
+   FactorApp::ParentValidateOptions();
 }
 
 bool  SierpinskiRieselApp::LoadSequencesFromFile(char *fileName)
@@ -574,6 +584,106 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
       
    if (ii_SequenceCount == 0)
       FatalError("No sequences in input file %s", is_InputTermsFileName.c_str());
+}
+
+void SierpinskiRieselApp::RemoveSequences(void)
+{
+   if (is_SequencesToRemove.length() == 0)
+      return;
+
+   FILE       *fPtr = fopen(is_SequencesToRemove.c_str(), "r");
+   char        buffer[1000];
+
+   if (!fPtr)
+   {
+      RemoveSequence(is_SequencesToRemove.c_str());
+      return;
+   }
+
+   while (fgets(buffer, sizeof(buffer), fPtr) != NULL)
+   {
+      if (!StripCRLF(buffer))
+         continue;
+
+      RemoveSequence(buffer);
+   }
+
+   fclose(fPtr);
+
+}
+
+void  SierpinskiRieselApp::RemoveSequence(const char *sequence)
+{
+   uint64_t    k;
+   uint32_t    b, n, d;
+   int64_t     c;
+   
+   if (sscanf(sequence, "(%" SCNu64"*%u^%u%" SCNd64")/%u", &k, &b, &n, &c, &d) == 5)
+      return RemoveSequence(k, b, c, d);
+      
+   if (sscanf(sequence, "(%" SCNu64"*%u^n%" SCNd64")/%u", &k, &b, &c, &d) == 4)
+      return RemoveSequence(k, b, c, d);
+   
+   if (sscanf(sequence, "%" SCNu64"*%u^%u%" SCNd64"", &k, &b, &n, &c) == 4)
+      return RemoveSequence(k, b, c, 1);
+      
+   if (sscanf(sequence, "%" SCNu64"*%u^n%" SCNd64"", &k, &b, &c) == 3)
+      return RemoveSequence(k, b, c, 1);
+ 
+   FatalError("Sequence to remove (%s) must be in form k*b^n+c or (k*b^n+c)/d where you specify values for k, b, c, and d", sequence);
+}
+
+void  SierpinskiRieselApp::RemoveSequence(uint64_t k, uint32_t b, int64_t c, uint32_t d)
+{
+   seq_t   *seq, *nextSeq, *prevSeq;
+   char     sequence[100];
+   bool     found = false;
+   uint32_t removedCount = 0;
+   
+   if (d == 1)
+      sprintf(sequence, "%" PRIu64"*%u^n%+" PRId64"", k, b, c);
+   else
+      sprintf(sequence, "(%" PRIu64"*%u^n%+" PRId64")/%u", k, b, c, d);
+   
+   if (b != ii_Base)
+      WriteToConsole(COT_OTHER, "Sequence %s wasn't removed because it is not base %u", sequence, b);
+   
+   prevSeq = seq = ip_FirstSequence;
+   do
+   {      
+      nextSeq = (seq_t *) seq->next;
+      
+      if (seq->k == k && seq->c == c && seq->d == d)
+      {
+         found = true;
+         
+         for (uint32_t n=ii_MinN; n<=ii_MaxN; n++)
+         {
+            if (seq->nTerms[NBIT(n)])
+               removedCount++;
+         }
+
+         seq->nTerms.clear();
+                     
+         if (seq == ip_FirstSequence)
+            ip_FirstSequence = (seq_t *) seq->next;
+         else
+            prevSeq->next = seq->next;
+            
+         WriteToConsole(COT_OTHER, "%u terms for sequence %s have been removed", removedCount, sequence);
+                  
+         xfree(seq);
+         
+         ii_SequenceCount--;
+      }
+      
+      prevSeq = seq;
+      seq = nextSeq;
+   } while (seq != NULL);
+
+   
+   if (!found)
+      WriteToConsole(COT_OTHER, "Sequence %s wasn't removed because it wasn't found", sequence);
 }
 
 bool SierpinskiRieselApp::ApplyFactor(uint64_t thePrime, const char *term)
