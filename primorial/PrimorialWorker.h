@@ -34,8 +34,10 @@ private:
    void              CheckAVXResult(uint64_t *ps, double *dps, uint32_t theN);
    void              VerifyAVXFactor(uint64_t p, uint32_t theN, int32_t theC);
    
-   uint32_t         *ii_Primes;
-   double           *id_Primes;
+   uint32_t          ii_NumberOfPrimorialPrimes;
+   
+   uint32_t         *ip_PrimorialPrimes;
+   double           *id_PrimorialPrimes;
 };
 
 #endif

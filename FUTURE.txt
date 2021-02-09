@@ -10,12 +10,7 @@ Added on December 22, 2020
       Replace AMD SDK on Windows with open source SDK for OpenCL.
       
       Update primesieve
-      
-      Add more output for -H for GPU executables.
-   
-   all by gcwsieve/gcwsievecl:
-      Add factor validation when using -I.
-   
+         
    afsieve, afsievecl:
       Replace logic with Montgomery multiplcation.
    

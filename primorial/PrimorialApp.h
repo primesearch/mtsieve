@@ -15,6 +15,10 @@
 #include "../core/FactorApp.h"
 #include "../core/SharedMemoryItem.h"
 
+// This has to be less than minPrime
+#define FIRST_PRIMORIAL       2*3*5
+#define FIRST_PRIMORIAL_PRIME 5
+
 class PrimorialApp : public FactorApp
 {
 public:
@@ -29,11 +33,18 @@ public:
    bool              ApplyFactor(uint64_t thePrime, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
-   uint32_t          GetMinN(void) { return ii_MinN; };
-   uint32_t          GetMaxN(void) { return ii_MaxN; };
+   uint32_t          GetMinPrimorial(void) { return ii_MinPrimorial; };
+   uint32_t          GetMaxPrimorial(void) { return ii_MaxPrimorial; };
+   
+   uint32_t         *GetPrimorialPrimes(uint32_t &numberOfPrimorialPrimes) { numberOfPrimorialPrimes = ii_NumberOfPrimorialPrimes; return ip_PrimorialPrimes; };
+   uint16_t         *GetPrimorialPrimeGaps(uint16_t &biggestGap) { biggestGap = ii_BiggestGap; return ip_PrimorialPrimeGaps; };   
+   
+#ifdef HAVE_GPU_WORKERS
+   uint32_t          GetMaxGpuSteps(void) { return ii_MaxGpuSteps; };
+   uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
+#endif
 
-   bool              ReportFactor(uint64_t p, uint32_t n, int32_t c);
-   void              ReportPrime(uint64_t p, uint32_t n, int32_t c);
+   bool              ReportFactor(uint64_t primeFactor, uint32_t primorial, int32_t c, bool verifyFactor);
 
 protected:
    void              PreSieveHook(void) {};
@@ -47,12 +58,25 @@ protected:
    
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
 
+   bool              VerifyFactor(bool badFactorIsFatal, uint64_t primeFactor, uint32_t primorial, int32_t theC);
+
 private:
    vector<bool>      iv_PlusTerms;
    vector<bool>      iv_MinusTerms;
 
-   uint32_t          ii_MinN;
-   uint32_t          ii_MaxN;
+   uint32_t         *ip_PrimorialPrimes;
+   uint32_t          ii_NumberOfPrimorialPrimes;
+   
+   uint16_t         *ip_PrimorialPrimeGaps;
+   uint16_t          ii_BiggestGap;
+   
+   uint32_t          ii_MinPrimorial;
+   uint32_t          ii_MaxPrimorial;
+   
+#ifdef HAVE_GPU_WORKERS
+   uint32_t          ii_MaxGpuSteps;
+   uint32_t          ii_MaxGpuFactors;
+#endif
 };
 
 #endif

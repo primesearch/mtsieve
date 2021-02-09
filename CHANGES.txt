@@ -1,5 +1,18 @@
 The relative speed differnce between CPU and GPU is for an i7-8850H and NVIDIA Quadro P3200.
 
+2.1.7 - February xx, 2021
+   framework:
+      No changes.
+   
+   psieve, psievecl:  version 1.4
+      Some refactoring to support OpenCL worker.
+      First release of psievecl.
+      Verify factors from -I input file
+
+   srsieve2, srsieve2cl:  version 1.5.1
+      Fixed bug that was introduced in the refactoring of 1.5 that impacts generic sieving
+      while using multiple threads.
+   
 2.1.6 - February 3, 2021
    framework:
       Add largestPrimeTested parameter to NotifyAppToRebuild() as the app cannot rely
