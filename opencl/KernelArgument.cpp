@@ -86,7 +86,8 @@ void KernelArgument::Initialize(gpu_dir_t direction, void *argument, int32_t siz
    ii_Count = count;
    ii_Bytes = ii_Count * size;
 
-   im_GPUBuffer = clCreateBuffer(ip_Device->GetContext(), memFlags, ii_Bytes*2, NULL, &status);
+   // Don't know why I get "out of resources" if I don't make this slightly larger
+   im_GPUBuffer = clCreateBuffer(ip_Device->GetContext(), memFlags, ii_Bytes+32, NULL, &status);
    
    if (status != CL_SUCCESS)
       ErrorChecker::ExitIfError("clCreateBuffer", status, "bytes: %d", ii_Bytes);
