@@ -674,6 +674,7 @@ void  SierpinskiRieselApp::RemoveSequence(uint64_t k, uint32_t b, int64_t c, uin
                   
          xfree(seq);
          
+         il_TermCount -= removedCount;
          ii_SequenceCount--;
       }
       
