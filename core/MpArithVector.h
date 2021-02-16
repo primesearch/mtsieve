@@ -168,7 +168,7 @@ public:
 	}
    
 	// Convert n to Montgomery representation
-	MpResVector<N> nToRes(uint32_t n) const
+	MpResVector<N> nToRes(uint64_t n) const
 	{
 		// n * (2^64)^2 = (n * 2^64) * (1 * 2^64)
 		MpResVector<N> r;
