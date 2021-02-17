@@ -3,43 +3,124 @@
 #define _GFN_KERNEL_CL
 const char *gfn_kernel= \
 "#pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable\n" \
-"void collectFactor(ulong   k,\n" \
-"uint    n,\n" \
-"ulong   p,\n" \
-"volatile __global uint   *factorCount,\n" \
-"__global ulong4 *factors);\n" \
+"uint  getSmallDivisor(ulong k, uint n);\n" \
 "ulong mmmInvert(ulong _p);\n" \
 "ulong mmmOne(ulong _p);\n" \
 "ulong mmmR2(ulong _p, ulong _q, ulong _one);\n" \
 "ulong mmmAdd(ulong a, ulong b, ulong _p);\n" \
 "ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q);\n" \
-"ulong mmmN(ulong n, ulong _p, ulong _q, ulong _r2);\n" \
+"ulong mmmNtoRes(ulong n, ulong _p, ulong _q, ulong _r2);\n" \
 "ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one, ulong _r2);\n" \
+"ulong mmmResToN(ulong res, ulong _p, ulong _q);\n" \
 "__kernel void gfn_kernel(__global const ulong  *primes,\n" \
+"#ifdef D_MULTI_PASS\n" \
+"__global const ulong  *params,\n" \
+"__global       ulong  *rems,\n" \
+"#endif\n" \
 "volatile __global       uint   *factorCount,\n" \
 "__global       ulong4 *factors)\n" \
 "{\n" \
 "int    gid = get_global_id(0);\n" \
-"uint   n;\n" \
+"uint   n, steps = 0;\n" \
 "ulong  p = primes[gid];\n" \
 "ulong  k = (1+p) >> 1;\n" \
+"#ifdef D_MULTI_PASS\n" \
+"if (params[0] == N_MIN)\n" \
+"{\n" \
+"#endif\n" \
 "ulong _q = mmmInvert(p);\n" \
 "ulong _one = mmmOne(p);\n" \
 "ulong _r2 = mmmR2(p, _q, _one);\n" \
-"ulong mpK = mmmN(k, p, _q, _r2);\n" \
-"ulong mpRes = mmmPowmod(mpK, N_MIN, p, _q, _one, _r2);\n" \
-"ulong rem = mmmMulmod(mpRes, 1, p, _q);\n" \
-"k = p - rem;\n" \
-"for (n=N_MIN; n<=N_MAX; n++)\n" \
+"ulong mpK = mmmNtoRes(k, p, _q, _r2);\n" \
+"ulong mpRem = mmmPowmod(mpK, N_MIN, p, _q, _one, _r2);\n" \
+"k = p - mmmResToN(mpRem, p, _q);\n" \
+"n = N_MIN;\n" \
+"#ifdef D_MULTI_PASS\n" \
+"}\n" \
+"else\n" \
 "{\n" \
+"k = rems[gid];\n" \
+"n = params[0];\n" \
+"}\n" \
+"#endif\n" \
+"#ifdef D_MULTI_PASS\n" \
+"while (n <= N_MAX && steps < D_MAX_STEPS)\n" \
+"{\n" \
+"steps++;\n" \
+"#else\n" \
+"while (n <= N_MAX)\n" \
+"{\n" \
+"#endif\n" \
 "if (k & 1)\n" \
 "{\n" \
 "if (k <= K_MAX && k >= K_MIN)\n" \
-"collectFactor(k, n, p, factorCount, factors);\n" \
+"{\n" \
+"if (getSmallDivisor(k, n) == 0)\n" \
+"{\n" \
+"int old = atomic_inc(factorCount);\n" \
+"if (old >= D_MAX_FACTORS)\n" \
+"break;\n" \
+"factors[old].x = k;\n" \
+"factors[old].y = n;\n" \
+"factors[old].z = p;\n" \
+"}\n" \
+"}\n" \
 "k += p;\n" \
 "}\n" \
 "k >>= 1;\n" \
+"n++;\n" \
 "}\n" \
+"#ifdef D_MULTI_PASS\n" \
+"rems[gid] = k;\n" \
+"#endif\n" \
+"}\n" \
+"uint  getSmallDivisor(ulong k, uint n)\n" \
+"{\n" \
+"uint  smallN;\n" \
+"ulong smallK;\n" \
+"smallN = n % (2);\n" \
+"smallK = k % (3);\n" \
+"if ((smallK << smallN) % (3) == 2) return 3;\n" \
+"smallN = n % (4);\n" \
+"smallK = k % (5);\n" \
+"if ((smallK << smallN) % (5) == 4) return 5;\n" \
+"smallN = n % (6);\n" \
+"smallK = k % (7);\n" \
+"if ((smallK << smallN) % (7) == 6) return 7;\n" \
+"smallN = n % (10);\n" \
+"smallK = k % (11);\n" \
+"if ((smallK << smallN) % (11) == 10) return 11;\n" \
+"smallN = n % (12);\n" \
+"smallK = k % (13);\n" \
+"if ((smallK << smallN) % (13) == 12) return 13;\n" \
+"smallN = n % (16);\n" \
+"smallK = k % (17);\n" \
+"if ((smallK << smallN) % (17) == 16) return 17;\n" \
+"smallN = n % (18);\n" \
+"smallK = k % (19);\n" \
+"if ((smallK << smallN) % (19) == 18) return 19;\n" \
+"smallN = n % (22);\n" \
+"smallK = k % (23);\n" \
+"if ((smallK << smallN) % (23) == 22) return 23;\n" \
+"smallN = n % (28);\n" \
+"smallK = k % (29);\n" \
+"if ((smallK << smallN) % (29) == 28) return 29;\n" \
+"smallN = n % (30);\n" \
+"smallK = k % (31);\n" \
+"if ((smallK << smallN) % (31) == 30) return 31;\n" \
+"smallN = n % (36);\n" \
+"smallK = k % (37);\n" \
+"if ((smallK << smallN) % (37) == 36) return 37;\n" \
+"smallN = n % (40);\n" \
+"smallK = k % (41);\n" \
+"if ((smallK << smallN) % (41) == 40) return 41;\n" \
+"smallN = n % (42);\n" \
+"smallK = k % (43);\n" \
+"if ((smallK << smallN) % (43) == 42) return 43;\n" \
+"smallN = n % (46);\n" \
+"smallK = k % (47);\n" \
+"if ((smallK << smallN) % (47) == 46) return 47;\n" \
+"return 0;\n" \
 "}\n" \
 "ulong mmmInvert(ulong _p)\n" \
 "{\n" \
@@ -92,9 +173,13 @@ const char *gfn_kernel= \
 "long r = (long)(hi - mp);\n" \
 "return (r < 0) ? r + _p : r;\n" \
 "}\n" \
-"ulong mmmN(ulong n, ulong _p, ulong _q, ulong _r2)\n" \
+"ulong mmmNtoRes(ulong n, ulong _p, ulong _q, ulong _r2)\n" \
 "{\n" \
 "return mmmMulmod(n, _r2, _p, _q);\n" \
+"}\n" \
+"ulong mmmResToN(ulong res, ulong _p, ulong _q)\n" \
+"{\n" \
+"return mmmMulmod(res, 1, _p, _q);\n" \
 "}\n" \
 "ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one, ulong _r2)\n" \
 "{\n" \
@@ -110,19 +195,6 @@ const char *gfn_kernel= \
 "x = mmmMulmod(x, x, _p, _q);\n" \
 "}\n" \
 "return 0;\n" \
-"}\n" \
-"void collectFactor(ulong   k,\n" \
-"uint    n,\n" \
-"ulong   p,\n" \
-"volatile __global uint   *factorCount,\n" \
-"__global ulong4 *factors)\n" \
-"{\n" \
-"int old = atomic_inc(factorCount);\n" \
-"if (old >= MAX_FACTORS)\n" \
-"return;\n" \
-"factors[old].x = k;\n" \
-"factors[old].y = n;\n" \
-"factors[old].z = p;\n" \
 "}\n" \
 ;
 #endif

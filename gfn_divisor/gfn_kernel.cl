@@ -8,50 +8,90 @@
 
 #pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable
 
-void collectFactor(ulong   k,
-                   uint    n,
-                   ulong   p,
- volatile __global uint   *factorCount,
-          __global ulong4 *factors);
-          
+uint  getSmallDivisor(ulong k, uint n);
 ulong mmmInvert(ulong _p);
 ulong mmmOne(ulong _p);
 ulong mmmR2(ulong _p, ulong _q, ulong _one);
 ulong mmmAdd(ulong a, ulong b, ulong _p);
 ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q);
-ulong mmmN(ulong n, ulong _p, ulong _q, ulong _r2);
+ulong mmmNtoRes(ulong n, ulong _p, ulong _q, ulong _r2);
 ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one, ulong _r2);
+ulong mmmResToN(ulong res, ulong _p, ulong _q);
 
 // Note that primes[gid] > K_MAX is a requirement when using this kernel
 __kernel void gfn_kernel(__global const ulong  *primes,
+#ifdef D_MULTI_PASS
+                         __global const ulong  *params,
+                         __global       ulong  *rems,
+#endif
                 volatile __global       uint   *factorCount,
                          __global       ulong4 *factors)
 {
    int    gid = get_global_id(0);
-   uint   n;
+   uint   n, steps = 0;
    ulong  p = primes[gid];
    ulong  k = (1+p) >> 1;
 
-   ulong _q = mmmInvert(p);
-   ulong _one = mmmOne(p);
-   ulong _r2 = mmmR2(p, _q, _one);
-   
-   ulong mpK = mmmN(k, p, _q, _r2);
-
-   ulong mpRes = mmmPowmod(mpK, N_MIN, p, _q, _one, _r2);
-
-   ulong rem = mmmMulmod(mpRes, 1, p, _q);
-      
-   k = p - rem;
-
-   for (n=N_MIN; n<=N_MAX; n++)
+#ifdef D_MULTI_PASS
+   if (params[0] == N_MIN)
    {
+#endif
+      ulong _q = mmmInvert(p);
+      ulong _one = mmmOne(p);
+      ulong _r2 = mmmR2(p, _q, _one);
+      
+      ulong mpK = mmmNtoRes(k, p, _q, _r2);
+
+      ulong mpRem = mmmPowmod(mpK, N_MIN, p, _q, _one, _r2);
+
+      k = p - mmmResToN(mpRem, p, _q);
+      n = N_MIN;
+   
+#ifdef D_MULTI_PASS
+   }
+   else
+   {
+      k = rems[gid];
+      n = params[0];
+   }
+#endif
+
+   // TODO : use 63 - clz(x & -x) to get number of trailing zeros.  This should allow
+   // us to double the speed as there will be fewer shifts of k at the end of the loop.
+   // To do this we need to limit the loop here as we do not want n to go past the max n
+   // for the number of steps.
+
+#ifdef D_MULTI_PASS
+   while (n <= N_MAX && steps < D_MAX_STEPS)
+   {
+      steps++;
+#else
+   while (n <= N_MAX)
+   {
+#endif
+      
+      // We only need to collect odd k
       if (k & 1)
       {
-         // We only need to collect even k
          if (k <= K_MAX && k >= K_MIN)
-           collectFactor(k, n, p, factorCount, factors);
+         {          
+            // Don't report k/n if it has a known small divisor
+            if (getSmallDivisor(k, n) == 0)
+            {
+               int old = atomic_inc(factorCount);
 
+               // If we reach the end, stop adding to the buffer.  The CPU code will end
+               // with an error as the buffer is not large enough to capture all factors.
+               if (old >= D_MAX_FACTORS)
+                  break;
+
+               factors[old].x = k;
+               factors[old].y = n;
+               factors[old].z = p;
+            }
+         }
+
+         // Make k even before dividing by 2
          k += p;
       }
       
@@ -59,7 +99,77 @@ __kernel void gfn_kernel(__global const ulong  *primes,
       // Note that k*2^n+1 = (k/2)*2^(n+1)+1
 
       k >>= 1;
+      n++;
    }
+   
+#ifdef D_MULTI_PASS
+   rems[gid] = k;
+#endif
+}
+
+// Check for small divisors.
+uint  getSmallDivisor(ulong k, uint n)
+{
+   uint  smallN;
+   ulong smallK;
+   
+   smallN = n % (2);
+   smallK = k % (3);
+   if ((smallK << smallN) % (3) == 2) return 3;
+   
+   smallN = n % (4);
+   smallK = k % (5);
+   if ((smallK << smallN) % (5) == 4) return 5;
+   
+   smallN = n % (6);
+   smallK = k % (7);
+   if ((smallK << smallN) % (7) == 6) return 7;
+   
+   smallN = n % (10);
+   smallK = k % (11);
+   if ((smallK << smallN) % (11) == 10) return 11;
+   
+   smallN = n % (12);
+   smallK = k % (13);
+   if ((smallK << smallN) % (13) == 12) return 13;
+   
+   smallN = n % (16);
+   smallK = k % (17);
+   if ((smallK << smallN) % (17) == 16) return 17;
+   
+   smallN = n % (18);
+   smallK = k % (19);
+   if ((smallK << smallN) % (19) == 18) return 19;
+   
+   smallN = n % (22);
+   smallK = k % (23);
+   if ((smallK << smallN) % (23) == 22) return 23;
+   
+   smallN = n % (28);
+   smallK = k % (29);
+   if ((smallK << smallN) % (29) == 28) return 29;
+   
+   smallN = n % (30);
+   smallK = k % (31);
+   if ((smallK << smallN) % (31) == 30) return 31;
+
+   smallN = n % (36);
+   smallK = k % (37);
+   if ((smallK << smallN) % (37) == 36) return 37;
+   
+   smallN = n % (40);
+   smallK = k % (41);
+   if ((smallK << smallN) % (41) == 40) return 41;
+   
+   smallN = n % (42);
+   smallK = k % (43);
+   if ((smallK << smallN) % (43) == 42) return 43;
+   
+   smallN = n % (46);
+   smallK = k % (47);
+   if ((smallK << smallN) % (47) == 46) return 47;
+   
+   return 0;
 }
 
 ulong mmmInvert(ulong _p)
@@ -132,9 +242,15 @@ ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q)
 }
 
 // Compute the residual of n (mod p)
-ulong mmmN(ulong n, ulong _p, ulong _q, ulong _r2)
+ulong mmmNtoRes(ulong n, ulong _p, ulong _q, ulong _r2)
 {
    return mmmMulmod(n, _r2, _p, _q);
+}
+
+// Convert a residual back to n
+ulong mmmResToN(ulong res, ulong _p, ulong _q)
+{
+   return mmmMulmod(res, 1, _p, _q);
 }
 
 // Compute the residual of b ^ n (mod p)
@@ -158,23 +274,5 @@ ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one, ulong _r2
 
    // Should never get here
    return 0;
-}
-
-void collectFactor(ulong   k,
-                   uint    n,
-                   ulong   p,
- volatile __global uint   *factorCount,
-          __global ulong4 *factors)
-{
-   int old = atomic_inc(factorCount);
-
-   // If we reach the end, stop adding to the buffer.  The CPU code will end
-   // with an error as the buffer is not large enough to capture all factors.
-   if (old >= MAX_FACTORS)
-      return;
-
-   factors[old].x = k;
-   factors[old].y = n;
-   factors[old].z = p;
 }
 

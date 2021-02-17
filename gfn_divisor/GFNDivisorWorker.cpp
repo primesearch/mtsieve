@@ -71,6 +71,7 @@ void  GFNDivisorWorker::TestMegaPrimeChunk(void)
       k3 = p3 - ks[2];
       k4 = p4 - ks[3];
 
+      // look at app_thread_fun.c for speed ups.
       for (n=ii_MinN; n<=ii_MaxN; n++)
       {
          if (p0 <= il_MaxK)

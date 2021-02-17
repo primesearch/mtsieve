@@ -1,7 +1,5 @@
-/* AFSieveApp.h -- (C) Mark Rodenkirch, November 2016
+/* GFNDivisorApp.h -- (C) Mark Rodenkirch, November 2016
 
-   This class inherits from App.h and has the implementation for this project
-   
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
@@ -11,8 +9,8 @@
 #ifndef _GFNDivisorApp_H
 #define _GFNDivisorApp_H
 
-#include <gmp.h>
 #include "../core/FactorApp.h"
+#include "GFNDivisorTester.h"
 
 class GFNDivisorApp : public FactorApp
 {
@@ -34,10 +32,13 @@ public:
    uint32_t          GetMinN(void) { return ii_MinN; };
    uint32_t          GetMaxN(void) { return ii_MaxN; };
    uint32_t          GetNCount(void) { return (ii_MaxN - ii_MinN + 1); };
+   
+   vector<vector<bool>> GetTerms(void) { return iv_Terms; };
 
    bool              ReportFactor(uint64_t p, uint64_t k, uint32_t n, bool verifyFactor);
    
 #ifdef HAVE_GPU_WORKERS
+   uint32_t          GetMaxGpuSteps(void) { return ii_MaxGpuSteps; };
    uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
 #endif
    
@@ -56,13 +57,15 @@ protected:
    uint64_t          WriteABCDTermsFile(char *fileName, uint32_t minN, uint64_t maxPrime);
 
 private:
-   void              TestRemainingTerms(void);
-   bool              IsFermatDivisor(uint64_t k, uint32_t n);
-   void              CheckRedc(mp_limb_t *xp, uint32_t xn, uint32_t b, uint32_t m, uint64_t k, uint32_t n);
+   uint32_t          GetSmallPrimeFactor(uint64_t k, uint32_t n);
    bool              VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint64_t k, uint32_t n);
    
    vector<vector<bool>>  iv_Terms;
    string            is_OutputTermsFilePrefix;
+   
+   bool              ib_UseTermsBitmap;
+   uint32_t          ii_SmallPrimeFactorLimit;
+   vector<uint64_t>  iv_SmallPrimes;
    
    uint32_t          ii_NsPerFile;
    uint64_t          il_MinK;
@@ -82,13 +85,12 @@ private:
    uint32_t          ii_MaxNOriginal;
    uint32_t          ii_MinNInChunk;
    
-   uint64_t          il_StartSievingUS;
+   GFNDivisorTester *ip_GFNDivisorTester;
    uint64_t          il_TotalTerms;
-   uint64_t          il_TotalTermsEvaluated;
    uint64_t          il_TotalTermsInChunk;
 
 #ifdef HAVE_GPU_WORKERS
-   uint32_t          ii_GpuFactorDensity;
+   uint32_t          ii_MaxGpuSteps;
    uint32_t          ii_MaxGpuFactors;
 #endif
 };

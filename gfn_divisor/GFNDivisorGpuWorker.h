@@ -35,6 +35,8 @@ private:
    Kernel           *ip_GFNDivisorKernel;
    
    KernelArgument   *ip_KAPrime;
+   KernelArgument   *ip_KAParams;
+   KernelArgument   *ip_KARemainder;
    KernelArgument   *ip_KAFactorCount;
    KernelArgument   *ip_KAFactorList;
    
@@ -42,9 +44,13 @@ private:
    uint64_t          il_MaxK;
    uint32_t          ii_MinN;
    uint32_t          ii_MaxN;
+   uint32_t          ii_MaxGpuSteps;
    uint32_t          ii_MaxGpuFactors;
+   uint32_t          ii_MaxIterations;
    uint32_t          ii_FactorCount;
+   uint32_t          ii_Params[5];
    
+   uint64_t         *il_RemainderList;
    uint64_t         *il_FactorList;
 };
 
