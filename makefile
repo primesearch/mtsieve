@@ -84,7 +84,7 @@ DMD_OBJS=dm_divisor/DMDivisorApp.o dm_divisor/DMDivisorWorker.o
 FBNC_OBJS=fixed_bnc/FixedBNCApp.o fixed_bnc/FixedBNCWorker.o
 FKBN_OBJS=fixed_kbn/FixedKBNApp.o fixed_kbn/FixedKBNWorker.o
 GCW_OBJS=cullen_woodall/CullenWoodallApp_cpu.o cullen_woodall/CullenWoodallWorker_cpu.o
-GFND_OBJS=gfn_divisor/GFNDivisorApp_cpu.o gfn_divisor/GFNDivisorWorker_cpu.o
+GFND_OBJS=gfn_divisor/GFNDivisorApp_cpu.o gfn_divisor/GFNDivisorTester_cpu.o gfn_divisor/GFNDivisorWorker_cpu.o
 K1B2_OBJS=k1b2/K1B2App.o k1b2/K1B2Worker.o
 KBB_OBJS=kbb/KBBApp.o kbb/KBBWorker.o
 MF_OBJS=multi_factorial/MultiFactorialApp_cpu.o multi_factorial/MultiFactorialWorker_cpu.o
@@ -101,7 +101,7 @@ XYYX_OBJS=xyyx/XYYXApp_cpu.o xyyx/XYYXWorker_cpu.o
 
 AF_GPU_OBJS=alternating_factorial/AlternatingFactorialApp_gpu.o alternating_factorial/AlternatingFactorialWorker_gpu.o alternating_factorial/afsieve.o alternating_factorial/AlternatingFactorialGpuWorker_gpu.o
 GCW_GPU_OBJS=cullen_woodall/CullenWoodallApp_gpu.o cullen_woodall/CullenWoodallWorker_gpu.o cullen_woodall/CullenWoodallGpuWorker_gpu.o
-GFND_GPU_OBJS=gfn_divisor/GFNDivisorApp_gpu.o gfn_divisor/GFNDivisorWorker_gpu.o gfn_divisor/GFNDivisorGpuWorker_gpu.o
+GFND_GPU_OBJS=gfn_divisor/GFNDivisorApp_gpu.o gfn_divisor/GFNDivisorTester_gpu.o gfn_divisor/GFNDivisorWorker_gpu.o gfn_divisor/GFNDivisorGpuWorker_gpu.o
 MF_GPU_OBJS=multi_factorial/MultiFactorialApp_gpu.o multi_factorial/MultiFactorialWorker_gpu.o multi_factorial/MultiFactorialGpuWorker_gpu.o
 PIX_GPU_OBJS=primes_in_x/PrimesInXApp_gpu.o primes_in_x/PrimesInXWorker_gpu.o primes_in_x/pixsieve.o primes_in_x/PrimesInXGpuWorker_gpu.o
 PRIM_GPU_OBJS=primorial/PrimorialApp_gpu.o primorial/PrimorialWorker_gpu.o primorial/PrimorialGpuWorker_gpu.o primorial/primorial.o
