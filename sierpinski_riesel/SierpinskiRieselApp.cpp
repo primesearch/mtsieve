@@ -20,7 +20,7 @@
 #include "GenericSequenceHelper.h"
 #include "CisOneWithOneSequenceHelper.h"
 
-#define APP_VERSION     "1.5.1"
+#define APP_VERSION     "1.5.2"
 
 #ifdef HAVE_GPU_WORKERS
 #define APP_NAME        "srsieve2cl"
