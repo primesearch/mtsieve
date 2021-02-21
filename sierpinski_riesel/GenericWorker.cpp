@@ -159,7 +159,7 @@ void  GenericWorker::TestMegaPrimeChunk(void)
    }
 
    // This allows us to switch to the CisOne worker
-   if (ib_CanUseCIsOneLogic && p[3] > il_MaxK)
+   if (ib_CanUseCIsOneLogic && p[3] > il_MaxK && ii_SequenceCount == 1)
    {
       ip_SierpinskiRieselApp->SetRebuildNeeded();
       return;
