@@ -28,6 +28,8 @@ public:
 protected:
 
 private:
+   void              TestMegaPrimeChunkSmall(void);
+   void              TestMegaPrimeChunkLarge(void);
    void              RemoveTermsSmallPrime(uint64_t k, uint32_t n, uint64_t prime);
    void              RemoveTermsBigPrime(uint64_t k, uint32_t n, uint64_t prime);
    void              VerifyFactor(uint64_t k, uint32_t n, uint64_t prime);

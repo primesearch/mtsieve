@@ -193,14 +193,16 @@ void GFNDivisorApp::ValidateOptions(void)
       
       iv_SmallPrimes.clear();
       
-      uint32_t primesInRange = primesieve::count_primes(3, ii_SmallPrimeFactorLimit);
+      // Both the CPU and GPU have special logic to avoid reporting
+      // factors when the candidate has a factor < 50.
+      uint32_t primesInRange = primesieve::count_primes(50, ii_SmallPrimeFactorLimit);
       
       // We want a number of primes that is divisble by 4.
       while (primesInRange & 0x03)
          primesInRange++;
       
       // Generate the list of small primes
-      primesieve::generate_n_primes(primesInRange, 3, &iv_SmallPrimes);
+      primesieve::generate_n_primes(primesInRange, 50, &iv_SmallPrimes);
 
       if (ib_TestTerms)
       {
@@ -757,12 +759,6 @@ void  GFNDivisorApp::GetExtraTextForSieveStartedMessage(char *extraText)
 
 bool  GFNDivisorApp::ReportFactor(uint64_t p, uint64_t k, uint32_t n, bool verifyFactor)
 {
-   if (k < il_MinK || k > il_MaxK)
-      return false;
-   
-   if (n < ii_MinN || n > ii_MaxN)
-      return false;
-   
    bool removedTerm = false;
    
    if (!ib_UseTermsBitmap)
@@ -781,7 +777,7 @@ bool  GFNDivisorApp::ReportFactor(uint64_t p, uint64_t k, uint32_t n, bool verif
       return true;
    }
       
-   if (p > GetMaxPrimeForSingleWorker())
+   if (p > GetMaxPrimeForSingleWorker() && GetTotalWorkers() > 1)
       ip_FactorAppLock->Lock();
 
    uint64_t bit = BIT(k);
@@ -811,7 +807,7 @@ bool  GFNDivisorApp::ReportFactor(uint64_t p, uint64_t k, uint32_t n, bool verif
          VerifyFactor(true, p, k, n);
    }
    
-   if (p > GetMaxPrimeForSingleWorker())
+   if (p > GetMaxPrimeForSingleWorker() && GetTotalWorkers() > 1)
       ip_FactorAppLock->Release();
 
    return removedTerm;

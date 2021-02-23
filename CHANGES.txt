@@ -1,5 +1,29 @@
 The relative speed differnce between CPU and GPU is for an i7-8850H and NVIDIA Quadro P3200.
 
+2.2.1 - February 16, 2021
+   framework:  no changes
+   
+   gfndsieve, gfndsievecl:  version 2.0
+      Moved GFN divisor testing to GFNDivisorTester class so that GFNDivisorApp is smaller
+      and so that future support of non-x86 is easier since GFNDivisorTester
+      calls a number of x86 asm methods directly.
+      
+      For gfndsievecl do not report any terms with factors < 50.  This reduces the size
+      needed for the buffer that is used to report factors.
+      
+      Added -r and -R options to support functionality similar to ppsieve.
+         -r will not generate a bitmap for tracking terms.  It will only generate an
+         output file of factors.
+         -R is used with -r.  If a term has a factor below 32767 (the default value),
+         then the program will not output any factors for the term.
+         -r and -x are mutually exclusive with -r overriding -x.
+
+      Added various speed improvements.
+
+   srsieve2, srsieve2cl:  version 1.5.2
+      Fixed issue with CisOne logic as it tries to rebuild sequences when there are 
+      multiple sequences as that is not yet supported.   
+
 2.2.0 - February 9, 2021
    framework:
       Updated OpenCL on Windows.  See makefile for details.

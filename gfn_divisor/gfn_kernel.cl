@@ -8,6 +8,10 @@
 
 #pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable
 
+void  collectFactor(ulong k, uint n, ulong p, 
+     volatile __global       uint   *factorCount,
+              __global       ulong4 *factors);
+              
 uint  getSmallDivisor(ulong k, uint n);
 ulong mmmInvert(ulong _p);
 ulong mmmOne(ulong _p);
@@ -18,12 +22,52 @@ ulong mmmNtoRes(ulong n, ulong _p, ulong _q, ulong _r2);
 ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one, ulong _r2);
 ulong mmmResToN(ulong res, ulong _p, ulong _q);
 
+// Note that primes[gid] > K_MAX is a requirement when using these kernels
+
+#ifndef D_MULTI_PASS
+__kernel void gfn_kernel(__global const ulong  *primes,
+                volatile __global       uint   *factorCount,
+                         __global       ulong4 *factors)
+{
+   int    gid = get_global_id(0);
+   uint   n;
+   ulong  p = primes[gid];
+   ulong  k = (1+p) >> 1;
+   ushort bitsToShift;
+
+   ulong _q = mmmInvert(p);
+   ulong _one = mmmOne(p);
+   ulong _r2 = mmmR2(p, _q, _one);
+   
+   ulong mpK = mmmNtoRes(k, p, _q, _r2);
+
+   ulong mpRem = mmmPowmod(mpK, N_MIN, p, _q, _one, _r2);
+
+   k = p - mmmResToN(mpRem, p, _q);
+   n = N_MIN;
+
+   while (n <= N_MAX)
+   {
+      // Determine how many times we have to divide k by 2
+      // to ensure that k is odd.
+      bitsToShift = 63 - clz(k & -k);
+      
+      k >>= bitsToShift;
+      n += bitsToShift;
+      
+      if (k <= K_MAX && k >= K_MIN && n <= N_MAX)
+         collectFactor(k, n, p, factorCount, factors);
+
+      // Make k even before the next iteration of the loop
+      k += p;
+   }
+}
+
+#else
 // Note that primes[gid] > K_MAX is a requirement when using this kernel
 __kernel void gfn_kernel(__global const ulong  *primes,
-#ifdef D_MULTI_PASS
                          __global const ulong  *params,
                          __global       ulong  *rems,
-#endif
                 volatile __global       uint   *factorCount,
                          __global       ulong4 *factors)
 {
@@ -31,11 +75,10 @@ __kernel void gfn_kernel(__global const ulong  *primes,
    uint   n, steps = 0;
    ulong  p = primes[gid];
    ulong  k = (1+p) >> 1;
+   ushort bitsToShift;
 
-#ifdef D_MULTI_PASS
    if (params[0] == N_MIN)
    {
-#endif
       ulong _q = mmmInvert(p);
       ulong _one = mmmOne(p);
       ulong _r2 = mmmR2(p, _q, _one);
@@ -46,65 +89,73 @@ __kernel void gfn_kernel(__global const ulong  *primes,
 
       k = p - mmmResToN(mpRem, p, _q);
       n = N_MIN;
-   
-#ifdef D_MULTI_PASS
    }
    else
    {
       k = rems[gid];
       n = params[0];
    }
-#endif
 
-   // TODO : use 63 - clz(x & -x) to get number of trailing zeros.  This should allow
-   // us to double the speed as there will be fewer shifts of k at the end of the loop.
-   // To do this we need to limit the loop here as we do not want n to go past the max n
-   // for the number of steps.
+   while (n <= N_MAX - 64 && steps < D_MAX_STEPS - 64)
+   {
+      // Determine how many times we have to divide k by 2
+      // to ensure that k is odd.
+      bitsToShift = 63 - clz(k & -k);
+      
+      k >>= bitsToShift;
+      n += bitsToShift;
+      
+      steps += bitsToShift;
+      
+      if (k <= K_MAX && k >= K_MIN)
+         collectFactor(k, n, p, factorCount, factors);
 
-#ifdef D_MULTI_PASS
+      // Make k even before the next iteration of the loop
+      k += p;
+   }
+
    while (n <= N_MAX && steps < D_MAX_STEPS)
    {
-      steps++;
-#else
-   while (n <= N_MAX)
-   {
-#endif
-      
       // We only need to collect odd k
       if (k & 1)
       {
-         if (k <= K_MAX && k >= K_MIN)
-         {          
-            // Don't report k/n if it has a known small divisor
-            if (getSmallDivisor(k, n) == 0)
-            {
-               int old = atomic_inc(factorCount);
-
-               // If we reach the end, stop adding to the buffer.  The CPU code will end
-               // with an error as the buffer is not large enough to capture all factors.
-               if (old >= D_MAX_FACTORS)
-                  break;
-
-               factors[old].x = k;
-               factors[old].y = n;
-               factors[old].z = p;
-            }
-         }
+         if (k <= K_MAX && k >= K_MIN && n <= N_MAX)
+            collectFactor(k, n, p, factorCount, factors);
 
          // Make k even before dividing by 2
          k += p;
       }
-      
+
       // For the next n, divide k by 2
       // Note that k*2^n+1 = (k/2)*2^(n+1)+1
 
       k >>= 1;
       n++;
+      steps++;
    }
-   
-#ifdef D_MULTI_PASS
+
    rems[gid] = k;
+}
 #endif
+
+void  collectFactor(ulong k, uint n, ulong p, 
+     volatile __global       uint   *factorCount,
+              __global       ulong4 *factors)
+{
+   // Do not report k/n if it has a known small divisor
+   if (getSmallDivisor(k, n) > 0)
+      return;
+
+   int old = atomic_inc(factorCount);
+
+   // If we reach the end, stop adding to the buffer.  The CPU code will end
+   // with an error as the buffer is not large enough to capture all factors.
+   if (old >= D_MAX_FACTORS)
+      return;
+
+   factors[old].x = k;
+   factors[old].y = n;
+   factors[old].z = p;
 }
 
 // Check for small divisors.
