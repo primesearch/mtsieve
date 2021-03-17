@@ -299,8 +299,8 @@ void  CisOneWithOneSequenceHelper::MakeSubseqCongruenceTables(seq_t *seq)
    seq->congruentQs = (uint16_t *) xmalloc(seq->congruentQCount * sizeof(uint16_t));
    seq->congruentLadders = (uint16_t *) xmalloc(seq->congruentLadderCount * sizeof(uint16_t));
    
-   mempcpy(seq->congruentQs, ip_TempQs, seq->congruentQCount * sizeof(uint16_t));
-   mempcpy(seq->congruentLadders, ip_TempLadders, seq->congruentLadderCount * sizeof(uint16_t));
+   memcpy(seq->congruentQs, ip_TempQs, seq->congruentQCount * sizeof(uint16_t));
+   memcpy(seq->congruentLadders, ip_TempLadders, seq->congruentLadderCount * sizeof(uint16_t));
 }
 
 // Return true iff subsequence h of k*b^n+c has any terms with n%a==b.
