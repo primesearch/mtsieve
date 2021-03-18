@@ -44,7 +44,7 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
    char      define11[50];
    char      define12[50];
    char      define13[50];
-   char      define14[50];
+   char      define14[100];
    char      define15[50];
    
    ii_BestQ = bestQ;
