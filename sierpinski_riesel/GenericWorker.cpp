@@ -357,7 +357,7 @@ void  GenericWorker::DiscreteLogSmallPrimes(uint32_t *b, uint64_t *p)
             
             verifiedFactors = 0;
             
-            while (nTerm < ii_MaxN)
+            while (nTerm <= ii_MaxN)
             {
                verifiedFactors++;
                
