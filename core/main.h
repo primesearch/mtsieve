@@ -53,7 +53,7 @@ extern "C" {
 #endif
 
 // In main.cpp
-void     FatalError(const char *fmt, ...);
+void     FatalError(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 void     AppendLongOpt(struct option *longOpts, const char *name, int has_arg, int *flag, char charSwitch);
 
 void    *xmalloc(size_t size);

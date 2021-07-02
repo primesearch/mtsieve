@@ -190,6 +190,9 @@ bool  SophieGermainWorker::VerifyExternalFactor(bool badFactorIsFatal, uint64_t 
 bool  SophieGermainWorker::VerifyFactor(bool badFactorIsFatal, uint64_t prime, uint64_t k, bool firstOfPair)
 {
    uint64_t rem;
+   char     pStr[50];
+   char     kStr[50];
+   char     remStr[50];
 
    rem = fpu_mulmod(il_BpowN, k, prime);
 
@@ -205,10 +208,14 @@ bool  SophieGermainWorker::VerifyFactor(bool badFactorIsFatal, uint64_t prime, u
    {
       if (badFactorIsFatal)
       {
+         sprintf(pStr, "%" PRIu64"", prime);
+         sprintf(kStr, "%" PRIu64"", k);
+         sprintf(remStr, "%" PRIu64"", rem + 1);
+         
          if (firstOfPair)
-            FatalError("%" PRIu64"*2^%u+1 mod %" PRIu64" = %" PRIu64"", k, ii_N, prime, rem + 1);
+            FatalError("%s*2^%u+1 mod %s = %s", kStr, ii_N, pStr, remStr);
          else
-            FatalError("2*(%" PRIu64"*2^%u+1)-1 mod %" PRIu64" = %" PRIu64"", k, ii_N+1, prime, rem + 1);
+            FatalError("2*(%s*2^%u+1)-1 mod %s = %s", kStr, ii_N+1, pStr, remStr);
       }
             
       return false;

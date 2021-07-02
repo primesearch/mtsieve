@@ -257,19 +257,28 @@ void  FactorApp::LogStartSievingMessage(void)
 void  FactorApp::Finish(const char *finishMethod, uint64_t elapsedTimeUS, uint64_t largestPrimeTested, uint64_t primesTested)
 {
    double   elapsedSeconds = ((double) elapsedTimeUS) / 1000000.0;
+   char     termCountStr[50];
+   char     factorCountStr[50];
+   char     primesTestedStr[50];
+   char     largestPrimeTestedStr[50];
+   
+   sprintf(termCountStr, "%" PRIu64"", il_TermCount);
+   sprintf(factorCountStr, "%" PRIu64"", il_FactorCount + il_PreviousFactorCount);
+   sprintf(primesTestedStr, "%" PRIu64"", primesTested);
+   sprintf(largestPrimeTestedStr, "%" PRIu64"", largestPrimeTested);
    
    if (IsWritingOutputTermsFile())
    {
       WriteOutputTermsFile(largestPrimeTested);
    
-      WriteToConsole(COT_OTHER, "%" PRIu64" terms written to %s", il_TermCount, is_OutputTermsFileName.c_str());
+      WriteToConsole(COT_OTHER, "%s terms written to %s", termCountStr, is_OutputTermsFileName.c_str());
    }
    
-   WriteToConsole(COT_OTHER, "Primes tested: %" PRIu64".  Factors found: %" PRIu64".  Remaining terms: %" PRIu64".  Time: %.2f seconds.",
-           primesTested, il_FactorCount + il_PreviousFactorCount, il_TermCount, elapsedSeconds);
+   WriteToConsole(COT_OTHER, "Primes tested: %s.  Factors found: %s.  Remaining terms: %s.  Time: %.2f seconds.",
+           primesTestedStr, factorCountStr, termCountStr, elapsedSeconds);
            
-   WriteToLog("Sieve %s at p=%" PRIu64".  Primes tested %" PRIu64".  Found %" PRIu64" factors.  %" PRIu64" terms remaining.  Time %.2f seconds\n",
-           finishMethod, largestPrimeTested, primesTested, il_FactorCount + il_PreviousFactorCount, il_TermCount, elapsedSeconds);
+   WriteToLog("Sieve %s at p=%s.  Primes tested %s.  Found %s factors.  %s terms remaining.  Time %.2f seconds\n",
+           finishMethod, largestPrimeTestedStr, primesTestedStr, factorCountStr, termCountStr, elapsedSeconds);
 }
 
 void  FactorApp::GetReportStats(char *reportStats, double cpuUtilization)

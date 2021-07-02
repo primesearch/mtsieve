@@ -196,6 +196,7 @@ void  XYYXGpuWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 void  XYYXGpuWorker::VerifyFactor(uint64_t p, uint32_t x, uint32_t y, int32_t c)
 {
    uint64_t xPowY, yPowX;
+   char     pStr[50];
    
    fpu_push_1divp(p);
       
@@ -205,8 +206,16 @@ void  XYYXGpuWorker::VerifyFactor(uint64_t p, uint32_t x, uint32_t y, int32_t c)
    fpu_pop();
       
    if (c == -1 && xPowY != yPowX)
-      FatalError("%" PRIu64" does not divide %u^%u-%u^%u", p, x, y, y, x);
+   {
+      sprintf(pStr, "%" PRIu64"", p);
+      
+      FatalError("%s does not divide %u^%u-%u^%u", pStr, x, y, y, x);
+   }
    
    if (c == +1 && xPowY + yPowX != p)
-      FatalError("%" PRIu64" does not divide %u^%u+%u^%u", p, x, y, y, x);
+   {
+      sprintf(pStr, "%" PRIu64"", p);
+      
+      FatalError("%s does not divide %u^%u+%u^%u", pStr, x, y, y, x);
+   }
 }

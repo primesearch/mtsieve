@@ -311,7 +311,9 @@ bool PrimorialApp::ApplyFactor(uint64_t thePrime, const char *term)
 void PrimorialApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
-   uint32_t termCount = 0;
+   uint64_t termsCounted = 0;
+   char     termCountStr[50];
+   char     termsCountedStr[50];
 
    if (!termsFile)
       FatalError("Unable to open input file %s", is_OutputTermsFileName.c_str());
@@ -325,20 +327,25 @@ void PrimorialApp::WriteOutputTermsFile(uint64_t largestPrime)
       if (iv_MinusTerms[primorial - ii_MinPrimorial])
       {
          fprintf(termsFile, "%u -1\n", primorial);
-         termCount++;
+         termsCounted++;
       }
 
       if (iv_PlusTerms[primorial - ii_MinPrimorial])
       {
          fprintf(termsFile, "%u +1\n", primorial);
-         termCount++;
+         termsCounted++;
       }
    }
 
    fclose(termsFile);
    
-   if (termCount != il_TermCount)
-      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termCount, il_TermCount);
+   if (termsCounted != il_TermCount)
+   {
+      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
+      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
+      
+      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
+   }
    
    ip_FactorAppLock->Release();
 }
@@ -392,6 +399,8 @@ bool  PrimorialApp::VerifyFactor(bool badFactorIsFatal, uint64_t primeFactor, ui
 {
    uint64_t rem = FIRST_PRIMORIAL;
    uint32_t i = 0;
+   char     pStr[50];
+   char     remStr[50];
    
    fpu_push_1divp(primeFactor);
    
@@ -412,7 +421,12 @@ bool  PrimorialApp::VerifyFactor(bool badFactorIsFatal, uint64_t primeFactor, ui
       return true;
        
    if (badFactorIsFatal)
-      FatalError("%" PRIu64" is not a factor of %u#%+d (%llu)", primeFactor, primorial, theC, rem);
+   {
+      sprintf(pStr, "%" PRIu64"", primeFactor);
+      sprintf(remStr, "%" PRIu64"", rem);
+      
+      FatalError("%s is not a factor of %u#%+d (%s)", pStr, primorial, theC, remStr);
+   }
 
    return false;
 }

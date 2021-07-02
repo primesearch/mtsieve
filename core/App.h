@@ -66,6 +66,7 @@ public:
 #ifdef HAVE_GPU_WORKERS
    uint32_t          GetGpuWorkSize(void) { return ii_GpuWorkGroupSize * ii_GpuWorkGroups; };
    uint32_t          GetGpuWorkGroups(void) { return ii_GpuWorkGroups; };
+   uint32_t          GetGpuWorkGroupSize(void) { return ii_GpuWorkGroupSize; };
    void              SetGpuWorkGroupSize(uint32_t gpuWorkGroupSize) { ii_GpuWorkGroupSize = gpuWorkGroupSize; };
    
    Device           *GetDevice(void) { return ip_Device; }
@@ -86,8 +87,8 @@ public:
 
    void              Run(void);
 
-   void              WriteToConsole(cotype_t consoleOutputType, const char *fmt, ...);
-   void              WriteToLog(const char *fmt, ...);
+   void              WriteToConsole(cotype_t consoleOutputType, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+   void              WriteToLog(const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
    
    void              TellAllWorkersToRebuild(void);
 

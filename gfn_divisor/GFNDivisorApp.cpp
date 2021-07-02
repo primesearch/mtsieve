@@ -171,6 +171,7 @@ void GFNDivisorApp::ValidateOptions(void)
 {
    uint64_t kCount;
    uint32_t nCount;
+   char     maxPrimeStr[50];
    
    if (is_OutputTermsFileName.length() == 0)
       is_OutputTermsFileName = "gfnd";
@@ -310,7 +311,9 @@ void GFNDivisorApp::ValidateOptions(void)
       {
          SetMaxPrime(il_MaxPrime, "testing terms for GFN divisibility");
          
-         WriteToConsole(COT_OTHER, "Sieving to %" PRIu64" due to testing of terms", il_MaxPrime);
+         sprintf(maxPrimeStr, "%" PRIu64"", il_MaxPrime);
+         
+         WriteToConsole(COT_OTHER, "Sieving to %s due to testing of terms", maxPrimeStr);
       }
    }
 
@@ -642,6 +645,8 @@ void GFNDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    uint64_t termsCounted = 0;
    uint32_t fileCount, n;
    char     fileName[200];
+   char     termCountStr[50];
+   char     termsCountedStr[50];
 
    if (!ib_UseTermsBitmap)
       return;
@@ -679,7 +684,13 @@ void GFNDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    }
 
    if (termsCounted != il_TermCount)
-      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termsCounted, il_TermCount);
+   {
+      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
+      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
+      
+      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
+   }
+   
    
    ip_FactorAppLock->Release();
 }
@@ -694,7 +705,7 @@ uint64_t GFNDivisorApp::WriteABCDTermsFile(char *fileName, uint32_t minN, uint64
    termsFile = fopen(fileName, "w");
    
    if (!termsFile)
-      FatalError("Could not open file %s", termsFile);
+      FatalError("Could not open file %s", fileName);
    
    maxN = minN + ii_NsPerFile;
    if (maxN > ii_MaxN)
@@ -760,6 +771,8 @@ void  GFNDivisorApp::GetExtraTextForSieveStartedMessage(char *extraText)
 bool  GFNDivisorApp::ReportFactor(uint64_t p, uint64_t k, uint32_t n, bool verifyFactor)
 {
    bool removedTerm = false;
+   char kStr[50];
+   char pStr[50];
    
    if (!ib_UseTermsBitmap)
    {
@@ -768,8 +781,10 @@ bool  GFNDivisorApp::ReportFactor(uint64_t p, uint64_t k, uint32_t n, bool verif
       if (smallPrimeFactor > 0 && smallPrimeFactor <= ii_SmallPrimeFactorLimit)
          return true;
 
+      sprintf(kStr, "%" PRIu64"", k);
+      
       il_FactorCount++;
-      LogFactor(p, "%" PRIu64"*2^%u+1", k, n);
+      LogFactor(p, "%s*2^%u+1", kStr, n);
 
       if (verifyFactor)
          VerifyFactor(true, p, k, n);
@@ -789,6 +804,8 @@ bool  GFNDivisorApp::ReportFactor(uint64_t p, uint64_t k, uint32_t n, bool verif
       il_FactorCount++;
       il_TermCount--;
 
+      sprintf(kStr, "%" PRIu64"", k);
+               
       if (n < 62)
       {
          uint64_t nexp = (1L << n);
@@ -796,11 +813,15 @@ bool  GFNDivisorApp::ReportFactor(uint64_t p, uint64_t k, uint32_t n, bool verif
          if (nexp < p)
          {
             if (((p - 1) >> n) == k)
-               WriteToConsole(COT_OTHER, "%" PRIu64"*2^%u+1 is prime (= %" PRIu64")", k, n, p);
+            {
+               sprintf(pStr, "%" PRIu64"", p);
+               
+               WriteToConsole(COT_OTHER, "%s*2^%u+1 is prime (= %s)", kStr, n, pStr);
+            }
          }
       }
 
-      LogFactor(p, "%" PRIu64"*2^%u+1", k, n);
+      LogFactor(p, "%s*2^%u+1", kStr, n);
       removedTerm = true;
 
       if (verifyFactor)

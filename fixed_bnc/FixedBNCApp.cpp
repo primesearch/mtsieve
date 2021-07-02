@@ -384,7 +384,9 @@ bool FixedBNCApp::ApplyFactor(uint64_t thePrime, const char *term)
 
 void FixedBNCApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
-   uint64_t kCount = 0;
+   uint64_t termsCounted = 0;
+   char     termCountStr[50];
+   char     termsCountedStr[50];
    
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
 
@@ -394,18 +396,23 @@ void FixedBNCApp::WriteOutputTermsFile(uint64_t largestPrime)
    ip_FactorAppLock->Lock();
       
    if (it_Format == FF_ABCD)
-      kCount = WriteABCDTermsFile(largestPrime, termsFile);
+      termsCounted = WriteABCDTermsFile(largestPrime, termsFile);
    
    if (it_Format == FF_ABC)
-      kCount = WriteABCTermsFile(largestPrime, termsFile);
+      termsCounted = WriteABCTermsFile(largestPrime, termsFile);
    
    if (it_Format == FF_NEWPGEN)
-      kCount = WriteNewPGenTermsFile(largestPrime, termsFile);
+      termsCounted = WriteNewPGenTermsFile(largestPrime, termsFile);
    
    fclose(termsFile);
    
-   if (kCount != il_TermCount)
-      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", kCount, il_TermCount);
+   if (termsCounted != il_TermCount)
+   {
+      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
+      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
+      
+      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
+   }
    
    ip_FactorAppLock->Release();
 }
@@ -507,6 +514,7 @@ void  FixedBNCApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
 bool  FixedBNCApp::ReportFactor(uint64_t p, uint64_t k)
 {
    bool     removedTerm = false;
+   char     kStr[50];
 
    if (p > il_MaxPrimeForValidFactor)
       return false;
@@ -521,7 +529,9 @@ bool  FixedBNCApp::ReportFactor(uint64_t p, uint64_t k)
       iv_Terms[bit] = false;
       removedTerm = true;
       
-      LogFactor(p, "%" PRIu64"*%u^%u%+d", k, ii_Base, ii_N, ii_C);
+      sprintf(kStr, "%" PRIu64"", k);
+      
+      LogFactor(p, "%s*%u^%u%+d", kStr, ii_Base, ii_N, ii_C);
       
       il_FactorCount++;
       il_TermCount--;

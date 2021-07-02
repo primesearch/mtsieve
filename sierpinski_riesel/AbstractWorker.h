@@ -49,9 +49,16 @@ protected:
    {
       uint64_t ps1, ps2, q, r, t, dividend, divisor;
       uint32_t parity;
+      char     aStr[50];
+      char     pStr[50];
 
       if (a >= p)
-         FatalError("invmod called with invalid parameters (%" PRIu64" > %" PRIu64")", a, p);
+      {
+         sprintf(aStr, "%" PRIu64"", a);
+         sprintf(pStr, "%" PRIu64"", p);
+         
+         FatalError("invmod called with invalid parameters (%s > %s)", aStr, pStr);
+      }
 
       if (a < 3)
          return (a < 2) ? a : (p+1)/2;
@@ -60,7 +67,7 @@ protected:
       r = p % a;
 
       if (r == 0)
-         FatalError("invmod called with a % p = 0");
+         FatalError("invmod called with a %% p = 0");
 
       dividend = a;
       divisor = r;

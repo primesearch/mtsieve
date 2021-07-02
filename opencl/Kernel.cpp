@@ -62,7 +62,7 @@ Kernel::Kernel(Device *device, const char *kernelName, const char *kernelSource[
    ErrorChecker::ExitIfError("clCreateCommandQueue", status);
 
    im_Program = clCreateProgramWithSource(ip_Device->GetContext(), count, kernelSource, sourceSize, &status);
-   ErrorChecker::ExitIfError("clCreateProgramWithSource", status, "kernelSource: %s", kernelSource);
+   ErrorChecker::ExitIfError("clCreateProgramWithSource", status, "kernelName: %s", kernelName);
 
    // create a cl_rogram executable for all the devices specified
    status = clBuildProgram(im_Program, 1, ip_Device->GetDeviceIdPtr(), buildOptions.c_str(), NULL, NULL);
@@ -140,22 +140,27 @@ void Kernel::PrintStatistics(uint32_t bytesPerWorkGroup)
 {
    if (ip_Device->IsPrintDetails())
    {
-      App *theApp = get_app();
+      App   *theApp = get_app();
+      char   gStr[50];
+      char   bStr[50];
       
       uint64_t privateBytes = bytesPerWorkGroup;
       
       theApp->WriteToConsole(COT_OTHER, "CL_DEVICE_MAX_COMPUTE_UNITS = %u", ip_Device->GetMaxComputeUnits());
       theApp->WriteToConsole(COT_OTHER, "CL_DEVICE_GLOBAL_MEM_SIZE = %u", ii_DeviceGlobalMemorySize);
       theApp->WriteToConsole(COT_OTHER, "CL_DEVICE_LOCAL_MEM_SIZE = %u", ii_DeviceLocalMemorySize);
-      theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_WORK_GROUP_SIZE = %u", ii_KernelWorkGroupSize);
+      theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_WORK_GROUP_SIZE = %u", (uint32_t) ii_KernelWorkGroupSize);
       theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE = %u", ii_WorkGroupSizeMultiple);
       theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_LOCAL_MEM_SIZE = %u", ii_LocalMemorySize);
       theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_PRIVATE_MEM_SIZE = %u", ii_PrivateMemorySize);
       
-      theApp->WriteToConsole(COT_OTHER, "GPU global bytes allocated = %llu", ip_Device->GetGpuBytes());
+      sprintf(gStr, "%" PRIu64"", ip_Device->GetGpuBytes());
+      sprintf(bStr, "%" PRIu64"", bytesPerWorkGroup * ii_KernelWorkGroupSize);
+      
+      theApp->WriteToConsole(COT_OTHER, "GPU global bytes allocated = %s", gStr);
       
       if (privateBytes > 0)
-         theApp->WriteToConsole(COT_OTHER, "GPU private bytes allocated = %llu", bytesPerWorkGroup * ii_KernelWorkGroupSize);
+         theApp->WriteToConsole(COT_OTHER, "GPU private bytes allocated = %s", bStr);
    }
 }
 
@@ -172,7 +177,7 @@ void Kernel::Execute(uint32_t workSize)
    globalWorkGroupSize[0] = workSize;
    status = clEnqueueNDRangeKernel(im_CommandQueue, im_Kernel, 1, NULL, globalWorkGroupSize, NULL, 0, NULL, NULL);
    ErrorChecker::ExitIfError("clEnqueueNDRangeKernel", status, "kernelName: %s  globalworksize %u  localworksize %u", 
-                             is_KernelName.c_str(), globalWorkGroupSize[0], ii_KernelWorkGroupSize);
+                             is_KernelName.c_str(), (uint32_t) globalWorkGroupSize[0], (uint32_t) ii_KernelWorkGroupSize);
 
 
    GetGPUOutput();

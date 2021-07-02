@@ -119,6 +119,10 @@ void    FixedKBNWorker::RemoveTerms(uint64_t prime, uint64_t bExpN)
 void  FixedKBNWorker::VerifyFactor(uint64_t prime, int64_t c)
 {
    int64_t  rem;
+   char     kStr[50];
+   char     cStr[50];
+   char     pStr[50];
+   char     rStr[50];
 
    rem = fpu_powmod(ii_Base, ii_N, prime);
    rem = fpu_mulmod(il_K, rem, prime);
@@ -132,5 +136,12 @@ void  FixedKBNWorker::VerifyFactor(uint64_t prime, int64_t c)
       rem -= (int64_t) prime;
    
    if (rem != 0)
-      FatalError("%" PRIu64"*%u^%u%+d mod %" PRIu64" = %" PRIu64"", il_K, ii_Base, ii_N, c, prime, rem);
+   {
+      sprintf(kStr, "%" PRIu64"", il_K);
+      sprintf(cStr, "%+" PRId64"", c);
+      sprintf(pStr, "%" PRIu64"", prime);
+      sprintf(rStr, "%" PRIu64"", rem);
+
+      FatalError("%s*%u^%u%s mod %s = %s", kStr, ii_Base, ii_N, cStr, pStr, rStr);
+   }
 }

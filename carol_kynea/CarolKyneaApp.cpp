@@ -254,8 +254,10 @@ bool CarolKyneaApp::ApplyFactor(uint64_t thePrime, const char *term)
 
 void CarolKyneaApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
-   uint64_t termCount = 0;
+   uint64_t termsCounted = 0;
    uint32_t n;
+   char     termCountStr[50];
+   char     termsCountedStr[50];
    
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
 
@@ -271,20 +273,25 @@ void CarolKyneaApp::WriteOutputTermsFile(uint64_t largestPrime)
       if (iv_PlusTerms[n-ii_MinN])
       {
          fprintf(termsFile, "%u +1\n", n);
-         termCount++;
+         termsCounted++;
       }
       
       if (iv_MinusTerms[n-ii_MinN])
       {
          fprintf(termsFile, "%u -1\n", n);
-         termCount++;
+         termsCounted++;
       }
    }
 
    fclose(termsFile);
    
-   if (termCount != il_TermCount)
-      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termCount, il_TermCount);
+   if (termsCounted != il_TermCount)
+   {
+      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
+      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
+      
+      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
+   }
    
    ip_FactorAppLock->Release();
 }
@@ -336,11 +343,15 @@ bool CarolKyneaApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
 
 void CarolKyneaApp::ReportPrime(uint64_t p, uint32_t n, int32_t c)
 {
+   char  primeStr[50];
+   
    if (n < ii_MinN || n > ii_MaxN)
       return;
 
    ip_FactorAppLock->Lock();
 
+   sprintf(primeStr, "%" PRIu64"", p);
+   
    uint32_t bit = BIT(n);
    
    if (c == -1 && iv_MinusTerms[bit])
@@ -350,9 +361,9 @@ void CarolKyneaApp::ReportPrime(uint64_t p, uint32_t n, int32_t c)
       il_TermCount--;
       il_FactorCount++;
       
-      WriteToConsole(COT_OTHER, "(%u^%u-1)^2-2 is prime! (%" PRId64")", ii_Base, n, p);
+      WriteToConsole(COT_OTHER, "(%u^%u-1)^2-2 is prime! (%s)", ii_Base, n, primeStr);
 
-      WriteToLog("(%u^%u-1)^2-2 is prime! (%" PRId64")", ii_Base, p);
+      WriteToLog("(%u^%u-1)^2-2 is prime! (%s)", ii_Base, n, primeStr);
    }
 
    if (c == +1 && iv_PlusTerms[bit])
@@ -362,9 +373,9 @@ void CarolKyneaApp::ReportPrime(uint64_t p, uint32_t n, int32_t c)
       il_TermCount--;
       il_FactorCount++;
       
-      WriteToConsole(COT_OTHER, "(%u^%u+1)^2-2 is prime! (%" PRId64")", ii_Base, n, p);
+      WriteToConsole(COT_OTHER, "(%u^%u+1)^2-2 is prime! (%s)", ii_Base, n, primeStr);
 
-      WriteToLog("(%u^%u+1)^2-2 is prime! (%" PRId64")", ii_Base, p);
+      WriteToLog("(%u^%u+1)^2-2 is prime! (%s)", ii_Base, n, primeStr);
    }
    
    ip_FactorAppLock->Release();

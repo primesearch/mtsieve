@@ -49,8 +49,10 @@ protected:
    void              ResetFactorStats(void);
    
    // Only call this if ip_FactorAppLock has been locked, then release upon return
-   void              LogFactor(uint64_t p, const char *fmt, ...);
-   void              LogFactor(char *factor, const char *fmt, ...);
+   void              LogFactor(uint64_t p, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+   void              LogFactor(char *factor, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+   
+   bool              ib_ApplyAndExit;
    
    SharedMemoryItem *ip_FactorAppLock;
    
@@ -71,7 +73,6 @@ private:
    
    FILE             *if_FactorFile;
    time_t            it_CheckpointTime;
-   bool              ib_ApplyAndExit;
    
    // I could use a vector, but I'm lazy
    report_t          ir_ReportStatus[MAX_STATUS_COUNT];

@@ -84,6 +84,8 @@ uint64_t AlgebraicFactorHelper::RemoveTermsWithAlgebraicFactors(seq_t *seq)
 // is not looking for algebraic factors.
 void    AlgebraicFactorHelper::CheckForSpecialForm(seq_t *seq)
 {
+   char      kStr[50];
+
    // Needs to be k*b^n-1 or k*b^n+1
    if (seq->c != -1 && seq->c != 1)
       return;
@@ -105,23 +107,30 @@ void    AlgebraicFactorHelper::CheckForSpecialForm(seq_t *seq)
    else
       ii_KPower = 0;
 
+   sprintf(kStr, "%" PRIu64"", seq->k);
+
    if (seq->c == -1)
-      ip_App->WriteToConsole(COT_OTHER, "(sf) Sequence %" PRIu64"*%u^n-1 is the form of a Mersenne number", seq->k, ii_Base);
+      ip_App->WriteToConsole(COT_OTHER, "(sf) Sequence %s*%u^n-1 is the form of a Mersenne number",
+                             kStr, ii_Base);
    else
    {
       if (ii_KPower == 0)
       {
          if (ii_BPower == 1)
-            ip_App->WriteToConsole(COT_OTHER, "(sf) Sequence %" PRIu64"*%u^n+1 as it is a GFN", seq->k, ii_Base);
+            ip_App->WriteToConsole(COT_OTHER, "(sf) Sequence %s*%u^n+1 as it is a GFN",
+                                   kStr, ii_Base);
          else
-            ip_App->WriteToConsole(COT_OTHER, "(sf) Sequence %" PRIu64"*%u^n+1 as it is a GFN --> %u^(%u*n)+1", seq->k, ii_Base, ii_BRoot, ii_BPower);
+            ip_App->WriteToConsole(COT_OTHER, "(sf) Sequence %s*%u^n+1 as it is a GFN --> %u^(%u*n)+1",
+                                   kStr, ii_Base, ii_BRoot, ii_BPower);
       }
       else
       {
          if (ii_BPower == 1)
-            ip_App->WriteToConsole(COT_OTHER, "(sf) Sequence %" PRIu64"*%u^n+1 as it is a GFN --> %u^(n+%u)+1", seq->k, ii_Base, ii_BRoot, ii_KPower);
+            ip_App->WriteToConsole(COT_OTHER, "(sf) Sequence %s*%u^n+1 as it is a GFN --> %u^(n+%u)+1",
+                                   kStr, ii_Base, ii_BRoot, ii_KPower);
          else
-            ip_App->WriteToConsole(COT_OTHER, "(sf) Sequence %" PRIu64"*%u^n+1 as it is a GFN --> %u^(%u*n+%u)+1", seq->k, ii_Base, ii_BRoot, ii_BPower, ii_KPower);
+            ip_App->WriteToConsole(COT_OTHER, "(sf) Sequence %s*%u^n+1 as it is a GFN --> %u^(%u*n+%u)+1",
+                                   kStr, ii_Base, ii_BRoot, ii_BPower, ii_KPower);
       }
    }
 }
@@ -134,25 +143,31 @@ uint64_t  AlgebraicFactorHelper::RemoveSimpleTerm(seq_t *seq)
 {
    uint32_t  removedCount = 0;
    uint32_t  n;
+   char      kStr[50];
+   char      cStr[50];
+   char      bStr[50];
       
    // For ii_BRoot = 2 and seq->c = -1, we have 1 as a divisor, ignore it.
    if (ii_BRoot + seq->c == 1)
       return 0;
 
+   sprintf(kStr, "%" PRIu64"", seq->k);
+   sprintf(cStr, "%+" PRId64"", seq->c);
+
    if (seq->k == 1)
    {
       ii_KPower = 0;
       
-      ip_App->WriteToConsole(COT_OTHER, "(st) Sequence has algebraic factorization: %" PRIu64"*%u^n%+d -> b = %u^%u", seq->k, ii_Base, seq->c,
-               ii_BRoot, ii_BPower);
+      ip_App->WriteToConsole(COT_OTHER, "(st) Sequence has algebraic factorization: %s*%u^n%s -> b = %u^%u",
+                             kStr, ii_Base, cStr, ii_BRoot, ii_BPower);
    }
    else 
    {
       if (ii_KRoot != ii_BRoot)
          return 0;
       
-      ip_App->WriteToConsole(COT_OTHER, "(st) Sequence has algebraic factorization: %" PRIu64"*%u^n%+d -> k = %u^%u and b = %u^%u", seq->k, ii_Base, seq->c,
-               ii_KRoot, ii_KPower, ii_BRoot, ii_BPower);
+      ip_App->WriteToConsole(COT_OTHER, "(st) Sequence has algebraic factorization: %s*%u^n%s -> k = %u^%u and b = %u^%u",
+                             kStr, ii_Base, cStr, ii_KRoot, ii_KPower, ii_BRoot, ii_BPower);
    }   
 
    for (n=ii_MinN; n<=ii_MaxN; n++)
@@ -162,11 +177,13 @@ uint64_t  AlgebraicFactorHelper::RemoveSimpleTerm(seq_t *seq)
          if ((ii_KPower + n*ii_BPower) % 2 == 0)
             continue;
       
-      removedCount += CheckAndLogAlgebraicFactor(seq, n, "%u", ii_BRoot + seq->c);
+      sprintf(bStr, "%+" PRId64"", ii_BRoot + seq->c);
+      removedCount += CheckAndLogAlgebraicFactor(seq, n, "%s", bStr);
    }
    
-   ip_App->WriteToConsole(COT_OTHER, "(st) Sequence %" PRIu64"*%u^n%+d has %d terms removed has they have the factor %d", 
-         seq->k, ii_Base, seq->c, removedCount, ii_BRoot + seq->c);
+   sprintf(bStr, "%+" PRId64"", ii_BRoot + seq->c); 
+   ip_App->WriteToConsole(COT_OTHER, "(st) Sequence %s*%u^n%s has %u terms removed has they have the factor %s", 
+                          kStr, ii_Base, cStr, removedCount, bStr);
 
    return removedCount;
 }
@@ -181,6 +198,8 @@ uint64_t  AlgebraicFactorHelper::RemoveTermsWithKPowers(seq_t *seq)
    uint32_t  removedCount = 0, loopRemovedCount = 0;
    uint32_t  n, idx;
    uint32_t  curroot, curpower;
+   char      kStr[50];
+   char      cStr[50];
    
    // If k = 1, then RemoveAlgebraicSimpleTerm() will have handled it
    if (seq->k == 1)
@@ -194,8 +213,9 @@ uint64_t  AlgebraicFactorHelper::RemoveTermsWithKPowers(seq_t *seq)
    if (ii_KPower == 1)
       return 0;
 
+   sprintf(kStr, "%" PRIu64"", seq->k);
+   sprintf(cStr, "%+" PRId64"", seq->c);
 
-   
    for (idx=1; idx<ii_KPower; idx++)
    {
       // Given k=ii_KRoot^ii_KPower, find all idx where ii_KPower%idx = 0.
@@ -222,8 +242,8 @@ uint64_t  AlgebraicFactorHelper::RemoveTermsWithKPowers(seq_t *seq)
 
       // Since k = kroot^kpower we can remove all terms n where n%kpower = 0
       // For example 27*10^n+1 --> (3^3)*10^n+1 has factors in the form 3*10^n/3+1 
-      ip_App->WriteToConsole(COT_OTHER, "(kp) Sequence has algebraic factorization: %" PRIu64"*%u^n%+d -> (%u^%u)*%u^n%+d", seq->k, ii_Base, seq->c,
-               curroot, curpower, ii_Base, seq->c);
+      ip_App->WriteToConsole(COT_OTHER, "(kp) Sequence has algebraic factorization: %s*%u^n%s -> (%u^%u)*%u^n%s",
+                             kStr, ii_Base, cStr, curroot, curpower, ii_Base, cStr);
                
       loopRemovedCount = 0;
 
@@ -232,11 +252,11 @@ uint64_t  AlgebraicFactorHelper::RemoveTermsWithKPowers(seq_t *seq)
          if (n % curpower != 0)
             continue;
          
-         loopRemovedCount += CheckAndLogAlgebraicFactor(seq, n, "(%u*%u^%u%+d)", curroot, ii_Base, n/curpower, seq->c);
+         loopRemovedCount += CheckAndLogAlgebraicFactor(seq, n, "(%u*%u^%u%s)", curroot, ii_Base, n/curpower, cStr);
       }
 
-      ip_App->WriteToConsole(COT_OTHER, "(kp) Sequence %" PRIu64"*%u^n%+d has %d terms removed due to algebraic factors of the form %u*%u^(n/%u)%+d", 
-               seq->k, ii_Base, seq->c, loopRemovedCount, curroot, ii_Base, curpower, seq->c);
+      ip_App->WriteToConsole(COT_OTHER, "(kp) Sequence %s*%u^n%s has %d terms removed due to algebraic factors of the form %u*%u^(n/%u)%s", 
+                             kStr, ii_Base, cStr, loopRemovedCount, curroot, ii_Base, curpower, cStr);
 
       removedCount += loopRemovedCount;
    }
@@ -254,6 +274,8 @@ uint64_t  AlgebraicFactorHelper::RemoveTermsWithKAndBPowers(seq_t *seq)
    uint32_t  removedCount = 0, loopRemovedCount = 0;
    uint32_t  n, idx;
    uint32_t  curroot, curpower;
+   char      kStr[50];
+   char      cStr[50];
    
    // If k = 1, then RemoveAlgebraicSimpleTerm() will have handled it
    if (seq->k == 1)
@@ -294,8 +316,11 @@ uint64_t  AlgebraicFactorHelper::RemoveTermsWithKAndBPowers(seq_t *seq)
             continue;
       }
 
-      ip_App->WriteToConsole(COT_OTHER, "(kbp) Sequence has algebraic factorization: %" PRIu64"*%u^n%+" PRId64" -> (%u^%u)*%u^(%u*n)%+" PRId64"", 
-                  seq->k, ii_Base, seq->c, curroot, curpower, ii_BRoot, ii_BPower, seq->c);
+      sprintf(kStr, "%" PRIu64"", seq->k);
+      sprintf(cStr, "%+" PRId64"", seq->c);
+
+      ip_App->WriteToConsole(COT_OTHER, "(kbp) Sequence has algebraic factorization: %s*%u^n%s -> (%u^%u)*%u^(%u*n)%s", 
+                             kStr, ii_Base, cStr, curroot, curpower, ii_BRoot, ii_BPower, cStr);
                
       loopRemovedCount = 0;
 
@@ -309,15 +334,15 @@ uint64_t  AlgebraicFactorHelper::RemoveTermsWithKAndBPowers(seq_t *seq)
             if (((n*ii_BPower) / curpower) % 2 == 0)
                continue;
          
-         loopRemovedCount += CheckAndLogAlgebraicFactor(seq, n, "(%u*%u^%u%+" PRId64")", curroot, ii_BRoot, (ii_BPower*n)/curpower, seq->c);
+         loopRemovedCount += CheckAndLogAlgebraicFactor(seq, n, "(%u*%u^%u%s)", curroot, ii_BRoot, (ii_BPower*n)/curpower, cStr);
       }
 
       if (idx == ii_KPower)
-        ip_App->WriteToConsole(COT_OTHER, "(kbp) Sequence %" PRIu64"*%u^n%+d has %d terms removed due to algebraic factors of the form %u*%u^((%u*n)/%u)%+" PRId64"", 
-                  seq->k, ii_Base, seq->c, loopRemovedCount, curroot, ii_BRoot, ii_BPower, curpower, seq->c);
+        ip_App->WriteToConsole(COT_OTHER, "(kbp) Sequence %s*%u^n%s has %d terms removed due to algebraic factors of the form %u*%u^((%u*n)/%u)%s", 
+                               kStr, ii_Base, cStr, loopRemovedCount, curroot, ii_BRoot, ii_BPower, curpower, cStr);
       else
-        ip_App->WriteToConsole(COT_OTHER, "(kbp) Sequence %" PRIu64"*%u^n%+d has %d terms removed due to algebraic factors of the form (%u^%u)*%u^((%u*n)/%u)%+" PRId64"", 
-                  seq->k, ii_Base, seq->c, loopRemovedCount, curroot, curpower, ii_BRoot, ii_BPower, curpower, seq->c);
+        ip_App->WriteToConsole(COT_OTHER, "(kbp) Sequence %s*%u^n%s has %d terms removed due to algebraic factors of the form (%u^%u)*%u^((%u*n)/%u)%s", 
+                               kStr, ii_Base, cStr, loopRemovedCount, curroot, curpower, ii_BRoot, ii_BPower, curpower, cStr);
 
       removedCount += loopRemovedCount;
    }
@@ -353,6 +378,8 @@ uint64_t  AlgebraicFactorHelper::RemoveComplexRoot(seq_t *seq)
    uint32_t  kf_factor[50], kf_power[50];
    uint32_t  kbf_factor[50], kbf_power[50];
    char      root[50], part[50], addParenthesis;
+   char      kStr[50];
+   char      cStr[50];
 
    // We want seq->c = +1 or -1
    if (seq->c != 1 && seq->c != -1)
@@ -454,24 +481,27 @@ uint64_t  AlgebraicFactorHelper::RemoveComplexRoot(seq_t *seq)
                   sprintf(root, "%s*%u^%u", part, kbf_factor[z1], kbf_power[z1] / z);
             }
          }
+
+         sprintf(kStr, "%" PRIu64"", seq->k);
+         sprintf(cStr, "%+" PRId64"", seq->c);
          
          if (addParenthesis)
          {
             if (ii == 1)
-              ip_App->WriteToConsole(COT_OTHER, "(cr) Sequence has algebraic factorization: %" PRIu64"*%u^n%+" PRId64" -> %" PRIu64"*%u = (%s)^%u", seq->k, ii_Base, seq->c,
-                        seq->k, ii_Base, root, z);
+              ip_App->WriteToConsole(COT_OTHER, "(cr) Sequence has algebraic factorization: %s*%u^n%s -> %s*%u = (%s)^%u",
+                                     kStr, ii_Base, cStr, kStr, ii_Base, root, z);
             else
-              ip_App->WriteToConsole(COT_OTHER, "(cr) Sequence has algebraic factorization: %" PRIu64"*%u^n%+" PRId64" -> %" PRIu64"*%u^%u = (%s)^%u", seq->k, ii_Base, seq->c,
-                        seq->k, ii_Base, ii, root, z);
+              ip_App->WriteToConsole(COT_OTHER, "(cr) Sequence has algebraic factorization: %s*%u^n%s -> %s*%u^%u = (%s)^%u",
+                                     kStr, ii_Base, cStr, kStr, ii_Base, ii, root, z);
          }
          else
          {
             if (ii == 1)
-              ip_App->WriteToConsole(COT_OTHER, "(cr) Sequence has algebraic factorization: %" PRIu64"*%u^n%+" PRId64" -> %" PRIu64"*%u = %s^%u", seq->k, ii_Base, seq->c,
-                        seq->k, ii_Base, root, z);
+              ip_App->WriteToConsole(COT_OTHER, "(cr) Sequence has algebraic factorization: %s*%u^n%s -> %s*%u = %s^%u",
+                                     kStr, ii_Base, cStr, kStr, ii_Base, root, z);
             else
-              ip_App->WriteToConsole(COT_OTHER, "(cr) Sequence has algebraic factorization: %" PRIu64"*%u^n%+" PRId64" -> %" PRIu64"*%u^%u = %s^%u", seq->k, ii_Base, seq->c,
-                        seq->k, ii_Base, ii, root, z);
+              ip_App->WriteToConsole(COT_OTHER, "(cr) Sequence has algebraic factorization: %s*%u^n%s -> %s*%u^%u = %s^%u",
+                                     kStr, ii_Base, cStr, kStr, ii_Base, ii, root, z);
          }
 
          // Don't allow n to go negative
@@ -508,16 +538,16 @@ uint64_t  AlgebraicFactorHelper::RemoveComplexRoot(seq_t *seq)
 
          for (; n<=ii_MaxN; n+=z)
             if (addParenthesis)
-               loopRemovedCount += CheckAndLogAlgebraicFactor(seq, n, "((%s)*%u^%u%+" PRId64")", root, ii_Base, (n-ii)/z, seq->c);
+               loopRemovedCount += CheckAndLogAlgebraicFactor(seq, n, "((%s)*%u^%u%s)", root, ii_Base, (n-ii)/z, cStr);
             else
-               loopRemovedCount += CheckAndLogAlgebraicFactor(seq, n, "(%s*%u^%u%+" PRId64")", root, ii_Base, (n-ii)/z, seq->c);
+               loopRemovedCount += CheckAndLogAlgebraicFactor(seq, n, "(%s*%u^%u%s)", root, ii_Base, (n-ii)/z, cStr);
          
          if (addParenthesis)
-           ip_App->WriteToConsole(COT_OTHER, "(cr) Sequence %" PRIu64"*%u^n%+" PRId64" has %u terms removed due to algebraic factors of the form (%s)*%u^((n-%d)/%d)%+" PRId64"", 
-                     seq->k, ii_Base, seq->c, loopRemovedCount, root, ii_Base, ii, z, seq->c);
+           ip_App->WriteToConsole(COT_OTHER, "(cr) Sequence %s*%u^n%s has %u terms removed due to algebraic factors of the form (%s)*%u^((n-%d)/%d)%s", 
+                                  kStr, ii_Base, cStr, loopRemovedCount, root, ii_Base, ii, z, cStr);
          else
-           ip_App->WriteToConsole(COT_OTHER, "(cr) Sequence %" PRIu64"*%u^n%+" PRId64" has %u terms removed due to algebraic factors of the form %s*%u^((n-%d)/%d)%+" PRId64"", 
-                     seq->k, ii_Base, seq->c, loopRemovedCount, root, ii_Base, ii, z, seq->c);
+           ip_App->WriteToConsole(COT_OTHER, "(cr) Sequence %s*%u^n%s has %u terms removed due to algebraic factors of the form %s*%u^((n-%d)/%d)%s", 
+                                  kStr, ii_Base, cStr, loopRemovedCount, root, ii_Base, ii, z, cStr);
          
          removedCount += loopRemovedCount;
       }     
@@ -534,6 +564,7 @@ uint64_t  AlgebraicFactorHelper::CheckBase2(seq_t *seq)
    uint32_t  kf_count;
    uint32_t  b, bpow;
    uint32_t  kf_factor[50], kf_power[50];
+   char      kStr[50];
 
    // We want c = 1
    if (seq->c != 1)
@@ -598,8 +629,10 @@ uint64_t  AlgebraicFactorHelper::CheckBase2(seq_t *seq)
 
    if (removedCount > 0)
    {
-     ip_App->WriteToConsole(COT_OTHER, "(b2) Removed %u algebraic factors for %" PRIu64"*%u^n%+1 of the form (%u^2)*2^(n/2)-%u*2^((n+2)/4))+1 when n%%4=2",
-              removedCount, seq->k, ii_Base, root, root);
+      sprintf(kStr, "%" PRIu64"", seq->k);
+      
+      ip_App->WriteToConsole(COT_OTHER, "(b2) Removed %u algebraic factors for %s*%u^n+1 of the form (%u^2)*2^(n/2)-%u*2^((n+2)/4))+1 when n%%4=2",
+               removedCount, kStr, ii_Base, root, root);
    }
 
    return removedCount;
@@ -611,6 +644,8 @@ uint64_t  AlgebraicFactorHelper::CheckPower4(seq_t *seq)
    uint32_t  removedCount = 0;
    uint32_t  n, ninc;
    uint32_t  b1, bexp;
+   char      kStr[50];
+   char      cStr[50];
 
    // We want c = +1
    if (seq->c != 1)
@@ -695,29 +730,32 @@ uint64_t  AlgebraicFactorHelper::CheckPower4(seq_t *seq)
 
    if (removedCount)
    {
+      sprintf(kStr, "%" PRIu64"", seq->k);
+      sprintf(cStr, "%+" PRId64"", seq->c);
+
       if (ii_KRoot == 1)
       {
          if (ninc == 1)
-           ip_App->WriteToConsole(COT_OTHER, "(p4) Removed %d algebraic factors for %" PRIu64"*%u^n%+d of the form (2*(%u^%u)^n+2*(%u^%u)^n+1)",
-                  removedCount, seq->k, ii_Base, seq->c, ii_BRoot, ii_BPower/2, ii_BRoot, ii_BPower/4);
+           ip_App->WriteToConsole(COT_OTHER, "(p4) Removed %d algebraic factors for %s*%u^n%s of the form (2*(%u^%u)^n+2*(%u^%u)^n+1)",
+                                  removedCount, kStr, ii_Base, cStr, ii_BRoot, ii_BPower/2, ii_BRoot, ii_BPower/4);
          else if (ninc == 2)
-           ip_App->WriteToConsole(COT_OTHER, "(p4) Removed %d algebraic factors for %" PRIu64"*%u^n%+d of the form (2*(%u^%u)^n+2*(%u^%u)^n+1)",
-                  removedCount, seq->k, ii_Base, n, seq->c, ii_BRoot, ii_BRoot, n/2);
+           ip_App->WriteToConsole(COT_OTHER, "(p4) Removed %d algebraic factors for %s*%u^n%s of the form (2*(%u^%u)^n+2*(%u^%u)^n+1)",
+                                  removedCount, kStr, ii_Base, cStr, ii_BRoot, n, ii_BRoot, n/2);
          else
-           ip_App->WriteToConsole(COT_OTHER, "(p4) Removed %d algebraic factors for %" PRIu64"*%u^n%+d of the form (2*%u^(n/2)+2*%u^(n/4)+1)",
-                  removedCount, seq->k, ii_Base, seq->c, ii_BRoot, ii_BRoot);
+           ip_App->WriteToConsole(COT_OTHER, "(p4) Removed %d algebraic factors for %s*%u^n%s of the form (2*%u^(n/2)+2*%u^(n/4)+1)",
+                                  removedCount, kStr, ii_Base, cStr, ii_BRoot, ii_BRoot);
       }
       else
       {
          if (ninc == 1)
-           ip_App->WriteToConsole(COT_OTHER, "(p4) Removed %d algebraic factors for %" PRIu64"*%u^n%+d of the form (2*%u^%u*(%u^%u)^n+2*%u^%u*(%u^%u)^n+1)",
-                  removedCount, seq->k, ii_Base, seq->c, ii_KRoot, ii_KPower/2, ii_BRoot, ii_BPower/2, ii_KRoot, ii_KPower/4, ii_BRoot, ii_BPower/4);
+           ip_App->WriteToConsole(COT_OTHER, "(p4) Removed %d algebraic factors for %s*%u^n%s of the form (2*%u^%u*(%u^%u)^n+2*%u^%u*(%u^%u)^n+1)",
+                                  removedCount, kStr, ii_Base, cStr, ii_KRoot, ii_KPower/2, ii_BRoot, ii_BPower/2, ii_KRoot, ii_KPower/4, ii_BRoot, ii_BPower/4);
          else if (ninc == 2)
-           ip_App->WriteToConsole(COT_OTHER, "(p4) Removed %d algebraic factors for %" PRIu64"*%u^n%+d of the form (2*%u^%u*(%u^%u)^n+2*%u^%u*(%u^%u)^n+1)",
-                  removedCount, seq->k, ii_Base, seq->c, ii_KRoot, ii_KPower/2, ii_BRoot, n, ii_KRoot, ii_KPower/4, ii_BRoot, n/2);
+           ip_App->WriteToConsole(COT_OTHER, "(p4) Removed %d algebraic factors for %s*%u^n%s of the form (2*%u^%u*(%u^%u)^n+2*%u^%u*(%u^%u)^n+1)",
+                                  removedCount, kStr, ii_Base, cStr, ii_KRoot, ii_KPower/2, ii_BRoot, n, ii_KRoot, ii_KPower/4, ii_BRoot, n/2);
          else
-           ip_App->WriteToConsole(COT_OTHER, "(p4) Removed %d algebraic factors for %" PRIu64"*%u^n%+d of the form (2*%u^%u*%u^(n/2)+2*%u^%u*%u^(n/4)+1)",
-                  removedCount, seq->k, ii_Base, seq->c, ii_KRoot, ii_KPower/2, ii_BRoot, ii_KRoot, ii_KPower/4, ii_BRoot);
+           ip_App->WriteToConsole(COT_OTHER, "(p4) Removed %d algebraic factors for %s*%u^n%s of the form (2*%u^%u*%u^(n/2)+2*%u^%u*%u^(n/4)+1)",
+                                  removedCount, kStr, ii_Base, cStr, ii_KRoot, ii_KPower/2, ii_BRoot, ii_KRoot, ii_KPower/4, ii_BRoot);
       }
    }
 
@@ -726,8 +764,7 @@ uint64_t  AlgebraicFactorHelper::CheckPower4(seq_t *seq)
 
 uint32_t   AlgebraicFactorHelper::CheckAndLogAlgebraicFactor(seq_t *seq, uint32_t n, const char *fmt, ...)
 {   
-   va_list args;
-
+   va_list   args;
    if (n < ii_MinN || n > ii_MaxN)
       return 0;
 

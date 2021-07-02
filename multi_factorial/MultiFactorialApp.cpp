@@ -346,7 +346,9 @@ bool MultiFactorialApp::ApplyFactor(uint64_t thePrime, const char *term)
 void MultiFactorialApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
-   uint32_t termCount = 0;
+   uint64_t termsCounted = 0;
+   char     termCountStr[50];
+   char     termsCountedStr[50];
 
    if (!termsFile)
       FatalError("Unable to open input file %s", is_OutputTermsFileName.c_str());
@@ -360,20 +362,25 @@ void MultiFactorialApp::WriteOutputTermsFile(uint64_t largestPrime)
       if (iv_MinusTerms[n - ii_MinN])
       {
          fprintf(termsFile, "%d -1\n", n);
-         termCount++;
+         termsCounted++;
       }
 
       if (iv_PlusTerms[n - ii_MinN])
       {
          fprintf(termsFile, "%d +1\n", n);
-         termCount++;
+         termsCounted++;
       }
    }
 
    fclose(termsFile);
    
-   if (termCount != il_TermCount)
-      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termCount, il_TermCount);
+   if (termsCounted != il_TermCount)
+   {
+      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
+      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
+      
+      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
+   }
    
    ip_FactorAppLock->Release();
 }

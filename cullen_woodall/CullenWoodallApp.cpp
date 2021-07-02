@@ -286,7 +286,7 @@ void CullenWoodallApp::ProcessInputTermsFile(bool haveBitMap)
             ii_Base = b;
          
          if (ii_Base != b)
-            FatalError("Multiple bases specified in input file", buffer);
+            FatalError("Multiple bases specified in input file");
       }
       
 
@@ -331,7 +331,7 @@ bool CullenWoodallApp::ApplyFactor(uint64_t thePrime, const char *term)
       FatalError("base is correct for term %s (%u != %u)\n", term, ii_Base, b);
    
    if (c != -1 && c != +1)
-      FatalError("c is neither +1 nor -1 for term %s\n", c, term);
+      FatalError("c (%d) is neither +1 nor -1 for term %s\n", c, term);
    
    if (n1 != n2)
       FatalError("n values for term %s do not match (%u != %u)\n", term, n1, n2);
@@ -366,7 +366,9 @@ void CullenWoodallApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
    FILE    *fPtr = fopen(is_OutputTermsFileName.c_str(), "w");
    uint32_t n, bit;
-   uint64_t terms = 0;
+   uint64_t termsCounted = 0;
+   char     termCountStr[50];
+   char     termsCountedStr[50];
 
    if (!fPtr)
       FatalError("Unable to open input file %s", is_OutputTermsFileName.c_str());
@@ -384,7 +386,7 @@ void CullenWoodallApp::WriteOutputTermsFile(uint64_t largestPrime)
       
       if (iv_CullenTerms[bit])
       {
-         terms++;
+         termsCounted++;
          
          if (it_Format == FF_ABC)
             fprintf(fPtr, "%u +1\n", n);
@@ -394,7 +396,7 @@ void CullenWoodallApp::WriteOutputTermsFile(uint64_t largestPrime)
       
       if (iv_WoodallTerms[bit])
       {
-         terms++;
+         termsCounted++;
          
          if (it_Format == FF_ABC)
             fprintf(fPtr, "%u -1\n", n);
@@ -405,8 +407,13 @@ void CullenWoodallApp::WriteOutputTermsFile(uint64_t largestPrime)
 
    fclose(fPtr);
 
-   if (terms != il_TermCount)
-      FatalError("Something is wrong.  Counted terms (%u) != expected terms (%u)", terms, il_TermCount);
+   if (termsCounted != il_TermCount)
+   {
+      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
+      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
+      
+      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
+   }
    
    ip_FactorAppLock->Release();
 }

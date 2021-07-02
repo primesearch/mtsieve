@@ -193,6 +193,9 @@ void    K1B2Worker::RemoveTermsLargeP(uint64_t prime, uint32_t n, uint64_t twoEx
 void  K1B2Worker::VerifyFactor(uint64_t prime, uint32_t n, int64_t c)
 {
    int64_t  rem;
+   char     cStr[50];
+   char     pStr[50];
+   char     rStr[50];
 
    rem = fpu_powmod(2, n, prime);
    
@@ -205,6 +208,12 @@ void  K1B2Worker::VerifyFactor(uint64_t prime, uint32_t n, int64_t c)
       rem -= (int64_t) prime;
    
    if (rem != 0)
-      FatalError("2^%u%+" PRId64" mod %" PRIu64" = %" PRId64"", n, c, prime, rem);
+   {
+      sprintf(cStr, "%+" PRId64"", c);
+      sprintf(pStr, "%" PRIu64"", prime);
+      sprintf(rStr, "%" PRIu64"", rem);
+      
+      FatalError("2^%u%s mod %s = %s", n, cStr, pStr, rStr);
+   }
 }
 

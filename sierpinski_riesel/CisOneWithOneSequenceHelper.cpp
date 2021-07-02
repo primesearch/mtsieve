@@ -18,9 +18,13 @@
 
 CisOneWithOneSequenceHelper::CisOneWithOneSequenceHelper(App *theApp, uint64_t largestPrimeTested) : CisOneSequenceHelper(theApp, largestPrimeTested)
 {
-   // The parent's constuctor does much of the work
-  
-   theApp->WriteToConsole(COT_OTHER, "Sieving one sequence where abs(c) = 1 for p >= %llu", largestPrimeTested);
+   // The parent's constuctor does much of the work  
+
+   char  pStr[50];
+
+   sprintf(pStr, "%" PRIu64"", largestPrimeTested);
+
+   theApp->WriteToConsole(COT_OTHER, "Sieving one sequence where abs(c) = 1 for p >= %s", pStr);
 }
 
 Worker  *CisOneWithOneSequenceHelper::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested)

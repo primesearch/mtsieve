@@ -59,6 +59,8 @@ void  CarolKyneaWorker::TestMegaPrimeChunk(void)
    uint64_t  maxPrime = ip_App->GetMaxPrime();
    uint64_t  thePrime = 0, root1, root2;
    vector<uint64_t>::iterator it = iv_Primes.begin();
+   char      rStr[50];
+   char      pStr[50];
 
    while (it != iv_Primes.end())
    {
@@ -81,10 +83,20 @@ void  CarolKyneaWorker::TestMegaPrimeChunk(void)
 
       // It is possible that findRoot returns where x^2 = -2 (mod p)
       if (fpu_mulmod(root1, root1, thePrime) != 2)
-         ip_CarolKyneaApp->WriteToConsole(COT_SIEVE, "%" PRIu64" is not a root (mod %" PRIu64")", root1, thePrime);
+      {
+         sprintf(rStr, "%" PRIu64"", root1);
+         sprintf(pStr, "%" PRIu64"", thePrime);
+         
+         ip_CarolKyneaApp->WriteToConsole(COT_SIEVE, "%s is not a root (mod %s)", rStr, pStr);
+      }
       
       if (fpu_mulmod(root2, root2, thePrime) != 2)
-         ip_CarolKyneaApp->WriteToConsole(COT_SIEVE, "%" PRIu64" is not a root (mod %" PRIu64")", root2, thePrime);
+      {
+         sprintf(rStr, "%" PRIu64"", root2);
+         sprintf(pStr, "%" PRIu64"", thePrime);
+         
+         ip_CarolKyneaApp->WriteToConsole(COT_SIEVE, "%s is not a root (mod %s)", rStr, pStr);
+      }
     
       io_Sequence[0].root = root1 - 1;
       io_Sequence[0].c    = +1;
@@ -286,6 +298,8 @@ void CarolKyneaWorker::CheckFactor(uint64_t p, uint32_t n, int32_t c)
 bool CarolKyneaWorker::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t n, int32_t c)
 {
    uint64_t rem;
+   char     pStr[50];
+   char     rStr[50];
    
    fpu_push_1divp(p);
    
@@ -298,7 +312,12 @@ bool CarolKyneaWorker::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t 
    if (rem != 2)
    {
       if (badFactorIsFatal)
-         FatalError("(%u^%u%+d)-2 mod %" PRIu64" = %" PRIu64"", ii_Base, n, c, p, rem-2);
+      {
+         sprintf(pStr, "%" PRIu64"", p);
+         sprintf(rStr, "%" PRIu64"", rem-2);
+         
+         FatalError("(%u^%u%+d)-2 mod %s = %s", ii_Base, n, c, pStr, rStr);
+      }
 
       return false;
    }

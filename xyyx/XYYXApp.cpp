@@ -313,7 +313,10 @@ void XYYXApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
    FILE    *fPtr, *sPtr = NULL;
    uint32_t x, y, bit, yCount;
-   uint64_t terms = 0;
+   uint64_t termsCounted = 0;
+   char     termCountStr[50];
+   char     termsCountedStr[50];
+
 
    ip_FactorAppLock->Lock();
 
@@ -353,7 +356,7 @@ void XYYXApp::WriteOutputTermsFile(uint64_t largestPrime)
             else
                fprintf(fPtr, "%u %u\n", x, y);
             
-            terms++;
+            termsCounted++;
          }
       }
    }
@@ -363,8 +366,13 @@ void XYYXApp::WriteOutputTermsFile(uint64_t largestPrime)
       
    fclose(fPtr);
    
-   if (terms != il_TermCount)
-      FatalError("Something is wrong.  Counted terms (%u) != expected terms (%u)", terms, il_TermCount);
+   if (termsCounted != il_TermCount)
+   {
+      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
+      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
+      
+      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
+   }
    
    ip_FactorAppLock->Release();
 }

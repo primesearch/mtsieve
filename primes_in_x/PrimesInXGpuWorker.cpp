@@ -344,6 +344,8 @@ void  PrimesInXGpuWorker::VerifyFactor(uint64_t prime, uint32_t n)
    uint32_t i;
    int64_t  p;
    int64_t  q, rem;
+   char     pStr[50];
+   char     rStr[50];
 
    uint32_t *terms = ip_PrimesInXApp->Get1DigitTerms();
       
@@ -365,6 +367,11 @@ void  PrimesInXGpuWorker::VerifyFactor(uint64_t prime, uint32_t n)
          rem -= p;
    }
 
-   if (rem != 0) 
-      FatalError("%" PRIu64" does not divide pix(%u) (remainder is %" PRIu64")", prime, n, rem);
+   if (rem != 0)
+   {
+      sprintf(pStr, "%" PRIu64"", prime);
+      sprintf(rStr, "%" PRIu64"", rem);
+
+      FatalError("%s does not divide pix(%u) (remainder is %s)", pStr, n, rStr);
+   }
 }

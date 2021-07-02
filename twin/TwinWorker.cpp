@@ -261,21 +261,32 @@ bool  TwinWorker::VerifyExternalFactor(bool badFactorIsFatal, uint64_t prime, ui
 bool  TwinWorker::VerifyFactor(bool badFactorIsFatal, uint64_t prime, uint64_t k, int32_t c, uint64_t bPowNModP)
 {
    uint64_t rem;
+   char     kStr[50];
+   char     pStr[50];
+   char     remStr[50];
    
    rem = fpu_mulmod(bPowNModP, k, prime);
    
    if (c == +1 && rem != prime - 1)
    {
+      sprintf(kStr, "%" PRIu64"", k);
+      sprintf(pStr, "%" PRIu64"", prime);
+      sprintf(remStr, "%" PRIu64"", rem + 1);
+      
       if (badFactorIsFatal)
-         FatalError("%" PRIu64"*%u^%u%+d mod %" PRIu64" = %" PRIu64"", k, ii_Base, ii_N, c, prime, rem + 1);
+         FatalError("%s*%u^%u%+d mod %s = %s", kStr, ii_Base, ii_N, c, pStr, remStr);
          
       return false;
    }
    
    if (c == -1 && rem != 1)
    {
+      sprintf(kStr, "%" PRIu64"", k);
+      sprintf(pStr, "%" PRIu64"", prime);
+      sprintf(remStr, "%" PRIu64"", rem + 1);
+      
       if (badFactorIsFatal)
-         FatalError("%" PRIu64"*%u^%u%+d mod %" PRIu64" = %" PRIu64"", k, ii_Base, ii_N, c, prime, rem - 1);
+         FatalError("%s*%u^%u%+d mod %s = %s", kStr, ii_Base, ii_N, c, pStr, remStr);
          
       return false;
    }

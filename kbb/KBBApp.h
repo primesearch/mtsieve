@@ -54,7 +54,7 @@ private:
    void              EliminateGfnAndMersenneTerms(void);
    void              EliminateTermsWithAlgebraicFactors(void);
    uint32_t          EliminateTermsWithSimpleRoots(void);
-   bool              CheckAlgebraicFactor(uint32_t b, int32_t c, const char *fmt, ...);
+   bool              CheckAlgebraicFactor(uint32_t b, int32_t c, const char *fmt, ...)  __attribute__ ((format (printf, 4, 5)));
    
    vector<bool>      iv_PlusTerms;
    vector<bool>      iv_MinusTerms;

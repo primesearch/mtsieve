@@ -196,7 +196,8 @@ void SierpinskiRieselApp::ValidateOptions(void)
 
       RemoveSequences();
       
-      MakeSubsequences(false, GetMinPrime());
+      if (!ib_ApplyAndExit)
+         MakeSubsequences(false, GetMinPrime());
    }
    else
    {
@@ -386,6 +387,7 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
    uint32_t lineNumber = 0;
    format_t format = FF_UNKNOWN;
    seq_t   *currentSequence = 0;
+   bool     haveMinN = false;
 
    if (!fPtr)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
@@ -455,8 +457,11 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
          }
          else
          {            
-            if (ii_MinN == 0)
+            if (!haveMinN)
+            {
                ii_MinN = ii_MaxN = n;
+               haveMinN = true;
+            }
             
             if (ii_MinN > n) ii_MinN = n;
             if (ii_MaxN < n) ii_MaxN = n;
@@ -530,8 +535,6 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
                if (sscanf(buffer, "%u", &n) != 1)
                   FatalError("Line %s is malformed", buffer);
                
-               if (ii_MinN == 0)
-                  ii_MinN = ii_MaxN = n;
                break;
 
             case FF_BOINC:
@@ -542,9 +545,7 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
                   currentSequence = GetSequence(k, c, d);
                else
                   AddSequence(k, c, d);
-                  
-               if (ii_MinN == 0)
-                  ii_MinN = ii_MaxN = n;
+               
                break;
                
             case FF_NUMBER_PRIMES:
@@ -556,12 +557,16 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
                else
                   AddSequence(k, c, d);
                
-               if (ii_MinN == 0)
-                  ii_MinN = ii_MaxN = n;
                break;
                
             default:
                FatalError("Input file %s has unknown format", is_InputTermsFileName.c_str());
+         }
+
+         if (!haveMinN)
+         {
+            ii_MinN = ii_MaxN = n;
+            haveMinN = true;
          }
 
          if (haveBitMap)
@@ -715,11 +720,11 @@ bool SierpinskiRieselApp::ApplyFactor(uint64_t thePrime, const char *term)
       {
          if (seq->nTerms[NBIT(n)])
          {
-            seq->nTerms[NBIT(n)] = false;
-            il_TermCount--;
-
             if (!VerifyFactor(false, thePrime, seq, n))
                return false;
+            
+            seq->nTerms[NBIT(n)] = false;
+            il_TermCount--;
          
             return true;
          }
@@ -733,9 +738,11 @@ bool SierpinskiRieselApp::ApplyFactor(uint64_t thePrime, const char *term)
 
 void SierpinskiRieselApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
-   uint32_t   nCount = 0; 
-   bool       allSequencesHaveDEqual1 = true;
-   seq_t     *seq;
+   uint64_t termsCounted = 0; 
+   bool     allSequencesHaveDEqual1 = true;
+   seq_t   *seq;
+   char     termCountStr[50];
+   char     termsCountedStr[50];
    
    // With super large ranges, wait until we can lock because without locking
    // the term count can change between opening and closing the file.
@@ -749,7 +756,7 @@ void SierpinskiRieselApp::WriteOutputTermsFile(uint64_t largestPrime)
    
    ip_FactorAppLock->Lock();
    
-   nCount = 0;
+   termsCounted = 0;
 
    if (it_Format == FF_NUMBER_PRIMES)
    {
@@ -780,24 +787,29 @@ void SierpinskiRieselApp::WriteOutputTermsFile(uint64_t largestPrime)
    do
    {
       if (it_Format == FF_ABCD)
-         nCount += WriteABCDTermsFile(seq, largestPrime, termsFile);
+         termsCounted += WriteABCDTermsFile(seq, largestPrime, termsFile);
       
       if (it_Format == FF_ABC)
-         nCount += WriteABCTermsFile(seq, largestPrime, termsFile);
+         termsCounted += WriteABCTermsFile(seq, largestPrime, termsFile);
       
       if (it_Format == FF_BOINC)
-         nCount += WriteBoincTermsFile(seq, largestPrime, termsFile);
+         termsCounted += WriteBoincTermsFile(seq, largestPrime, termsFile);
       
       if (it_Format == FF_NUMBER_PRIMES)
-         nCount += WriteABCNumberPrimesTermsFile(seq, largestPrime, termsFile, allSequencesHaveDEqual1);
+         termsCounted += WriteABCNumberPrimesTermsFile(seq, largestPrime, termsFile, allSequencesHaveDEqual1);
             
       seq = (seq_t *) seq->next;
    } while (seq != NULL);
    
    fclose(termsFile);
    
-   if (nCount != il_TermCount)
-      FatalError("Something is wrong.  Counted terms (%u) != expected terms (%u)", nCount, il_TermCount);
+   if (termsCounted != il_TermCount)
+   {
+      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
+      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
+      
+      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
+   }
    
    ip_FactorAppLock->Release();
 }
@@ -929,18 +941,23 @@ void  SierpinskiRieselApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
 void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
 {
    seq_t  *seq;
+   char    kStr[50];
+   char    cStr[50];
+
+   sprintf(kStr, "%" PRIu64"", k);
+   sprintf(cStr, "%+" PRId64"", c);
 
    // If base, k, and c are odd then all terms are even
    if ((ii_Base % 2) && (k % 2) && (c % 2) && (d == 1))
    {
-      WriteToConsole(COT_OTHER, "Sequence %" PRIu64"*%u^n%+d not added because all terms are divisible by 2", k, ii_Base, c);
+      WriteToConsole(COT_OTHER, "Sequence %s*%u^n%s not added because all terms are divisible by 2", kStr, ii_Base, cStr);
       return;
    }
 
    // If either the base or k is even and c is even then all terms are even
    if ((!(ii_Base % 2) || !(k % 2)) && !(c % 2) && (d == 1))
    {
-      WriteToConsole(COT_OTHER, "Sequence %" PRIu64"*%u^n%+d not added because all terms are divisible by 2", k, ii_Base, c);
+      WriteToConsole(COT_OTHER, "Sequence %s*%u^n%s not added because all terms are divisible by 2", kStr, ii_Base, cStr);
       return;
    }
    
@@ -994,7 +1011,9 @@ void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
 
 seq_t    *SierpinskiRieselApp::GetSequence(uint64_t k, int64_t c, uint32_t d) 
 {
-   seq_t     *seq;
+   seq_t  *seq;
+   char    kStr[50];
+   char    cStr[50];
 
    seq = ip_FirstSequence;
    do
@@ -1005,7 +1024,10 @@ seq_t    *SierpinskiRieselApp::GetSequence(uint64_t k, int64_t c, uint32_t d)
       seq = (seq_t *) seq->next;
    } while (seq != NULL);
    
-   FatalError("Sequence for %" PRIu64" and c=%" PRId64" was not found", k, c);
+   sprintf(kStr, "%" PRIu64"", k);
+   sprintf(cStr, "%+" PRId64"", c);
+
+   FatalError("Sequence for k=%s and c=%s was not found", kStr, cStr);
    
    return 0;
 }
@@ -1062,10 +1084,17 @@ void  SierpinskiRieselApp::MakeSubsequences(bool newSieve, uint64_t largestPrime
 
    if (newSieve)
    {
-      uint64_t termCount = ip_AppHelper->MakeSubsequencesForNewSieve();
+      uint64_t termsCounted = ip_AppHelper->MakeSubsequencesForNewSieve();
+      char     termCountStr[50];
+      char     termsCountedStr[50];
       
-      if (termCount != il_TermCount)
-         FatalError("Expected %" PRIu64" terms, but only set %" PRIu64"", il_TermCount, termCount);
+      if (termsCounted != il_TermCount)
+      {
+         sprintf(termCountStr, "%" PRIu64"", il_TermCount);
+         sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
+         
+         FatalError("Expected (%s) terms, but only set (%s)", termsCountedStr, termCountStr);
+      }
    }
    else
       ip_AppHelper->MakeSubsequencesForOldSieve(il_TermCount);
@@ -1075,7 +1104,9 @@ void  SierpinskiRieselApp::MakeSubsequences(bool newSieve, uint64_t largestPrime
 
 void  SierpinskiRieselApp::RemoveSequencesWithNoTerms(void)
 {
-   seq_t     *seq, *nextSeq, *prevSeq;
+   seq_t  *seq, *nextSeq, *prevSeq;
+   char    kStr[50];
+   char    cStr[50];
    
    prevSeq = seq = ip_FirstSequence;
    do
@@ -1102,12 +1133,15 @@ void  SierpinskiRieselApp::RemoveSequencesWithNoTerms(void)
          else
             prevSeq->next = seq->next;
             
+         sprintf(kStr, "%" PRIu64"", seq->k);
+         sprintf(cStr, "%+" PRId64"", seq->c);
+   
          if (seq->d == 1)
-            WriteToConsole(COT_OTHER, "Sequence %" PRIu64"*%u^n%+" PRId64" removed as all terms have a factor", 
-               seq->k, ii_Base, seq->c);
+            WriteToConsole(COT_OTHER, "Sequence %s*%u^n%s removed as all terms have a factor", 
+               kStr, ii_Base, cStr);
          else
-            WriteToConsole(COT_OTHER, "Sequence (%" PRIu64"*%u^n%+" PRId64")/%u removed as all terms have a factor", 
-               seq->k, ii_Base, seq->c, seq->d);
+            WriteToConsole(COT_OTHER, "Sequence (%s*%u^n%s)/%u removed as all terms have a factor", 
+               kStr, ii_Base, cStr, seq->d);
                   
          xfree(seq);
          
@@ -1192,10 +1226,17 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, seq_t *seq, uint32
 {
    uint32_t nbit;
    bool     wasRemoved = false;
+   bool     isPrime = false;
+   char     buffer[200];
                
    if (n < ii_MinN || n > ii_MaxN)
       return;
 
+   if (seq->d > 1)
+      sprintf(buffer, "(%" PRIu64"*%u^%u%+" PRId64")/%u", seq->k, ii_Base, n, seq->c, seq->d);
+   else
+      sprintf(buffer, "%" PRIu64"*%u^%u%+" PRId64"", seq->k, ii_Base, n, seq->c);
+   
    nbit = NBIT(n);
    
    if (thePrime > GetMaxPrimeForSingleWorker())
@@ -1203,35 +1244,36 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, seq_t *seq, uint32
       
    if (seq->nTerms[nbit])
    {
-      il_TermCount--;
-      il_FactorCount++;
-      seq->nTerms[nbit] = false;
-      wasRemoved = true;
+      // Do not remove terms where k*b^n+c is prime.  This means that PRP testing program
+      // should identify this term as prime and stop testing other terms of this sequence.
+      if (IsPrime(thePrime, seq, n))
+      {
+         WriteToConsole(COT_OTHER, "%s is prime!", buffer);
+         WriteToLog("%s is prime!", buffer);
+         isPrime = true;
+      }
+      else 
+      {
+         il_TermCount--;
+         il_FactorCount++;
+         seq->nTerms[nbit] = false;
+         wasRemoved = true;
+      }
    }
          
    if (thePrime > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
+
+   if (isPrime)
+      return;
 
    if (verifyFactor)
       VerifyFactor(true, thePrime, seq, n);
 
    if (!wasRemoved)
       return;   
- 
-   char buffer[200];
-   
-   if (seq->d > 1)
-      sprintf(buffer, "(%" PRIu64"*%u^%u%+" PRId64")/%u", seq->k, ii_Base, n, seq->c, seq->d);
-   else
-      sprintf(buffer, "%" PRIu64"*%u^%u%+" PRId64"", seq->k, ii_Base, n, seq->c);
 
-   if (IsPrime(thePrime, seq, n))
-   {
-      WriteToConsole(COT_OTHER, "%s is prime!", buffer);
-      WriteToLog("%s is prime!", buffer);
-   }
-   else
-      LogFactor(thePrime, buffer);
+   LogFactor(thePrime, buffer);
 }
 
 bool  SierpinskiRieselApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, seq_t *seq, uint32_t n)
