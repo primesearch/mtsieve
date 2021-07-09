@@ -5,7 +5,9 @@ The relative speed differnce between CPU and GPU is for an i7-8850H and NVIDIA Q
       Added __attribute__ to method declarations that accept variable arguments.
 
    srsieve2, srsieve2cl:  version 1.5.3
-      
+      Modified to not remove terms that are prime as that defeats the purpose of
+      Sierpinski/Riesel searches.
+      Fixed bug where maxn for a sequence has a small factor, but it is not found.
 
 2.2.1 - February 16, 2021
    framework:  no changes
