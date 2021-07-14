@@ -115,7 +115,6 @@ void        CisOneSequenceHelper::LastChanceLogicBeforeSieving(void)
    uint32_t  sieveHigh = ii_MaxN / ii_BestQ;
    uint64_t  preBuildCpuBytes, postBuildCpuBytes;
    seq_t    *seq;
-   char      bStr[50];
          
    ii_MaxBabySteps = 0;
    
@@ -152,10 +151,8 @@ void        CisOneSequenceHelper::LastChanceLogicBeforeSieving(void)
 
    xfree(ip_TempQs);
    xfree(ip_TempLadders);
-
-   sprintf(bStr, "%" PRIu64"", postBuildCpuBytes - preBuildCpuBytes);
    
-   ip_App->WriteToConsole(COT_OTHER, "%s bytes used for congruence tables", bStr);
+   ip_App->WriteToConsole(COT_OTHER, "%" PRIu64" bytes used for congruence tables", postBuildCpuBytes - preBuildCpuBytes);
       
    SierpinskiRieselApp *srApp = (SierpinskiRieselApp *) ip_App;
    
@@ -221,7 +218,6 @@ bool   CisOneSequenceHelper::BuildLegendreTables(string legendreFileName)
    uint64_t     postBuildCpuBytes;
    bool         builtLegendreTables;
    seq_t       *seq;
-   char         bStr[50];
       
    preBuildCpuBytes = GetCpuMemoryUsage();
    
@@ -238,12 +234,8 @@ bool   CisOneSequenceHelper::BuildLegendreTables(string legendreFileName)
 
    postBuildCpuBytes = GetCpuMemoryUsage();
    
-   if (builtLegendreTables)
-   {
-      sprintf(bStr, "%" PRIu64"", postBuildCpuBytes - preBuildCpuBytes);
-      
-      ip_App->WriteToConsole(COT_OTHER, "%s bytes used for Legendre tables", bStr);
-   }
+   if (builtLegendreTables)      
+      ip_App->WriteToConsole(COT_OTHER, "%" PRIu64" bytes used for Legendre tables", postBuildCpuBytes - preBuildCpuBytes);
 
    return builtLegendreTables;
 }

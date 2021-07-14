@@ -279,8 +279,6 @@ void K1B2App::WriteOutputTermsFile(uint64_t largestPrime)
    uint64_t termsCounted = 0;
    uint32_t n;
    int64_t  c;
-   char     termCountStr[50];
-   char     termsCountedStr[50];
    
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
 
@@ -304,13 +302,8 @@ void K1B2App::WriteOutputTermsFile(uint64_t largestPrime)
    fclose(termsFile);
 
    if (termsCounted != il_TermCount)
-   {
-      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
-      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
-      
-      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
-   }
-   
+      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termsCounted, il_TermCount);
+
    ip_FactorAppLock->Release();
 }
 
@@ -321,8 +314,6 @@ void  K1B2App::GetExtraTextForSieveStartedMessage(char *extraText)
 
 bool  K1B2App::ReportFactor(uint64_t p, uint32_t n, int64_t c)
 {
-   char  cStr[50];
-   
    if (n < ii_MinN || n > ii_MaxN)
       return false;
    
@@ -341,9 +332,7 @@ bool  K1B2App::ReportFactor(uint64_t p, uint32_t n, int64_t c)
       il_FactorCount++;
       il_TermCount--;
       
-      sprintf(cStr, "%+" PRId64"", c);
-
-      LogFactor(p, "2^%u%s", n, cStr);
+      LogFactor(p, "2^%u%+" PRId64"", n, c);
       removedTerm = true;
    }
    

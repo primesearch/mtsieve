@@ -312,8 +312,6 @@ void PrimorialApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
    uint64_t termsCounted = 0;
-   char     termCountStr[50];
-   char     termsCountedStr[50];
 
    if (!termsFile)
       FatalError("Unable to open input file %s", is_OutputTermsFileName.c_str());
@@ -340,12 +338,7 @@ void PrimorialApp::WriteOutputTermsFile(uint64_t largestPrime)
    fclose(termsFile);
    
    if (termsCounted != il_TermCount)
-   {
-      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
-      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
-      
-      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
-   }
+      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termsCounted, il_TermCount);
    
    ip_FactorAppLock->Release();
 }
@@ -399,8 +392,6 @@ bool  PrimorialApp::VerifyFactor(bool badFactorIsFatal, uint64_t primeFactor, ui
 {
    uint64_t rem = FIRST_PRIMORIAL;
    uint32_t i = 0;
-   char     pStr[50];
-   char     remStr[50];
    
    fpu_push_1divp(primeFactor);
    
@@ -421,12 +412,7 @@ bool  PrimorialApp::VerifyFactor(bool badFactorIsFatal, uint64_t primeFactor, ui
       return true;
        
    if (badFactorIsFatal)
-   {
-      sprintf(pStr, "%" PRIu64"", primeFactor);
-      sprintf(remStr, "%" PRIu64"", rem);
-      
-      FatalError("%s is not a factor of %u#%+d (%s)", pStr, primorial, theC, remStr);
-   }
+      FatalError("%" PRIu64" is not a factor of %u#%+d (%" PRIu64")", primeFactor, primorial, theC, rem);
 
    return false;
 }

@@ -49,8 +49,13 @@ protected:
    void              ResetFactorStats(void);
    
    // Only call this if ip_FactorAppLock has been locked, then release upon return
+#ifdef __MINGW_PRINTF_FORMAT
+   void              LogFactor(uint64_t p, const char *fmt, ...) __attribute__ ((format (__MINGW_PRINTF_FORMAT, 3, 4)));
+   void              LogFactor(char *factor, const char *fmt, ...) __attribute__ ((format (__MINGW_PRINTF_FORMAT, 3, 4)));
+#else
    void              LogFactor(uint64_t p, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
    void              LogFactor(char *factor, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+#endif
    
    bool              ib_ApplyAndExit;
    

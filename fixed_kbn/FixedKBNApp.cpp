@@ -218,8 +218,6 @@ bool FixedKBNApp::ApplyFactor(uint64_t thePrime, const char *term)
    uint64_t k;
    uint32_t b, n;
    int64_t  c;
-   char     k1Str[50];
-   char     k2Str[50];
    
    if (sscanf(term, "%" SCNu64"*%u^%u%" SCNd64"", &k, &b, &n, &c) != 4)
       FatalError("Could not parse term %s", term);
@@ -231,13 +229,8 @@ bool FixedKBNApp::ApplyFactor(uint64_t thePrime, const char *term)
       FatalError("Expected n %u in factor but found %d", ii_N, n);
    
    if (k != il_K)
-   {
-      sprintf(k1Str, "%" PRIu64"", il_K);
-      sprintf(k2Str, "%" PRIu64"", k);
-      
-      FatalError("Expected k %s in factor but found %s", k1Str, k2Str);
-   }
-        
+      FatalError("Expected k %" PRIu64" in factor but found %" PRIu64"", il_K, k);
+
    if (c < il_MinC || c > il_MaxC)
       return false;
 
@@ -258,8 +251,6 @@ bool FixedKBNApp::ApplyFactor(uint64_t thePrime, const char *term)
 void FixedKBNApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
    uint64_t termsCounted = 0;
-   char     termCountStr[50];
-   char     termsCountedStr[50];
    
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
 
@@ -307,12 +298,7 @@ void FixedKBNApp::WriteOutputTermsFile(uint64_t largestPrime)
    fclose(termsFile);
    
    if (termsCounted != il_TermCount)
-   {
-      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
-      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
-      
-      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
-   }
+      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termsCounted, il_TermCount);
    
    ip_FactorAppLock->Release();
 }
@@ -325,8 +311,6 @@ void  FixedKBNApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
 bool  FixedKBNApp::ReportFactor(uint64_t p, int64_t c)
 {   
    bool     removedTerm = false;
-   char     kStr[50];
-   char     cStr[50];
    
    if (c < il_MinC || c > il_MaxC)
       return false;
@@ -340,11 +324,8 @@ bool  FixedKBNApp::ReportFactor(uint64_t p, int64_t c)
    {
       iv_Terms[bit] = false;
       removedTerm = true;
-      
-      sprintf(kStr, "%" PRIu64"", il_K);
-      sprintf(cStr, "%+" PRId64"", c);
-      
-      LogFactor(p, "%s*%u^%u%s", kStr, ii_Base, ii_N, cStr);
+            
+      LogFactor(p, "%" PRIu64"*%u^%u%+" PRId64"", il_K, ii_Base, ii_N, c);
       
       il_FactorCount++;
       il_TermCount--;

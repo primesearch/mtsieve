@@ -604,7 +604,6 @@ void  XYYXWorker::CheckAvxResult(uint32_t x, uint32_t y, uint64_t *ps, double *d
 bool  XYYXWorker::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t x, uint32_t y, int32_t c)
 {
    uint64_t xPowY, yPowX;
-   char     pStr[50];
       
    fpu_push_1divp(p);
    
@@ -615,20 +614,16 @@ bool  XYYXWorker::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t x, ui
    
    if (c == -1 && xPowY != yPowX)
    {
-      sprintf(pStr, "%" PRIu64"", p);
-      
       if (badFactorIsFatal)
-         FatalError("%s does not divide %u^%u-%u^%u", pStr, x, y, y, x);
+         FatalError("%" PRIu64" does not divide %u^%u-%u^%u", p, x, y, y, x);
          
       return false;
    }
    
    if (c == +1 && xPowY + yPowX != p)
    {
-      sprintf(pStr, "%" PRIu64"", p);
-      
       if (badFactorIsFatal)
-         FatalError("%s does not divide %u^%u+%u^%u", pStr, x, y, y, x);
+         FatalError("%" PRIu64" does not divide %u^%u+%u^%u", p, x, y, y, x);
          
       return false;
    }

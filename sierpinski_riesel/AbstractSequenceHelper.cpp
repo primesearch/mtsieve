@@ -86,8 +86,6 @@ void        AbstractSequenceHelper::MakeSubsequencesForOldSieve(uint64_t expecte
    uint64_t  countedTerms = 0;
    uint32_t  ssIdx;
    seq_t    *seq;
-   char      termCountStr[50];
-   char      termsCountedStr[50];
    
    if (ip_Subsequences)
       xfree(ip_Subsequences);
@@ -161,13 +159,7 @@ void        AbstractSequenceHelper::MakeSubsequencesForOldSieve(uint64_t expecte
       FatalError("Expected %u subsequences but %u were created", expectedSubsequences, ii_SubsequenceCount);
 
    if (expectedTerms != countedTerms)
-   {
-      sprintf(termCountStr, "%" PRIu64"", countedTerms);
-      sprintf(termsCountedStr, "%" PRIu64"", expectedTerms);
-      
-      FatalError("Expected %s terms when building sequences, but counted only %s", termCountStr, termsCountedStr);
-      
-   }
+      FatalError("Expected %" PRIu64" terms when building sequences, but counted only %" PRIu64"", expectedTerms, countedTerms);
    
    const char *sequenceText = ((ii_SequenceCount > 1) ? "sequences" : "sequence");
   

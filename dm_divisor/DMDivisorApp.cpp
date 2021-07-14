@@ -389,8 +389,6 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    uint64_t termsCounted = 0;
    uint64_t k;
    uint64_t bit;
-   char     termCountStr[50];
-   char     termsCountedStr[50];
 
    // With super large ranges, wait until we can lock because without locking
    // the term count can change between opening and closing the file.
@@ -428,7 +426,6 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
       if (iv_MMPTerms[bit])
       {
          fprintf(termsFile, "%" PRIu64"\n", k);
-        // fprintf(termsFile, "%" PRIu64"\n", k - previousK);
          termsCounted++;
       }
    }
@@ -436,13 +433,8 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    fclose(termsFile);
    
    if (termsCounted != il_TermCount)
-   {
-      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
-      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
-      
-      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
-   }
-   
+      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termsCounted, il_TermCount);
+
    ip_FactorAppLock->Release();
 }
 
@@ -506,8 +498,6 @@ void  DMDivisorApp::TestRemainingTerms(void)
    uint64_t termsTested = 0;
    uint64_t termsEvaluatedInChunk = 0;
    uint64_t termsTestedPerSecond;
-   char     termsTestedStr[50];
-   char     kStr[50];
    double   percentSievingTimeSlice;
    double   percentTermsRequiringTest;
    double   percentChunkTested, percentRangeTested;
@@ -558,17 +548,16 @@ void  DMDivisorApp::TestRemainingTerms(void)
          
          // We really didn't evaluate even k, but we count against the rate anyways.
          termsTestedPerSecond *= 2;
-         sprintf(termsTestedStr, "%" PRIu64"", termsTestedPerSecond);
 
          if (il_TotalTermsInChunk == il_TotalTerms)
-            WriteToConsole(COT_SIEVE, "Tested %5.2f pct of range at %s terms per second (%5.2f pct terms passed sieving)", 
-                           percentChunkTested, termsTestedStr, percentTermsRequiringTest);
+            WriteToConsole(COT_SIEVE, "Tested %5.2f pct of range at %" PRIu64" terms per second (%5.2f pct terms passed sieving)", 
+                           percentChunkTested, termsTestedPerSecond, percentTermsRequiringTest);
          else
          {
             percentRangeTested = (100.0 * (double) il_TotalTermsEvaluated) / (double) il_TotalTerms;
          
-            WriteToConsole(COT_SIEVE, "Tested %5.2f pct of chunk at %s terms per second (%5.2f pct terms passed sieving) (%5.2f pct of range)", 
-                           percentChunkTested, termsTestedStr, percentTermsRequiringTest, percentRangeTested);
+            WriteToConsole(COT_SIEVE, "Tested %5.2f pct of chunk at %" PRIu64" terms per second (%5.2f pct terms passed sieving) (%5.2f pct of range)", 
+                           percentChunkTested, termsTestedPerSecond, percentTermsRequiringTest, percentRangeTested);
          }
    
          lastCheckPointTime = time(NULL);
@@ -597,9 +586,7 @@ void  DMDivisorApp::TestRemainingTerms(void)
 
          if (mpz_cmp_ui(rem, 1) == 0)
          {
-            sprintf(kStr, "%" PRIu64"", k);
-            
-            WriteToConsole(COT_OTHER, "Found factor 2*%s*(2^%u-1)+1 of 2^(2^%u-1)-1", kStr, ii_N, ii_N);
+            WriteToConsole(COT_OTHER, "Found factor 2*%" PRIu64"*(2^%u-1)+1 of 2^(2^%u-1)-1", k, ii_N, ii_N);
             
             fPtr = fopen("dm_factors.txt", "a+");
             fprintf(fPtr, "Found factor 2*%" PRIu64"*(2^%u-1)+1 of 2^(2^%u-1)-1\n", k, ii_N, ii_N);
@@ -627,17 +614,16 @@ void  DMDivisorApp::TestRemainingTerms(void)
 
       // We really didn't evaluate even k, but we count against the rate anyways.
       termsTestedPerSecond *= 2;
-      sprintf(termsTestedStr, "%" PRIu64"", termsTestedPerSecond);
                
       if (il_TotalTermsInChunk == il_TotalTerms)
-         WriteToConsole(COT_SIEVE, "Tested %5.2f pct of range at %s terms per second (%5.2f pct terms passed sieving)",
-                        percentChunkTested, termsTestedStr, percentTermsRequiringTest);
+         WriteToConsole(COT_SIEVE, "Tested %5.2f pct of range at %" PRIu64" terms per second (%5.2f pct terms passed sieving)",
+                        percentChunkTested, termsTestedPerSecond, percentTermsRequiringTest);
       else
       {
          percentRangeTested = (100.0 * (double) il_TotalTermsEvaluated) / (double) il_TotalTerms;
       
-         WriteToConsole(COT_SIEVE, "Tested %5.2f pct of chunk at %s terms per second (%5.2f pct terms passed sieving) (%5.2f pct of range)",
-                        percentChunkTested, termsTestedStr, percentTermsRequiringTest, percentRangeTested);
+         WriteToConsole(COT_SIEVE, "Tested %5.2f pct of chunk at %" PRIu64" terms per second (%5.2f pct terms passed sieving) (%5.2f pct of range)",
+                        percentChunkTested, termsTestedPerSecond, percentTermsRequiringTest, percentRangeTested);
       }
    }
 }
@@ -755,9 +741,6 @@ void  DMDivisorApp::CheckRedc(mp_limb_t *xp, uint32_t xn, uint32_t b, uint64_t k
 
    mpz_t     B, E, N;
    uint32_t  i;
-   char      kStr[50];
-   char      limbStr[50];
-   char      xpStr[50];
 
    mpz_init_set_ui(B,b);
 
@@ -783,24 +766,17 @@ void  DMDivisorApp::CheckRedc(mp_limb_t *xp, uint32_t xn, uint32_t b, uint64_t k
 
    if (mpz_size(B) > xn)
    {
-      sprintf(kStr, "%" PRIu64"", k);
+      WriteToConsole(COT_OTHER, "REDC ERROR: %u^2^%u mod %" PRIu64"*2^%u+1\n", b, ii_N, k, ii_N);
       
-      WriteToConsole(COT_OTHER, "REDC ERROR: %u^2^%u mod %s*2^%u+1\n", b, ii_N, kStr, ii_N);
-      
-      sprintf(limbStr, "%" PRIu64"", (uint64_t) mpz_size(B));
-      FatalError("mpz_size=%s, xn=%u\n", limbStr, xn);
+      FatalError("mpz_size=%" PRIu64", xn=%u\n", (uint64_t) mpz_size(B), xn);
    }
 
    for (i = 0; i < xn; i++)
       if (xp[i] != mpz_getlimbn(B,i))
-      {
-         sprintf(kStr, "%" PRIu64"", k);
+      {        
+         WriteToConsole(COT_OTHER, "REDC ERROR: %u^2^%u mod %" PRIu64"*2^%u+1\n", b, ii_N, k, ii_N);
          
-         WriteToConsole(COT_OTHER, "REDC ERROR: %u^2^%u mod %s*2^%u+1\n", b, ii_N, kStr, ii_N);
-         
-         sprintf(limbStr, "%" PRIu64"", (uint64_t) mpz_getlimbn(B, i));
-         sprintf(xpStr, "%" PRIu64"", (uint64_t) xp[i]);
-         FatalError("limb %u=%s, xp[%u]=%s\n", i, limbStr, i, xpStr);
+         FatalError("limb %u=%" PRIu64", xp[%u]=%" PRIu64"\n", i, mpz_getlimbn(B, i), i, xp[i]);
       }
 
    mpz_clear(N);

@@ -494,9 +494,6 @@ bool TwinApp::ApplyFactor(uint64_t thePrime,  const char *term)
 void TwinApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
    uint64_t termsCounted = 0;
-   char     termCountStr[50];
-   char     termsCountedStr[50];
-
    
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
 
@@ -517,13 +514,8 @@ void TwinApp::WriteOutputTermsFile(uint64_t largestPrime)
    fclose(termsFile);
    
    if (termsCounted != il_TermCount)
-   {
-      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
-      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
-      
-      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
-   }
-   
+      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termsCounted, il_TermCount);
+
    ip_FactorAppLock->Release();
 }
 

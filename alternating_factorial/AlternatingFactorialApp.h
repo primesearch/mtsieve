@@ -37,7 +37,6 @@ public:
 #endif
 
    bool              ReportFactor(int64_t p, uint32_t term);
-   void              ReportPrime(int64_t p, uint32_t term);
 
 protected:
    void              PreSieveHook(void) {};

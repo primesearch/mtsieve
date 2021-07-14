@@ -316,8 +316,6 @@ bool SophieGermainApp::ApplyFactor(uint64_t thePrime, const char *term)
 void SophieGermainApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
    uint64_t termsCounted = 0;
-   char     termCountStr[50];
-   char     termsCountedStr[50];
    
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
 
@@ -335,13 +333,8 @@ void SophieGermainApp::WriteOutputTermsFile(uint64_t largestPrime)
    fclose(termsFile);
    
    if (termsCounted != il_TermCount)
-   {
-      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
-      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
-      
-      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
-   }
-   
+      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termsCounted, il_TermCount);
+
    ip_FactorAppLock->Release();
 }
 
@@ -413,7 +406,6 @@ void  SophieGermainApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
 bool  SophieGermainApp::ReportFactor(uint64_t p, uint64_t k, bool firstOfPair)
 {
    bool     removedTerm = false;
-   char     kStr[50];
    
    if (p > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
@@ -425,12 +417,10 @@ bool  SophieGermainApp::ReportFactor(uint64_t p, uint64_t k, bool firstOfPair)
       iv_Terms[bit] = false;
       removedTerm = true;
       
-      sprintf(kStr, "%" PRIu64"", k);
-      
       if (firstOfPair)
-         LogFactor(p, "%s*2^%u+1", kStr, ii_N);
+         LogFactor(p, "%" PRIu64"*2^%u+1", k, ii_N);
       else
-         LogFactor(p, "2*(%s*2^%u+1)-1", kStr, ii_N);
+         LogFactor(p, "2*(%" PRIu64"*2^%u+1)-1", k, ii_N);
       
       il_FactorCount++;
       il_TermCount--;

@@ -173,8 +173,6 @@ void AlternatingFactorialGpuWorker::ValidateFactor(int64_t p, uint32_t term)
    int64_t  up = p;
    int64_t  q, rem;
    int64_t  nm1term;
-   char     pStr[50];
-   char     rStr[50];
    
    inverse = 1.0 / p;
    nm1term = 1;
@@ -201,11 +199,6 @@ void AlternatingFactorialGpuWorker::ValidateFactor(int64_t p, uint32_t term)
    }
 
    if (rem != 0)
-   {
-      sprintf(pStr, "%" PRIu64"", p);
-      sprintf(rStr, "%" PRIu64"", rem);
-      
-      FatalError("%s does not divide af(%u) (remainder is %s)", pStr, term, rStr);
-   }
+      FatalError("%" PRIu64" does not divide af(%u) (remainder is %" PRIu64")", p, term, rem);
 }
 

@@ -214,9 +214,6 @@ void *xmalloc(size_t requestedSize)
    char     *currentPtr;
    size_t    allocatedSize = requestedSize + 150;
    uint64_t  temp;
-   char      memoryRequestedStr[50];
-
-   sprintf(memoryRequestedStr, "%" PRId64"", (int64_t) requestedSize);
 
    // Allocate extra memory because we need to align to a 64-byte boundary
    // as the memory might be referenced by AVX instructions.  We will also
@@ -224,7 +221,7 @@ void *xmalloc(size_t requestedSize)
    // for the allocated memory at the front of this and follow by 0xff to
    // verify that someone isn't running past the end of their allocated memory.
    if ((allocatedPtr = malloc(allocatedSize)) == NULL)
-      FatalError("Unable to allocate %s bytes of memory", memoryRequestedStr);
+      FatalError("Unable to allocate %" PRIu64" bytes of memory", (uint64_t) requestedSize);
 
    cpuBytes += allocatedSize;
 

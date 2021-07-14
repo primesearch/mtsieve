@@ -367,8 +367,6 @@ void CullenWoodallApp::WriteOutputTermsFile(uint64_t largestPrime)
    FILE    *fPtr = fopen(is_OutputTermsFileName.c_str(), "w");
    uint32_t n, bit;
    uint64_t termsCounted = 0;
-   char     termCountStr[50];
-   char     termsCountedStr[50];
 
    if (!fPtr)
       FatalError("Unable to open input file %s", is_OutputTermsFileName.c_str());
@@ -408,12 +406,7 @@ void CullenWoodallApp::WriteOutputTermsFile(uint64_t largestPrime)
    fclose(fPtr);
 
    if (termsCounted != il_TermCount)
-   {
-      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
-      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
-      
-      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
-   }
+      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termsCounted, il_TermCount);
    
    ip_FactorAppLock->Release();
 }

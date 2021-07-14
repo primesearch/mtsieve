@@ -255,43 +255,18 @@ bool AlternatingFactorialApp::ReportFactor(int64_t p, uint32_t term)
    return newFactor;
 }
 
-void AlternatingFactorialApp::ReportPrime(int64_t p, uint32_t term)
-{
-   char      pStr[50];
-
-   if (term < ii_MinN || term > ii_MaxN)
-      return;
-
-   ip_FactorAppLock->Lock();
-
-   if (iv_Terms[BIT(term)])
-      iv_Terms[BIT(term)] = false;
-
-   sprintf(pStr, "%" PRId64"", p);
-
-   WriteToConsole(COT_OTHER, "af(%d) is prime! (%s)", term, pStr);
-
-   WriteToLog("af(%d) is prime! (%s)\n", term, pStr);
-
-   il_TermCount--;
-
-   ip_FactorAppLock->Release();
-}
-
 void AlternatingFactorialApp::WriteOutputTermsFile(uint64_t checkpointPrime)
 {
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
    uint32_t remaining = 0, bit;
    uint32_t termCount = (uint32_t) il_TermCount;
-   char     primeStr[50];
 
    if (!termsFile)
       FatalError("Unable to open output file %s", is_OutputTermsFileName.c_str());
    
    ip_FactorAppLock->Lock();
 
-   sprintf(primeStr, "%" PRIu64"", checkpointPrime);
-   fprintf(termsFile, "ABC af($a) // Sieved to %s\n", primeStr);
+   fprintf(termsFile, "ABC af($a) // Sieved to %" PRIu64"\n", checkpointPrime);
 
    bit = BIT(ii_MinN);
    

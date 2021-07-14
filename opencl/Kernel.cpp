@@ -141,9 +141,7 @@ void Kernel::PrintStatistics(uint32_t bytesPerWorkGroup)
    if (ip_Device->IsPrintDetails())
    {
       App   *theApp = get_app();
-      char   gStr[50];
-      char   bStr[50];
-      
+
       uint64_t privateBytes = bytesPerWorkGroup;
       
       theApp->WriteToConsole(COT_OTHER, "CL_DEVICE_MAX_COMPUTE_UNITS = %u", ip_Device->GetMaxComputeUnits());
@@ -153,14 +151,12 @@ void Kernel::PrintStatistics(uint32_t bytesPerWorkGroup)
       theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE = %u", ii_WorkGroupSizeMultiple);
       theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_LOCAL_MEM_SIZE = %u", ii_LocalMemorySize);
       theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_PRIVATE_MEM_SIZE = %u", ii_PrivateMemorySize);
+
       
-      sprintf(gStr, "%" PRIu64"", ip_Device->GetGpuBytes());
-      sprintf(bStr, "%" PRIu64"", bytesPerWorkGroup * ii_KernelWorkGroupSize);
-      
-      theApp->WriteToConsole(COT_OTHER, "GPU global bytes allocated = %s", gStr);
+      theApp->WriteToConsole(COT_OTHER, "GPU global bytes allocated = %" PRIu64"", ip_Device->GetGpuBytes());
       
       if (privateBytes > 0)
-         theApp->WriteToConsole(COT_OTHER, "GPU private bytes allocated = %s", bStr);
+         theApp->WriteToConsole(COT_OTHER, "GPU private bytes allocated = %" PRIu64"", bytesPerWorkGroup * ii_KernelWorkGroupSize);
    }
 }
 

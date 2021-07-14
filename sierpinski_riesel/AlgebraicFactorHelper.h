@@ -48,7 +48,13 @@ private:
    uint64_t          RemoveComplexRoot(seq_t *seq);
    uint64_t          CheckBase2(seq_t *seq);
    uint64_t          CheckPower4(seq_t *seq);
+   
+#ifdef __MINGW_PRINTF_FORMAT
+   uint32_t          CheckAndLogAlgebraicFactor(seq_t *seq, uint32_t n, const char *fmt, ...) __attribute__ ((format (__MINGW_PRINTF_FORMAT, 4, 5)));
+#else
    uint32_t          CheckAndLogAlgebraicFactor(seq_t *seq, uint32_t n, const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
+#endif
+
    void              GetRoot(uint64_t number, uint32_t *root, uint32_t *power);
    bool              IsGfnOrMersenneForm(seq_t *seq);
 };

@@ -54,8 +54,13 @@ private:
    void              EliminateGfnAndMersenneTerms(void);
    void              EliminateTermsWithAlgebraicFactors(void);
    uint32_t          EliminateTermsWithSimpleRoots(void);
+
+#ifdef __MINGW_PRINTF_FORMAT
+   bool              CheckAlgebraicFactor(uint32_t b, int32_t c, const char *fmt, ...)  __attribute__ ((format (__MINGW_PRINTF_FORMAT, 4, 5)));
+#else
    bool              CheckAlgebraicFactor(uint32_t b, int32_t c, const char *fmt, ...)  __attribute__ ((format (printf, 4, 5)));
-   
+#endif
+
    vector<bool>      iv_PlusTerms;
    vector<bool>      iv_MinusTerms;
 

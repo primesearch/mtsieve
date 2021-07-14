@@ -87,8 +87,13 @@ public:
 
    void              Run(void);
 
+#ifdef __MINGW_PRINTF_FORMAT
+   void              WriteToConsole(cotype_t consoleOutputType, const char *fmt, ...) __attribute__ ((format (__MINGW_PRINTF_FORMAT, 3, 4)));
+   void              WriteToLog(const char *fmt, ...) __attribute__ ((format (__MINGW_PRINTF_FORMAT, 2, 3)));
+#else
    void              WriteToConsole(cotype_t consoleOutputType, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
    void              WriteToLog(const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+#endif
    
    void              TellAllWorkersToRebuild(void);
 

@@ -120,10 +120,6 @@ void  KBBWorker::CheckK(uint64_t prime, uint64_t base, uint64_t rem)
 void  KBBWorker::VerifyFactor(uint64_t prime, uint64_t b, int32_t c)
 {
    uint64_t  rem;
-   char      bStr[50];
-   char      kStr[50];
-   char      pStr[50];
-   char      rStr[50];
 
    fpu_push_1divp(prime);
    
@@ -133,22 +129,8 @@ void  KBBWorker::VerifyFactor(uint64_t prime, uint64_t b, int32_t c)
    fpu_pop();
    
    if (c == +1 && rem != prime-1)
-   {
-      sprintf(bStr, "%" PRIu64"", b);
-      sprintf(kStr, "%" PRIu64"", il_K);
-      sprintf(pStr, "%" PRIu64"", prime);
-      sprintf(rStr, "%" PRIu64"", rem);
-      
-      FatalError("%s*%s^%s+1 mod %s = %s", kStr, bStr, bStr, pStr, rStr);
-   }
+      FatalError("%" PRIu64"*%" PRIu64"^%" PRIu64"+1 mod %" PRIu64" = %" PRIu64"", il_K, b, b, prime, rem);
    
    if (c == -1 && rem != +1)
-   {
-      sprintf(bStr, "%" PRIu64"", b);
-      sprintf(kStr, "%" PRIu64"", il_K);
-      sprintf(pStr, "%" PRIu64"", prime);
-      sprintf(rStr, "%" PRIu64"", rem);
-      
-      FatalError("%s*%s^%s-1 mod %s = %s", kStr, bStr, bStr, pStr, rStr);
-   }
+      FatalError("%" PRIu64"*%" PRIu64"^%" PRIu64"-1 mod %" PRIu64" = %" PRIu64"", il_K, b, b, prime, rem);
 }

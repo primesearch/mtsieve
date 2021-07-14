@@ -256,8 +256,6 @@ void CarolKyneaApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
    uint64_t termsCounted = 0;
    uint32_t n;
-   char     termCountStr[50];
-   char     termsCountedStr[50];
    
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
 
@@ -286,13 +284,8 @@ void CarolKyneaApp::WriteOutputTermsFile(uint64_t largestPrime)
    fclose(termsFile);
    
    if (termsCounted != il_TermCount)
-   {
-      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
-      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
-      
-      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
-   }
-   
+      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termsCounted, il_TermCount);
+
    ip_FactorAppLock->Release();
 }
 
@@ -342,15 +335,11 @@ bool CarolKyneaApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
 
 
 void CarolKyneaApp::ReportPrime(uint64_t p, uint32_t n, int32_t c)
-{
-   char  primeStr[50];
-   
+{   
    if (n < ii_MinN || n > ii_MaxN)
       return;
 
    ip_FactorAppLock->Lock();
-
-   sprintf(primeStr, "%" PRIu64"", p);
    
    uint32_t bit = BIT(n);
    
@@ -361,9 +350,9 @@ void CarolKyneaApp::ReportPrime(uint64_t p, uint32_t n, int32_t c)
       il_TermCount--;
       il_FactorCount++;
       
-      WriteToConsole(COT_OTHER, "(%u^%u-1)^2-2 is prime! (%s)", ii_Base, n, primeStr);
+      WriteToConsole(COT_OTHER, "(%u^%u-1)^2-2 is prime! (%" PRIu64")", ii_Base, n, p);
 
-      WriteToLog("(%u^%u-1)^2-2 is prime! (%s)", ii_Base, n, primeStr);
+      WriteToLog("(%u^%u-1)^2-2 is prime! (%" PRIu64")", ii_Base, n, p);
    }
 
    if (c == +1 && iv_PlusTerms[bit])
@@ -373,9 +362,9 @@ void CarolKyneaApp::ReportPrime(uint64_t p, uint32_t n, int32_t c)
       il_TermCount--;
       il_FactorCount++;
       
-      WriteToConsole(COT_OTHER, "(%u^%u+1)^2-2 is prime! (%s)", ii_Base, n, primeStr);
+      WriteToConsole(COT_OTHER, "(%u^%u+1)^2-2 is prime! (%" PRIu64")", ii_Base, n, p);
 
-      WriteToLog("(%u^%u+1)^2-2 is prime! (%s)", ii_Base, n, primeStr);
+      WriteToLog("(%u^%u+1)^2-2 is prime! (%" PRIu64")", ii_Base, n, p);
    }
    
    ip_FactorAppLock->Release();

@@ -350,14 +350,9 @@ void  App::Interrupt(void)
 {
    ip_AppStatus->SetValueNoLock(AS_INTERRUPTED);
 
-   char maxPrimeStr[50];
-
-   if (il_LargestPrimeSieved > il_MaxPrime)
-      sprintf(maxPrimeStr, "%" PRIu64"", il_MaxPrime);
-   else
-      sprintf(maxPrimeStr, "%" PRIu64"", il_LargestPrimeSieved);
+   uint64_t maxPrime = (il_LargestPrimeSieved > il_MaxPrime ? il_MaxPrime : il_LargestPrimeSieved);
   
-   WriteToConsole(COT_OTHER, "CTRL-C accepted.  Threads will stop after sieving to %s", maxPrimeStr);
+   WriteToConsole(COT_OTHER, "CTRL-C accepted.  Threads will stop after sieving to %" PRIu64"", maxPrime);
 }
 
 void  App::SetMinPrime(uint64_t minPrime)
@@ -371,12 +366,8 @@ void  App::SetMinPrime(uint64_t minPrime)
 // Overrice the max prime to be sieved so that we can guarantee
 // that all remaining terms are prime.
 void  App::SetMaxPrime(uint64_t maxPrime, const char *why)
-{
-   char maxPrimeStr[50];
-   
-   sprintf(maxPrimeStr, "%" PRIu64"", maxPrime);
-   
-   WriteToConsole(COT_OTHER, "Changing p_max to %s.  %s.", maxPrimeStr, why);
+{  
+   WriteToConsole(COT_OTHER, "Changing p_max to %" PRIu64".  %s.", maxPrime, why);
    
    il_MaxPrime = maxPrime;
 }
@@ -586,15 +577,12 @@ void  App::CreateWorkers(uint64_t largestPrimeTested)
    
    if (ii_CpuWorkerCount == 0 && largestPrimeTested < il_MinGpuPrime)
    {
-      char maxPrimeStr[50];
-   
-      sprintf(maxPrimeStr, "%" PRIu64"", il_MinGpuPrime);
-      
       // Worker "0" is only created if all of the following conditions are met:
       //    no CPU workers specified
       //    the application supports GPU workers
       //    the next prime tested cannot be tested on a GPU
-      WriteToConsole(COT_OTHER, "Creating CPU worker to use until p >= %s", maxPrimeStr);
+      WriteToConsole(COT_OTHER, "Creating CPU worker to use until p >= %" PRIu64"", il_MinGpuPrime);
+      
       ip_Workers[0] = CreateWorker(0, false, largestPrimeTested);
    }
 
@@ -638,7 +626,6 @@ void  App::Finish(void)
    uint64_t    processCpuUS;
    uint64_t    elapsedTimeUS;
    double      cpuUtilization;
-   char        maxPrimeStr[50];
    const char *finishMethod = (IsInterrupted() ? "interrupted" : "completed");
    
    // This won't return until all workers have completed processing work assigned to them.
@@ -650,10 +637,8 @@ void  App::Finish(void)
 
    GetWorkerStats(workerCpuUS, largestPrimeTestedNoGaps, largestPrimeTested, primesTested);
 
-   sprintf(maxPrimeStr, "%" PRIu64"", largestPrimeTested);
-
    // Since all threads finished normally, there are no gaps thus we use largestPrimeTested.
-   WriteToConsole(COT_OTHER, "Sieve %s at p=%s.", finishMethod, maxPrimeStr);
+   WriteToConsole(COT_OTHER, "Sieve %s at p=%" PRIu64".", finishMethod, largestPrimeTested);
    
    cpuUtilization = ((double) processCpuUS) / ((double) elapsedTimeUS);
    
@@ -694,7 +679,6 @@ void  App::ReportStatus(void)
    struct tm   *finish_tm;
    char     childStats[200];
    char     finishTimeBuffer[32];
-   char     maxPrimeStr[50];
    uint64_t currentUS, workerCpuUS;
    uint64_t processCpuUS, elapsedTimeUS;
    uint64_t largestPrimeTestedNoGaps, largestPrimeTested, primesTested;
@@ -757,27 +741,25 @@ void  App::ReportStatus(void)
       if (!finish_tm || !strftime(finishTimeBuffer, sizeof(finishTimeBuffer), REPORT_STRFTIME_FORMAT, finish_tm))
          finishTimeBuffer[0] = '\0';
    }
-
-   sprintf(maxPrimeStr, "%" PRIu64"", largestPrimeTestedNoGaps);
    
    if (strlen(childStats) > 0)
    {   
       if (!havePercentDone)
-         WriteToConsole(COT_SIEVE, "  p=%s, %.*f%s p/sec, %s                            ",
-                        maxPrimeStr, primePrecision, primeRate, primeRateUnit, childStats);
+         WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec, %s                            ",
+                        largestPrimeTestedNoGaps, primePrecision, primeRate, primeRateUnit, childStats);
       else
-         WriteToConsole(COT_SIEVE, "  p=%s, %.*f%s p/sec, %s, %.1f%% done. %s           ",
-                        maxPrimeStr, primePrecision, primeRate, primeRateUnit,
+         WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec, %s, %.1f%% done. %s           ",
+                        largestPrimeTestedNoGaps, primePrecision, primeRate, primeRateUnit,
                         childStats, 100.0*percentDone, finishTimeBuffer);
    }
    else
    {   
       if (!havePercentDone)
-         WriteToConsole(COT_SIEVE, "  p=%s, %.*f%s p/sec                                ",
-                        maxPrimeStr, primePrecision, primeRate, primeRateUnit);
+         WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec                                ",
+                        largestPrimeTestedNoGaps, primePrecision, primeRate, primeRateUnit);
       else
-         WriteToConsole(COT_SIEVE, "  p=%s, %.*f%s p/sec, %.1f%% done. %s              ",
-                        maxPrimeStr, primePrecision, primeRate, primeRateUnit,
+         WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec, %.1f%% done. %s              ",
+                        largestPrimeTestedNoGaps, primePrecision, primeRate, primeRateUnit,
                         100.0*percentDone, finishTimeBuffer);
    }
 

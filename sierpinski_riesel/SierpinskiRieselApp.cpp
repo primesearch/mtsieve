@@ -741,8 +741,6 @@ void SierpinskiRieselApp::WriteOutputTermsFile(uint64_t largestPrime)
    uint64_t termsCounted = 0; 
    bool     allSequencesHaveDEqual1 = true;
    seq_t   *seq;
-   char     termCountStr[50];
-   char     termsCountedStr[50];
    
    // With super large ranges, wait until we can lock because without locking
    // the term count can change between opening and closing the file.
@@ -804,13 +802,8 @@ void SierpinskiRieselApp::WriteOutputTermsFile(uint64_t largestPrime)
    fclose(termsFile);
    
    if (termsCounted != il_TermCount)
-   {
-      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
-      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
-      
-      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
-   }
-   
+      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termsCounted, il_TermCount);
+
    ip_FactorAppLock->Release();
 }
 
@@ -941,23 +934,18 @@ void  SierpinskiRieselApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
 void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
 {
    seq_t  *seq;
-   char    kStr[50];
-   char    cStr[50];
-
-   sprintf(kStr, "%" PRIu64"", k);
-   sprintf(cStr, "%+" PRId64"", c);
 
    // If base, k, and c are odd then all terms are even
    if ((ii_Base % 2) && (k % 2) && (c % 2) && (d == 1))
    {
-      WriteToConsole(COT_OTHER, "Sequence %s*%u^n%s not added because all terms are divisible by 2", kStr, ii_Base, cStr);
+      WriteToConsole(COT_OTHER, "Sequence %" PRIu64"*%u^n%+" PRId64" not added because all terms are divisible by 2", k, ii_Base, c);
       return;
    }
 
    // If either the base or k is even and c is even then all terms are even
    if ((!(ii_Base % 2) || !(k % 2)) && !(c % 2) && (d == 1))
    {
-      WriteToConsole(COT_OTHER, "Sequence %s*%u^n%s not added because all terms are divisible by 2", kStr, ii_Base, cStr);
+      WriteToConsole(COT_OTHER, "Sequence %" PRIu64"*%u^n%+" PRId64" not added because all terms are divisible by 2", k, ii_Base, c);
       return;
    }
    
@@ -1012,8 +1000,6 @@ void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
 seq_t    *SierpinskiRieselApp::GetSequence(uint64_t k, int64_t c, uint32_t d) 
 {
    seq_t  *seq;
-   char    kStr[50];
-   char    cStr[50];
 
    seq = ip_FirstSequence;
    do
@@ -1024,10 +1010,8 @@ seq_t    *SierpinskiRieselApp::GetSequence(uint64_t k, int64_t c, uint32_t d)
       seq = (seq_t *) seq->next;
    } while (seq != NULL);
    
-   sprintf(kStr, "%" PRIu64"", k);
-   sprintf(cStr, "%+" PRId64"", c);
 
-   FatalError("Sequence for k=%s and c=%s was not found", kStr, cStr);
+   FatalError("Sequence for k=%" PRIu64" and c=%+" PRId64" was not found", k, c);
    
    return 0;
 }
@@ -1085,16 +1069,10 @@ void  SierpinskiRieselApp::MakeSubsequences(bool newSieve, uint64_t largestPrime
    if (newSieve)
    {
       uint64_t termsCounted = ip_AppHelper->MakeSubsequencesForNewSieve();
-      char     termCountStr[50];
-      char     termsCountedStr[50];
       
       if (termsCounted != il_TermCount)
-      {
-         sprintf(termCountStr, "%" PRIu64"", il_TermCount);
-         sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
          
-         FatalError("Expected (%s) terms, but only set (%s)", termsCountedStr, termCountStr);
-      }
+         FatalError("Expected (%" PRIu64") terms, but only set (%" PRIu64")", termsCounted, il_TermCount);
    }
    else
       ip_AppHelper->MakeSubsequencesForOldSieve(il_TermCount);
@@ -1105,8 +1083,6 @@ void  SierpinskiRieselApp::MakeSubsequences(bool newSieve, uint64_t largestPrime
 void  SierpinskiRieselApp::RemoveSequencesWithNoTerms(void)
 {
    seq_t  *seq, *nextSeq, *prevSeq;
-   char    kStr[50];
-   char    cStr[50];
    
    prevSeq = seq = ip_FirstSequence;
    do
@@ -1133,15 +1109,12 @@ void  SierpinskiRieselApp::RemoveSequencesWithNoTerms(void)
          else
             prevSeq->next = seq->next;
             
-         sprintf(kStr, "%" PRIu64"", seq->k);
-         sprintf(cStr, "%+" PRId64"", seq->c);
-   
          if (seq->d == 1)
-            WriteToConsole(COT_OTHER, "Sequence %s*%u^n%s removed as all terms have a factor", 
-               kStr, ii_Base, cStr);
+            WriteToConsole(COT_OTHER, "Sequence %" PRIu64"*%u^n%+" PRId64" removed as all terms have a factor", 
+               seq->k, ii_Base, seq->c);
          else
-            WriteToConsole(COT_OTHER, "Sequence (%s*%u^n%s)/%u removed as all terms have a factor", 
-               kStr, ii_Base, cStr, seq->d);
+            WriteToConsole(COT_OTHER, "Sequence (%" PRIu64"*%u^n%+" PRId64")/%u removed as all terms have a factor", 
+               seq->k, ii_Base, seq->c, seq->d);
                   
          xfree(seq);
          

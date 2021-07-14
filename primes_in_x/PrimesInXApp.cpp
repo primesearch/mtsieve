@@ -391,8 +391,6 @@ void PrimesInXApp::WriteOutputTermsFile(uint64_t largestPrime)
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
    uint64_t termsCounted = 0;
    uint32_t maxLength = 0;
-   char     termCountStr[50];
-   char     termsCountedStr[50];
 
    if (!termsFile)
       FatalError("Unable to open input file %s", is_OutputTermsFileName.c_str());
@@ -422,12 +420,7 @@ void PrimesInXApp::WriteOutputTermsFile(uint64_t largestPrime)
    fclose(termsFile);
 
    if (termsCounted != il_TermCount)
-   {
-      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
-      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
-      
-      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
-   }
+      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termsCounted, il_TermCount);
       
    ip_FactorAppLock->Release();
 }
@@ -468,8 +461,6 @@ bool PrimesInXApp::ReportFactor(uint64_t p, uint32_t n)
 
 void PrimesInXApp::ReportPrime(uint64_t p, uint32_t n)
 {
-   char  pStr[50];
-   
    if (n < ii_MinLength || n > ii_MaxLength)
       return;
    
@@ -482,14 +473,12 @@ void PrimesInXApp::ReportPrime(uint64_t p, uint32_t n)
       iv_Terms[bit] = false;
       il_FactorCount++;
       il_TermCount--;
-
-      sprintf(pStr, "%" PRIu64"", p);
  
       LogFactor(p, "pix(%u)", n);
          
-      WriteToConsole(COT_OTHER, "pix(%u) is prime! (%s)", n, pStr);
+      WriteToConsole(COT_OTHER, "pix(%u) is prime! (%" PRIu64")", n, p);
 
-      WriteToLog("pix(%u) is prime! (%s)", n, pStr);
+      WriteToLog("pix(%u) is prime! (%" PRIu64")", n, p);
    }
    
    ip_FactorAppLock->Release();

@@ -246,19 +246,12 @@ bool KBBApp::ApplyFactor(uint64_t thePrime, const char *term)
    uint32_t b1, b2;
    char     sign;
    uint32_t c;
-   char     k1Str[50];
-   char     k2Str[50];
    
    if (sscanf(term, "%" SCNu64"*%u^%u%c%u", &k, &b1, &b2, &sign, &c) != 5)
       FatalError("Could not parse term %s\n", term);
 
    if (k != il_K)
-   {
-      sprintf(k1Str, "%" PRIu64"", il_K);
-      sprintf(k2Str, "%" PRIu64"", k);
-      
-      FatalError("expecting k of %s, but found %s", k1Str, k2Str);
-   }
+      FatalError("expecting k of %" PRIu64", but found %" PRIu64"", il_K, k);
    
    if (b1 != b2)
       FatalError("b values for term %s do not match (%u != %u)", term, b1, b2);
@@ -297,8 +290,6 @@ void KBBApp::WriteOutputTermsFile(uint64_t largestPrime)
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
    uint64_t termsCounted = 0;
    uint32_t bit;
-   char     termCountStr[50];
-   char     termsCountedStr[50];
 
    if (!termsFile)
       FatalError("Unable to open output file %s", is_OutputTermsFileName.c_str());
@@ -329,12 +320,7 @@ void KBBApp::WriteOutputTermsFile(uint64_t largestPrime)
    fclose(termsFile);
    
    if (termsCounted != il_TermCount)
-   {
-      sprintf(termCountStr, "%" PRIu64"", il_TermCount);
-      sprintf(termsCountedStr, "%" PRIu64"", termsCounted);
-      
-      FatalError("Something is wrong.  Counted terms (%s) != expected terms (%s)", termsCountedStr, termCountStr);
-   }
+      FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termsCounted, il_TermCount);
         
    ip_FactorAppLock->Release();
 }
@@ -364,7 +350,6 @@ void KBBApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
 bool  KBBApp::ReportFactor(uint64_t p, uint32_t b, int32_t c)
 {
    bool     removedTerm = false;
-   char     kStr[50];
    
    if (b < ii_MinB) return false;
    if (b > ii_MaxB) return false;
@@ -378,10 +363,8 @@ bool  KBBApp::ReportFactor(uint64_t p, uint32_t b, int32_t c)
    {
       iv_PlusTerms[bit] = false;
       removedTerm = true;
-      
-      sprintf(kStr, "%" PRIu64"", il_K);
-      
-      LogFactor(p, "%s*%u^%u+1", kStr, b, b);
+            
+      LogFactor(p, "%" PRIu64"*%u^%u+1", il_K, b, b);
       
       il_FactorCount++;
       il_TermCount--;
@@ -391,10 +374,8 @@ bool  KBBApp::ReportFactor(uint64_t p, uint32_t b, int32_t c)
    {
       iv_MinusTerms[bit] = false;
       removedTerm = true;
-      
-      sprintf(kStr, "%" PRIu64"", il_K);
-      
-      LogFactor(p, "%s*%u^%u-1", kStr, b, b);
+            
+      LogFactor(p, "%" PRIu64"*%u^%u-1", il_K, b, b);
       
       il_FactorCount++;
       il_TermCount--;
@@ -427,8 +408,6 @@ uint32_t  KBBApp::EliminateTermsWithSimpleRoots(void)
    uint32_t  b, idx;
    uint64_t  broot, kroot, curroot;
    uint32_t  bpower, kpower, curpower;
-   char      cStr[50];
-   char      bStr[50];
    
    // If k = 1, then RemoveAlgebraicSimpleTerm() will have handled it
    if (il_K == 1)
@@ -462,10 +441,7 @@ uint32_t  KBBApp::EliminateTermsWithSimpleRoots(void)
          if ((b*bpower) % curpower != 0)
             continue;
 
-         sprintf(cStr, "%" PRIu64"", curroot);
-         sprintf(bStr, "%" PRIu64"", broot);
-
-         removedCount += CheckAlgebraicFactor(b, -1, "(%s*%s^%u-1)", cStr, bStr, (b*bpower)/curpower);
+         removedCount += CheckAlgebraicFactor(b, -1, "(%" PRIu64"*%" PRIu64"^%u-1)", curroot, broot, (b*bpower)/curpower);
 
          // x^1 is not a divisor of x^n+1
          if (curpower == 1)
@@ -475,7 +451,7 @@ uint32_t  KBBApp::EliminateTermsWithSimpleRoots(void)
          if ((b*bpower) % 2 == 0)
             continue;
 
-         removedCount += CheckAlgebraicFactor(b, +1, "(%s*%s^%u+1)", cStr, bStr, (b*bpower)/curpower);         
+         removedCount += CheckAlgebraicFactor(b, +1, "(%" PRIu64"*%" PRIu64"^%u+1)", curroot, broot, (b*bpower)/curpower);         
       }
    }
    
@@ -487,7 +463,6 @@ bool  KBBApp::CheckAlgebraicFactor(uint32_t b, int32_t c, const char *fmt, ...)
    va_list args;
    char    factor[200];
    bool    removedTerm = false;
-   char    kStr[50];
    
    if (b < ii_MinB || b > ii_MaxB)
       return false;
@@ -505,10 +480,8 @@ bool  KBBApp::CheckAlgebraicFactor(uint32_t b, int32_t c, const char *fmt, ...)
    {
       iv_PlusTerms[bit] = false;
       removedTerm = true;
-      
-      sprintf(kStr, "%" PRIu64"", il_K);
-      
-      LogFactor(factor, "%s*%u^%u+1", kStr, b, b);
+            
+      LogFactor(factor, "%" PRIu64"*%u^%u+1", il_K, b, b);
       
       il_FactorCount++;
       il_TermCount--;
@@ -518,10 +491,8 @@ bool  KBBApp::CheckAlgebraicFactor(uint32_t b, int32_t c, const char *fmt, ...)
    {
       iv_MinusTerms[bit] = false;
       removedTerm = true;
-      
-      sprintf(kStr, "%" PRIu64"", il_K);
-      
-      LogFactor(factor, "%s*%u^%u-1", kStr, b, b);
+            
+      LogFactor(factor, "%" PRIu64"*%u^%u-1", il_K, b, b);
       
       il_FactorCount++;
       il_TermCount--;

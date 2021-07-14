@@ -53,7 +53,12 @@ extern "C" {
 #endif
 
 // In main.cpp
+#ifdef __MINGW_PRINTF_FORMAT
+void     FatalError(const char *fmt, ...) __attribute__ ((format (__MINGW_PRINTF_FORMAT, 1, 2)));
+#else
 void     FatalError(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+#endif
+
 void     AppendLongOpt(struct option *longOpts, const char *name, int has_arg, int *flag, char charSwitch);
 
 void    *xmalloc(size_t size);

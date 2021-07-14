@@ -20,12 +20,7 @@
 GenericSequenceHelper::GenericSequenceHelper(App *theApp, uint64_t largestPrimeTested) : AbstractSequenceHelper(theApp, largestPrimeTested)
 {
    // The parent's constuctor does the work
-   
-   char  pStr[50];
-
-   sprintf(pStr, "%" PRIu64"", largestPrimeTested);
-
-   theApp->WriteToConsole(COT_OTHER, "Sieving with generic logic for p >= %s", pStr);
+   theApp->WriteToConsole(COT_OTHER, "Sieving with generic logic for p >= %" PRIu64"", largestPrimeTested);
 }
 
 Worker   *GenericSequenceHelper::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested)

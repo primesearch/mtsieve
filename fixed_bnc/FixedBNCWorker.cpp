@@ -242,29 +242,14 @@ void    FixedBNCWorker::RemoveTermsBigPrime(uint64_t prime, uint64_t k)
 void  FixedBNCWorker::VerifyFactor(uint64_t prime, uint64_t k, uint64_t bPowNModP)
 {
    uint64_t rem;
-   char     kStr[50];
-   char     pStr[50];
-   char     remStr[50];
 
    rem = fpu_mulmod(bPowNModP, k, prime);
 
    if (ii_C == +1 && rem != prime - 1)
-   {
-      sprintf(kStr, "%" PRIu64"", k);
-      sprintf(pStr, "%" PRIu64"", prime);
-      sprintf(remStr, "%" PRIu64"", rem+1);
-      
-      FatalError("%s*%u^%u%+d mod %s = %s", kStr, ii_Base, ii_N, ii_C, pStr, remStr);
-   }
+      FatalError("%" PRIu64"*%u^%u%+d mod %" PRIu64" = %" PRIu64"", k, ii_Base, ii_N, ii_C, prime, rem + 1);
       
    if (ii_C == -1 && rem != 1)
-   {
-      sprintf(kStr, "%" PRIu64"", k);
-      sprintf(pStr, "%" PRIu64"", prime);
-      sprintf(remStr, "%" PRIu64"", rem-1);
-      
-      FatalError("%s*%u^%u%+d mod %s = %s", kStr, ii_Base, ii_N, ii_C, pStr, remStr);
-   }
+      FatalError("%" PRIu64"*%u^%u%+d mod %" PRIu64" = %" PRIu64"", k, ii_Base, ii_N, ii_C, prime, rem - 1);
 }
 
 void    FixedBNCWorker::BuildBaseInverses(void)
