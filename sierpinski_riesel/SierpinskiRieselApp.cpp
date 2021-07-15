@@ -563,7 +563,7 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
                FatalError("Input file %s has unknown format", is_InputTermsFileName.c_str());
          }
 
-         if (!haveMinN)
+         if (haveBitMap)
          {
             ii_MinN = ii_MaxN = n;
             haveMinN = true;

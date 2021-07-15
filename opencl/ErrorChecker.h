@@ -28,7 +28,12 @@ class ErrorChecker
 public:
    // If the status indicates an error, output the error and shutdown
    static void ExitIfError(const char *functionName, cl_int status);
+   
+#ifdef __MINGW_PRINTF_FORMAT
+   static void ExitIfError(const char *functionName, cl_int status, const char *fmt, ...) __attribute__ ((format (__MINGW_PRINTF_FORMAT, 3, 4)));
+#else
    static void ExitIfError(const char *functionName, cl_int status, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
+#endif
 
 private:
    static const char *GetErrorText(cl_int err);

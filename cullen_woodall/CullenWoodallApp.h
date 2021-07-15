@@ -67,7 +67,13 @@ private:
    
    void              EliminateGfnAndMersenneTerms(void);
    void              EliminateTermsWithAlgebraicFactors(void);
-   bool              CheckAlgebraicFactor(uint32_t n, int32_t c, const char *fmt, ...);
+
+#ifdef __MINGW_PRINTF_FORMAT
+   bool              CheckAlgebraicFactor(uint32_t n, int32_t c, const char *fmt, ...) __attribute__ ((format (__MINGW_PRINTF_FORMAT, 4, 5)));
+#else
+   bool              CheckAlgebraicFactor(uint32_t n, int32_t c, const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
+#endif
+
    bool              VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t n, int32_t c);
    
    format_t          it_Format;
