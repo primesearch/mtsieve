@@ -387,7 +387,7 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
    uint32_t lineNumber = 0;
    format_t format = FF_UNKNOWN;
    seq_t   *currentSequence = 0;
-   bool     haveMinN = false;
+   bool     haveMinN = haveBitMap;
 
    if (!fPtr)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
