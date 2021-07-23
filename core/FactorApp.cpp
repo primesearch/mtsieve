@@ -161,9 +161,9 @@ void  FactorApp::ParentValidateOptions(void)
       
       sprintf(buffer,  "Read %u factors from %s which removed %u terms.", factors, is_InputFactorsFileName.c_str(), applied);
       
-      WriteToConsole(COT_OTHER, buffer);
+      WriteToConsole(COT_OTHER, "%s", buffer);
 
-      WriteToLog(buffer);
+      WriteToLog("%s", buffer);
    }
    
    // I know this is dirty, but it is much easier than other options.
@@ -249,9 +249,9 @@ void  FactorApp::LogStartSievingMessage(void)
       else
          sprintf(fullMessage, "%s", startOfMessage);
       
-   WriteToConsole(COT_OTHER, fullMessage);
+   WriteToConsole(COT_OTHER, "%s", fullMessage);
 
-   WriteToLog(fullMessage);
+   WriteToLog("%s", fullMessage);
 }
 
 void  FactorApp::Finish(const char *finishMethod, uint64_t elapsedTimeUS, uint64_t largestPrimeTested, uint64_t primesTested)
