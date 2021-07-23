@@ -1246,7 +1246,7 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, seq_t *seq, uint32
    if (!wasRemoved)
       return;   
 
-   LogFactor(thePrime, buffer);
+   LogFactor(thePrime, "%s", buffer);
 }
 
 bool  SierpinskiRieselApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, seq_t *seq, uint32_t n)
@@ -1283,9 +1283,9 @@ bool  SierpinskiRieselApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime
       sprintf(buffer, "Invalid factor: %" PRIu64"*%u^%u%+" PRId64" mod %" PRIu64" = %" PRIu64"", seq->k, ii_Base, n, seq->c, thePrime, rem);
    
    if (badFactorIsFatal)
-      FatalError(buffer);
+      FatalError("%s", buffer);
    else
-      WriteToConsole(COT_OTHER, buffer);
+      WriteToConsole(COT_OTHER, "%s", buffer);
    
    return isValid;
 }
