@@ -387,7 +387,7 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
    uint32_t lineNumber = 0;
    format_t format = FF_UNKNOWN;
    seq_t   *currentSequence = 0;
-   bool     haveMinN = haveBitMap;
+   bool     haveMinN = false;
 
    if (!fPtr)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
@@ -565,17 +565,17 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
 
          if (haveBitMap)
          {
-            ii_MinN = ii_MaxN = n;
-            haveMinN = true;
-         }
-
-         if (haveBitMap)
-         {
             currentSequence->nTerms[NBIT(n)] = true;
             il_TermCount++;
          }
          else
          {
+            if (!haveMinN)
+            {
+               ii_MinN = ii_MaxN = n;
+               haveMinN = true;
+            }
+         
             if (ii_MinN > n) ii_MinN = n;
             if (ii_MaxN < n) ii_MaxN = n;
          }
