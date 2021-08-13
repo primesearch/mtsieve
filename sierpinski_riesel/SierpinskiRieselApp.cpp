@@ -1264,7 +1264,13 @@ bool  SierpinskiRieselApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime
    if (seq->c > 0)
       rem += seq->c;
    else
-      rem += (thePrime + seq->c);
+   {
+      int64_t adj = seq->c + thePrime;
+      while (adj < 0)
+         adj += thePrime;
+      
+      rem += adj;
+   }
       
    if (rem >= thePrime)
       rem -= thePrime;
