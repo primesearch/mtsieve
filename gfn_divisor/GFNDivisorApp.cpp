@@ -761,6 +761,9 @@ bool  GFNDivisorApp::ReportFactor(uint64_t p, uint64_t k, uint32_t n, bool verif
 {
    bool removedTerm = false;
    
+   if (n < ii_MinN || n > ii_MaxN)
+      return false;
+   
    if (!ib_UseTermsBitmap)
    {
       uint32_t smallPrimeFactor = GetSmallPrimeFactor(k, n);

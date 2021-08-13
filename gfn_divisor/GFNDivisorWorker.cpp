@@ -132,7 +132,7 @@ void  GFNDivisorWorker::TestMegaPrimeChunkSmall(void)
          
          if (k3 >= il_MinK && k3 <= il_MaxK && n3 <= ii_MaxN) RemoveTermsSmallPrime(k3, n3, p3);
          
-         k3 += p4;
+         k3 += p3;
       }   
 
       while (n4 <= ii_MaxN)
