@@ -46,13 +46,12 @@ void  GFNDivisorWorker::TestMegaPrimeChunk(void)
 void  GFNDivisorWorker::TestMegaPrimeChunkSmall(void)
 {
    uint64_t k1, k2, k3, k4, ks[4];
-   uint64_t p1, p2, p3, p4, ps[4];
+   uint64_t p1, p2, p3, p4 = 0, ps[4];
    uint64_t maxPrime = ip_App->GetMaxPrime();
-   uint32_t n1, n2, n3, n4;
-   uint32_t bits1, bits2, bits3, bits4;
+   uint32_t n;
    
    vector<uint64_t>::iterator it = iv_Primes.begin();
-   
+         
    while (it != iv_Primes.end())
    {
       ps[0] = p1 = *it;
@@ -80,72 +79,28 @@ void  GFNDivisorWorker::TestMegaPrimeChunkSmall(void)
       k2 = p2 - ks[1];
       k3 = p3 - ks[2];
       k4 = p4 - ks[3];
-      
-      n1 = n2 = n3 = n4 = ii_MinN;
 
-      while (n1 <= ii_MaxN)
+      for (n=ii_MinN; n<=ii_MaxN; n++)
       {
-         bits1 = __builtin_ctzll(k1);
-         bits2 = __builtin_ctzll(k2);
-         bits3 = __builtin_ctzll(k3);
-         bits4 = __builtin_ctzll(k4);
+         if (k1 <= il_MaxK) RemoveTermsSmallPrime(k1, n, p1);
+         if (k2 <= il_MaxK) RemoveTermsSmallPrime(k2, n, p2);
+         if (k3 <= il_MaxK) RemoveTermsSmallPrime(k3, n, p3);
+         if (k4 <= il_MaxK) RemoveTermsSmallPrime(k4, n, p4);
          
-         k1 >>= bits1;
-         k2 >>= bits2;
-         k3 >>= bits3;
-         k4 >>= bits4;
+         // For the next n, divide k by 2
+         // Note that k*2^n+1 = (k/2)*2^(n+1)+1
          
-         n1 += bits1;
-         n2 += bits2;
-         n3 += bits3;
-         n4 += bits4;
-         
-         if (k1 >= il_MinK && k1 <= il_MaxK && n1 <= ii_MaxN) RemoveTermsSmallPrime(k1, n1, p1);
-         if (k2 >= il_MinK && k2 <= il_MaxK && n2 <= ii_MaxN) RemoveTermsSmallPrime(k2, n2, p2);
-         if (k3 >= il_MinK && k3 <= il_MaxK && n3 <= ii_MaxN) RemoveTermsSmallPrime(k3, n3, p3);
-         if (k4 >= il_MinK && k4 <= il_MaxK && n4 <= ii_MaxN) RemoveTermsSmallPrime(k4, n4, p4);
-         
-         k1 += p1;
-         k2 += p2;
-         k3 += p3;
-         k4 += p4;
+         // Make sure k is even first
+         if (k1 & 1) k1 += p1;
+         if (k2 & 1) k2 += p2;
+         if (k3 & 1) k3 += p3;
+         if (k4 & 1) k4 += p4;
+            
+         k1 >>= 1;
+         k2 >>= 1;
+         k3 >>= 1;
+         k4 >>= 1;
       }
-
-      while (n2 <= ii_MaxN)
-      {
-         bits2 = __builtin_ctzll(k2);
-         
-         k2 >>= bits2;
-         n2 += bits2;
-         
-         if (k2 >= il_MinK && k2 <= il_MaxK) RemoveTermsSmallPrime(k2, n2, p2);
-         
-         k2 += p2;
-      }
-
-      while (n3 <= ii_MaxN)
-      {
-         bits3 = __builtin_ctzll(k3);
-         
-         k3 >>= bits3;
-         n3 += bits3;
-         
-         if (k3 >= il_MinK && k3 <= il_MaxK && n3 <= ii_MaxN) RemoveTermsSmallPrime(k3, n3, p3);
-         
-         k3 += p3;
-      }   
-
-      while (n4 <= ii_MaxN)
-      {
-         bits4 = __builtin_ctzll(k4);
-
-         k4 >>= bits4;
-         n4 += bits4;
-                  
-         if (k4 >= il_MinK && k4 <= il_MaxK && n4 <= ii_MaxN) RemoveTermsSmallPrime(k4, n4, p4);
-         
-         k4 += p4;
-      }   
 
       SetLargestPrimeTested(p4, 4);
    
@@ -196,6 +151,7 @@ void  GFNDivisorWorker::TestMegaPrimeChunkLarge(void)
 
       while (n1 <= ii_MaxN)
       {
+         // How many bits do we need to shift to make k odd
          bits1 = __builtin_ctzll(k1);
          bits2 = __builtin_ctzll(k2);
          bits3 = __builtin_ctzll(k3);
@@ -216,15 +172,20 @@ void  GFNDivisorWorker::TestMegaPrimeChunkLarge(void)
          if (k3 >= il_MinK && k3 <= il_MaxK && n3 <= ii_MaxN) RemoveTermsBigPrime(k3, n3, p3);
          if (k4 >= il_MinK && k4 <= il_MaxK && n4 <= ii_MaxN) RemoveTermsBigPrime(k4, n4, p4);
          
+         // Make k even so that we can guarantee a shift for the next
+         // iteration of the loop
          k1 += p1;
          k2 += p2;
          k3 += p3;
          k4 += p4;
       }
 
+      // Pick up any stragglers
       while (n2 <= ii_MaxN)
       {
          bits2 = __builtin_ctzll(k2);
+         
+         if (n2 + bits2 > ii_MaxN) break;
          
          k2 >>= bits2;
          n2 += bits2;
@@ -238,6 +199,8 @@ void  GFNDivisorWorker::TestMegaPrimeChunkLarge(void)
       {
          bits3 = __builtin_ctzll(k3);
          
+         if (n3 + bits3 > ii_MaxN) break;
+         
          k3 >>= bits3;
          n3 += bits3;
          
@@ -250,6 +213,8 @@ void  GFNDivisorWorker::TestMegaPrimeChunkLarge(void)
       {
          bits4 = __builtin_ctzll(k4);
 
+         if (n4 + bits4 > ii_MaxN) break;
+         
          k4 >>= bits4;
          n4 += bits4;
                   
