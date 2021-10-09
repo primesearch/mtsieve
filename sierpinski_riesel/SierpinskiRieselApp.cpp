@@ -549,7 +549,7 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
                break;
                
             case FF_NUMBER_PRIMES:
-               if (sscanf(buffer, "%" SCNu64" %u %" SCNd64" %u", &k, &n, &c, &d) != 4)
+               if (sscanf(buffer, "%" SCNu64" %u %" SCNd64"", &k, &n, &c) != 3)
                   FatalError("Line %s is malformed", buffer);
                
                if (haveBitMap)
@@ -928,7 +928,7 @@ uint32_t SierpinskiRieselApp::WriteABCNumberPrimesTermsFile(seq_t *seq, uint64_t
 
 void  SierpinskiRieselApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
 {
-   sprintf(extraTtext, "%u < n < %u, k*%u^n+c", ii_MinN, ii_MaxN, ii_Base);
+   sprintf(extraTtext, "%u < n < %u, k*%u^n%+c", ii_MinN, ii_MaxN, ii_Base);
 }
 
 void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
@@ -1266,6 +1266,7 @@ bool  SierpinskiRieselApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime
    else
    {
       int64_t adj = seq->c + thePrime;
+      
       while (adj < 0)
          adj += thePrime;
       
