@@ -928,7 +928,26 @@ uint32_t SierpinskiRieselApp::WriteABCNumberPrimesTermsFile(seq_t *seq, uint64_t
 
 void  SierpinskiRieselApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
 {
-   sprintf(extraTtext, "%u < n < %u, k*%u^n+c", ii_MinN, ii_MaxN, ii_Base);
+   seq_t  *seq;
+   int32_t minC = 0, maxC = 0;
+   
+   seq = ip_FirstSequence;
+   do
+   {
+      if (minC == 0 || minC > seq->c) minC = seq->c;
+      if (maxC == 0 || maxC > seq->c) maxC = seq->c;
+         
+      seq = (seq_t *) seq->next;
+   } while (seq != NULL);
+   
+   if (minC == maxC)
+      sprintf(extraTtext, "%u < n < %u, k*%u^n%+d", ii_MinN, ii_MaxN, ii_Base, minC);
+   else if (maxC < 0)
+      sprintf(extraTtext, "%u < n < %u, k*%u^n-c", ii_MinN, ii_MaxN, ii_Base);
+   else if (minC > 0)
+      sprintf(extraTtext, "%u < n < %u, k*%u^n+c", ii_MinN, ii_MaxN, ii_Base);
+   else
+      sprintf(extraTtext, "%u < n < %u, k*%u^n+/-c", ii_MinN, ii_MaxN, ii_Base);
 }
 
 void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
