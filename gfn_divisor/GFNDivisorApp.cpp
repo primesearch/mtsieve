@@ -17,7 +17,7 @@
 #include "GFNDivisorWorker.h"
 #include "../x86_asm/fpu-asm-x86.h"
 
-#define APP_VERSION     "2.0"
+#define APP_VERSION     "2.1"
 
 #ifdef HAVE_GPU_WORKERS
 #include "GFNDivisorGpuWorker.h"
