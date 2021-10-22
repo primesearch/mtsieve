@@ -928,7 +928,7 @@ uint32_t SierpinskiRieselApp::WriteABCNumberPrimesTermsFile(seq_t *seq, uint64_t
 
 void  SierpinskiRieselApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
 {
-   sprintf(extraTtext, "%u < n < %u, k*%u^n%+c", ii_MinN, ii_MaxN, ii_Base);
+   sprintf(extraTtext, "%u < n < %u, k*%u^n+c", ii_MinN, ii_MaxN, ii_Base);
 }
 
 void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
