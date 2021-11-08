@@ -134,8 +134,11 @@ void  GFNDivisorGpuWorker::TestMegaPrimeChunk(void)
       
       ip_GFNDivisorKernel->Execute(ii_WorkSize);
 
+      if (ii_FactorCount >= ii_MaxGpuFactors)
+         FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factor density", ii_FactorCount, ii_MaxGpuFactors);
+
       for (uint32_t ii=0; ii<ii_FactorCount; ii++)
-      {  
+      {
          idx = ii*4;
          
          k = (uint64_t) il_FactorList[idx+0];
@@ -143,13 +146,7 @@ void  GFNDivisorGpuWorker::TestMegaPrimeChunk(void)
          prime = il_FactorList[idx+2];
       
          ip_GFNDivisorApp->ReportFactor(prime, k, n, true);
-         
-         if (ii >= ii_MaxGpuFactors)
-            break;
       }
-
-      if (ii_FactorCount >= ii_MaxGpuFactors)
-         FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factor density", ii_FactorCount, ii_MaxGpuFactors);
 
       if (iteration < ii_MaxIterations && ip_GFNDivisorApp->IsInterrupted() && time(NULL) > reportTime)
       {
