@@ -61,7 +61,7 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    
 #ifdef HAVE_GPU_WORKERS
    ib_UseGPUWorkersUponRebuild = false;
-   ii_GpuFactorDensity = 10;
+   ii_GpuFactorDensity = 100;
 #endif
 }
 
@@ -160,7 +160,7 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
 
 #ifdef HAVE_GPU_WORKERS
       case 'M':
-         status = Parser::Parse(arg, 10, 10000000, ii_GpuFactorDensity);
+         status = Parser::Parse(arg, 1, 1000000, ii_GpuFactorDensity);
          break;
 #endif
    }
@@ -281,7 +281,7 @@ void SierpinskiRieselApp::ValidateOptions(void)
 #ifdef HAVE_GPU_WORKERS
    SetMinGpuPrime(1000000);
    
-   double factors = (double) (ii_MaxN - ii_MinN) * (double) (ii_SequenceCount) / 1000.0;
+   double factors = (double) (ii_MaxN - ii_MinN) * (double) (ii_SequenceCount) / 1000000.0;
 
    ii_MaxGpuFactors = GetGpuWorkGroups() * (uint64_t) (factors * (double) ii_GpuFactorDensity);
 #endif
