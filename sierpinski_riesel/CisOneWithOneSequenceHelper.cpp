@@ -121,7 +121,7 @@ bool   CisOneWithOneSequenceHelper::BuildLegendreTableForSequence(seq_t *seq)
    
    r = seq->kcCore;
    
-   switch (seq->parity)
+   switch (seq->nParity)
    {
       // odd n, test for (-bck/p)==1
       case SP_ODD: 
@@ -243,7 +243,7 @@ void  CisOneWithOneSequenceHelper::MakeSubseqCongruenceTables(seq_t *seq)
 {
    uint32_t   ssIdx, h, r, len[SP_COUNT];
    uint16_t   tempQs[SP_COUNT][POWER_RESIDUE_LCM];
-   sp_t       parity = ip_FirstSequence->parity;
+   sp_t       parity = ip_FirstSequence->nParity;
    
    seq->congruentIndexCount = SP_COUNT * (ii_PrlCount + 1) * (POWER_RESIDUE_LCM + 1);
    seq->congruentQIndices = (uint32_t *) xmalloc(seq->congruentIndexCount * sizeof(uint32_t));

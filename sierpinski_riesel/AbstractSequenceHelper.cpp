@@ -179,6 +179,9 @@ uint32_t  AbstractSequenceHelper::AddSubsequence(seq_t *seq, uint32_t q, uint32_
 {
    uint32_t ssIdx;
    
+   if (seq->k == 1049910)
+      printf("here\n");
+   
    seq->ssCount++;
    
    if (seq->ssCount == 1)
@@ -186,16 +189,16 @@ uint32_t  AbstractSequenceHelper::AddSubsequence(seq_t *seq, uint32_t q, uint32_
       seq->ssIdxFirst = ii_SubsequenceCount;
       
       if (q % 2 == 0)
-         seq->parity = SP_EVEN;
+         seq->nParity = SP_EVEN;
       else
-         seq->parity = SP_ODD;
+         seq->nParity = SP_ODD;
    }
    else{
-      if (seq->parity == SP_EVEN && q % 2 != 0)
-         seq->parity = SP_MIXED;
+      if (seq->nParity == SP_EVEN && q % 2 != 0)
+         seq->nParity = SP_MIXED;
       
-      if (seq->parity == SP_ODD && q % 2 == 0)
-         seq->parity = SP_MIXED;
+      if (seq->nParity == SP_ODD && q % 2 == 0)
+         seq->nParity = SP_MIXED;
    }
    
    // This is the index of the new subsequence being added

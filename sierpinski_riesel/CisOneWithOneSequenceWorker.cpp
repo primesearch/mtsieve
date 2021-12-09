@@ -14,11 +14,6 @@
 #include "../core/inline.h"
 #include "../core/MpArith.h"
 
-#define NO_PARITY 999
-
-//#define IS_DEBUG
-#define DEBUG_PRIME 1
-
 #define N_TERM(q, i, j)      ((ii_SieveLow + (j) + (i)*babySteps)*ii_BestQ + q)
 
 CisOneWithOneSequenceWorker::CisOneWithOneSequenceWorker(uint32_t myId, App *theApp, AbstractSequenceHelper *appHelper) : AbstractWorker(myId, theApp, appHelper)
@@ -115,7 +110,7 @@ void  CisOneWithOneSequenceWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 sp_t   CisOneWithOneSequenceWorker::GetParity(uint64_t p)
 {
    // Mixed parity sequences
-   if (ip_FirstSequence->parity == SP_MIXED)
+   if (ip_FirstSequence->nParity == SP_MIXED)
    {
       bool qr_m1, qr_p1;
       
@@ -153,14 +148,14 @@ sp_t   CisOneWithOneSequenceWorker::GetParity(uint64_t p)
    {
       int32_t sym = legendre(ip_FirstSequence->kcCore, p);
       
-      if (ip_FirstSequence->parity == SP_EVEN)
+      if (ip_FirstSequence->nParity == SP_EVEN)
          qr = (sym == 1);
       else
          qr = (sym == legendre(ii_Base, p));
    }
    
    if (qr)
-      return ip_FirstSequence->parity;
+      return ip_FirstSequence->nParity;
       
    return SP_NO_PARITY;
 }

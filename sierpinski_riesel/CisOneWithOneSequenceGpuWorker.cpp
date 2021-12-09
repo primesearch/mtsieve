@@ -62,7 +62,7 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
    sprintf(define01, "#define BASE %u\n", ii_Base);
    sprintf(define02, "#define BESTQ %u\n", ii_BestQ);
    sprintf(define03, "#define SIEVE_LOW %u\n", sieveLow);
-   sprintf(define04, "#define SEQ_PARITY %u\n", ip_FirstSequence->parity);
+   sprintf(define04, "#define SEQ_PARITY %u\n", ip_FirstSequence->nParity);
    sprintf(define05, "#define SEQ_K %llu\n", ip_FirstSequence->k);
    sprintf(define06, "#define SEQ_C %lld\n", ip_FirstSequence->c);
    sprintf(define07, "#define KC_CORE %lld\n", ip_FirstSequence->kcCore);
@@ -78,7 +78,7 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
    else
       sprintf(define14, "\n");
       
-   if (ip_FirstSequence->parity == SP_MIXED)
+   if (ip_FirstSequence->nParity == SP_MIXED)
       sprintf(define15, "#define HAVE_MIXED_PARITY\n");
    else
       sprintf(define15, "\n");
@@ -121,7 +121,7 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
    {
       legendre_t *legendre = ip_FirstSequence->legendrePtr;
       
-      if (ip_FirstSequence->parity == SP_MIXED)
+      if (ip_FirstSequence->nParity == SP_MIXED)
       {
          ip_KADualParityMapM1 = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "dualParityMapM1", KA_HOST_TO_GPU, legendre->dualParityMapM1, legendre->mapSize);
          ip_KADualParityMapP1 = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "dualParityMapP1", KA_HOST_TO_GPU, legendre->dualParityMapP1, legendre->mapSize);
@@ -147,7 +147,7 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
    
    if (ip_CisOneHelper->UseLegendreTables())
    {
-      if (ip_FirstSequence->parity == SP_MIXED)
+      if (ip_FirstSequence->nParity == SP_MIXED)
       {
          ip_SRKernel->AddArgument(ip_KADualParityMapM1);
          ip_SRKernel->AddArgument(ip_KADualParityMapP1);
@@ -189,7 +189,7 @@ void  CisOneWithOneSequenceGpuWorker::CleanUp(void)
 
    if (ip_CisOneHelper->UseLegendreTables())
    {
-      if (ip_FirstSequence->parity == SP_MIXED)
+      if (ip_FirstSequence->nParity == SP_MIXED)
       {
          delete ip_KADualParityMapM1;
          delete ip_KADualParityMapP1;

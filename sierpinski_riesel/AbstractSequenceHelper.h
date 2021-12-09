@@ -67,7 +67,7 @@ typedef struct
    uint64_t     squareFreeK;  // used by the CIsOne classes, product of square free factors of k
    int64_t      kcCore;       // used by the CIsOne classes, squareFreeK * -c, only used if unable to use Legendre tables
    
-   sp_t         parity;       // 0 if all n terms are even, 1 if all n terms are odd, 2 if mixed
+   sp_t         nParity;      // 0 if all n terms are even, 1 if all n terms are odd, 2 if mixed
    uint32_t     ssCount;
    uint32_t     ssIdxFirst;   // index of first subsequence for the sequence
    uint32_t     ssIdxLast;    // index of first subsequence for the sequence
