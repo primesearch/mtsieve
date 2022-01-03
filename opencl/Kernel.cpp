@@ -151,7 +151,6 @@ void Kernel::PrintStatistics(uint32_t bytesPerWorkGroup)
       theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE = %u", ii_WorkGroupSizeMultiple);
       theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_LOCAL_MEM_SIZE = %u", ii_LocalMemorySize);
       theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_PRIVATE_MEM_SIZE = %u", ii_PrivateMemorySize);
-
       
       theApp->WriteToConsole(COT_OTHER, "GPU global bytes allocated = %" PRIu64"", ip_Device->GetGpuBytes());
       
@@ -171,11 +170,16 @@ void Kernel::Execute(uint32_t workSize)
    SetGPUInput();
 
    globalWorkGroupSize[0] = workSize;
+
    status = clEnqueueNDRangeKernel(im_CommandQueue, im_Kernel, 1, NULL, globalWorkGroupSize, NULL, 0, NULL, NULL);
+
    ErrorChecker::ExitIfError("clEnqueueNDRangeKernel", status, "kernelName: %s  globalworksize %u  localworksize %u", 
                              is_KernelName.c_str(), (uint32_t) globalWorkGroupSize[0], (uint32_t) ii_KernelWorkGroupSize);
 
+   status =  clFinish(im_CommandQueue);
 
+   ErrorChecker::ExitIfError("clFinish", status, "kernelName: %s",  is_KernelName.c_str());
+                             
    GetGPUOutput();
 
    ip_Device->AddGpuMicroseconds(Clock::GetCurrentMicrosecond() - startTime);
