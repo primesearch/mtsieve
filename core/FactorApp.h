@@ -16,12 +16,12 @@
 
 // As long as we don't expect the factor rate to fall below 1 per day
 // then this should be sufficient to capture the rate.
-#define MAX_STATUS_COUNT 60 * 5 * 24
+#define MAX_FACTOR_REPORT_COUNT  60 * 5 * 24
 
 typedef struct {
    uint64_t reportTimeUS;
    uint64_t factorsFound;
-} report_t;
+} factor_report_t;
 
 class FactorApp : public App
 {  
@@ -80,7 +80,7 @@ private:
    time_t            it_CheckpointTime;
    
    // I could use a vector, but I'm lazy
-   report_t          ir_ReportStatus[MAX_STATUS_COUNT];
+   factor_report_t   ir_ReportStatus[MAX_FACTOR_REPORT_COUNT];
    uint32_t          ii_NextStatusEntry;
 };
 

@@ -20,10 +20,6 @@ FactorApp::FactorApp(void)
 {
    ip_FactorAppLock = new SharedMemoryItem("factorapp");
    
-   ir_ReportStatus[0].reportTimeUS = Clock::GetCurrentMicrosecond();
-   ir_ReportStatus[0].factorsFound = 0;
-   ii_NextStatusEntry = 1;
-
    is_InputTermsFileName = "";
    is_InputFactorsFileName = "";
    is_OutputTermsFileName = "";
@@ -36,6 +32,8 @@ FactorApp::FactorApp(void)
    if_FactorFile = 0;
    
    ib_ApplyAndExit = false;
+   
+   ResetFactorStats();
 }
 
 FactorApp::~FactorApp(void)
@@ -277,7 +275,7 @@ void  FactorApp::GetReportStats(char *reportStats, double cpuUtilization)
 {
    char     factoringRate[100];
    uint64_t checkpointPrime;
-   uint32_t currnetStatusEntry;
+   uint32_t currentStatusEntry;
 
    // Use this as our opportunity to checkpoint current progress
    if (time(NULL) > it_CheckpointTime)
@@ -292,33 +290,33 @@ void  FactorApp::GetReportStats(char *reportStats, double cpuUtilization)
    // Lock because workers can update il_FactorCount
    ip_FactorAppLock->Lock();
    
-   currnetStatusEntry = ii_NextStatusEntry;
+   currentStatusEntry = ii_NextStatusEntry;
    
-   if (ii_NextStatusEntry < MAX_STATUS_COUNT)
+   if (ii_NextStatusEntry < MAX_FACTOR_REPORT_COUNT)
       ii_NextStatusEntry++;
    
-   if (ii_NextStatusEntry == MAX_STATUS_COUNT) 
+   if (ii_NextStatusEntry == MAX_FACTOR_REPORT_COUNT) 
    {
-      currnetStatusEntry = MAX_STATUS_COUNT - 1;
+      currentStatusEntry = MAX_FACTOR_REPORT_COUNT - 1;
       
       // Since we have reached the end of the array, move everything one index up in the
       // array.  We don't care if we lose the oldest since we don't expect factor rates
       // to change much if we have been running for that long.
       // Eventually this will be changed to a vector.
-      for (uint32_t i=0; i<currnetStatusEntry; i++)
+      for (uint32_t i=0; i<currentStatusEntry; i++)
       {   
          ir_ReportStatus[i].reportTimeUS = ir_ReportStatus[i+1].reportTimeUS;
-         ir_ReportStatus[i].factorsFound = ir_ReportStatus[i+1].factorsFound;;
+         ir_ReportStatus[i].factorsFound = ir_ReportStatus[i+1].factorsFound;
       }
    }
    
-   ir_ReportStatus[currnetStatusEntry].reportTimeUS = Clock::GetCurrentMicrosecond();
-   ir_ReportStatus[currnetStatusEntry].factorsFound = il_FactorCount;
+   ir_ReportStatus[currentStatusEntry].reportTimeUS = Clock::GetCurrentMicrosecond();
+   ir_ReportStatus[currentStatusEntry].factorsFound = il_FactorCount;
    
    if (il_FactorCount > 0)
    {   
-      if (!BuildFactorsPerSecondRateString(currnetStatusEntry, cpuUtilization, factoringRate))
-         BuildSecondsPerFactorRateString(currnetStatusEntry, cpuUtilization, factoringRate);
+      if (!BuildFactorsPerSecondRateString(currentStatusEntry, cpuUtilization, factoringRate))
+         BuildSecondsPerFactorRateString(currentStatusEntry, cpuUtilization, factoringRate);
    
       sprintf(reportStats, "%" PRIu64" factors found at %s", il_FactorCount + il_PreviousFactorCount, factoringRate);
    }
@@ -342,7 +340,20 @@ bool  FactorApp::BuildFactorsPerSecondRateString(uint32_t currentStatusEntry, do
    uint64_t     currentFactorsFound = ir_ReportStatus[currentStatusEntry].factorsFound;
 
    previousStatusEntry = currentStatusEntry;
-   
+
+#ifdef HAVE_GPU_WORKERS
+   // In the GPU we could have an uneven distribution of factors because factors are only
+   // reported when the GPU is done with its chunk.  If each chunk requires more than a
+   // few seconds in the GPU, the factor rate will bounce up and down making it harder to
+   // compute the removal rate.  To reduce the size of the "bounce", we will use abort
+   // larger time slice.  There will still be bouncing, but it will be less pronounced
+   // as the runtime increases.
+   if (previousStatusEntry > 60)
+      previousStatusEntry -= 60;
+   else
+      previousStatusEntry = 1;
+#endif
+
    while (previousStatusEntry > 0)
    {
       previousStatusEntry--;
@@ -350,8 +361,14 @@ bool  FactorApp::BuildFactorsPerSecondRateString(uint32_t currentStatusEntry, do
       factorTimeUS = currentReportTimeUS - ir_ReportStatus[previousStatusEntry].reportTimeUS;
       factorsFound = currentFactorsFound - ir_ReportStatus[previousStatusEntry].factorsFound;
 
-      if (factorsFound == 0)
+      // If no factors found in this time slice, use a larger time slice
+      if (factorsFound == 0) {
+         if (previousStatusEntry > 60)
+            previousStatusEntry -= 60;
+         else
+            previousStatusEntry = 1;
          continue;
+      }
       
       // Might add logic here in the future to allow for longer time periods for factor rate
       // calculation but the previous minute should be okay most of the time as most ranges
@@ -396,8 +413,21 @@ bool  FactorApp::BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, do
    double   secondsPerFactor;
    uint64_t currentReportTimeUS = ir_ReportStatus[currentStatusEntry].reportTimeUS;
    uint64_t currentFactorsFound = ir_ReportStatus[currentStatusEntry].factorsFound;
-   
+
    previousStatusEntry = currentStatusEntry;
+
+#ifdef HAVE_GPU_WORKERS
+   // In the GPU we could have an uneven distribution of factors because factors are only
+   // reported when the GPU is done with its chunk.  If each chunk requires more than a
+   // few seconds in the GPU, the factor rate will bounce up and down making it harder to
+   // compute the removal rate.  To reduce the size of the "bounce", we will use abort
+   // larger time slice.  There will still be bouncing, but it will be less pronounced
+   // as the runtime increases.
+   if (previousStatusEntry > 60)
+      previousStatusEntry -= 60;
+   else
+      previousStatusEntry = 1;
+#endif
 
    while (previousStatusEntry > 0)
    {
@@ -406,9 +436,14 @@ bool  FactorApp::BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, do
       factorTimeUS = currentReportTimeUS - ir_ReportStatus[previousStatusEntry].reportTimeUS;
       factorsFound = currentFactorsFound - ir_ReportStatus[previousStatusEntry].factorsFound;
 
-      // If no factors found in this time slice, try the next biggest time slice
-      if (factorsFound == 0)
+      // If no factors found in this time slice, use a larger time slice
+      if (factorsFound == 0) {
+         if (previousStatusEntry > 60)
+            previousStatusEntry -= 60;
+         else
+            previousStatusEntry = 1;
          continue;
+      }
 
       // Note that we are computing seconds per factor
       secondsPerFactor = ((double) factorTimeUS) / ((double) factorsFound);
@@ -424,17 +459,17 @@ bool  FactorApp::BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, do
       // do not skew the factoring rate too much with successive reports.  For example
       // once the rate is about 10 seconds per factor, it will compute the rate for the
       // past 50000 seconds.  If the rate is about 15 seconds per factor, it will
-      // compute the rate based upon the lsat 75000 seconds.
+      // compute the rate based upon the last 75000 seconds.
       if ((double) factorsFound > 5000.0 * secondsPerFactor)
          break;
       
       // It is possible that we haven't removed that many factors in the window that
       // is being tracked, therefore this will compute based upon the oldest entry
       // in ir_ReportStatus.  If we want to track for longer then we can increase
-      // MAX_STATUS_COUNT, which will be addressed when ir_RepportStatus is changed
+      // MAX_FACTOR_REPORT_COUNT, which will be addressed when ir_RepportStatus is changed
       // to a vector.
    };
-
+   
    if (factorsFound == 0)
    {
       sprintf(factoringRate, "no factors found (last %u min)", currentStatusEntry - previousStatusEntry);

@@ -210,6 +210,11 @@ void  AppendLongOpt(struct option *longOpts, const char *name, int has_arg, int 
 
 void *xmalloc(size_t requestedSize)
 {
+   return xmallocNew(requestedSize, true, "N/A");
+}
+
+void *xmallocNew(size_t requestedSize, bool exitIfError, const char *what)
+{
    void     *allocatedPtr;
    char     *currentPtr;
    size_t    allocatedSize = requestedSize + 150;
@@ -221,7 +226,13 @@ void *xmalloc(size_t requestedSize)
    // for the allocated memory at the front of this and follow by 0xff to
    // verify that someone isn't running past the end of their allocated memory.
    if ((allocatedPtr = malloc(allocatedSize)) == NULL)
-      FatalError("Unable to allocate %" PRIu64" bytes of memory", (uint64_t) requestedSize);
+   {
+      if (exitIfError)
+         FatalError("Unable to allocate %" PRIu64" bytes of memory for %s", (uint64_t) requestedSize, what);
+      
+      printf("Unable to allocate %" PRIu64" bytes of memory for %s\n", (uint64_t) requestedSize, what);
+      return NULL;
+   }
 
    cpuBytes += allocatedSize;
 

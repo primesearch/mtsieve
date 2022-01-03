@@ -9,7 +9,7 @@
 #ifndef _APP_H
 #define _APP_H
 
-#define FRAMEWORK_VERSION     "2.2.2"
+#define FRAMEWORK_VERSION     "2.2.3"
 
 #define MAX_WORKERS           100
 #define NO_WORKER             MAX_WORKERS + 99999
@@ -28,6 +28,8 @@
 #include "../opencl/Device.h"
 #endif
 
+#define MAX_PRIME_REPORT_COUNT   60
+
 class App;
 
 #include "Worker.h"
@@ -40,6 +42,11 @@ typedef enum { SS_NOT_STARTED, SS_SIEVING, SS_DONE } sievingstatus_t;
 
 // Although declared here, this must be implemented by a child class of App
 App *get_app(void);
+
+typedef struct {
+   uint64_t reportTimeUS;
+   uint64_t primesTested;
+} prime_report_t;
 
 class App
 {  
@@ -171,6 +178,7 @@ private:
    void              CheckReportStatus(void);
    
    void              Finish(void);
+   void              GetPrimeStats(char *primeStats, uint64_t primesTested);
    
    uint32_t          ii_SavedSseMode;
    uint16_t          ii_SavedFpuMode;
@@ -201,10 +209,11 @@ private:
 
    // These are starting points from which other times are computed
    uint64_t          il_InitUS;
-   uint64_t          il_LastStatusReportUS;
-   uint64_t          il_LastStatusPrimesTested;
    time_t            it_StartTime;
 
+   prime_report_t    ir_ReportStatus[MAX_PRIME_REPORT_COUNT];
+   uint32_t          ii_LastStatusEntry;
+   
    uint64_t          il_TotalSieveUS;
 
    time_t            it_ReportTime;

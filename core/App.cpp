@@ -413,6 +413,12 @@ void  App::Sieve(void)
    uint64_t sieveStartUS;
    bool     useSingleThread;
    
+   ResetFactorStats();
+   
+   ir_ReportStatus[0].reportTimeUS = Clock::GetCurrentMicrosecond();
+   ir_ReportStatus[0].primesTested = 0;
+   ii_LastStatusEntry = 0;
+   
    LogStartSievingMessage();
 
    ip_AppStatus->SetValueNoLock(AS_RUNNING);
@@ -614,9 +620,6 @@ void  App::CreateWorkers(uint64_t largestPrimeTested)
             allWaiting = false;
       }
    }
-   
-   il_LastStatusReportUS = Clock::GetCurrentMicrosecond();
-   il_LastStatusPrimesTested = 0;
 }
 
 void  App::Finish(void)
@@ -672,19 +675,15 @@ void  App::ReportStatus(void)
 {
    double   percentDone;
    bool     havePercentDone;
-   double   primeRate;
    double   cpuUtilization;
-   uint32_t primePrecision;
-   const char  *primeRateUnit;
    struct tm   *finish_tm;
+   char     primeStats[200];
    char     childStats[200];
    char     finishTimeBuffer[32];
-   uint64_t currentUS, workerCpuUS;
+   uint64_t workerCpuUS;
    uint64_t processCpuUS, elapsedTimeUS;
    uint64_t largestPrimeTestedNoGaps, largestPrimeTested, primesTested;
    time_t   finish_date;
-
-   currentUS = Clock::GetCurrentMicrosecond();
 
    processCpuUS = Clock::GetProcessMicroseconds();
    
@@ -694,11 +693,17 @@ void  App::ReportStatus(void)
 
 #ifdef HAVE_GPU_WORKERS
    // Treat time spent in GPU as if spent in CPU
+     
+   // TODO : figure out what we are usinga full CPU core (on Windows) when using the GPU.  I will assume
+   //        (for now) that this is a problem on other OSes so I will exclude the GPU utilization until
+   //        this is fully investigated.  This could be a problem with how this program executed the
+   //        kernel.  It could be a problem specific to Windows.  I just don't know at this time.
    cpuUtilization = ((double) processCpuUS + ip_Device->GetGpuMicroseconds()) / ((double) elapsedTimeUS);
 #else
    cpuUtilization = ((double) processCpuUS) / ((double) elapsedTimeUS);
 #endif
    
+   GetPrimeStats(primeStats, primesTested);
    GetReportStats(childStats, cpuUtilization);
    
    // Compute the percentage of the range we have completed
@@ -717,20 +722,7 @@ void  App::ReportStatus(void)
          if (percentDone < 1.0 && il_MaxPrime == il_AppMaxPrime)
             havePercentDone = false;
       }
-      
-   }
-   
-   // Compute how many primes are tested per second since the last report
-   primeRate = (double)(primesTested-il_LastStatusPrimesTested)/(currentUS-il_LastStatusReportUS);
-   
-   primeRateUnit = "M";
-   if (primeRate < 1.0) primeRate *= 1000.0, primeRateUnit = "K";
-   if (primeRate < 1.0) primeRate *= 1000.0, primeRateUnit = "";
-
-   primePrecision = 0;
-   if (primeRate < 1000.0) primePrecision = 1;
-   if (primeRate < 100.0)  primePrecision = 2;
-   if (primeRate < 10.0)   primePrecision = 3;
+   }   
    
    // Calculate ETC.
    finishTimeBuffer[0] = '\0';
@@ -745,26 +737,73 @@ void  App::ReportStatus(void)
    if (strlen(childStats) > 0)
    {   
       if (!havePercentDone)
-         WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec, %s                            ",
-                        largestPrimeTestedNoGaps, primePrecision, primeRate, primeRateUnit, childStats);
+         WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %s, %s                            ",
+                        largestPrimeTestedNoGaps, primeStats, childStats);
       else
-         WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec, %s, %.1f%% done. %s           ",
-                        largestPrimeTestedNoGaps, primePrecision, primeRate, primeRateUnit,
-                        childStats, 100.0*percentDone, finishTimeBuffer);
+         WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %s, %s, %.1f%% done. %s           ",
+                        largestPrimeTestedNoGaps, primeStats, childStats, 100.0*percentDone, finishTimeBuffer);
    }
    else
    {   
       if (!havePercentDone)
-         WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec                                ",
-                        largestPrimeTestedNoGaps, primePrecision, primeRate, primeRateUnit);
+         WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %s                                ",
+                        largestPrimeTestedNoGaps, primeStats);
       else
-         WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %.*f%s p/sec, %.1f%% done. %s              ",
-                        largestPrimeTestedNoGaps, primePrecision, primeRate, primeRateUnit,
-                        100.0*percentDone, finishTimeBuffer);
+         WriteToConsole(COT_SIEVE, "  p=%" PRIu64", %s, %.1f%% done. %s               ",
+                        largestPrimeTestedNoGaps, primeStats, 100.0*percentDone, finishTimeBuffer);
    }
+}
 
-   il_LastStatusReportUS = currentUS;
-   il_LastStatusPrimesTested = primesTested;
+void  App::GetPrimeStats(char *primeStats, uint64_t primesTested)
+{
+   // Since the number of primes tested per minute varies from minute to minute, especially
+   // for low p and for long-running GPU kernels, this will give us a better estimate as to
+   // the actual number of primes tested per minute over time.
+   double   primeRate;
+   uint32_t primePrecision;
+   uint32_t thisStatusEntry;
+   uint64_t primesOverTime;
+   uint64_t timeInMS;
+   const char  *primeRateUnit;
+
+   thisStatusEntry = ii_LastStatusEntry + 1;
+
+   if (thisStatusEntry == MAX_PRIME_REPORT_COUNT)
+   {
+      thisStatusEntry = MAX_PRIME_REPORT_COUNT - 1;
+      
+      // Since we have reached the end of the array, move everything one index up in the
+      // array.  We don't care if we lose the oldest since we don't expect factor rates
+      // to change much if we have been running for that long.
+      // Eventually this will be changed to a vector.
+      for (uint32_t i=0; i<thisStatusEntry; i++)
+      {   
+         ir_ReportStatus[i].reportTimeUS = ir_ReportStatus[i+1].reportTimeUS;
+         ir_ReportStatus[i].primesTested = ir_ReportStatus[i+1].primesTested;
+      }
+   }
+   
+   ii_LastStatusEntry = thisStatusEntry;
+      
+   ir_ReportStatus[thisStatusEntry].reportTimeUS = Clock::GetCurrentMicrosecond();
+   ir_ReportStatus[thisStatusEntry].primesTested = primesTested;
+   
+   primesOverTime = ir_ReportStatus[thisStatusEntry].primesTested - ir_ReportStatus[0].primesTested;
+   timeInMS = ir_ReportStatus[thisStatusEntry].reportTimeUS - ir_ReportStatus[0].reportTimeUS;
+   
+   // Compute how many primes are tested per second
+   primeRate = (double)(primesOverTime)/(double)(timeInMS);
+   
+   primeRateUnit = "M";
+   if (primeRate < 1.0) primeRate *= 1000.0, primeRateUnit = "K";
+   if (primeRate < 1.0) primeRate *= 1000.0, primeRateUnit = "";
+
+   primePrecision = 0;
+   if (primeRate < 1000.0) primePrecision = 1;
+   if (primeRate < 100.0)  primePrecision = 2;
+   if (primeRate < 10.0)   primePrecision = 3;
+   
+   sprintf(primeStats, "%.*f%s p/sec", primePrecision, primeRate, primeRateUnit);
 }
 
 // When the program finishes, then the largest prime tested across all workers
@@ -889,7 +928,7 @@ uint64_t  App::GetLargestPrimeTested(bool finishedNormally)
       
       ip_Workers[0]->ReleaseStats();
    }
-   
+      
    return largestPrimeTested;
 }
 

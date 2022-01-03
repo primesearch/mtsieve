@@ -62,6 +62,7 @@ void     FatalError(const char *fmt, ...) __attribute__ ((format (printf, 1, 2))
 void     AppendLongOpt(struct option *longOpts, const char *name, int has_arg, int *flag, char charSwitch);
 
 void    *xmalloc(size_t size);
+void    *xmallocNew(size_t size, bool exitIfError, const char *what);
 void     xfree(void *mem);
 uint64_t GetCpuMemoryUsage(void);
 
