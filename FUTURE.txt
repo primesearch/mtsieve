@@ -17,10 +17,10 @@ Added on December 22, 2020
    
    mfsievecl:
       For factorial, add logic to multiply n in pairs similar to CPU code.
-      
-   srsieve2:
-      Implement sr2sieve logic.
 
 Added on October 22, 2021
    Update OS X build to not rely on pre-installed OpenCL headers
    since Apple no longer supplies them as part of the framework.
+
+Added on January 03, 2022
+   Add OpenCL to multi-sequence abs(c) = 1 logic of srsieve2.

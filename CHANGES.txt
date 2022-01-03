@@ -1,5 +1,72 @@
 The relative speed differnce between CPU and GPU is for an i7-8850H and NVIDIA Quadro P3200.
 
+2.2.3 - January 03, 2022
+   framework:
+      Modified sieving and factor rate calculations to account for long-running sieving
+      processes which lead to those rates fluctuating a lot.
+
+      Added xmallocNew() which can return NULL if not enough memory can be allocated
+      which allows callers to decide how to handle that condition.
+
+      For OpenCL sievers, added a call to clFinish() immediately after the call to
+      clEnqueueNDRangeKernel() so that the GPU time is more accurately calculated.
+
+   fkbnsieve:  version 1.4
+      Do not create output file if there are no terms to write to it.
+
+      Exit sieving early if there are no remaining terms.
+      
+   srsieve2, srsieve2cl:  version 1.6.0
+      Changed the calculation of factor density so that the GPU workers can use a
+      lot less GPU memory.
+      
+      Added -S to split sequences into groups when feeding the GPU.
+      
+      The following only apply to the abs(c) = 1 logic:
+         Added sr2sieve logic which uses Legendre checks in support of sieving when there
+         are multiple sequences.
+         
+         Modified -L to represent a directory to hold a back up of the Legendre tables.
+         There will be one file per unique b/k/c.
+
+         Modified -l to specify the amount of memory to allocate to Legendre tsbles. -l0
+         disables use of Legendre tables.  
+
+         Added -U to specify a multiplier to compute BASE_MULTIPLE.  The specified value
+         is multiplied by 2 to compute BASE_MULTIPLE.
+         
+         Added -V to specify a multiplier to compute POWER_RESIDUE_LCM.  The specified value
+         is multiplied by BASE_MULTIPLE to compute POWER_RESIDUE_LCM.
+
+         Added -X to specify a multiplier to compute LIMIT_BASE.  The specified value
+         is multiplied by POWER_RESIDUE_LCM to compute LIMIT_BASE.
+         
+         BASE_MULTIPLE: least exponent Q for which sieving in subsequence base b^Q will be allowed.
+         
+         POWER_RESIDUE_LCM: For a prime p that satisfies p=1 (mod r), an "r-th power residue test"
+                            checks whether a subsequence of k*b^n+c can possibly contain any terms of
+                            the form x^r (mod p). If there are none then that subsequence can be
+                            omitted from the BSGS step.
+                            
+                            To conduct r-th power residue tests for each r in a set R of prime
+                            powers, set POWER_RESIDUE_LCM to lcm(R).
+         
+         LIMIT_BASE:  Allow sieving in base b^Q for Q chosen from the divisors of LIMIT_BASE.
+
+         When sieving with a single sequence the defaults are:
+            bmMultiplier = 15, prlMultiplier = 24, lbMultiplier = 1
+            BASE_MULTIPLE = 30, POWER_RESIDUE_LCM = 720, LIMIT_BASE = 720
+         
+         When sieving with multiple sequences the defaults are:
+            bmMultiplier = 1, prlMultiplier = 360, lbMultiplier = 1
+            BASE_MULTIPLE = 2, POWER_RESIDUE_LCM = 720, LIMIT_BASE = 720
+            
+         It is recommend to play with these multipliers to find the optimal values as the provided
+         defaults are from sr1sieve and sr2sieve and some values can provide faster sieving.
+         The recommendation is to sieve a range of 1e9 and see how long it takes (use sr2sieve.log
+         to see how long it actually takes).  Vary -U, -V, and-X evaluate the results.  With a
+         script and multiple cores, this could done relatively quickly for most inputs.
+            
 2.2.2 - October 22, 2021
    framework:
       Added __attribute__ to method declarations that accept variable arguments.
