@@ -37,6 +37,7 @@ public:
    uint32_t          GetN(void) { return ii_N; };
    int64_t           GetMinC(void) { return il_MinC; };
    int64_t           GetMaxC(void) { return il_MaxC; };
+   uint64_t          GetTermCount(void) { return il_TermCount; };
    
    bool              ReportFactor(uint64_t p, int64_t c);
 

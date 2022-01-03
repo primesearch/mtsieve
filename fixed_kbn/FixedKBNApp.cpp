@@ -15,7 +15,7 @@
 #include "FixedKBNWorker.h"
 
 #define APP_NAME        "fkbnsieve"
-#define APP_VERSION     "1.3"
+#define APP_VERSION     "1.4"
 
 // This is declared in App.h, but implemented here.  This means that App.h
 // can remain unchanged if using the mtsieve framework for other applications.
@@ -252,11 +252,6 @@ void FixedKBNApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
    uint64_t termsCounted = 0;
    
-   FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
-
-   if (!termsFile)
-      FatalError("Unable to open input file %s", is_OutputTermsFileName.c_str());
-   
    ip_FactorAppLock->Lock();
       
    int64_t c, previousC;
@@ -273,8 +268,15 @@ void FixedKBNApp::WriteOutputTermsFile(uint64_t largestPrime)
       bit++;
    }
 
-   if (c > il_MaxC)
+   if (c > il_MaxC) {
+      WriteToConsole(COT_OTHER, "No terms remaining therefore no output file was generated");
       return;
+   }
+   
+   FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
+   
+   if (!termsFile)
+      FatalError("Unable to open input file %s", is_OutputTermsFileName.c_str());
    
    fprintf(termsFile, "ABCD %" PRIu64"*%u^%u+$a [%" PRId64"] // Sieved to %" PRIu64"\n", il_K, ii_Base, ii_N, c, largestPrime);
    

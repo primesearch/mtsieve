@@ -65,6 +65,12 @@ void  FixedKBNWorker::TestMegaPrimeChunk(void)
       
       if (p4 > maxPrime)
          break;
+
+      // If no terms left, then we are done
+      if (ip_FixedKBNApp->GetTermCount() == 0) {
+         SetLargestPrimeTested(maxPrime, 0);
+         return;
+      }
    }
 }
 
