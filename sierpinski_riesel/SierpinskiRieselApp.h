@@ -44,17 +44,22 @@ public:
    
    seq_t            *GetSequence(uint64_t k, int64_t c, uint32_t d);
 
-   void              ReportFactor(uint64_t thePrime, seq_t *seq, uint32_t n, bool verifyFactor);
+   void              ReportFactor(uint64_t thePrime, seq_t *seqPtr, uint32_t n, bool verifyFactor);
 
    bool              CanUseCIsOneLogic(void) { return ib_CanUseCIsOneLogic; };
    uint64_t          GetMaxK(void) { return il_MaxK; };
-   bool              UseLegendreTables(void) { return ib_UseLengendreTables; };
-   string            GetLegendreFileName(void) { return is_LegendreFileName; };
+   uint64_t          GetLegendreTableBytes(void) { return il_LegendreTableBytes; };
+   string            GetLegendreDirectoryName(void) { return is_LegendreDirectoryName; };
    
    seq_t            *GetFirstSequenceAndSequenceCount(uint32_t &count) { count = ii_SequenceCount; return ip_FirstSequence; };
    
+   uint32_t          GetBaseMultipleMulitplier(void) { return ii_BaseMultipleMultiplier; };
+   uint32_t          GetPowerResidueLcmMultiplier(void) { return ii_PowerResidueLcmMulitplier; };
+   uint32_t          GetLimitBaseMultiplier(void) { return ii_LimitBaseMultiplier; };
+   
 #ifdef HAVE_GPU_WORKERS
    uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
+   uint32_t          GetSequecesPerKernel(void) { return ii_SequencesPerKernel; };
    void              UseGpuWorkersUponRebuild(void) { ib_UseGPUWorkersUponRebuild = true; };
 #endif
 
@@ -70,10 +75,15 @@ protected:
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
 
 private:
+   uint32_t          ii_BaseMultipleMultiplier;
+   uint32_t          ii_PowerResidueLcmMulitplier;
+   uint32_t          ii_LimitBaseMultiplier;
+
    seq_t            *ip_FirstSequence;
    AbstractSequenceHelper   *ip_AppHelper; 
    
-   string            is_LegendreFileName;
+   uint64_t          il_LegendreTableBytes;
+   string            is_LegendreDirectoryName;
    string            is_SequencesToRemove;
    
    bool              LoadSequencesFromFile(char *fileName);
@@ -88,13 +98,13 @@ private:
    void              RemoveSequencesWithNoTerms(void);
    void              CheckForLegendreSupport(void);
       
-   uint32_t          WriteABCDTermsFile(seq_t *seq, uint64_t maxPrime, FILE *termsFile);
-   uint32_t          WriteABCTermsFile(seq_t *seq, uint64_t maxPrime, FILE *termsFile);
-   uint32_t          WriteBoincTermsFile(seq_t *seq, uint64_t maxPrime, FILE *termsFile);
-   uint32_t          WriteABCNumberPrimesTermsFile(seq_t *seq, uint64_t maxPrime, FILE *termsFile, bool allSequencesHaveDEqual1);
+   uint32_t          WriteABCDTermsFile(seq_t *seqPtr, uint64_t maxPrime, FILE *termsFile);
+   uint32_t          WriteABCTermsFile(seq_t *seqPtr, uint64_t maxPrime, FILE *termsFile);
+   uint32_t          WriteBoincTermsFile(seq_t *seqPtr, uint64_t maxPrime, FILE *termsFile);
+   uint32_t          WriteABCNumberPrimesTermsFile(seq_t *seqPtr, uint64_t maxPrime, FILE *termsFile, bool allSequencesHaveDEqual1);
    
-   bool              IsPrime(uint64_t p, seq_t *seq, uint32_t n);
-   bool              VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, seq_t *seq, uint32_t n);
+   bool              IsPrime(uint64_t p, seq_t *seqPtr, uint32_t n);
+   bool              VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, seq_t *seqPtr, uint32_t n);
    
    uint64_t          GetSquareFreeFactor(uint64_t n, vector<uint64_t> primes);
    
@@ -106,7 +116,6 @@ private:
    
    uint64_t          il_SmallPrimeSieveLimit;
 
-   bool              ib_UseLengendreTables;
    bool              ib_HaveNewSequences;
    format_t          it_Format;
    
@@ -123,6 +132,7 @@ private:
 #ifdef HAVE_GPU_WORKERS
    uint32_t          ii_GpuFactorDensity;
    uint32_t          ii_MaxGpuFactors;
+   uint32_t          ii_SequencesPerKernel;
 #endif
 };
 

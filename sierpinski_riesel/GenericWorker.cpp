@@ -49,20 +49,20 @@ void  GenericWorker::Prepare(uint64_t largestPrimeTested, uint32_t bestQ)
    uint64_t   max_k = 0;
    uint64_t   max_c = 0;
    uint64_t   c;
-   seq_t     *seq;
+   seq_t     *seqPtr;
 
    ii_BestQ = bestQ;
    
-   seq = ip_FirstSequence;
+   seqPtr = ip_FirstSequence;
    do
    {
-      c = abs(seq->c);
+      c = abs(seqPtr->c);
       
-      max_k = MAX(max_k, seq->k);
+      max_k = MAX(max_k, seqPtr->k);
       max_c = MAX(max_c, c);
 
-      seq = (seq_t *) seq->next;
-   } while (seq != NULL);
+      seqPtr = (seq_t *) seqPtr->next;
+   } while (seqPtr != NULL);
    
    InitializeWorker();
   
@@ -122,6 +122,7 @@ void  GenericWorker::TestMegaPrimeChunk(void)
    {
       lastPrime = ProcessSmallPrimes();
 
+      // If we can switch to the "large" prime discrete log logic, then this is the time to do it.
       if (il_SmallPrimeSieveLimit <= lastPrime)
       {
          ip_SierpinskiRieselApp->SetRebuildNeeded();
@@ -133,6 +134,21 @@ void  GenericWorker::TestMegaPrimeChunk(void)
       
       return;
    }
+
+#ifdef HAVE_GPU_WORKERS
+   bool     switchToGPUWorkers = false;
+   
+   // If this is the scenario where a CPU worker was created (even though CpuWorkerCount = 0)
+   // then switching to GPU workers will delete the CPU worker when it is no longer needed.
+   if (ip_App->GetCpuWorkerCount() == 0 && ip_App->GetGpuWorkerCount() > 0)
+   {
+      if (maxPrime > ip_App->GetMinGpuPrime())
+      {
+         maxPrime = ip_App->GetMinGpuPrime();
+         switchToGPUWorkers = true;
+      }
+   }
+#endif
 
    b[0] = b[1] = b[2] = b[3] = ii_Base;
 
@@ -155,15 +171,25 @@ void  GenericWorker::TestMegaPrimeChunk(void)
       SetLargestPrimeTested(p[3], 4);
       
       if (p[3] >= maxPrime)
+      {
+#ifdef HAVE_GPU_WORKERS
+         // This can only be true if we can switch to only running GPU workers.  Since this
+         // is a CPU worker.  Its life effectively ends upon return from this method.
+         if (switchToGPUWorkers)
+         {
+            ip_SierpinskiRieselApp->UseGpuWorkersUponRebuild();
+            ip_SierpinskiRieselApp->SetRebuildNeeded();
+         }
+#endif
+         
          return;
+      }
    }
 
-   // This allows us to switch to the CisOne worker
+   // Determine if we can switch to the CisOne workers.  Note that if il_MaxK < il_MinGpuPrime
+   // that the CPU workers will be used instead of the GPU workers
    if (ib_CanUseCIsOneLogic && p[3] > il_MaxK && ii_SequenceCount == 1)
-   {
       ip_SierpinskiRieselApp->SetRebuildNeeded();
-      return;
-   }
 }
 
 uint64_t  GenericWorker::ProcessSmallPrimes(void)
@@ -459,7 +485,7 @@ void  GenericWorker::SetupDiscreteLog(uint32_t *b, uint64_t *p, MpArithVec mp, M
 {
    uint32_t   qIdx, ssIdx;
    uint64_t   imod[4], umod[4], temp[4];
-   seq_t     *seq;
+   seq_t     *seqPtr;
 
    imod[0] = invmod64(b[0], p[0]);
    imod[1] = invmod64(b[1], p[1]);
@@ -478,18 +504,18 @@ void  GenericWorker::SetupDiscreteLog(uint32_t *b, uint64_t *p, MpArithVec mp, M
       mBM = mp.mul(mBM, mI);
    }
    
-   seq = ip_FirstSequence;
+   seqPtr = ip_FirstSequence;
    do
    {
-      temp[0] = lmod64(-seq->c, p[0]);
-      temp[1] = lmod64(-seq->c, p[1]);
-      temp[2] = lmod64(-seq->c, p[2]);
-      temp[3] = lmod64(-seq->c, p[3]);
+      temp[0] = lmod64(-seqPtr->c, p[0]);
+      temp[1] = lmod64(-seqPtr->c, p[1]);
+      temp[2] = lmod64(-seqPtr->c, p[2]);
+      temp[3] = lmod64(-seqPtr->c, p[3]);
       
-      umod[0] = umod64(seq->k, p[0]);
-      umod[1] = umod64(seq->k, p[1]);
-      umod[2] = umod64(seq->k, p[2]);
-      umod[3] = umod64(seq->k, p[3]);
+      umod[0] = umod64(seqPtr->k, p[0]);
+      umod[1] = umod64(seqPtr->k, p[1]);
+      umod[2] = umod64(seqPtr->k, p[2]);
+      umod[3] = umod64(seqPtr->k, p[3]);
       
       imod[0] = invmod64(umod[0], p[0]);
       imod[1] = invmod64(umod[1], p[1]);
@@ -502,15 +528,15 @@ void  GenericWorker::SetupDiscreteLog(uint32_t *b, uint64_t *p, MpArithVec mp, M
       mCK = mp.mul(mTemp, mI);
 
       // Compute -c/(k*b^d) (mod p) for each subsequence.
-      for (ssIdx=seq->ssIdxFirst; ssIdx<=seq->ssIdxLast; ssIdx++)
+      for (ssIdx=seqPtr->ssIdxFirst; ssIdx<=seqPtr->ssIdxLast; ssIdx++)
       {
          qIdx = ip_Subsequences[ssIdx].q;
 
          mBDCK[ssIdx] = mp.mul(mBD[qIdx], mCK);
       }
 
-      seq = (seq_t *) seq->next;
-   } while (seq != NULL);
+      seqPtr = (seq_t *) seqPtr->next;
+   } while (seqPtr != NULL);
 
 }
 

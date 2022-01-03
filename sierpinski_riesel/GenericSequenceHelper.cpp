@@ -46,19 +46,19 @@ uint32_t    GenericSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
 {
    uint32_t      bit, i, j, k, n;
    uint32_t      bestQ, Q = 2880;  // DEFAULT_LIMIT_BASE from the old code
-   bool         *R = 0;
+   vector<bool>  R;
    choice_bc_t  *S = 0;
-   seq_t        *seq;
+   seq_t        *seqPtr;
 
-   k = ForEachDivisor(Q, R, S);
+   k = ForEachDivisor(Q, R, S, true);
    
-   R = (bool *) xmalloc(Q*sizeof(bool));
+   R.resize(Q, false);
    S = (choice_bc_t *) xmalloc(k*sizeof(choice_bc_t));
 
    for (i = 0; i < k; i++)
       S[i].subseqs = 0;
 
-   seq = ip_FirstSequence;
+   seqPtr = ip_FirstSequence;
    do
    {
       for (j=0; j<Q; j++)
@@ -68,16 +68,16 @@ uint32_t    GenericSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
 
       for (n=ii_MinN; n<=ii_MaxN; n++)
       {
-         if (seq->nTerms[bit])
+         if (seqPtr->nTerms[bit])
             R[n%Q] = 1;
          
          bit++;
       }
       
-      ForEachDivisor(Q, R, S);
+      ForEachDivisor(Q, R, S, false);
       
-      seq = (seq_t *) seq->next;
-   } while (seq != NULL);
+      seqPtr = (seq_t *) seqPtr->next;
+   } while (seqPtr != NULL);
    
    j = 0;
    for (i = 0; i < k; i++)
@@ -90,14 +90,13 @@ uint32_t    GenericSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
 
    bestQ = S[j].div;
    expectedSubsequences = S[j].subseqs;
-         
-   xfree(R);
+
    xfree(S);
  
    return bestQ;
 }
 
-uint32_t GenericSequenceHelper::ForEachDivisor(uint32_t Q, bool *R, choice_bc_t *S)
+uint32_t GenericSequenceHelper::ForEachDivisor(uint32_t Q, vector<bool> R, choice_bc_t *S, bool firstTime)
 {
    uint32_t A[9], P[9], M[9], d, i, j, k, t;
 
@@ -109,7 +108,7 @@ uint32_t GenericSequenceHelper::ForEachDivisor(uint32_t Q, bool *R, choice_bc_t 
       t *= (M[i]+1);
    }
 
-   if (!R)
+   if (firstTime)
       return t;
    
    for (i = 0; i < t; i++)

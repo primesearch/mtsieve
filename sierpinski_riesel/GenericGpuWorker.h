@@ -30,23 +30,32 @@ public:
    
    void              CleanUp(void);
 
-protected:   
+protected:
+   Kernel           *CreateKernel(uint32_t kernelIdx, uint32_t sequences, uint32_t subsequences);
+   
+   bool              ib_CanUseCIsOneLogic;
+   uint64_t          il_MaxK;
+   
    uint32_t          ii_MaxGpuFactors;
+   uint32_t          ii_SequencesPerKernel;
    uint64_t         *il_FactorList;
    uint32_t          ii_FactorCount;
    
-   uint64_t         *il_K;
-   int64_t          *il_C;
-   uint32_t         *ii_SeqIdx;
-   uint32_t         *ii_Q;
+   uint32_t         *ii_SubseqIdx;
    
-   Kernel           *ip_SRKernel;
+   uint64_t        **il_K;
+   int64_t         **il_C;
+   uint32_t        **ii_SeqIdx;
+   uint32_t        **ii_Q;
+   
+   uint32_t          ii_KernelCount;
+   Kernel          **ip_SRKernel;
 
    KernelArgument   *ip_KAPrime;
-   KernelArgument   *ip_KASeqK;
-   KernelArgument   *ip_KASeqC;
-   KernelArgument   *ip_KASubSeqSeqIdx;
-   KernelArgument   *ip_KASubSeqQ;
+   KernelArgument  **ip_KASeqK;
+   KernelArgument  **ip_KASeqC;
+   KernelArgument  **ip_KASubSeqSeqIdx;
+   KernelArgument  **ip_KASubSeqQ;
    KernelArgument   *ip_KAFactorCount;
    KernelArgument   *ip_KAFactorList;
 };

@@ -29,7 +29,7 @@ public:
 private:
    uint32_t          FindBestQ(uint32_t &expectedSubsequences);
    
-   uint32_t          ForEachDivisor(uint32_t Q, bool *R, choice_bc_t *S);
+   uint32_t          ForEachDivisor(uint32_t Q, vector<bool> R, choice_bc_t *S, bool firstTime);
    uint32_t          FindMultiplicities(uint32_t n, uint32_t *P, uint32_t *M);
    double            EstimateWork(uint32_t Q, uint32_t s);
 };

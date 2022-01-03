@@ -121,6 +121,7 @@ protected:
    inline uint64_t  lmod64(int64_t a, uint64_t p)
    {
       uint64_t ua;
+      
       if (a >= 0)
       {
          ua = (uint64_t) a;
@@ -141,6 +142,21 @@ protected:
       return (a < p) ? a : a%p;
    }
    
+   inline uint64_t  getNegCK(seq_t *seq, uint64_t p)
+   {
+      uint64_t negCK;
+      
+       /* neg_ck <-- -k/c (mod p) == -ck (mod p) */
+      if (p < seq->k)
+         negCK = seq->k % p;
+      else 
+         negCK = seq->k;
+     
+      if (ip_FirstSequence->c > 0)
+         negCK = p - negCK;
+      
+      return negCK;
+   }
 private:
 
 };

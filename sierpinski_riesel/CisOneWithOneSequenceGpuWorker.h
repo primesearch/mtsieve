@@ -11,7 +11,7 @@
 
 #include "SierpinskiRieselApp.h"
 #include "AbstractSequenceHelper.h"
-#include "CisOneSequenceHelper.h"
+#include "CisOneWithOneSequenceHelper.h"
 #include "AbstractWorker.h"
 #include "../opencl/Kernel.h"
 #include "../opencl/KernelArgument.h"
@@ -32,7 +32,7 @@ public:
    void              CleanUp(void);
 
 protected:
-   CisOneSequenceHelper *ip_CisOneHelper;
+   CisOneWithOneSequenceHelper *ip_CisOneHelper;
    
    uint32_t          ii_MaxGpuFactors;
    uint64_t         *ip_FactorList;
@@ -40,6 +40,22 @@ protected:
    
    uint32_t         *ip_BabySteps;
    uint32_t         *ip_GiantSteps;
+      
+   uint32_t         *ip_CongruentQIndices;
+   uint32_t         *ip_LadderIndices;
+   
+   uint16_t         *ip_AllQs;
+   uint16_t         *ip_AllLadders;
+   
+   uint16_t         *ip_SeqQs;
+   uint16_t         *ip_SeqLadders;
+   
+   legendre_t       *ip_Legendre;
+   uint8_t          *ip_LegendreTable;
+   
+   uint32_t          ii_Dim1;
+   uint32_t          ii_Dim2;
+   uint32_t          ii_Dim3;
    
    Kernel           *ip_SRKernel;
    KernelArgument   *ip_KAPrime;

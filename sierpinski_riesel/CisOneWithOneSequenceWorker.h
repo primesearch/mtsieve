@@ -10,7 +10,7 @@
 #define _CisOneWithOneSequenceWorker_H
 
 #include "SierpinskiRieselApp.h"
-#include "CisOneSequenceHelper.h"
+#include "CisOneWithOneSequenceHelper.h"
 #include "AbstractWorker.h"
 #include "../core/HashTable.h"
 #include "../core/MpArith.h"
@@ -37,15 +37,19 @@ private:
    
    uint32_t          SetupDiscreteLog(MpArith mp, MpRes resBase, MpRes resInvBase, MpRes resNegCK, sp_t parity);
    
-   uint32_t          BuildLookupsAndClimbLadder(MpArith mp, MpRes resBase, MpRes resNegCK);
+   void              BuildLookupsAndClimbLadder(MpArith mp, MpRes resBase, MpRes resNegCK, uint16_t cqIdx, uint16_t ssCount, uint16_t *seqQs);
    
    uint32_t          BabySteps(MpArith mp, MpRes resBase, MpRes resInvBase, uint32_t babySteps);
 
-   CisOneSequenceHelper *ip_CisOneHelper;
-      
+   CisOneWithOneSequenceHelper *ip_CisOneHelper;
+
+   // See SierpinskiRieselApp.h to see how these are defined.
+   uint32_t          ii_BaseMultiple;
+   uint32_t          ii_LimitBase;
+   uint32_t          ii_PowerResidueLcm;
+   
    uint32_t          ii_SieveLow;
    
-   legendre_t       *ip_Legendre;
    HashTable        *ip_HashTable;
    
    MpRes            *resBJ;         // there is one per Q
@@ -54,14 +58,22 @@ private:
    
    MpRes             resBexpQ;
    
-   bool              ib_UseLegendreTables;
-
    int16_t          *ip_DivisorShifts;
-   uint16_t         *ip_PrlIndices;
-   uint32_t          ii_PrlCount;
+   uint16_t         *ip_PowerResidueIndices;
    
-   uint16_t         *ip_Qs;
-   uint16_t         *ip_Ladders;
+   uint32_t         *ip_CongruentQIndices;
+   uint32_t         *ip_LadderIndices;
+   
+   uint16_t         *ip_AllQs;
+   uint16_t         *ip_AllLadders;
+      
+   legendre_t       *ip_Legendre;
+   uint8_t          *ip_LegendreTable;
+   
+   uint32_t          ii_Dim1;
+   uint32_t          ii_Dim2;
+   uint32_t          ii_Dim3;
+   uint32_t          ii_Dim4;
 };
 
 #endif

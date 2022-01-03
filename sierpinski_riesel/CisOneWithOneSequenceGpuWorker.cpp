@@ -10,7 +10,6 @@
 #include <time.h>
 
 #include "CisOneWithOneSequenceGpuWorker.h"
-#include "CisOneSequenceHelper.h"
 #include "cisonesingle_kernel.h"
 
 #define DEFAULT_HASH_MAX_DENSITY 0.65
@@ -23,7 +22,20 @@ CisOneWithOneSequenceGpuWorker::CisOneWithOneSequenceGpuWorker(uint32_t myId, Ap
    ip_FirstSequence = appHelper->GetFirstSequenceAndSequenceCount(ii_SequenceCount);
    ip_Subsequences = appHelper->GetSubsequences(ii_SubsequenceCount);
    
-   ip_CisOneHelper = (CisOneSequenceHelper *) appHelper;
+   ip_CisOneHelper = (CisOneWithOneSequenceHelper *) appHelper;
+   
+   ii_Dim1 = ip_CisOneHelper->GetDim1();
+   ii_Dim2 = ip_CisOneHelper->GetDim2();
+   ii_Dim3 = ip_CisOneHelper->GetDim3();
+   
+   ip_CongruentQIndices = ip_CisOneHelper->GetCongruentQIndices();
+   ip_LadderIndices = ip_CisOneHelper->GetLadderIndices();
+   
+   ip_AllQs = ip_CisOneHelper->GetAllQs();
+   ip_AllLadders = ip_CisOneHelper->GetAllLadders();
+   
+   ip_Legendre = ip_CisOneHelper->GetLegendre();
+   ip_LegendreTable = ip_CisOneHelper->GetLegendreTable();
 
    ii_MaxGpuFactors = ip_SierpinskiRieselApp->GetMaxGpuFactors();
 }
@@ -44,10 +56,12 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
    char      define11[50];
    char      define12[50];
    char      define13[50];
-   char      define14[100];
-   char      define15[50];
+   char      define14[50];
+   char      define15[100];
+   char      define16[50];
    
    ii_BestQ = bestQ;
+   legendre_t *legendrePtr = &ip_Legendre[0];
    
    uint32_t sieveLow = ii_MinN / ii_BestQ;
    uint32_t elements = ip_CisOneHelper->GetMaxBabySteps();
@@ -71,17 +85,18 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
    sprintf(define10, "#define HASH_SIZE %u\n", hsize);
    sprintf(define11, "#define MAX_FACTORS %u\n", ii_MaxGpuFactors);
    sprintf(define12, "#define POWER_RESIDUE_LCM %u\n", POWER_RESIDUE_LCM);
-   sprintf(define13, "#define PRL_COUNT %u\n", ip_CisOneHelper->GetPrlCount());
+   sprintf(define13, "#define DIM2 %u\n", ii_Dim2);
+   sprintf(define14, "#define DIM3 %u\n", ii_Dim3);
 
-   if (ip_CisOneHelper->UseLegendreTables())
-      sprintf(define14, "#define HAVE_LEGENDRE_TABLES\n#define LEGENDRE_MOD %u\n", ip_FirstSequence->legendrePtr->mod);
-   else
-      sprintf(define14, "\n");
-      
-   if (ip_FirstSequence->nParity == SP_MIXED)
-      sprintf(define15, "#define HAVE_MIXED_PARITY\n");
+   if (legendrePtr->haveMap)
+      sprintf(define15, "#define HAVE_LEGENDRE_TABLES\n#define LEGENDRE_MOD %u\n", legendrePtr->mod);
    else
       sprintf(define15, "\n");
+      
+   if (ip_FirstSequence->nParity == SP_MIXED)
+      sprintf(define16, "#define HAVE_MIXED_PARITY\n");
+   else
+      sprintf(define16, "\n");
 
    srSource[00] = define01;
    srSource[01] = define02;
@@ -98,14 +113,15 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
    srSource[12] = define13;
    srSource[13] = define14;
    srSource[14] = define15;
-   srSource[15] = cisonesingle_kernel;
-   srSource[16] = 0;
+   srSource[15] = define16;
+   srSource[16] = cisonesingle_kernel;
+   srSource[17] = 0;
 
    ip_SRKernel = new Kernel(ip_SierpinskiRieselApp->GetDevice(), "cisonesingle_kernel", srSource);
    
    AllocatePrimeList(ip_SRKernel->GetWorkGroupSize());
 
-   ip_FactorList  =  (uint64_t *) xmalloc(2*ii_MaxGpuFactors*sizeof(uint64_t));
+   ip_FactorList  =  (uint64_t *) xmalloc(4*ii_MaxGpuFactors*sizeof(uint64_t));
    ip_BabySteps   =  (uint32_t *) xmalloc(ii_SubsequenceCount*sizeof(uint32_t));
    ip_GiantSteps  =  (uint32_t *) xmalloc(ii_SubsequenceCount*sizeof(uint32_t));
    
@@ -116,36 +132,34 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
    }
    
    ip_KAPrime           = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "prime", KA_HOST_TO_GPU, il_PrimeList, ii_WorkSize);
-      
-   if (ip_CisOneHelper->UseLegendreTables())
-   {
-      legendre_t *legendre = ip_FirstSequence->legendrePtr;
-      
+
+   if (legendrePtr->haveMap)
+   {      
       if (ip_FirstSequence->nParity == SP_MIXED)
       {
-         ip_KADualParityMapM1 = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "dualParityMapM1", KA_HOST_TO_GPU, legendre->dualParityMapM1, legendre->mapSize);
-         ip_KADualParityMapP1 = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "dualParityMapP1", KA_HOST_TO_GPU, legendre->dualParityMapP1, legendre->mapSize);
+         ip_KADualParityMapM1 = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "dualParityMapM1", KA_HOST_TO_GPU, legendrePtr->dualParityMapM1, legendrePtr->mapSize);
+         ip_KADualParityMapP1 = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "dualParityMapP1", KA_HOST_TO_GPU, legendrePtr->dualParityMapP1, legendrePtr->mapSize);
       }
       else
-         ip_KAOneParityMap    = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "oneParityMap", KA_HOST_TO_GPU, legendre->oneParityMap, legendre->mapSize);
+         ip_KAOneParityMap    = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "oneParityMap", KA_HOST_TO_GPU, legendrePtr->oneParityMap, legendrePtr->mapSize);
    }
-         
+
    ip_KASubSeqBS        = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "baby_steps", KA_HOST_TO_GPU, ip_BabySteps, ii_SubsequenceCount);
    ip_KASubSeqGS        = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "giant_steps", KA_HOST_TO_GPU, ip_GiantSteps, ii_SubsequenceCount);
    ip_KADivisorShifts   = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "divisor_shifts", KA_HOST_TO_GPU, ip_CisOneHelper->GetDivisorShifts(), POWER_RESIDUE_LCM / 2);
-   ip_KAPrlIndices      = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "prl_indices", KA_HOST_TO_GPU, ip_CisOneHelper->GetPrlIndices(), POWER_RESIDUE_LCM);
+   ip_KAPrlIndices      = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "prl_indices", KA_HOST_TO_GPU, ip_CisOneHelper->GetPowerResidueIndices(), POWER_RESIDUE_LCM + 1);
    
-   ip_KAQIndices        = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "q_indices", KA_HOST_TO_GPU, ip_FirstSequence->congruentQIndices, ip_FirstSequence->congruentIndexCount);
-   ip_KAQs              = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "qs", KA_HOST_TO_GPU, ip_FirstSequence->congruentQs, ip_FirstSequence->congruentQCount);
-   ip_KALadderIndices   = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "ladder_indices", KA_HOST_TO_GPU, ip_FirstSequence->congruentLadderIndices, ip_FirstSequence->congruentIndexCount);
-   ip_KALadders         = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "ladders", KA_HOST_TO_GPU, ip_FirstSequence->congruentLadders, ip_FirstSequence->congruentLadderCount);
+   ip_KAQIndices        = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "q_indices", KA_HOST_TO_GPU, ip_CisOneHelper->GetCongruentQIndices(), ii_Dim1);
+   ip_KAQs              = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "qs", KA_HOST_TO_GPU, ip_CisOneHelper->GetAllQs(), ip_CisOneHelper->GetUsedQEntries());
+   ip_KALadderIndices   = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "ladder_indices", KA_HOST_TO_GPU, ip_CisOneHelper->GetLadderIndices(), ii_Dim1);
+   ip_KALadders         = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "ladders", KA_HOST_TO_GPU, ip_CisOneHelper->GetAllLadders(), ip_CisOneHelper->GetUsedLadderEntries());
    
    ip_KAFactorCount     = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "factor_count", KA_BIDIRECTIONAL, &ii_FactorCount, 1);
-   ip_KAFactorList      = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "factor_list", KA_GPU_TO_HOST, ip_FactorList, 2*ii_MaxGpuFactors);
+   ip_KAFactorList      = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "factor_list", KA_GPU_TO_HOST, ip_FactorList, 4*ii_MaxGpuFactors);
 
    ip_SRKernel->AddArgument(ip_KAPrime);
    
-   if (ip_CisOneHelper->UseLegendreTables())
+   if (legendrePtr->haveMap)
    {
       if (ip_FirstSequence->nParity == SP_MIXED)
       {
@@ -187,7 +201,9 @@ void  CisOneWithOneSequenceGpuWorker::CleanUp(void)
    delete ip_KAFactorCount;
    delete ip_KAFactorList;
 
-   if (ip_CisOneHelper->UseLegendreTables())
+   legendre_t *legendrePtr = &ip_Legendre[0];
+   
+   if (legendrePtr->haveMap)
    {
       if (ip_FirstSequence->nParity == SP_MIXED)
       {

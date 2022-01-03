@@ -48,28 +48,28 @@ uint64_t    AbstractSequenceHelper::MakeSubsequencesForNewSieve(void)
    uint32_t    ssIdx;
    uint32_t    nTerms = (ii_MaxN - ii_MinN + 1);
    uint64_t    termCount = 0;
-   seq_t      *seq;
+   seq_t      *seqPtr;
 
    CreateEmptySubsequences(ii_SequenceCount);
    
-   seq = ip_FirstSequence;
+   seqPtr = ip_FirstSequence;
    do
    {
-      ssIdx = AddSubsequence(seq, 0, nTerms);
+      ssIdx = AddSubsequence(seqPtr, 0, nTerms);
       
       subseq_t *ssPtr = &ip_Subsequences[ssIdx];
  
       for (uint32_t n=ii_MinN; n<=ii_MaxN; n++)
       {
-         if (seq->nTerms[NBIT(n)])
+         if (seqPtr->nTerms[NBIT(n)])
          {
             ssPtr->mTerms[NBIT(n)] = true;
             termCount++;
          }
       }
       
-      seq = (seq_t *) seq->next;
-   } while (seq != NULL);
+      seqPtr = (seq_t *) seqPtr->next;
+   } while (seqPtr != NULL);
 
    ii_BestQ = 1;
    
@@ -85,7 +85,7 @@ void        AbstractSequenceHelper::MakeSubsequencesForOldSieve(uint64_t expecte
    uint32_t  expectedSubsequences;
    uint64_t  countedTerms = 0;
    uint32_t  ssIdx;
-   seq_t    *seq;
+   seq_t    *seqPtr;
    
    if (ip_Subsequences)
       xfree(ip_Subsequences);
@@ -105,12 +105,12 @@ void        AbstractSequenceHelper::MakeSubsequencesForOldSieve(uint64_t expecte
    // This is the maximum number of subsequences
    CreateEmptySubsequences(ii_SequenceCount * ii_BestQ);
    
-   seq = ip_FirstSequence;
+   seqPtr = ip_FirstSequence;
    do
    {
-      seq->ssCount = 0;
-      seq->ssIdxFirst = 0;
-      seq->ssIdxLast = 0;
+      seqPtr->ssCount = 0;
+      seqPtr->ssIdxFirst = 0;
+      seqPtr->ssIdxLast = 0;
       
       std::fill(needss.begin(), needss.end(), false);
 
@@ -119,7 +119,7 @@ void        AbstractSequenceHelper::MakeSubsequencesForOldSieve(uint64_t expecte
       // Determine which subsequences we need to build
       for (n=ii_MinN; n<=ii_MaxN; n++)
       {
-         if (seq->nTerms[bit])
+         if (seqPtr->nTerms[bit])
          {
             r = n % ii_BestQ;
             needss[r] = true;
@@ -133,7 +133,7 @@ void        AbstractSequenceHelper::MakeSubsequencesForOldSieve(uint64_t expecte
          if (needss[r])
          {
             rss[r] = ii_SubsequenceCount;
-            AddSubsequence(seq, r, ii_MaxM - ii_MinM + 1);
+            AddSubsequence(seqPtr, r, ii_MaxM - ii_MinM + 1);
          }
       }
       
@@ -141,7 +141,7 @@ void        AbstractSequenceHelper::MakeSubsequencesForOldSieve(uint64_t expecte
 
       for (n=ii_MinN; n<=ii_MaxN; n++)
       {
-         if (seq->nTerms[bit])
+         if (seqPtr->nTerms[bit])
          {
             r = n % ii_BestQ;
             ssIdx = rss[r];
@@ -152,8 +152,8 @@ void        AbstractSequenceHelper::MakeSubsequencesForOldSieve(uint64_t expecte
          bit++;
       }
       
-      seq = (seq_t *) seq->next;
-   } while (seq != NULL);
+      seqPtr = (seq_t *) seqPtr->next;
+   } while (seqPtr != NULL);
    
    if (ii_SubsequenceCount != expectedSubsequences)
       FatalError("Expected %u subsequences but %u were created", expectedSubsequences, ii_SubsequenceCount);
@@ -175,58 +175,57 @@ void      AbstractSequenceHelper::CreateEmptySubsequences(uint32_t subsequenceCo
    ii_SubsequenceCapacity = subsequenceCount;
 }
 
-uint32_t  AbstractSequenceHelper::AddSubsequence(seq_t *seq, uint32_t q, uint32_t mTermCount)
+uint32_t  AbstractSequenceHelper::AddSubsequence(seq_t *seqPtr, uint32_t q, uint32_t mTermCount)
 {
    uint32_t ssIdx;
+
+   seqPtr->ssCount++;
    
-   if (seq->k == 1049910)
-      printf("here\n");
-   
-   seq->ssCount++;
-   
-   if (seq->ssCount == 1)
+   if (seqPtr->ssCount == 1)
    {
-      seq->ssIdxFirst = ii_SubsequenceCount;
+      seqPtr->ssIdxFirst = ii_SubsequenceCount;
       
       if (q % 2 == 0)
-         seq->nParity = SP_EVEN;
+         seqPtr->nParity = SP_EVEN;
       else
-         seq->nParity = SP_ODD;
+         seqPtr->nParity = SP_ODD;
    }
    else{
-      if (seq->nParity == SP_EVEN && q % 2 != 0)
-         seq->nParity = SP_MIXED;
+      if (seqPtr->nParity == SP_EVEN && q % 2 != 0)
+         seqPtr->nParity = SP_MIXED;
       
-      if (seq->nParity == SP_ODD && q % 2 == 0)
-         seq->nParity = SP_MIXED;
+      if (seqPtr->nParity == SP_ODD && q % 2 == 0)
+         seqPtr->nParity = SP_MIXED;
    }
    
    // This is the index of the new subsequence being added
    ssIdx = ii_SubsequenceCount;
 
-   seq->ssIdxLast = ssIdx;
+   seqPtr->ssIdxLast = ssIdx;
    
    subseq_t *ssPtr = &ip_Subsequences[ssIdx];
    
-   ssPtr->seqPtr = seq;
-   ssPtr->k = seq->k;
-   ssPtr->c = seq->c;
+   ssPtr->seqPtr = seqPtr;
+   ssPtr->k = seqPtr->k;
+   ssPtr->c = seqPtr->c;
    ssPtr->q = q;
    ssPtr->mTerms.resize(mTermCount, false);
+
+   if (seqPtr->ssCount > ii_MaxSubsequenceCount)
+      ii_MaxSubsequenceCount = seqPtr->ssCount;
 
    ii_SubsequenceCount++;
    return ssIdx;
 }
 
-uint32_t    AbstractSequenceHelper::CountResidueClasses(uint32_t d, uint32_t Q, bool *R)
+uint32_t    AbstractSequenceHelper::CountResidueClasses(uint32_t d, uint32_t Q, vector<bool> R)
 {
    uint32_t i, count;
    vector<bool>  R0;
 
    assert(Q % d == 0);
 
-   R0.resize(d);
-   std::fill(R0.begin(), R0.end(), false);
+   R0.resize(d, false);
 
    for (i = 0; i < Q; i++)
       if (R[i])
@@ -235,7 +234,7 @@ uint32_t    AbstractSequenceHelper::CountResidueClasses(uint32_t d, uint32_t Q, 
    for (i = 0, count = 0; i < d; i++)
       if (R0[i])
          count++;
-
+   
    return count;
 }
 

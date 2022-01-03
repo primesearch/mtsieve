@@ -8,7 +8,7 @@ const char *cisonesingle_kernel= \
 "#define SP_ODD       2\n" \
 "#define SP_NO_PARITY 999\n" \
 "#define N_TERM(q, i, j)       ((SIEVE_LOW + (j) + (i)*bSteps)*BESTQ + q)\n" \
-"#define CSS_INDEX(x, y, z)    (((((x) * (PRL_COUNT + 1)) + (y)) * (POWER_RESIDUE_LCM + 1)) + (z))\n" \
+"#define CQ_INDEX(a, b, c) ((a) * DIM2 + (b) * DIM3 + (c))\n" \
 "#define L_BYTE(x)  ((x)>>3)\n" \
 "#define L_BIT(x)   (1<<((x)&7))\n" \
 "#define HASH_NOT_FOUND        UINT_MAX\n" \
@@ -104,14 +104,16 @@ const char *cisonesingle_kernel= \
 "ulong   h_BJ64[HASH_ELEMENTS+1];\n" \
 "ulong   resBD[SUBSEQUENCE_COUNT];\n" \
 "uint    i, j, k, ssCount;\n" \
-"uint    idx, qIdx, ladderIdx, cssIndex;\n" \
-"cssIndex = setupDiscreteLog(thePrime, _q, _one, resBase, resInvBase, resNegCK, parity, divisorShifts, prlIndices);\n" \
-"qIdx = qIndices[cssIndex];\n" \
+"uint    idx, qIdx, ladderIdx, cqIndex;\n" \
+"cqIndex = setupDiscreteLog(thePrime, _q, _one, resBase, resInvBase, resNegCK, parity, divisorShifts, prlIndices);\n" \
+"qIdx = qIndices[cqIndex];\n" \
 "if (qIdx == 0)\n" \
 "return;\n" \
-"ladderIdx = ladderIndices[cssIndex];\n" \
-"resBexpQ = buildLookupsAndClimbLadder(thePrime, _q, _one, resBase, resNegCK, resBD, qIdx, ladderIdx, qs, ladders);\n" \
 "ssCount = qs[qIdx];\n" \
+"if (ssCount == 0)\n" \
+"return;\n" \
+"ladderIdx = ladderIndices[cqIndex];\n" \
+"resBexpQ = buildLookupsAndClimbLadder(thePrime, _q, _one, resBase, resNegCK, resBD, qIdx, ladderIdx, qs, ladders);\n" \
 "for (idx=0; idx<HASH_SIZE; idx++)\n" \
 "h_table[idx] = 0;\n" \
 "for (idx=0; idx<HASH_ELEMENTS; idx++)\n" \
@@ -273,17 +275,16 @@ const char *cisonesingle_kernel= \
 "__global const ushort *prlIndices)\n" \
 "{\n" \
 "ulong pShift;\n" \
-"uint  idx;\n" \
-"uint  h, r;\n" \
+"uint  h, r, rIdx;\n" \
 "short shift;\n" \
 "ulong resX[POWER_RESIDUE_LCM + 1];\n" \
-"idx = (thePrime/2) % (POWER_RESIDUE_LCM/2);\n" \
-"shift = divisorShifts[idx];\n" \
+"rIdx = (thePrime/2) % (POWER_RESIDUE_LCM/2);\n" \
+"shift = divisorShifts[rIdx];\n" \
 "if (shift == 0)\n" \
 "{\n" \
-"r = prlIndices[1];\n" \
+"rIdx = prlIndices[1];\n" \
 "h = 0;\n" \
-"return CSS_INDEX(parity, r, h);\n" \
+"return CQ_INDEX(parity, rIdx, h);\n" \
 "}\n" \
 "if (shift > 0)\n" \
 "{\n" \
@@ -305,8 +306,8 @@ const char *cisonesingle_kernel= \
 ";\n" \
 "if (h == r)\n" \
 "return 0;\n" \
-"r = prlIndices[r];\n" \
-"return CSS_INDEX(parity, r, h);\n" \
+"rIdx = prlIndices[r];\n" \
+"return CQ_INDEX(parity, rIdx, h);\n" \
 "}\n" \
 "ulong buildLookupsAndClimbLadder(ulong thePrime, ulong _q,  ulong _one,\n" \
 "ulong resBase, ulong resNegCK, ulong *resBD,\n" \

@@ -10,7 +10,6 @@
 #include <stdint.h>
 
 #include "CisOneWithOneSequenceWorker.h"
-#include "CisOneSequenceHelper.h"
 #include "../core/inline.h"
 #include "../core/MpArith.h"
 
@@ -21,10 +20,14 @@ CisOneWithOneSequenceWorker::CisOneWithOneSequenceWorker(uint32_t myId, App *the
    ip_FirstSequence = appHelper->GetFirstSequenceAndSequenceCount(ii_SequenceCount);
    ip_Subsequences = appHelper->GetSubsequences(ii_SubsequenceCount);
    
-   ip_CisOneHelper = (CisOneSequenceHelper *) appHelper;
+   ip_CisOneHelper = (CisOneWithOneSequenceHelper *) appHelper;
    
    // Everything we need is done in the constuctor of the parent class
    ib_Initialized = true;
+
+   ii_BaseMultiple = ip_CisOneHelper->GetBaseMultiple();
+   ii_LimitBase = ip_CisOneHelper->GetLimitBase();
+   ii_PowerResidueLcm = ip_CisOneHelper->GetPowerResidueLcm();
 }
 
 void  CisOneWithOneSequenceWorker::CleanUp(void)
@@ -41,16 +44,25 @@ void  CisOneWithOneSequenceWorker::Prepare(uint64_t largestPrimeTested, uint32_t
    ii_BestQ = bestQ;   
    ii_SieveLow = ii_MinN / ii_BestQ;
 
-   resX = (MpRes *) xmalloc((POWER_RESIDUE_LCM+5) * sizeof(MpRes));
+   resX = (MpRes *) xmalloc((ii_PowerResidueLcm+5) * sizeof(MpRes));
    resBD = (MpRes *) xmalloc((ii_SubsequenceCount+4)*sizeof(MpRes));
    resBJ = (MpRes *) xmalloc((ii_SubsequenceCount+4)*sizeof(MpRes));
    
-   ip_Legendre = ip_FirstSequence->legendrePtr;
-   
-   ib_UseLegendreTables = ip_CisOneHelper->UseLegendreTables();
    ip_DivisorShifts = ip_CisOneHelper->GetDivisorShifts();
-   ii_PrlCount = ip_CisOneHelper->GetPrlCount();
-   ip_PrlIndices = ip_CisOneHelper->GetPrlIndices();
+   ip_PowerResidueIndices = ip_CisOneHelper->GetPowerResidueIndices();
+      
+   ii_Dim1 = ip_CisOneHelper->GetDim1();
+   ii_Dim2 = ip_CisOneHelper->GetDim2();
+   ii_Dim3 = ip_CisOneHelper->GetDim3();
+   
+   ip_CongruentQIndices = ip_CisOneHelper->GetCongruentQIndices();
+   ip_LadderIndices = ip_CisOneHelper->GetLadderIndices();
+   
+   ip_AllQs = ip_CisOneHelper->GetAllQs();
+   ip_AllLadders = ip_CisOneHelper->GetAllLadders();
+   
+   ip_Legendre = ip_CisOneHelper->GetLegendre();
+   ip_LegendreTable = ip_CisOneHelper->GetLegendreTable();
    
    ip_HashTable = new HashTable(ip_CisOneHelper->GetMaxBabySteps());
 }
@@ -64,6 +76,8 @@ void  CisOneWithOneSequenceWorker::TestMegaPrimeChunk(void)
 #ifdef HAVE_GPU_WORKERS
    bool     switchToGPUWorkers = false;
    
+   // If this is the scenario where a CPU worker was created (even though CpuWorkerCount = 0)
+   // then switching to GPU workers will delete the CPU worker when it is no longer needed.
    if (ip_App->GetCpuWorkerCount() == 0 && ip_App->GetGpuWorkerCount() > 0)
    {
       if (maxPrime > ip_App->GetMinGpuPrime())
@@ -91,6 +105,8 @@ void  CisOneWithOneSequenceWorker::TestMegaPrimeChunk(void)
       if (p >= maxPrime)
       {
 #ifdef HAVE_GPU_WORKERS
+         // This can only be true if we can switch to only running GPU workers.  Since this
+         // is a CPU worker.  Its life effectively ends upon return from this method.
          if (switchToGPUWorkers)
          {
             ip_SierpinskiRieselApp->UseGpuWorkersUponRebuild();
@@ -109,17 +125,19 @@ void  CisOneWithOneSequenceWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 
 sp_t   CisOneWithOneSequenceWorker::GetParity(uint64_t p)
 {
+   legendre_t *legendrePtr = ip_Legendre;
+      
    // Mixed parity sequences
    if (ip_FirstSequence->nParity == SP_MIXED)
    {
       bool qr_m1, qr_p1;
       
-      if (ib_UseLegendreTables)
+      if (legendrePtr->haveMap)
       {
-         uint32_t qr_mod = (p/2) % ip_Legendre->mod;
+         uint32_t qr_mod = (p/2) % legendrePtr->mod;
                   
-         qr_m1 = (ip_Legendre->dualParityMapM1[L_BYTE(qr_mod)] & L_BIT(qr_mod));
-         qr_p1 = (ip_Legendre->dualParityMapP1[L_BYTE(qr_mod)] & L_BIT(qr_mod));
+         qr_m1 = (legendrePtr->dualParityMapM1[L_BYTE(qr_mod)] & L_BIT(qr_mod));
+         qr_p1 = (legendrePtr->dualParityMapP1[L_BYTE(qr_mod)] & L_BIT(qr_mod));
       }
       else
       {
@@ -138,11 +156,11 @@ sp_t   CisOneWithOneSequenceWorker::GetParity(uint64_t p)
    // Single parity sequences
    bool qr;
    
-   if (ib_UseLegendreTables)
+   if (legendrePtr->haveMap)
    {
-      uint32_t qr_mod = (p/2) % ip_Legendre->mod;
+      uint32_t qr_mod = (p/2) % legendrePtr->mod;
          
-      qr = (ip_Legendre->oneParityMap[L_BYTE(qr_mod)] & L_BIT(qr_mod));
+      qr = (legendrePtr->oneParityMap[L_BYTE(qr_mod)] & L_BIT(qr_mod));
    }
    else
    {
@@ -162,50 +180,47 @@ sp_t   CisOneWithOneSequenceWorker::GetParity(uint64_t p)
 
 void  CisOneWithOneSequenceWorker::TestSinglePrime(uint64_t p, sp_t parity)
 {
-   uint64_t invBase, negCK;
-   uint32_t k, orderOfB, ssCount;
-   uint32_t babySteps, giantSteps;
-   uint32_t i, j;
-   uint32_t cssIndex, idx;
-
+   uint64_t   invBase, negCK;
+   uint32_t   k, orderOfB, ssCount;
+   uint32_t   babySteps, giantSteps;
+   uint32_t   i, j;
+   uint32_t   cqIdx, qIdx;
+   uint16_t  *seqQs;
+   
    MpArith mp(p);
 
    // compute 1/base (mod p)
    invBase = invmod64(ii_Base, p);
 
-   /* neg_ck <-- -k/c (mod p) == -ck (mod p) */
-   if (p < ip_FirstSequence->k)
-      negCK = ip_FirstSequence->k % p;
-   else 
-      negCK = ip_FirstSequence->k;
-  
-   if (ip_FirstSequence->c > 0)
-      negCK = p - negCK;
+   negCK = getNegCK(ip_FirstSequence, p);
       
    MpRes resBase = mp.nToRes(ii_Base);
    MpRes resInvBase = mp.nToRes(invBase);
    MpRes resNegCK = mp.nToRes(negCK);
       
-   cssIndex = SetupDiscreteLog(mp, resBase, resInvBase, resNegCK, parity);
+   cqIdx = SetupDiscreteLog(mp, resBase, resInvBase, resNegCK, parity);
    
-   idx = ip_FirstSequence->congruentQIndices[cssIndex];
-   
+   qIdx = ip_CongruentQIndices[cqIdx];
+      
    // If no qs for this p, then no factors, so return
-   if (idx == 0)
+   if (qIdx == 0)
       return;
 
-   ip_Qs = &ip_FirstSequence->congruentQs[idx];
-   
-   idx = ip_FirstSequence->congruentLadderIndices[cssIndex];
-   ip_Ladders = &ip_FirstSequence->congruentLadders[idx];
+   seqQs = &ip_AllQs[qIdx];
       
-   // -ckb^d is an r-th power residue for at least one term (k*b^d)*(b^Q)^(n/Q)+c of this subsequence
-   ssCount = BuildLookupsAndClimbLadder(mp, resBase, resNegCK);
+   // The number of subsequences (qs) for this sequence
+   ssCount = seqQs[0];
    
    // If no subsequences for this p, then no factors, so return
    if (ssCount == 0)
       return;
-
+   
+   // Skip the count since we have already copied it
+   seqQs++;
+      
+   // -ckb^d is an r-th power residue for at least one term (k*b^d)*(b^Q)^(n/Q)+c of this subsequence
+   BuildLookupsAndClimbLadder(mp, resBase, resNegCK, cqIdx, ssCount, seqQs);
+   
    ip_HashTable->Clear();
 
    babySteps = ip_Subsequences[ssCount-1].babySteps;
@@ -223,7 +238,7 @@ void  CisOneWithOneSequenceWorker::TestSinglePrime(uint64_t p, sp_t parity)
 
           while (j < babySteps * giantSteps)
           {
-             ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(ip_Qs[k], 0, j), true);
+             ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(seqQs[k], 0, j), true);
              
              j += orderOfB;
           }
@@ -237,7 +252,7 @@ void  CisOneWithOneSequenceWorker::TestSinglePrime(uint64_t p, sp_t parity)
          j = ip_HashTable->Lookup(resBD[k]);
 
          if (j != HASH_NOT_FOUND)
-            ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(ip_Qs[k], 0, j), true);
+            ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(seqQs[k], 0, j), true);
       }
 
       // Remaining giant steps
@@ -254,7 +269,7 @@ void  CisOneWithOneSequenceWorker::TestSinglePrime(uint64_t p, sp_t parity)
                j = ip_HashTable->Lookup(resBD[k]);
 
                if (j != HASH_NOT_FOUND)
-                  ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(ip_Qs[k], i, j), true);
+                  ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(seqQs[k], i, j), true);
             }
          }
       }
@@ -271,17 +286,17 @@ uint32_t  CisOneWithOneSequenceWorker::SetupDiscreteLog(MpArith mp, MpRes resBas
    uint64_t   pShift, p = mp.p();
    uint32_t   idx;
    uint32_t   h, r;
+   uint32_t   rIdx;
    int16_t    shift;
    
-   idx = (p/2) % (POWER_RESIDUE_LCM/2);
+   idx = (p/2) % (ii_PowerResidueLcm/2);
    shift = ip_DivisorShifts[idx];
 
    if (shift == 0)
    {
-      r = ip_PrlIndices[1];
-      h = 0;
+      rIdx = ip_PowerResidueIndices[1];
    
-      return CSS_INDEX(parity, r, h);
+      return CQ_INDEX(parity, rIdx, 0);
    }
    
    if (shift > 0)
@@ -318,18 +333,23 @@ uint32_t  CisOneWithOneSequenceWorker::SetupDiscreteLog(MpArith mp, MpRes resBas
    if (h == r)
       return 0;
 
-   r = ip_PrlIndices[r];
+   rIdx = ip_PowerResidueIndices[r];
    
-   return CSS_INDEX(parity, r, h);
+   return CQ_INDEX(parity, rIdx, h);
 }
 
 // Assign BJ64[i] = b^i (mod p) for each i in the ladder.
 // Return b^Q (mod p).
-uint32_t  CisOneWithOneSequenceWorker::BuildLookupsAndClimbLadder(MpArith mp, MpRes resBase, MpRes resNegCK)
+void  CisOneWithOneSequenceWorker::BuildLookupsAndClimbLadder(MpArith mp, MpRes resBase, MpRes resNegCK, uint16_t cqIdx, uint16_t ssCount, uint16_t *seqQs)
 {
-   uint32_t  i, j, idx, lLen, qLen;
+   uint32_t  i, j, idx, lLen, ladderIdx;
+   uint16_t *ladders;
 
-   lLen = *ip_Ladders;
+   ladderIdx = ip_LadderIndices[cqIdx];
+   ladders = &ip_AllLadders[ladderIdx];
+   
+   lLen = ladders[0];
+   ladders++;
    
    // Precompute b^d (mod p) for 0 <= d <= Q, as necessary
    resX[0] = mp.one();
@@ -339,22 +359,17 @@ uint32_t  CisOneWithOneSequenceWorker::BuildLookupsAndClimbLadder(MpArith mp, Mp
    i = 2;
    for (j=0; j<lLen; j++)
    {
-      idx = ip_Ladders[j+1];
+      idx = ladders[j];
       
       resX[i+idx] = mp.mul(resX[i], resX[idx]);
       
       i += idx;
    }
-
-   qLen = *ip_Qs;
-   ip_Qs++;
    
    resBexpQ = resX[ii_BestQ];
 
-   for (j=0; j<qLen; j++)
-      resBD[j] = mp.mul(resX[ip_Qs[j]], resNegCK);
-
-   return qLen;
+   for (j=0; j<ssCount; j++)
+      resBD[j] = mp.mul(resX[seqQs[j]], resNegCK);
 }
 
 uint32_t  CisOneWithOneSequenceWorker::BabySteps(MpArith mp, MpRes resBase, MpRes resInvBase, uint32_t babySteps)

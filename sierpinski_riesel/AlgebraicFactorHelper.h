@@ -19,7 +19,7 @@ public:
    ~AlgebraicFactorHelper(void);
 
    // This can only search for all algebraic factors for a single k/c per call.
-   uint64_t          RemoveTermsWithAlgebraicFactors(seq_t *seq);
+   uint64_t          RemoveTermsWithAlgebraicFactors(seq_t *seqPtr);
    
 private:
    App              *ip_App;
@@ -41,22 +41,22 @@ private:
    void              GetSmallPrimes(void);
    uint32_t          GetFactorList(uint64_t the_number, uint32_t *factor_list, uint32_t *power_list);
    
-   void              CheckForSpecialForm(seq_t *seq);
-   uint64_t          RemoveSimpleTerm(seq_t *seq);
-   uint64_t          RemoveTermsWithKPowers(seq_t *seq);
-   uint64_t          RemoveTermsWithKAndBPowers(seq_t *seq);
-   uint64_t          RemoveComplexRoot(seq_t *seq);
-   uint64_t          CheckBase2(seq_t *seq);
-   uint64_t          CheckPower4(seq_t *seq);
+   void              CheckForSpecialForm(seq_t *seqPtr);
+   uint64_t          RemoveSimpleTerm(seq_t *seqPtr);
+   uint64_t          RemoveTermsWithKPowers(seq_t *seqPtr);
+   uint64_t          RemoveTermsWithKAndBPowers(seq_t *seqPtr);
+   uint64_t          RemoveComplexRoot(seq_t *seqPtr);
+   uint64_t          CheckBase2(seq_t *seqPtr);
+   uint64_t          CheckPower4(seq_t *seqPtr);
    
 #ifdef __MINGW_PRINTF_FORMAT
-   uint32_t          CheckAndLogAlgebraicFactor(seq_t *seq, uint32_t n, const char *fmt, ...) __attribute__ ((format (__MINGW_PRINTF_FORMAT, 4, 5)));
+   uint32_t          CheckAndLogAlgebraicFactor(seq_t *seqPtr, uint32_t n, const char *fmt, ...) __attribute__ ((format (__MINGW_PRINTF_FORMAT, 4, 5)));
 #else
-   uint32_t          CheckAndLogAlgebraicFactor(seq_t *seq, uint32_t n, const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
+   uint32_t          CheckAndLogAlgebraicFactor(seq_t *seqPtr, uint32_t n, const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
 #endif
 
    void              GetRoot(uint64_t number, uint32_t *root, uint32_t *power);
-   bool              IsGfnOrMersenneForm(seq_t *seq);
+   bool              IsGfnOrMersenneForm(seq_t *seqPtr);
 };
 
 #endif

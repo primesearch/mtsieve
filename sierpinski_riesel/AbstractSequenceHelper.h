@@ -12,53 +12,14 @@
 #include "../core/Worker.h"
 #include "../core/MpArithVector.h"
 
-// Set BASE_MULTIPLE to the smallest exponent Q for which sieving in
-// subsequence base b^Q will be considered. Must be a multiple of 2.
-#define BASE_MULTIPLE   30
-
-// Allow sieving in base b^Q for Q chosen from the divisors of LIMIT_BASE.
-// Must be a multiple of BASE_MULTIPLE.
-#define LIMIT_BASE         720
-
-#define NDIVISORS          (LIMIT_BASE/BASE_MULTIPLE)
-
-// For a prime p that satisfies p=1 (mod r), an "r-th power residue test"
-// checks whether a subsequence of k*b^n+c can possibly contain any terms of
-// the form x^r (mod p). If there are none then that subsequence can be
-// omitted from the BSGS step.
-//
-// To conduct r-th power residue tests for each r in a set R of prime powers,
-// set POWER_RESIDUE_LCM to lcm(R). POWER_RESIDUE_LCM must be a multiple of
-// BASE_MULTIPLE, a divisor of LIMIT_BASE, and must be less than 2^15.
-#define POWER_RESIDUE_LCM      720
-
 #define SP_COUNT   3
 typedef enum { SP_NO_PARITY = 999, SP_MIXED = 0, SP_EVEN = 1, SP_ODD = 2} sp_t;
-
-// This allows us to create a one dimensional array to access the qList and ladders.
-// Note that this goes from the largest dimension to the smallest so that each x/y/z
-// combination yeiel
-#define CSS_INDEX(x, y, z) (((((x) * (ii_PrlCount + 1)) + (y)) * (POWER_RESIDUE_LCM + 1)) + (z))
-
-#define L_BYTES(x) (((1+x)>>3)+1)
-#define L_BYTE(x)  ((x)>>3)
-#define L_BIT(x)   (1<<((x)&7))
-
-// The maps are not vector<bool> because if I ever write an OpenCL
-// kernel for this, it has to be a simple datatype.
-typedef struct {
-   uint32_t          mod;
-   uint32_t          mapSize;
-   uint8_t          *oneParityMap;
-   uint8_t          *dualParityMapM1;
-   uint8_t          *dualParityMapP1;
-} legendre_t;
 
 // All of these fields are set before sieving is started, but only nTerms can be
 // modified after sieving has started.
 typedef struct
 {
-   uint32_t     id;           // sequence id
+   uint32_t     seqIdx;       // sequence index, not used for the global sequences
 
    uint64_t     k;            // k in (k*b^n+c)/d
    int64_t      c;            // c in (k*b^n+c)/d
@@ -75,26 +36,6 @@ typedef struct
    vector<bool> nTerms;       // remaining n for this sequences
    
    void        *next;         // points to the next sequence
-
-   // The fields below are only used by the CisOne classes
-   legendre_t  *legendrePtr; 
-   
-   // Congruent subsequence details
-   // In sr1sieve, these handled via four dimensional arrays.
-   // For srsieve2, we will use two one dimensional arrays, which will be easier to pass to the GPU.
-   // congruentQIndices points to the first entry in congruentQs for a specific parity, r, and h.
-   // congruentQs is a list of qs for that parity, r, and h with the first entry the length of the list
-   // for that pariry, r, and h.  The relationship for the ladder is the same.
-   // This will also reduce the memory needed by the GPU to hold these structures.
-   uint32_t     congruentIndexCount;
-   
-   uint32_t    *congruentQIndices;
-   uint32_t     congruentQCount;
-   uint16_t    *congruentQs;
-   
-   uint32_t    *congruentLadderIndices;
-   uint32_t     congruentLadderCount;
-   uint16_t    *congruentLadders;
 } seq_t;
 
 // All of these fields are set before sieving is started, but none of them are
@@ -104,7 +45,7 @@ typedef struct
    seq_t       *seqPtr;       // points to the seq_t that this subsequence is for
    uint64_t     k;            // k in k*b^n+c
    int64_t      c;            // c in k*b^n+c
-   uint32_t     q;
+   uint16_t     q;
    vector<bool> mTerms;       // remaining m for this sub-sequence
    
    uint32_t     babySteps;    // baby steps for CIsOne logic
@@ -139,18 +80,14 @@ public:
 
    seq_t            *GetFirstSequenceAndSequenceCount(uint32_t &count) { count = ii_SequenceCount; return ip_FirstSequence; };
    subseq_t         *GetSubsequences(uint32_t &count) { count = ii_SubsequenceCount; return ip_Subsequences; };
-
-   // These are only used by the CisOne logic
-   uint32_t          GetPrlCount(void) { return ii_PrlCount; };
-   uint16_t         *GetPrlIndices(void) { return ip_PrlIndices; };
    
 protected:
    void              CreateEmptySubsequences(uint32_t subsequenceCount);
-   uint32_t          AddSubsequence(seq_t *seq, uint32_t q, uint32_t mTermCount);
+   uint32_t          AddSubsequence(seq_t *seqPtr, uint32_t q, uint32_t mTermCount);
    
    virtual uint32_t  FindBestQ(uint32_t &expectedSubsequences) = 0;
    
-   uint32_t          CountResidueClasses(uint32_t d, uint32_t Q, bool *R);
+   uint32_t          CountResidueClasses(uint32_t d, uint32_t Q, vector<bool> R);
    void              ChooseSteps(uint32_t Q, uint32_t s, uint32_t &babySteps, uint32_t &giantSteps);
    
    App              *ip_App;
@@ -163,19 +100,13 @@ protected:
    uint32_t          ii_MaxN;
    
    uint32_t          ii_SequenceCount;
+   uint32_t          ii_MaxSubsequenceCount;
    uint32_t          ii_SubsequenceCount;
    uint32_t          ii_SubsequenceCapacity;
 
    uint32_t          ii_BestQ;
    uint32_t          ii_MinM;
    uint32_t          ii_MaxM;
-
-   // These are only used by the CisOne logic.
-   // Only a small subset of values < POWER_RESIDUE_LCM can generate values to populate
-   // the qList and ladders.  This is used to reduce the amount of memory needed for
-   // seq->congruentQIndices and seq->congruentLadderIndices, which will benefit the GPU.
-   uint32_t          ii_PrlCount;
-   uint16_t         *ip_PrlIndices;
 
    inline uint32_t   pow32(uint32_t b, uint32_t n)
    {

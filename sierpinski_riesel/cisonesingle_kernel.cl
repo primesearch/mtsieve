@@ -14,7 +14,11 @@
 #define SP_NO_PARITY 999
 
 #define N_TERM(q, i, j)       ((SIEVE_LOW + (j) + (i)*bSteps)*BESTQ + q)
-#define CSS_INDEX(x, y, z)    (((((x) * (PRL_COUNT + 1)) + (y)) * (POWER_RESIDUE_LCM + 1)) + (z))
+// This allows us to create a one dimensional array to access the qList and ladders
+//    a = parity
+//    b = power residue index
+//    c = power residue for congruent q
+#define CQ_INDEX(a, b, c) ((a) * DIM2 + (b) * DIM3 + (c))
 
 #define L_BYTE(x)  ((x)>>3)
 #define L_BIT(x)   (1<<((x)&7))
@@ -129,23 +133,29 @@ __kernel void cisonesingle_kernel(__global const ulong  *primes,
    ulong   h_BJ64[HASH_ELEMENTS+1];
    ulong   resBD[SUBSEQUENCE_COUNT];
    uint    i, j, k, ssCount;
-   uint    idx, qIdx, ladderIdx, cssIndex;
+   uint    idx, qIdx, ladderIdx, cqIndex;
 
-   cssIndex = setupDiscreteLog(thePrime, _q, _one, resBase, resInvBase, resNegCK, parity, divisorShifts, prlIndices);
-      
-   qIdx = qIndices[cssIndex];
+   cqIndex = setupDiscreteLog(thePrime, _q, _one, resBase, resInvBase, resNegCK, parity, divisorShifts, prlIndices);
+
+   qIdx = qIndices[cqIndex];
    
    // If no qs for this p, then no factors, so return
    if (qIdx == 0)
       return;
    
-   ladderIdx = ladderIndices[cssIndex];
+   // The number of subsequences (qs) for this sequence
+   ssCount = qs[qIdx];
+   
+   // If no subsequences for this p, then no factors, so return
+   if (ssCount == 0)
+      return;
+
+   ladderIdx = ladderIndices[cqIndex];
       
    // -ckb^d is an r-th power residue for at least one term (k*b^d)*(b^Q)^(n/Q)+c of this subsequence
    resBexpQ = buildLookupsAndClimbLadder(thePrime, _q, _one, resBase, resNegCK, resBD, qIdx, ladderIdx, qs, ladders);
    
-   ssCount = qs[qIdx];
-   
+
    for (idx=0; idx<HASH_SIZE; idx++)
       h_table[idx] = 0;  
       
@@ -368,20 +378,19 @@ uint setupDiscreteLog(ulong thePrime, ulong _q, ulong _one,
                        __global const ushort *prlIndices)
 {
    ulong pShift;
-   uint  idx;
-   uint  h, r;
+   uint  h, r, rIdx;
    short shift;
    ulong resX[POWER_RESIDUE_LCM + 1];
    
-   idx = (thePrime/2) % (POWER_RESIDUE_LCM/2);
-   shift = divisorShifts[idx];
+   rIdx = (thePrime/2) % (POWER_RESIDUE_LCM/2);
+   shift = divisorShifts[rIdx];
       
    if (shift == 0)
    {
-      r = prlIndices[1];
+      rIdx = prlIndices[1];
       h = 0;
    
-      return CSS_INDEX(parity, r, h);
+      return CQ_INDEX(parity, rIdx, h);
    }
    
    if (shift > 0)
@@ -418,9 +427,9 @@ uint setupDiscreteLog(ulong thePrime, ulong _q, ulong _one,
    if (h == r)
       return 0;
    
-   r = prlIndices[r];
+   rIdx = prlIndices[r];
    
-   return CSS_INDEX(parity, r, h);
+   return CQ_INDEX(parity, rIdx, h);
 }
 
 ulong buildLookupsAndClimbLadder(ulong thePrime, ulong _q,  ulong _one,
