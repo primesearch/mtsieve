@@ -92,11 +92,11 @@ parse_t SmarandacheApp::ParseOption(int opt, char *arg, const char *source)
    switch (opt)
    {
       case 'n':
-         status = Parser::Parse(arg, 1, 1000000000, ii_MinN);
+         status = Parser::Parse(arg, 100000, 999999, ii_MinN);
          break;
          
       case 'N':
-         status = Parser::Parse(arg, 1, 1000000000, ii_MaxN);
+         status = Parser::Parse(arg, 100000, 999999, ii_MaxN);
          break;
 
 #ifdef HAVE_GPU_WORKERS
@@ -221,7 +221,7 @@ void SmarandacheApp::ProcessInputTermsFile(bool haveBitMap)
       if (n<100000 || n>999999)
          FatalError("Term %u must be between 100000 and 999999", n);
       
-      if !ii_MaxN == 0)
+      if (ii_MaxN == 0)
          ii_MinN = ii_MaxN = n;
             
       if (haveBitMap)
@@ -279,7 +279,7 @@ void SmarandacheApp::WriteOutputTermsFile(uint64_t largestPrime)
 
    for (uint32_t n=ii_MinN; n<=ii_MaxN; n++)
    {
-      if (iv_Terms[BIT(n))
+      if (iv_Terms[BIT(n)])
       {
          fprintf(termsFile, "%d\n", n);
          termsCounted++;

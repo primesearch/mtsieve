@@ -74,7 +74,7 @@ void  SmarandacheWorker::TestMegaPrimeChunk(void)
       MpResVec resTenE1 = mp.nToRes(10);
       
       MpResVec tempMul1 = mp.nToRes(15208068915062105958ULL);
-      MpResVec tempSub1 = mp.nToRes(11211123422);
+      MpResVec tempSub1 = mp.nToRes(11211123422ULL);
       
       MpResVec tempSub2 = mp.nToRes(1109890222);
       MpResVec resInvmod2 = mp.nToRes(invmod2);
@@ -83,7 +83,7 @@ void  SmarandacheWorker::TestMegaPrimeChunk(void)
       MpResVec tempSub3 = mp.nToRes(1110988902222ULL);
       MpResVec resInvmod3 = mp.nToRes(invmod3);
       
-      MpResVec tempMul4 = mp.nToRes(12345654321);
+      MpResVec tempMul4 = mp.nToRes(12345654321ULL);
       MpResVec tempSub4 = mp.nToRes(1111098889022222ULL);
       MpResVec resInvmod4 = mp.nToRes(invmod4);
       
@@ -123,7 +123,7 @@ void  SmarandacheWorker::TestMegaPrimeChunk(void)
       //      submod(C,1111098889022222ULL);
       //      divmod(C, 123454321ULL);
       
-      resTemp = mp.pow(resTenE1, 44999);
+      resTemp = mp.pow(resTenE1, 449999);
       resC = mp.mul(resC, tempMul4);     
       resC = mp.mul(resC, resTemp);     
       resC = mp.sub(resC, tempSub4);
@@ -141,14 +141,19 @@ void  SmarandacheWorker::TestMegaPrimeChunk(void)
       
       MpResVec res9s = mp.nToRes(999999);
       MpResVec resR = mp.nToRes(1000000000000000000ULL);
-      MpResVec resT[7];
+      MpResVec resT[6];
+
+      //      T[1] = mulmod(r, r, f);
+      //      T[2] = mulmod(T[1], T[1], f);
+      //      T[3] = mulmod(T[1], T[2], f);
+      //      T[4] = mulmod(T[2], T[2], f);
+      //      T[5] = mulmod(T[2], T[3], f);
 
       resT[1] = mp.mul(resR, resR);
       resT[2] = mp.mul(resT[1], resT[1]);
-      resT[3] = mp.mul(resT[2], resT[1]);
-      resT[4] = mp.mul(resT[3], resT[1]);
-      resT[5] = mp.mul(resT[4], resT[1]);
-      resT[6] = mp.mul(resT[5], resT[1]);
+      resT[3] = mp.mul(resT[1], resT[2]);
+      resT[4] = mp.mul(resT[2], resT[2]);
+      resT[5] = mp.mul(resT[2], resT[3]);
       
       // This is only for the first term
       if (MpArithVec::at_least_one_is_equal(resC, resM))
@@ -165,13 +170,22 @@ void  SmarandacheWorker::TestMegaPrimeChunk(void)
       {         
          uint32_t dn = terms[idx] - terms[idx-1];
          
-         if (dn < 30)
+         //    if(dn<=30)
+         //      C = mulmod(C, T[dn/6], f);
+         //    else {
+         //      t = powmod(r, dn/3, f);
+         //      C = mulmod(C, t, f);
+         //    }
+         
+         if (dn <= 30)
             resC = mp.mul(resC, resT[dn/6]);
          else
          {
-            resTemp = mp.pow(resR, dn/3);
+            resTemp = mp.pow(resT[1], dn/6);
             resC = mp.mul(resC, resTemp);
          }
+         
+         // M = (M + 999999ULL*dn) % f;
          
          resTemp = mp.nToRes(dn);
          resTemp = mp.mul(resTemp, res9s);
