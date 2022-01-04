@@ -92,6 +92,7 @@ PIX_OBJS=primes_in_x/PrimesInXApp_cpu.o primes_in_x/PrimesInXWorker_cpu.o primes
 PRIM_OBJS=primorial/PrimorialApp_cpu.o primorial/PrimorialWorker_cpu.o primorial/primorial.o
 TWIN_OBJS=twin/TwinApp.o twin/TwinWorker.o
 SG_OBJS=sophie_germain/SophieGermainApp.o sophie_germain/SophieGermainWorker.o
+SM_OBJS=smarandache/SmarandacheApp.o smarandache/SmarandacheWorker.o
 SR2_OBJS=sierpinski_riesel/SierpinskiRieselApp_cpu.o sierpinski_riesel/AlgebraicFactorHelper_cpu.o \
    sierpinski_riesel/AbstractSequenceHelper_cpu.o sierpinski_riesel/AbstractWorker_cpu.o \
    sierpinski_riesel/GenericSequenceHelper_cpu.o sierpinski_riesel/GenericWorker_cpu.o \
@@ -119,7 +120,7 @@ ALL_OBJS=$(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(CPU_CORE_OBJS) $(GPU_C
    $(PIX_OBJS) $(XYYX_OBJS) $(KBB_OBJS) $(GCW_OBJS) $(PRIM_OBJS) $(TWIN_OBJS) \
    $(DMD_OBJS) $(SR2_OBJS) $(K1B2_OBJS) $(SG_OBJS) $(PRIM_GPU_OBJS) \
    $(AF_GPU_OBJS) $(GCW_GPU_OBJS) $(GFND_GPU_OBJS) $(MF_GPU_OBJS) $(PIX_GPU_OBJS) \
-   $(XYYX_GPU_OBJS) $(SR2_GPU_OBJS)
+   $(XYYX_GPU_OBJS) $(SR2_GPU_OBJS) $(SM_OBJS)
 
 all: $(CPU_PROGS) $(GPU_PROGS)
 
@@ -194,6 +195,9 @@ psievecl: $(GPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(PRIM_GPU_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(GPULDFLAGS) $(EXTRALDFLAGS)
    
 sgsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(SG_OBJS)
+	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(EXTRALDFLAGS)
+   
+smsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(SM_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(EXTRALDFLAGS)
    
 srsieve2: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(SR2_OBJS)
