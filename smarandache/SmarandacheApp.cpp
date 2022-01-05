@@ -180,6 +180,7 @@ terms_t *SmarandacheApp::GetTerms(void)
       }
    }
    
+   terms->termCount = idx;
    return terms;
 }
 

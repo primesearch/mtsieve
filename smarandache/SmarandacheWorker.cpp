@@ -35,6 +35,7 @@ void  SmarandacheWorker::TestMegaPrimeChunk(void)
    uint64_t  ps[4], maxPrime = ip_App->GetMaxPrime();
    vector<uint64_t>::iterator it = iv_Primes.begin();
    uint32_t *terms = ip_Terms->termList;
+   uint32_t  termCount = ip_Terms->termCount;
    uint64_t  invmod2[4];
    uint64_t  invmod3[4];
    uint64_t  invmod4[4];
@@ -169,7 +170,7 @@ void  SmarandacheWorker::TestMegaPrimeChunk(void)
       }
          
       // This is for the remaining terms
-      for (uint32_t idx=1;idx<ip_Terms->termCount;idx++)
+      for (uint32_t idx=1; idx<termCount; idx++)
       {         
          uint32_t dn = terms[idx] - terms[idx-1];
          
@@ -200,7 +201,7 @@ void  SmarandacheWorker::TestMegaPrimeChunk(void)
             
             for (uint32_t k=0;k<VECTOR_SIZE;++k)
                if (resC[k] == resM[k])
-                  ip_SmarandacheApp->ReportFactor(ps[k], terms[idx-1]);
+                  ip_SmarandacheApp->ReportFactor(ps[k], terms[idx]);
          }
       }
       
