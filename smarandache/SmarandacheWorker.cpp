@@ -1,8 +1,8 @@
 /* SmarandacheWorker.cpp -- (C) Mark Rodenkirch, January 2022
 
-   This program is free software; you can redistribute it and/or modify
+   This program is free software;you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
+   the Free Software Foundation;either version 2 of the License, or
    (at your option) any later version.
 */
 
@@ -39,6 +39,9 @@ void  SmarandacheWorker::TestMegaPrimeChunk(void)
    uint64_t  invmod3[4];
    uint64_t  invmod4[4];
    bool      factorFound = false;
+   
+   uint64_t  m = ((uint64_t) terms[0] * 999999) + 1000000;
+   uint32_t  exp = 6*terms[0] - 599989;
 
    while (it != iv_Primes.end())
    {
@@ -101,7 +104,7 @@ void  SmarandacheWorker::TestMegaPrimeChunk(void)
       //     divmod(C, 12321ULL);
 
       resTemp = mp.pow(resTenE1, 2699);
-      resC = mp.mul(resC, resTemp);     
+      resC = mp.mul(resC, resTemp);
       resC = mp.sub(resC, tempSub2);
       resC = mp.mul(resC, resInvmod2);
 
@@ -112,10 +115,11 @@ void  SmarandacheWorker::TestMegaPrimeChunk(void)
       //     divmod(C, 1234321ULL);
       
       resTemp = mp.pow(resTenE1, 35999);
-      resC = mp.mul(resC, resTemp);     
-      resC = mp.mul(resC, tempMul3);     
+      resC = mp.mul(resC, resTemp);
+      resC = mp.mul(resC, tempMul3);
       resC = mp.sub(resC, tempSub3);
       resC = mp.mul(resC, resInvmod3);
+      resC = mp.mul(resC, tempMul4);
       
       //      C = mulmod(C,12345654321ULL % f, f);
       //      t = powmod(10,449999,f);
@@ -124,8 +128,7 @@ void  SmarandacheWorker::TestMegaPrimeChunk(void)
       //      divmod(C, 123454321ULL);
       
       resTemp = mp.pow(resTenE1, 449999);
-      resC = mp.mul(resC, tempMul4);     
-      resC = mp.mul(resC, resTemp);     
+      resC = mp.mul(resC, resTemp);
       resC = mp.sub(resC, tempSub4);
       resC = mp.mul(resC, resInvmod4);
       
@@ -134,10 +137,10 @@ void  SmarandacheWorker::TestMegaPrimeChunk(void)
       //      M = (v[0]*999999ULL+1000000)%f;
       //      r = 1000000000000000000ULL%f;
       
-      resTemp = mp.pow(resTenE1, 6*terms[0]-599989);
+      resTemp = mp.pow(resTenE1, exp);
       resC = mp.mul(resC, resTemp);
       
-      MpResVec resM = mp.nToRes(terms[0] * 999999 + 1000000);
+      MpResVec resM = mp.nToRes(m);
       
       MpResVec res9s = mp.nToRes(999999);
       MpResVec resR = mp.nToRes(1000000000000000000ULL);
@@ -160,13 +163,13 @@ void  SmarandacheWorker::TestMegaPrimeChunk(void)
       {
          factorFound = true;
          
-         for (uint32_t k=0; k<VECTOR_SIZE; ++k)
+         for (uint32_t k=0;k<VECTOR_SIZE;++k)
             if (resC[k] == resM[k])
                ip_SmarandacheApp->ReportFactor(ps[k], terms[0]);
       }
          
       // This is for the remaining terms
-      for (uint32_t idx=1; idx<ip_Terms->termCount; idx++)
+      for (uint32_t idx=1;idx<ip_Terms->termCount;idx++)
       {         
          uint32_t dn = terms[idx] - terms[idx-1];
          
@@ -195,7 +198,7 @@ void  SmarandacheWorker::TestMegaPrimeChunk(void)
          {
             factorFound = true;
             
-            for (uint32_t k=0; k<VECTOR_SIZE; ++k)
+            for (uint32_t k=0;k<VECTOR_SIZE;++k)
                if (resC[k] == resM[k])
                   ip_SmarandacheApp->ReportFactor(ps[k], terms[idx-1]);
          }
