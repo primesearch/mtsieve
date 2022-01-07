@@ -8,64 +8,70 @@
 
 #include <cinttypes>
 #include "SmarandacheGpuWorker.h"
-#include "mf_kernel.h"
-#include "../x86_asm/fpu-asm-x86.h"
+#include "sm_kernel.h"
 #include <time.h>
 
 SmarandacheGpuWorker::SmarandacheGpuWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
 {
    char        define1[40];
-   char        define2[40];
-   char        define3[40];
-   char        define4[40];
-   char        define5[40];
    const char *source[10];
+   uint32_t    maxGpuSteps, idx;
 
    ib_GpuWorker = true;
    
    ip_SmarandacheApp = (SmarandacheApp *) theApp;
 
-   ii_MinN = ip_SmarandacheApp->GetMinN();
-   ii_MaxN = ip_SmarandacheApp->GetMaxN();
-   ii_MaxGpuSteps = ip_SmarandacheApp->GetMaxGpuSteps();
-   ii_Smarandache = ip_SmarandacheApp->GetSmarandache();
-   
    ii_MaxGpuFactors = ip_SmarandacheApp->GetMaxGpuFactors();
+   maxGpuSteps = ip_SmarandacheApp->GetMaxGpuSteps();
    
-   sprintf(define1, "#define D_MIN_N %d\n", ii_MinN);
-   sprintf(define2, "#define D_MAX_N %d\n", ii_MaxN);
-   sprintf(define3, "#define D_MAX_STEPS %d\n", ii_MaxGpuSteps);
-   sprintf(define4, "#define D_Smarandache %d\n", ii_Smarandache);
-   sprintf(define5, "#define D_MAX_FACTORS %d\n", ii_MaxGpuFactors);
+   terms_t *terms = ip_SmarandacheApp->GetTerms();
+   
+   ii_KernelCount = terms->termCount / maxGpuSteps;
+
+   // In case it was rounded down
+   if (maxGpuSteps * ii_KernelCount < terms->termCount)
+      ii_KernelCount++;
+   
+   ii_Terms = (uint32_t **) xmalloc(ii_KernelCount * sizeof(uint32_t *));
+   ip_SmarandacheKernel = (Kernel **) xmalloc(ii_KernelCount * sizeof(Kernel *));
+   ip_KATerms = (KernelArgument **) xmalloc(ii_KernelCount * sizeof(KernelArgument *));
+   
+   for (idx=0; idx<ii_KernelCount; idx++)
+      ii_Terms[idx] = (uint32_t *) xmalloc((maxGpuSteps+1) * sizeof(uint32_t));
+
+   BuildTerms(terms);
+   
+   sprintf(define1, "#define D_MAX_FACTORS %d\n", ii_MaxGpuFactors);
    
    source[0] = define1;
-   source[1] = define2;
-   source[2] = define3;
-   source[3] = define4;
-   source[4] = define5;
-   source[5] = mf_kernel;
-   source[6] = 0;
+   source[1] = sm_kernel;
+   source[2] = 0;
 
-   ip_FactorialKernel = new Kernel(ip_SmarandacheApp->GetDevice(), "mf_kernel", source);
-
-   AllocatePrimeList(ip_FactorialKernel->GetWorkGroupSize());
+   ip_SmarandacheKernel[0] = new Kernel(ip_SmarandacheApp->GetDevice(), "sm_kernel", source);
+      
+   AllocatePrimeList(ip_SmarandacheKernel[0]->GetWorkGroupSize());
    
-   il_RemainderList = (uint64_t *) xmalloc(2*ii_WorkSize*sizeof(uint64_t));
-   il_FactorList    = (int64_t *)  xmalloc(4*ii_MaxGpuFactors*sizeof(int64_t));
+   delete ip_SmarandacheKernel[0];
+   
+   il_FactorList    = (uint64_t *)  xmalloc(2*ii_MaxGpuFactors*sizeof(uint64_t));
 
    ip_KAPrime        = new KernelArgument(ip_SmarandacheApp->GetDevice(), "prime", KA_HOST_TO_GPU, il_PrimeList, ii_WorkSize);
-   ip_KARemainder    = new KernelArgument(ip_SmarandacheApp->GetDevice(), "remainder", KA_BIDIRECTIONAL, il_RemainderList, 2*ii_WorkSize);
-   ip_KAParams       = new KernelArgument(ip_SmarandacheApp->GetDevice(), "n_range", KA_HOST_TO_GPU, (int32_t *) &ii_Params, 5);
    ip_KAFactorCount  = new KernelArgument(ip_SmarandacheApp->GetDevice(), "factor_count", KA_BIDIRECTIONAL, &ii_FactorCount, 1);
-   ip_KAFactorList   = new KernelArgument(ip_SmarandacheApp->GetDevice(), "factor_list", KA_GPU_TO_HOST, il_FactorList, 4*ii_MaxGpuFactors);
+   ip_KAFactorList   = new KernelArgument(ip_SmarandacheApp->GetDevice(), "factor_list", KA_GPU_TO_HOST, il_FactorList, 2*ii_MaxGpuFactors);
 
-   ip_FactorialKernel->AddArgument(ip_KAPrime);
-   ip_FactorialKernel->AddArgument(ip_KARemainder);
-   ip_FactorialKernel->AddArgument(ip_KAParams);
-   ip_FactorialKernel->AddArgument(ip_KAFactorCount);
-   ip_FactorialKernel->AddArgument(ip_KAFactorList);
+   for (idx=0; idx<ii_KernelCount; idx++)
+   {
+      ip_KATerms[idx]  = new KernelArgument(ip_SmarandacheApp->GetDevice(), "terms", KA_HOST_TO_GPU, ii_Terms[idx], maxGpuSteps+1);
+      
+      ip_SmarandacheKernel[idx] = new Kernel(ip_SmarandacheApp->GetDevice(), "sm_kernel", source);
+
+      ip_SmarandacheKernel[idx]->AddArgument(ip_KAPrime);
+      ip_SmarandacheKernel[idx]->AddArgument(ip_KATerms[idx]);
+      ip_SmarandacheKernel[idx]->AddArgument(ip_KAFactorCount);
+      ip_SmarandacheKernel[idx]->AddArgument(ip_KAFactorList);
+   }
    
-   ip_FactorialKernel->PrintStatistics(0);
+   ip_SmarandacheKernel[0]->PrintStatistics(0);
    
    // The thread can't start until initialization is done
    ib_Initialized = true;
@@ -74,89 +80,93 @@ SmarandacheGpuWorker::SmarandacheGpuWorker(uint32_t myId, App *theApp) : Worker(
 void  SmarandacheGpuWorker::CleanUp(void)
 {
    delete ip_KAPrime;
-   delete ip_KARemainder;
-   delete ip_KAParams;
    delete ip_KAFactorCount;
    delete ip_KAFactorList;
-
+   
+   for (uint32_t idx=0; idx<ii_KernelCount; idx++)
+   {
+      delete ip_SmarandacheKernel[idx];
+      delete ip_KATerms[idx];
+      xfree(ii_Terms[idx]);
+   }
+   
    xfree(il_PrimeList);
-   xfree(il_RemainderList);
    xfree(il_FactorList);
+   
+   xfree(ip_SmarandacheKernel);
+}
+
+void  SmarandacheGpuWorker::BuildTerms(terms_t *terms)
+{
+   uint32_t kernelIdx, kernelTermsIdx, globalTermsIdx;
+   uint32_t maxGpuSteps = ip_SmarandacheApp->GetMaxGpuSteps();
+   
+   globalTermsIdx = 0;
+   for (kernelIdx=0; kernelIdx<ii_KernelCount; kernelIdx++)
+   {
+      memset(ii_Terms[kernelIdx], 0x00, (maxGpuSteps + 1) * sizeof(uint32_t));
+      
+      if (globalTermsIdx >= terms->termCount)
+         continue;
+
+      for (kernelTermsIdx=0; kernelTermsIdx<maxGpuSteps; kernelTermsIdx++)
+      {
+         ii_Terms[kernelIdx][kernelTermsIdx] = terms->termList[globalTermsIdx];
+         globalTermsIdx++;
+         
+         if (globalTermsIdx >= terms->termCount)
+            break;
+      };
+   }
+   
+   ib_NeedToRebuild = false;
 }
 
 void  SmarandacheGpuWorker::TestMegaPrimeChunk(void)
 {
-   uint32_t ii, idx;
-   uint32_t startN, n;
-   int32_t  iteration = 0, maxIterations, c;
+   uint32_t kernelIdx;
+   uint32_t n, ii, idx;
    uint64_t prime;
    time_t   reportTime;
 
-   // This is an approximation
-   maxIterations = ii_Smarandache * (1 + ii_MaxN) / ii_MaxGpuSteps;
+   if (ib_NeedToRebuild)
+      BuildTerms(ip_SmarandacheApp->GetTerms());
 
-   // For normal factorials, this loop will be iterated one.
-   // For multi-factorials, it will be iterated for the value of the multi-factorial.  So
-   // if this the multi-factorial is 3, i.e. n!3, then this is how it iterates:
-   //    n_seed=1 will evaluate 1!3, 4!3, 7!3, etc.  (7!3 = 7*4*1)
-   //    n_seed=2 will evaluate 2!3, 5!3, 8!3, etc.  (8!3 = 8*5*2)
-   //    n_seed=3 will evaluate 3!3, 6!3, 9!3, etc.  (9!3 = 9*6*3)
-   // For inverse multi-factorials, it will be similar.  If the inverse multi-factorial
-   // is 3, i.e. n!/n!3, then this is how it iterates:
-   //    n_seed=1 will evaluate 1!/1!3, 4!/4!3, 7!/7!3, etc.  (7!/7!3 = 6*5*3*2, i.e not multiplying by 7, 4, and 1)
-   //    n_seed=2 will evaluate 2!/2!3, 5!/5!3, 8!/8!3, etc.  (8!/8!3 = 7*6*4*3*1, i.e. not multiplying by 8, 5, and 2)
-   //    n_seed=3 will evaluate 3!/3!3, 6!/6!3, 9!/9!3, etc.  (9!/9!3 = 8*7*5*4*2*1, i.e. not multiplying by 9, 6, and 3))
-   for (startN=1; startN<=ii_Smarandache; startN++)
+   for (kernelIdx=0; kernelIdx<ii_KernelCount; kernelIdx++)
    {
-      // If startN is odd and mf is even, then i!mf is always odd, thus
-      // startN!mf+1 and startN!mf-1 are always even.
-      if (!(ii_Smarandache & 1) && (startN & 1))
-         continue;
-
-      // The first parameter is the starting n for the calculation, i.e. n!
-      ii_Params[0] = startN;
-
-      // Initialize the list of remainders
-      for (idx=0; idx<ii_WorkSize; idx++)
-         il_RemainderList[idx] = 1;
+      // Check if we need to execute this kernel
+      if (ii_Terms[kernelIdx][0] == 0)
+         break;
 
       reportTime = time(NULL) + 60;
 
-      ii_Params[1] = startN;
+      ii_FactorCount = 0;
+  
+      ip_SmarandacheKernel[kernelIdx]->Execute(ii_WorkSize);
+
+      for (ii=0; ii<ii_FactorCount; ii++)
+      {  
+         idx = ii*2;
+         
+         n = (uint32_t) il_FactorList[idx+0];
+         prime = il_FactorList[idx+1];
       
-      do
+         ip_SmarandacheApp->ReportFactor(prime, n);
+         
+         ib_NeedToRebuild = true;
+         
+         if (ii >= ii_MaxGpuFactors)
+            break;
+      }
+
+      if (ii_FactorCount >= ii_MaxGpuFactors)
+         FatalError("Could not handle all GPU factors.  A range of p generated %u factors.  Use -M to increase max factors", ii_FactorCount);
+
+      if (kernelIdx < ii_KernelCount && ip_SmarandacheApp->IsInterrupted() && time(NULL) > reportTime)
       {
-         iteration++;
-         ii_FactorCount = 0;
-     
-         ip_FactorialKernel->Execute(ii_WorkSize);
-
-         for (ii=0; ii<ii_FactorCount; ii++)
-         {  
-            idx = ii*4;
-            
-            n = (uint32_t) il_FactorList[idx+0];
-            c = (int32_t) il_FactorList[idx+1];
-            prime = il_FactorList[idx+2];
-         
-            ip_SmarandacheApp->ReportFactor(prime, n, c);
-            
-            if (ii >= ii_MaxGpuFactors)
-               break;
-         }
-
-         if (ii_FactorCount >= ii_MaxGpuFactors)
-            FatalError("Could not handle all GPU factors.  A range of p generated %u factors.  Use -M to increase max factors", ii_FactorCount);
-
-         if (iteration < maxIterations && ip_SmarandacheApp->IsInterrupted() && time(NULL) > reportTime)
-         {
-            ip_SmarandacheApp->WriteToConsole(COT_SIEVE, "Thread %d has completed %d of %d iterations", ii_MyId, iteration, maxIterations);
-            reportTime = time(NULL) + 60;
-         }
-         
-         // Set where the next range is starting.
-         ii_Params[1] += (ii_MaxGpuSteps * ii_Smarandache);
-      } while (ii_Params[1] <= ii_MaxN);
+         ip_SmarandacheApp->WriteToConsole(COT_SIEVE, "Thread %d has completed %d of %d iterations", ii_MyId, kernelIdx, ii_KernelCount);
+         reportTime = time(NULL) + 60;
+      }
    }
    
    SetLargestPrimeTested(il_PrimeList[ii_WorkSize-1], ii_WorkSize);

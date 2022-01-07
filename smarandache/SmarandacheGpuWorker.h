@@ -28,25 +28,23 @@ public:
    void              CleanUp(void);
 
 protected:
-   SmarandacheApp *ip_SmarandacheApp;
+   void              BuildTerms(terms_t *terms);
    
-   uint32_t          ii_MinN;
-   uint32_t          ii_MaxN;
-   uint32_t          ii_MaxGpuSteps;
-   uint32_t          ii_Smarandache;
+   SmarandacheApp   *ip_SmarandacheApp;
+
+   uint32_t          ii_KernelCount;
+   bool              ib_NeedToRebuild;
+   uint32_t        **ii_Terms;
+   
    uint32_t          ii_MaxGpuFactors;
    
-   uint64_t         *il_RemainderList;
-   uint32_t          ii_Params[5];
    uint32_t          ii_FactorCount;
-   int64_t          *il_FactorList;
+   uint64_t         *il_FactorList;
 
-   Kernel           *ip_FactorialKernel;
+   Kernel          **ip_SmarandacheKernel;
 
    KernelArgument   *ip_KAPrime;
-   KernelArgument   *ip_KARemainder;
-   KernelArgument   *ip_KAParams;
-   KernelArgument   *ip_KATemp;
+   KernelArgument  **ip_KATerms;
    KernelArgument   *ip_KAFactorCount;
    KernelArgument   *ip_KAFactorList;
 };
