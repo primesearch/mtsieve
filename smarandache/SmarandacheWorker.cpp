@@ -76,7 +76,7 @@ bool  SmarandacheWorker::TestSixDigitN(void)
       ps[3] = *it;
       it++;
 
-      if (ps[0] > 12321)
+      if (ps[0] < 12321)
       {
          invmod2[0] = InvMod64(12321 % ps[0], ps[0]);
          invmod2[1] = InvMod64(12321 % ps[1], ps[1]);
@@ -91,7 +91,7 @@ bool  SmarandacheWorker::TestSixDigitN(void)
          invmod2[3] = InvMod64(12321, ps[3]);
       }
 
-      if (ps[0] > 1234321)
+      if (ps[0] < 1234321)
       {
          invmod3[0] = InvMod64(1234321 % ps[0], ps[0]);
          invmod3[1] = InvMod64(1234321 % ps[1], ps[1]);
@@ -106,7 +106,7 @@ bool  SmarandacheWorker::TestSixDigitN(void)
          invmod3[3] = InvMod64(1234321, ps[3]);
       }
       
-      if (ps[0] > 123454321)
+      if (ps[0] < 123454321)
       {
          invmod4[0] = InvMod64(123454321, ps[0]);
          invmod4[1] = InvMod64(123454321, ps[1]);
@@ -311,7 +311,7 @@ bool  SmarandacheWorker::TestSevenDigitN(void)
       invmod2[2] = InvMod64(two9sq, ps[2]);
       invmod2[3] = InvMod64(two9sq, ps[3]);
      
-      if (ps[0] > three9sq)
+      if (ps[0] < three9sq)
       {
          invmod3[0] = InvMod64(three9sq%ps[0], ps[0]);
          invmod3[1] = InvMod64(three9sq%ps[1], ps[1]);
@@ -326,7 +326,7 @@ bool  SmarandacheWorker::TestSevenDigitN(void)
          invmod3[3] = InvMod64(three9sq, ps[3]);
       }
       
-      if (ps[0] > four9sq)
+      if (ps[0] < four9sq)
       {
          invmod4[0] = InvMod64(four9sq%ps[0], ps[0]);
          invmod4[1] = InvMod64(four9sq%ps[1], ps[1]);
@@ -341,7 +341,7 @@ bool  SmarandacheWorker::TestSevenDigitN(void)
          invmod4[3] = InvMod64(four9sq, ps[3]);
       }
       
-      if (ps[0] > five9sq)
+      if (ps[0] < five9sq)
       {
          invmod5[0] = InvMod64(five9sq%ps[0], ps[0]);
          invmod5[1] = InvMod64(five9sq%ps[1], ps[1]);
@@ -356,7 +356,7 @@ bool  SmarandacheWorker::TestSevenDigitN(void)
          invmod5[3] = InvMod64(five9sq, ps[3]);
       }
       
-      if (ps[0] > six9sq)
+      if (ps[0] < six9sq)
       {
          invmod6[0] = InvMod64(six9sq%ps[0], ps[0]);
          invmod6[1] = InvMod64(six9sq%ps[1], ps[1]);
