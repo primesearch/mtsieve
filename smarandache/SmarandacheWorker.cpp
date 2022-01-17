@@ -108,17 +108,17 @@ bool  SmarandacheWorker::TestSixDigitN(void)
       
       if (ps[0] < 123454321)
       {
-         invmod4[0] = InvMod64(123454321, ps[0]);
-         invmod4[1] = InvMod64(123454321, ps[1]);
-         invmod4[2] = InvMod64(123454321, ps[2]);
-         invmod4[3] = InvMod64(123454321, ps[3]);
-      }
-      else
-      {
          invmod4[0] = InvMod64(123454321 % ps[0], ps[0]);
          invmod4[1] = InvMod64(123454321 % ps[1], ps[1]);
          invmod4[2] = InvMod64(123454321 % ps[2], ps[2]);
          invmod4[3] = InvMod64(123454321 % ps[3], ps[3]);
+      }
+      else
+      {
+         invmod4[0] = InvMod64(123454321, ps[0]);
+         invmod4[1] = InvMod64(123454321, ps[1]);
+         invmod4[2] = InvMod64(123454321, ps[2]);
+         invmod4[3] = InvMod64(123454321, ps[3]);
       }
       
       
