@@ -26,6 +26,9 @@ public:
    void              CleanUp(void);
 
 protected:
+   bool              TestSixDigitN(void);
+   bool              TestSevenDigitN(void);
+   
    SmarandacheApp   *ip_SmarandacheApp;
    
    uint32_t          ii_MinN;

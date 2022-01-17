@@ -33,7 +33,7 @@ protected:
    SmarandacheApp   *ip_SmarandacheApp;
 
    uint32_t          ii_KernelCount;
-   bool              ib_NeedToRebuild;
+   bool              ib_NeedToRebuildTerms;
    uint32_t        **ii_Terms;
    
    uint32_t          ii_MaxGpuFactors;
@@ -41,7 +41,8 @@ protected:
    uint32_t          ii_FactorCount;
    uint64_t         *il_FactorList;
 
-   Kernel          **ip_SmarandacheKernel;
+   Kernel          **ip_SmarandacheKernel6;
+   Kernel          **ip_SmarandacheKernel7;
 
    KernelArgument   *ip_KAPrime;
    KernelArgument  **ip_KATerms;

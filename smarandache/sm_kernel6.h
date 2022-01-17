@@ -1,12 +1,12 @@
 #ifdef __cplusplus
-#ifndef _SM_KERNEL_CL
-#define _SM_KERNEL_CL
-const char *sm_kernel= \
+#ifndef _SM_KERNEL6_CL
+#define _SM_KERNEL6_CL
+const char *sm_kernel6= \
 "#pragma OPENCL EXTENSION cl_khr_int64_extended_atomics: enable\n" \
 "ulong  invmod(ulong a, ulong p);\n" \
 "void collect_factor(uint    n,\n" \
 "ulong   p,\n" \
-"volatile __global uint   *factorsCount,\n" \
+"volatile __global uint   *factorCount,\n" \
 "__global ulong2 *factors);\n" \
 "ulong mmmInvert(ulong _p);\n" \
 "ulong mmmOne(ulong _p);\n" \
@@ -17,31 +17,30 @@ const char *sm_kernel= \
 "ulong mmmNtoRes(ulong n, ulong _p, ulong _q, ulong _r2);\n" \
 "ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one);\n" \
 "ulong mmmResToN(ulong res, ulong _p, ulong _q);\n" \
-"__kernel void sm_kernel(__global const  ulong  *primes,\n" \
+"__kernel void sm_kernel6(__global const  ulong  *primes,\n" \
 "__global const  uint   *terms,\n" \
-"volatile __global        uint   *factorsCount,\n" \
+"volatile __global        uint   *factorCount,\n" \
 "__global        ulong2 *factors)\n" \
 "{\n" \
 "int    gid = get_global_id(0);\n" \
-"ulong  n;\n" \
 "ulong  thePrime = primes[gid];\n" \
 "if (thePrime == 0) return;\n" \
 "ulong _q = mmmInvert(thePrime);\n" \
 "ulong _one = mmmOne(thePrime);\n" \
 "ulong _r2 = mmmR2(thePrime, _q, _one);\n" \
 "ulong invmod2 = invmod(12321, thePrime);\n" \
-"ulong invmod3 = invmod(1234321, thePrime);\n" \
-"ulong invmod4 = invmod(123454321, thePrime);\n" \
+"ulong invmod3 = invmod(((ulong) 1234321) % thePrime, thePrime);\n" \
+"ulong invmod4 = invmod(((ulong) 123454321) % thePrime, thePrime);\n" \
 "ulong resTenE1 = mmmNtoRes(10, thePrime, _q, _r2);\n" \
-"ulong tempMul1 = mmmNtoRes(15208068915062105958, thePrime, _q, _r2);\n" \
-"ulong tempSub1 = mmmNtoRes(11211123422, thePrime, _q, _r2);\n" \
-"ulong tempSub2 = mmmNtoRes(1109890222, thePrime, _q, _r2);\n" \
+"ulong tempMul1 = mmmNtoRes(((ulong) 15208068915062105958) % thePrime, thePrime, _q, _r2);\n" \
+"ulong tempSub1 = mmmNtoRes(((ulong) 11211123422) % thePrime, thePrime, _q, _r2);\n" \
+"ulong tempSub2 = mmmNtoRes(((ulong) 1109890222) % thePrime, thePrime, _q, _r2);\n" \
 "ulong resInvmod2 = mmmNtoRes(invmod2, thePrime, _q, _r2);\n" \
-"ulong tempMul3 = mmmNtoRes(123454321, thePrime, _q, _r2);\n" \
-"ulong tempSub3 = mmmNtoRes(1110988902222, thePrime, _q, _r2);\n" \
+"ulong tempMul3 = mmmNtoRes(((ulong) 123454321) % thePrime, thePrime, _q, _r2);\n" \
+"ulong tempSub3 = mmmNtoRes(((ulong) 1110988902222) % thePrime, thePrime, _q, _r2);\n" \
 "ulong resInvmod3 = mmmNtoRes(invmod3, thePrime, _q, _r2);\n" \
-"ulong tempMul4 = mmmNtoRes(12345654321, thePrime, _q, _r2);\n" \
-"ulong tempSub4 = mmmNtoRes(1111098889022222, thePrime, _q, _r2);\n" \
+"ulong tempMul4 = mmmNtoRes(((ulong) 12345654321) % thePrime, thePrime, _q, _r2);\n" \
+"ulong tempSub4 = mmmNtoRes(((ulong) 1111098889022222) % thePrime, thePrime, _q, _r2);\n" \
 "ulong resInvmod4 = mmmNtoRes(invmod4, thePrime, _q, _r2);\n" \
 "ulong resTemp = mmmPowmod(resTenE1, 179, thePrime, _q, _one);\n" \
 "ulong resC = mmmMulmod(resTemp, tempMul1, thePrime, _q);\n" \
@@ -66,7 +65,7 @@ const char *sm_kernel= \
 "resC = mmmMulmod(resC, resTemp, thePrime, _q);\n" \
 "ulong resM = mmmNtoRes(m, thePrime, _q, _r2);\n" \
 "ulong res9s = mmmNtoRes(999999, thePrime, _q, _r2);\n" \
-"ulong resR = mmmNtoRes(1000000000000000000, thePrime, _q, _r2);\n" \
+"ulong resR = mmmNtoRes(((ulong) 1000000000000000000) % thePrime, thePrime, _q, _r2);\n" \
 "ulong resT[6];\n" \
 "resT[1] = mmmMulmod(resR, resR, thePrime, _q);\n" \
 "resT[2] = mmmMulmod(resT[1], resT[1], thePrime, _q);\n" \
@@ -74,7 +73,7 @@ const char *sm_kernel= \
 "resT[4] = mmmMulmod(resT[2], resT[2], thePrime, _q);\n" \
 "resT[5] = mmmMulmod(resT[2], resT[3], thePrime, _q);\n" \
 "if (resC == resM)\n" \
-"collect_factor(terms[0], thePrime, factorsCount, factors);\n" \
+"collect_factor(terms[0], thePrime, factorCount, factors);\n" \
 "uint idx = 1;\n" \
 "while (terms[idx] > 0)\n" \
 "{\n" \
@@ -90,7 +89,7 @@ const char *sm_kernel= \
 "resTemp = mmmMulmod(resTemp, res9s, thePrime, _q);\n" \
 "resM = mmmAdd(resM, resTemp, thePrime);\n" \
 "if (resC == resM)\n" \
-"collect_factor(terms[idx], thePrime, factorsCount, factors);\n" \
+"collect_factor(terms[idx], thePrime, factorCount, factors);\n" \
 "idx++;\n" \
 "}\n" \
 "}\n" \

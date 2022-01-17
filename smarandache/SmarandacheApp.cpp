@@ -42,12 +42,12 @@ SmarandacheApp::SmarandacheApp() : FactorApp()
    ii_CpuWorkSize = 10000;
    
    // We'll remove all even terms manually
-   SetAppMinPrime(3);
+   SetAppMinPrime(99*99);
 
    SetAppMaxPrime(PMAX_MAX_52BIT);
    
 #ifdef HAVE_GPU_WORKERS
-   ii_MaxGpuSteps = 100000;
+   ii_MaxGpuSteps = 1000000;
    ii_MaxGpuFactors = GetGpuWorkGroups() * 10;
 #endif
 }
@@ -92,11 +92,11 @@ parse_t SmarandacheApp::ParseOption(int opt, char *arg, const char *source)
    switch (opt)
    {
       case 'n':
-         status = Parser::Parse(arg, 100000, 999999, ii_MinN);
+         status = Parser::Parse(arg, 100000, 9999999, ii_MinN);
          break;
          
       case 'N':
-         status = Parser::Parse(arg, 100000, 999999, ii_MaxN);
+         status = Parser::Parse(arg, 100000, 9999999, ii_MaxN);
          break;
 
 #ifdef HAVE_GPU_WORKERS
@@ -114,7 +114,7 @@ parse_t SmarandacheApp::ParseOption(int opt, char *arg, const char *source)
 }
 
 void SmarandacheApp::ValidateOptions(void)
-{ 
+{
    if (is_OutputTermsFileName.length() == 0)
    {
       char fileName[50];
@@ -127,6 +127,12 @@ void SmarandacheApp::ValidateOptions(void)
    if (is_InputTermsFileName.length() > 0)
    {
       ProcessInputTermsFile(false);
+   
+      if (ii_MinN < 100000 || ii_MinN > 9999999)
+         FatalError("The min value for terms must be between 100000 and 9999999");
+      
+      if (ii_MaxN < 100000 || ii_MaxN > 9999999)
+         FatalError("The max value for terms must be between 100000 and 9999999");
    
       iv_Terms.resize(ii_MaxN - ii_MinN + 1);
       std::fill(iv_Terms.begin(), iv_Terms.end(), false);
@@ -187,7 +193,7 @@ terms_t *SmarandacheApp::GetTerms(void)
 void SmarandacheApp::ProcessInputTermsFile(bool haveBitMap)
 {
    FILE    *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
-   char     buffer[1000], *pos;
+   char     buffer[1000];
    uint32_t n;
    uint64_t sieveLimit;
 
@@ -200,10 +206,8 @@ void SmarandacheApp::ProcessInputTermsFile(bool haveBitMap)
   if (memcmp(buffer, "ABC Sm($a)", 10))
       FatalError("Line 1 is malformed in input file %s", is_InputTermsFileName.c_str());
 
-   pos = strstr(buffer, "//");
-   if (pos)
-      if (sscanf(pos+11, "%" SCNu64"", &sieveLimit) == 1)
-         SetMinPrime(sieveLimit);
+   if (sscanf(buffer, "ABC Sm($a) // Sieved to %" SCNu64"", &sieveLimit) == 1)
+      SetMinPrime(sieveLimit);
 
    if (!haveBitMap)
       ii_MinN = ii_MaxN = 0;
@@ -219,7 +223,7 @@ void SmarandacheApp::ProcessInputTermsFile(bool haveBitMap)
       if (n % 6 != 1)
          FatalError("Term %u is not == 1 (mod 6)", n);
 
-      if (n<100000 || n>999999)
+      if (n<100000 || n>9999999)
          FatalError("Term %u must be between 100000 and 999999", n);
       
       if (ii_MaxN == 0)

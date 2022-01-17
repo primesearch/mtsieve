@@ -15,6 +15,12 @@ The relative speed differnce between CPU and GPU is for an i7-8850H and NVIDIA Q
       Do not create output file if there are no terms to write to it.
 
       Exit sieving early if there are no remaining terms.
+   
+   smsieve, smsievecl: version 1.0
+      Initial release for sieving of Smarandache numbers between Sm(100000) and Sm(9999999).
+      Cannot be used at this time for sieving p < 10000, but that is okay since a project
+      has a pre-sieved input file to use.  It is impractical at this time to sieve values
+      larger than Sm(9999999) due to the time needed for a PRP test with pfgw.
       
    srsieve2, srsieve2cl:  version 1.6.0
       Changed the calculation of factor density so that the GPU workers can use a

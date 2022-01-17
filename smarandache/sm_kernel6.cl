@@ -15,7 +15,7 @@ ulong  invmod(ulong a, ulong p);
 
 void collect_factor(uint    n,
                     ulong   p,
-  volatile __global uint   *factorsCount,
+  volatile __global uint   *factorCount,
            __global ulong2 *factors);
 
 ulong mmmInvert(ulong _p);
@@ -28,14 +28,13 @@ ulong mmmNtoRes(ulong n, ulong _p, ulong _q, ulong _r2);
 ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one);
 ulong mmmResToN(ulong res, ulong _p, ulong _q);
 
-__kernel void sm_kernel(__global const  ulong  *primes,
-                        __global const  uint   *terms,
-               volatile __global        uint   *factorsCount,
-                        __global        ulong2 *factors)
+__kernel void sm_kernel6(__global const  ulong  *primes,
+                         __global const  uint   *terms,
+                volatile __global        uint   *factorCount,
+                         __global        ulong2 *factors)
 {
    int    gid = get_global_id(0);
    
-   ulong  n;
    ulong  thePrime = primes[gid];
 
    if (thePrime == 0) return;
@@ -45,23 +44,23 @@ __kernel void sm_kernel(__global const  ulong  *primes,
    ulong _r2 = mmmR2(thePrime, _q, _one);
 
    ulong invmod2 = invmod(12321, thePrime);
-   ulong invmod3 = invmod(1234321, thePrime);
-   ulong invmod4 = invmod(123454321, thePrime);
+   ulong invmod3 = invmod(((ulong) 1234321) % thePrime, thePrime);
+   ulong invmod4 = invmod(((ulong) 123454321) % thePrime, thePrime);
       
    ulong resTenE1 = mmmNtoRes(10, thePrime, _q, _r2);
       
-   ulong tempMul1 = mmmNtoRes(15208068915062105958, thePrime, _q, _r2);
-   ulong tempSub1 = mmmNtoRes(11211123422, thePrime, _q, _r2);
+   ulong tempMul1 = mmmNtoRes(((ulong) 15208068915062105958) % thePrime, thePrime, _q, _r2);
+   ulong tempSub1 = mmmNtoRes(((ulong) 11211123422) % thePrime, thePrime, _q, _r2);
    
-   ulong tempSub2 = mmmNtoRes(1109890222, thePrime, _q, _r2);
+   ulong tempSub2 = mmmNtoRes(((ulong) 1109890222) % thePrime, thePrime, _q, _r2);
    ulong resInvmod2 = mmmNtoRes(invmod2, thePrime, _q, _r2);
    
-   ulong tempMul3 = mmmNtoRes(123454321, thePrime, _q, _r2);
-   ulong tempSub3 = mmmNtoRes(1110988902222, thePrime, _q, _r2);
+   ulong tempMul3 = mmmNtoRes(((ulong) 123454321) % thePrime, thePrime, _q, _r2);
+   ulong tempSub3 = mmmNtoRes(((ulong) 1110988902222) % thePrime, thePrime, _q, _r2);
    ulong resInvmod3 = mmmNtoRes(invmod3, thePrime, _q, _r2);
    
-   ulong tempMul4 = mmmNtoRes(12345654321, thePrime, _q, _r2);
-   ulong tempSub4 = mmmNtoRes(1111098889022222, thePrime, _q, _r2);
+   ulong tempMul4 = mmmNtoRes(((ulong) 12345654321) % thePrime, thePrime, _q, _r2);
+   ulong tempSub4 = mmmNtoRes(((ulong) 1111098889022222) % thePrime, thePrime, _q, _r2);
    ulong resInvmod4 = mmmNtoRes(invmod4, thePrime, _q, _r2);
    
    //     t = powmod(10,179,f);
@@ -120,7 +119,7 @@ __kernel void sm_kernel(__global const  ulong  *primes,
    ulong resM = mmmNtoRes(m, thePrime, _q, _r2);
    
    ulong res9s = mmmNtoRes(999999, thePrime, _q, _r2);
-   ulong resR = mmmNtoRes(1000000000000000000, thePrime, _q, _r2);
+   ulong resR = mmmNtoRes(((ulong) 1000000000000000000) % thePrime, thePrime, _q, _r2);
    ulong resT[6];
 
    //      T[1] = mulmod(r, r, f);
@@ -137,7 +136,7 @@ __kernel void sm_kernel(__global const  ulong  *primes,
    
    // This is only for the first term    
       if (resC == resM)
-         collect_factor(terms[0], thePrime, factorsCount, factors);
+         collect_factor(terms[0], thePrime, factorCount, factors);
 
    // This is for the remaining terms
    uint idx = 1;
@@ -167,7 +166,7 @@ __kernel void sm_kernel(__global const  ulong  *primes,
       resM = mmmAdd(resM, resTemp, thePrime);
       
       if (resC == resM)
-         collect_factor(terms[idx], thePrime, factorsCount, factors);
+         collect_factor(terms[idx], thePrime, factorCount, factors);
          
       idx++;
    }
