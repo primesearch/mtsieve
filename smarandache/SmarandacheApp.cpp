@@ -128,12 +128,6 @@ void SmarandacheApp::ValidateOptions(void)
    {
       ProcessInputTermsFile(false);
    
-      if (ii_MinN < 100000 || ii_MinN > 9999999)
-         FatalError("The min value for terms must be between 100000 and 9999999");
-      
-      if (ii_MaxN < 100000 || ii_MaxN > 9999999)
-         FatalError("The max value for terms must be between 100000 and 9999999");
-   
       iv_Terms.resize(ii_MaxN - ii_MinN + 1);
       std::fill(iv_Terms.begin(), iv_Terms.end(), false);
       
@@ -224,7 +218,7 @@ void SmarandacheApp::ProcessInputTermsFile(bool haveBitMap)
          FatalError("Term %u is not == 1 (mod 6)", n);
 
       if (n<100000 || n>9999999)
-         FatalError("Term %u must be between 100000 and 999999", n);
+         FatalError("Term %u must be between 100000 and 9999999", n);
       
       if (ii_MaxN == 0)
          ii_MinN = ii_MaxN = n;
