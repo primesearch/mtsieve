@@ -84,7 +84,7 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
    sprintf(define09, "#define HASH_ELEMENTS %u\n", elements);
    sprintf(define10, "#define HASH_SIZE %u\n", hsize);
    sprintf(define11, "#define MAX_FACTORS %u\n", ii_MaxGpuFactors);
-   sprintf(define12, "#define POWER_RESIDUE_LCM %u\n", POWER_RESIDUE_LCM);
+   sprintf(define12, "#define POWER_RESIDUE_LCM %u\n", ip_CisOneHelper->GetPowerResidueLcm());
    sprintf(define13, "#define DIM2 %u\n", ii_Dim2);
    sprintf(define14, "#define DIM3 %u\n", ii_Dim3);
 
@@ -146,8 +146,8 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
 
    ip_KASubSeqBS        = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "baby_steps", KA_HOST_TO_GPU, ip_BabySteps, ii_SubsequenceCount);
    ip_KASubSeqGS        = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "giant_steps", KA_HOST_TO_GPU, ip_GiantSteps, ii_SubsequenceCount);
-   ip_KADivisorShifts   = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "divisor_shifts", KA_HOST_TO_GPU, ip_CisOneHelper->GetDivisorShifts(), POWER_RESIDUE_LCM / 2);
-   ip_KAPrlIndices      = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "prl_indices", KA_HOST_TO_GPU, ip_CisOneHelper->GetPowerResidueIndices(), POWER_RESIDUE_LCM + 1);
+   ip_KADivisorShifts   = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "divisor_shifts", KA_HOST_TO_GPU, ip_CisOneHelper->GetDivisorShifts(), ip_CisOneHelper->GetPowerResidueLcm() / 2);
+   ip_KAPrlIndices      = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "prl_indices", KA_HOST_TO_GPU, ip_CisOneHelper->GetPowerResidueIndices(), ip_CisOneHelper->GetPowerResidueLcm() + 1);
    
    ip_KAQIndices        = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "q_indices", KA_HOST_TO_GPU, ip_CisOneHelper->GetCongruentQIndices(), ii_Dim1);
    ip_KAQs              = new KernelArgument(ip_SierpinskiRieselApp->GetDevice(), "qs", KA_HOST_TO_GPU, ip_CisOneHelper->GetAllQs(), ip_CisOneHelper->GetUsedQEntries());
@@ -181,7 +181,7 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
    ip_SRKernel->AddArgument(ip_KAFactorCount);
    ip_SRKernel->AddArgument(ip_KAFactorList);
 
-   ip_SRKernel->PrintStatistics(hsize * 2 + elements * 2 + (elements+1)*8 + (POWER_RESIDUE_LCM+1)*8);
+   ip_SRKernel->PrintStatistics(hsize * 2 + elements * 2 + (elements+1)*8 + (ip_CisOneHelper->GetPowerResidueLcm()+1)*8);
 
    // The thread can't start until initialization is done
    ib_Initialized = true;
