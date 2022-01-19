@@ -105,7 +105,6 @@ void  SmarandacheGpuWorker::CleanUp(void)
       xfree(ii_Terms[idx]);
    }
    
-   xfree(il_PrimeList);
    xfree(il_FactorList);
    
    xfree(ip_SmarandacheKernel6);
