@@ -325,6 +325,8 @@ void SierpinskiRieselApp::ValidateOptions(void)
    double factors = (double) (ii_MaxN - ii_MinN) * (double) (ii_SequenceCount) / 1000000.0;
 
    ii_MaxGpuFactors = GetGpuWorkGroups() * (uint64_t) (factors * (double) ii_GpuFactorDensity);
+   
+   if (ii_MaxGpuFactors < 10) ii_MaxGpuFactors = 10;
 #endif
 
    FactorApp::ParentValidateOptions();
