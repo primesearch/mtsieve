@@ -142,7 +142,7 @@ Kernel *GenericGpuWorker::CreateKernel(uint32_t kernelIdx, uint32_t sequences, u
    uint32_t r = ii_MaxN/ii_BestQ - ii_MinN/ii_BestQ + 1;
    double babyStepFactor = 1.0; // DEFAULT_BABY_STEP_FACTOR from srsieve
 
-   uint32_t giantSteps = MAX(1, sqrt((double) r/ii_SubsequenceCount/babyStepFactor));
+   uint32_t giantSteps = MAX(1, sqrt((double) r/subsequences/babyStepFactor));
    uint32_t babySteps = MIN(r, ceil((double) r/giantSteps));
 
    if (babySteps > HASH_MAX_ELTS)
