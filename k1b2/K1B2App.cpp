@@ -121,10 +121,10 @@ void K1B2App::ValidateOptions(void)
    else
    {
       if (il_MinC == 0)
-         FatalError("kmin must be specified");
+         FatalError("cmin must be specified");
 
       if (il_MaxC == 0)
-         FatalError("kmax must be specified");
+         FatalError("cmax must be specified");
       
       if (ii_MinN == 0)
          FatalError("nmin must be specified");
