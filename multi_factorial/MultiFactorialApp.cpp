@@ -21,7 +21,7 @@
 #define APP_NAME        "mfsieve"
 #endif
 
-#define APP_VERSION     "1.9"
+#define APP_VERSION     "2.0"
 
 #define BIT(n)          ((n) - ii_MinN)
 
@@ -122,18 +122,6 @@ parse_t MultiFactorialApp::ParseOption(int opt, char *arg, const char *source)
 
 void MultiFactorialApp::ValidateOptions(void)
 { 
-   if (is_OutputTermsFileName.length() == 0)
-   {
-      char fileName[50];
-      
-      if (ii_MultiFactorial == 1)
-         sprintf(fileName, "factorial.pfgw");
-      else
-         sprintf(fileName, "mf_%d.pfgw", ii_MultiFactorial);
-      
-      is_OutputTermsFileName = fileName;
-   }
-   
    if (is_InputTermsFileName.length() > 0)
    {
       ProcessInputTermsFile(false);
@@ -181,7 +169,23 @@ void MultiFactorialApp::ValidateOptions(void)
       }
    }
 
+   if (is_OutputTermsFileName.length() == 0)
+   {
+      char fileName[50];
+      
+      if (ii_MultiFactorial == 1)
+         sprintf(fileName, "factorial.pfgw");
+      else
+         sprintf(fileName, "mf_%d.pfgw", ii_MultiFactorial);
+      
+      is_OutputTermsFileName = fileName;
+   }
+
    SetMinGpuPrime(ii_MaxN + 1);
+ 
+#ifdef HAVE_GPU_WORKERS
+   ii_MaxGpuFactors = GetGpuWorkGroups() * (ii_MaxN - ii_MinN) / 100;
+#endif
 
    FactorApp::ParentValidateOptions();
 
@@ -260,7 +264,7 @@ void MultiFactorialApp::ProcessInputTermsFile(bool haveBitMap)
       FatalError("No data in input file %s", is_InputTermsFileName.c_str());
    
   if (memcmp(buffer, "ABC $a#!$b", 9) && memcmp(buffer, "ABC $a!+$b", 10) &&
-      sscanf(buffer, "ABC $a!%d$b", &ii_MultiFactorial) != 1)
+      sscanf(buffer, "ABC $a!%u$b", &ii_MultiFactorial) != 1)
       FatalError("Line 1 is malformed in input file %s", is_InputTermsFileName.c_str());
 
    pos = strstr(buffer, "//");
@@ -463,9 +467,9 @@ bool  MultiFactorialApp::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_
          else
             sprintf(buffer, "%u!%u%+d is prime! (%" PRId64")", n, ii_MultiFactorial, c, p);
             
-         WriteToConsole(COT_OTHER, buffer);
+         WriteToConsole(COT_OTHER, "%s", buffer);
 
-         WriteToLog(buffer);
+         WriteToLog("%s", buffer);
       }
    
       return isValid;
@@ -477,9 +481,9 @@ bool  MultiFactorialApp::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_
       sprintf(buffer, "%" PRIu64" is not a factor of not a factor of %u!%u%+d", p, n, ii_MultiFactorial, c);
 
    if (badFactorIsFatal)
-      FatalError(buffer);
+      FatalError("%s", buffer);
    else
-      WriteToConsole(COT_OTHER, buffer);
+      WriteToConsole(COT_OTHER, "%s", buffer);
 
    return isValid;
 }

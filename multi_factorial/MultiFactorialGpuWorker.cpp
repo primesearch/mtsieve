@@ -79,7 +79,6 @@ void  MultiFactorialGpuWorker::CleanUp(void)
    delete ip_KAFactorCount;
    delete ip_KAFactorList;
 
-   xfree(il_PrimeList);
    xfree(il_RemainderList);
    xfree(il_FactorList);
 }
@@ -146,7 +145,7 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
          }
 
          if (ii_FactorCount >= ii_MaxGpuFactors)
-            FatalError("Could not handle all GPU factors.  A range of p generated %u factors.  Use -M to increase max factors", ii_FactorCount);
+            FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factors", ii_FactorCount, ii_MaxGpuFactors);
 
          if (iteration < maxIterations && ip_MultiFactorialApp->IsInterrupted() && time(NULL) > reportTime)
          {
