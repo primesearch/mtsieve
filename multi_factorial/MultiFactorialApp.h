@@ -64,7 +64,7 @@ protected:
    
 
 private:
-   bool              VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t n, int32_t c);
+   bool              VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint32_t n, int32_t c);
    
    vector<bool>      iv_PlusTerms;
    vector<bool>      iv_MinusTerms;
