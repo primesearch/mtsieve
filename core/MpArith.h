@@ -75,6 +75,8 @@ public:
    uint64_t p() const { return _p; }
    
    MpRes one() const { return _one; }
+   
+   MpRes zero() const { return (MpRes) 0; }
 
    MpRes add(const MpRes a, const MpRes b) const
    {
