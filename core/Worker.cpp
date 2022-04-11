@@ -16,8 +16,11 @@
 #include "Clock.h"
 
 #include "../sieve/primesieve.hpp"
+
+#ifdef USE_X86
 #include "../x86_asm/fpu-asm-x86.h"
 #include "../x86_asm/sse-asm-x86.h"
+#endif
 
 #ifdef WIN32
    static DWORD WINAPI ThreadEntryPoint(LPVOID threadInfo);
@@ -182,8 +185,11 @@ uint64_t  Worker::ProcessNextPrimeChunk(uint64_t startFrom, uint64_t maxPrimeFor
 void  Worker::WaitForHandOff(void)
 {
    uint64_t startTime;
+
+#ifdef USE_X86
    uint32_t savedSseMode;
    uint16_t savedFpuMode;
+#endif
    
    SetWaitingForWork();
    
@@ -202,9 +208,11 @@ void  Worker::WaitForHandOff(void)
       
       startTime = Clock::GetThreadMicroseconds();
 
+#ifdef USE_X86
       // This is so the worker classes don't need to do this.
       savedFpuMode = fpu_mod_init();
       savedSseMode = sse_mod_init();
+#endif
 
 #ifdef HAVE_GPU_WORKERS
       if (ib_GpuWorker)
@@ -229,8 +237,10 @@ void  Worker::WaitForHandOff(void)
       else
          TestMegaPrimeChunk();
 
+#ifdef USE_X86
       sse_mod_fini(savedSseMode);
       fpu_mod_fini(savedFpuMode);
+#endif
       
       // We need to lock while updating these variables as the main thread can read them.
       ip_StatsLocker->Lock();

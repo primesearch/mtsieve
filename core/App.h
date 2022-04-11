@@ -179,10 +179,12 @@ private:
    
    void              Finish(void);
    void              GetPrimeStats(char *primeStats, uint64_t primesTested);
-   
+
+#ifdef USE_X86
    uint32_t          ii_SavedSseMode;
    uint16_t          ii_SavedFpuMode;
-   
+#endif
+
 #ifdef HAVE_GPU_WORKERS
    Device           *ip_Device;
 #endif

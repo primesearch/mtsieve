@@ -12,8 +12,11 @@
 
 #include "App.h"
 #include "Clock.h"
+
+#ifdef USE_X86
 #include "../x86_asm/fpu-asm-x86.h"
 #include "../x86_asm/sse-asm-x86.h"
+#endif
 
 // Do not change this as some parts of the framework assume that this is set to 60 seconds
 #define REPORT_SECONDS        60
@@ -22,8 +25,10 @@
 
 App::App(void)
 {   
+#ifdef USE_X86
    ii_SavedFpuMode = fpu_mod_init();
    ii_SavedSseMode = sse_mod_init();
+#endif
    
    il_TotalClockTime = 0;
    il_WorkerClockTime = 0;
@@ -74,8 +79,10 @@ App::~App(void)
    
    delete ip_Console;
 
+#ifdef USE_X86
    sse_mod_fini(ii_SavedSseMode);
    fpu_mod_fini(ii_SavedFpuMode);
+#endif
 }
 
 void App::Banner(void)
@@ -378,9 +385,11 @@ void  App::Run(void)
 
    ValidateOptions();
 
+#ifdef USE_X86
    ii_SavedFpuMode = fpu_mod_init();
    ii_SavedSseMode = sse_mod_init();
-   
+#endif
+
    do
    {
       // This gives applications a chance to change any configurations prior to sieving.

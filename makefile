@@ -25,13 +25,26 @@ else
 endif
 
 ifeq ($(OS),Windows_NT)
+   HAS_X86=yes
+   HAS_ARM=no
    LDFLAGS+=-static
-   CPPFLAGS+=-I"F:\stuff\gmp-6.1.2"
+   CPPFLAGS+=-I"F:\stuff\gmp-6.1.2" -DUSE_X86
    GPUCPPFLAGS+=-I"F:\stuff\OpenCL-SDK\external\OpenCL-Headers" -DCL_TARGET_OPENCL_VERSION=300
    GMPLDFLAGS=-L"F:\stuff\gmp-6.1.2\.libs" -lgmp
    GPULDFLAGS="C:\Windows\System32\OpenCl.dll"
 else
    UNAME_S := $(shell uname -s)
+   UNAME_A := $(shell uname -a)
+   
+   ifeq findstr(ARM
+      HAS_X86=no
+      HAS_ARM=yes
+      CPPFLAGS+=DUSE_ARM
+   else
+      HAS_X86=yes
+      HAS_ARM=no
+      CPPFLAGS+=DUSE_X86
+   endif
    
    ifeq ($(UNAME_S),Darwin)
       CPPFLAGS+=-std=c++14
@@ -59,20 +72,22 @@ GPU_CORE_OBJS=core/App_gpu.o core/FactorApp_gpu.o core/AlgebraicFactorApp_gpu.o 
    core/Clock_gpu.o core/Parser_gpu.o core/Worker_gpu.o core/HashTable_gpu.o core/main_gpu.o core/SharedMemoryItem_gpu.o \
    opencl/Device_gpu.o opencl/Kernel_gpu.o opencl/KernelArgument_gpu.o opencl/ErrorChecker_gpu.o
 
-ASM_OBJS=x86_asm/fpu_mod_init_fini.o x86_asm/fpu_push_pop.o x86_asm/sse_mulmod.o \
-   x86_asm/fpu_mulmod.o x86_asm/fpu_powmod.o x86_asm/fpu_powmod_4b_1n_4p.o \
-   x86_asm/fpu_mulmod_iter.o x86_asm/fpu_mulmod_iter_4a.o x86_asm/fpu_mulmod_4a_4b_4p.o \
-   x86_asm/sse_mod_init_fini.o  x86_asm/sse_powmod_4b_1n_4p.o x86_asm/sse_mulmod_4a_4b_4p.o \
-   x86_asm/avx_set_a.o x86_asm/avx_set_b.o x86_asm/avx_get.o \
-   x86_asm/avx_compute_reciprocal.o x86_asm/avx_compare.o \
-   x86_asm/avx_mulmod.o x86_asm/avx_powmod.o x86_asm/sse_powmod_4b_1n_4p_mulmod_1k.o
+ifeq ($(strip $(HAS_X86)),yes)
+   ASM_OBJS=x86_asm/fpu_mod_init_fini.o x86_asm/fpu_push_pop.o x86_asm/sse_mulmod.o \
+      x86_asm/fpu_mulmod.o x86_asm/fpu_powmod.o x86_asm/fpu_powmod_4b_1n_4p.o \
+      x86_asm/fpu_mulmod_iter.o x86_asm/fpu_mulmod_iter_4a.o x86_asm/fpu_mulmod_4a_4b_4p.o \
+      x86_asm/sse_mod_init_fini.o  x86_asm/sse_powmod_4b_1n_4p.o x86_asm/sse_mulmod_4a_4b_4p.o \
+      x86_asm/avx_set_a.o x86_asm/avx_set_b.o x86_asm/avx_get.o \
+      x86_asm/avx_compute_reciprocal.o x86_asm/avx_compare.o \
+      x86_asm/avx_mulmod.o x86_asm/avx_powmod.o x86_asm/sse_powmod_4b_1n_4p_mulmod_1k.o
 
-ASM_EXT_OBJS=x86_asm_ext/m320.o x86_asm_ext/m384.o x86_asm_ext/m448.o x86_asm_ext/m512.o \
-   x86_asm_ext/m576.o x86_asm_ext/m640.o x86_asm_ext/m704.o x86_asm_ext/m768.o \
-   x86_asm_ext/mulmod128.o x86_asm_ext/mulmod192.o x86_asm_ext/mulmod256.o \
-   x86_asm_ext/sqrmod128.o x86_asm_ext/sqrmod192.o x86_asm_ext/sqrmod256.o \
-   x86_asm_ext/redc.o
-   
+   ASM_EXT_OBJS=x86_asm_ext/m320.o x86_asm_ext/m384.o x86_asm_ext/m448.o x86_asm_ext/m512.o \
+      x86_asm_ext/m576.o x86_asm_ext/m640.o x86_asm_ext/m704.o x86_asm_ext/m768.o \
+      x86_asm_ext/mulmod128.o x86_asm_ext/mulmod192.o x86_asm_ext/mulmod256.o \
+      x86_asm_ext/sqrmod128.o x86_asm_ext/sqrmod192.o x86_asm_ext/sqrmod256.o \
+      x86_asm_ext/redc.o
+endif
+
 PRIMESIEVE_OBJS=sieve/Erat.o sieve/EratBig.o sieve/EratMedium.o sieve/EratSmall.o sieve/PreSieve.o \
    sieve/CpuInfo.o sieve/MemoryPool.o sieve/PrimeGenerator.o sieve/PrimeSieve.o \
    sieve/IteratorHelper.o sieve/LookupTables.o sieve/popcount.o sieve/nthPrime.o sieve/PrintPrimes.o \
