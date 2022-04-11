@@ -70,7 +70,7 @@ Kernel::Kernel(Device *device, const char *kernelName, const char *kernelSource[
    if (status != CL_SUCCESS)
    {
       clGetProgramBuildInfo(im_Program, ip_Device->GetDeviceId(), CL_PROGRAM_BUILD_LOG, 16384, buffer, &len);
-      ErrorChecker::ExitIfError("clBuildProgram", status, buffer);
+      ErrorChecker::ExitIfError("clBuildProgram", status, "%s", buffer);
    }
 
 
@@ -136,7 +136,7 @@ void Kernel::ReplaceArgument(KernelArgument *oldArgument, KernelArgument *newArg
    }
 }
 
-void Kernel::PrintStatistics(uint32_t bytesPerWorkGroup)
+void Kernel::PrintStatistics(uint64_t bytesPerWorkGroup)
 {
    if (ip_Device->IsPrintDetails())
    {

@@ -32,7 +32,7 @@ public:
    void       AddArgument(KernelArgument *theArgument);
    void       ReplaceArgument(KernelArgument *oldArgument, KernelArgument *newArgument);
 
-   void       PrintStatistics(uint32_t bytesPerWorkGroup);
+   void       PrintStatistics(uint64_t bytesPerWorkGroup);
 
    // Execute the function (kernel).  If necessary, it will copy host data to the GPU, execute,
    // then copy GPU data back to the host.  The idea is that the function calling this routine

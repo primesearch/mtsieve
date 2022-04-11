@@ -11,11 +11,16 @@
 #    git clone --recursive https://github.com/KhronosGroup/OpenCL-SDK.git
 
 DEBUG=no
+HAS_METAL=no
 CC=g++
+PERL=perl
 
+PERLFLAGS=cltoh.pl
 CPPFLAGS=-Isieve -m64 -Wall
 LDFLAGS=-lstdc++
 GPUCPPFLAGS=-DHAVE_GPU_WORKERS
+METALCPPFLAGS=
+METALLDFLAGS=
 GPULIBS=
 
 ifeq ($(strip $(DEBUG)),yes)
@@ -36,20 +41,25 @@ else
    UNAME_S := $(shell uname -s)
    UNAME_A := $(shell uname -a)
    
-   ifeq findstr(ARM
+   ifeq ($(findstring ARM,$(*NAME_A)),ARM)
       HAS_X86=no
       HAS_ARM=yes
-      CPPFLAGS+=DUSE_ARM
+      CPPFLAGS+=-DUSE_ARM
    else
       HAS_X86=yes
       HAS_ARM=no
-      CPPFLAGS+=DUSE_X86
+      CPPFLAGS+=-DUSE_X86
    endif
    
    ifeq ($(UNAME_S),Darwin)
-      CPPFLAGS+=-std=c++14
+      XC=xcrun
+      XCFLAGS=-sdk macosx metal
+      HAS_METAL=yes
+      CPPFLAGS+=-std=c++17
+      METALCPPFLAGS+=-DUSE_METAL -Imetal-cpp
       GMPLDFLAGS=-lgmp
       GPULDFLAGS+=-framework OpenCL
+      METALLDFLAGS+=-framework Metal -framework Foundation -framework CoreGraphics
    else
       CPPFLAGS+=-std=c++11
       EXTRALDFLAGS+=-lpthread
@@ -65,12 +75,18 @@ CPU_PROGS=afsieve cksieve dmdsieve gcwsieve gfndsieve fbncsieve fkbnsieve k1b2si
 
 GPU_PROGS=afsievecl mfsievecl gcwsievecl gfndsievecl pixsievecl smsievecl srsieve2cl xyyxsievecl psievecl
 
+METAL_PROGS=mfsievemtl
+
 CPU_CORE_OBJS=core/App_cpu.o core/FactorApp_cpu.o core/AlgebraicFactorApp_cpu.o \
    core/Clock_cpu.o core/Parser_cpu.o core/Worker_cpu.o core/HashTable_cpu.o core/main_cpu.o core/SharedMemoryItem_cpu.o
    
 GPU_CORE_OBJS=core/App_gpu.o core/FactorApp_gpu.o core/AlgebraicFactorApp_gpu.o \
    core/Clock_gpu.o core/Parser_gpu.o core/Worker_gpu.o core/HashTable_gpu.o core/main_gpu.o core/SharedMemoryItem_gpu.o \
    opencl/Device_gpu.o opencl/Kernel_gpu.o opencl/KernelArgument_gpu.o opencl/ErrorChecker_gpu.o
+
+METAL_CORE_OBJS=core/App_gpu.o core/FactorApp_gpu.o core/AlgebraicFactorApp_gpu.o \
+   core/Clock_gpu.o core/Parser_gpu.o core/Worker_gpu.o core/HashTable_gpu.o core/main_gpu.o core/SharedMemoryItem_gpu.o \
+   metal-cpp/MetalDevice_metal.o
 
 ifeq ($(strip $(HAS_X86)),yes)
    ASM_OBJS=x86_asm/fpu_mod_init_fini.o x86_asm/fpu_push_pop.o x86_asm/sse_mulmod.o \
@@ -120,6 +136,8 @@ AF_GPU_OBJS=alternating_factorial/AlternatingFactorialApp_gpu.o alternating_fact
 GCW_GPU_OBJS=cullen_woodall/CullenWoodallApp_gpu.o cullen_woodall/CullenWoodallWorker_gpu.o cullen_woodall/CullenWoodallGpuWorker_gpu.o
 GFND_GPU_OBJS=gfn_divisor/GFNDivisorApp_gpu.o gfn_divisor/GFNDivisorTester_gpu.o gfn_divisor/GFNDivisorWorker_gpu.o gfn_divisor/GFNDivisorGpuWorker_gpu.o
 MF_GPU_OBJS=multi_factorial/MultiFactorialApp_gpu.o multi_factorial/MultiFactorialWorker_gpu.o multi_factorial/MultiFactorialGpuWorker_gpu.o
+MF_METAL_OBJS=multi_factorial/MultiFactorialApp_gpu.o multi_factorial/MultiFactorialWorker_gpu.o multi_factorial/MultiFactorialGpuWorker_metal.o
+PIX_GPU_OBJS=primes_in_x/PrimesInXApp_gpu.o primes_in_x/PrimesInXWorker_gpu.o primes_in_x/pixsieve.o primes_in_x/PrimesInXGpuWorker_gpu.o
 PIX_GPU_OBJS=primes_in_x/PrimesInXApp_gpu.o primes_in_x/PrimesInXWorker_gpu.o primes_in_x/pixsieve.o primes_in_x/PrimesInXGpuWorker_gpu.o
 PRIM_GPU_OBJS=primorial/PrimorialApp_gpu.o primorial/PrimorialWorker_gpu.o primorial/PrimorialGpuWorker_gpu.o primorial/primorial.o
 SM_GPU_OBJS=smarandache/SmarandacheApp_gpu.o smarandache/SmarandacheWorker_gpu.o smarandache/SmarandacheGpuWorker_gpu.o
@@ -131,18 +149,23 @@ SR2_GPU_OBJS=sierpinski_riesel/SierpinskiRieselApp_gpu.o sierpinski_riesel/Algeb
    sierpinski_riesel/CisOneWithMultipleSequencesHelper_gpu.o sierpinski_riesel/CisOneWithMultipleSequencesWorker_gpu.o
 XYYX_GPU_OBJS=xyyx/XYYXApp_gpu.o xyyx/XYYXWorker_gpu.o xyyx/XYYXGpuWorker_gpu.o
 
-ALL_OBJS=$(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(CPU_CORE_OBJS) $(GPU_CORE_OBJS) \
+AIR_LIBS=multi_factorial/mf_kernel.air
+ALL_OBJS=$(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(CPU_CORE_OBJS) $(GPU_CORE_OBJS) $(METAL_CORE_OBJS) \
    $(AF_OBJS) $(MF_OBJS) $(FBNC_OBJS) $(FKBN_OBJS) $(GFND_OBJS) $(CK_OBJS) \
    $(PIX_OBJS) $(XYYX_OBJS) $(KBB_OBJS) $(GCW_OBJS) $(PRIM_OBJS) $(TWIN_OBJS) \
    $(DMD_OBJS) $(SR2_OBJS) $(K1B2_OBJS) $(SG_OBJS) $(PRIM_GPU_OBJS) \
    $(AF_GPU_OBJS) $(GCW_GPU_OBJS) $(GFND_GPU_OBJS) $(MF_GPU_OBJS) $(PIX_GPU_OBJS) \
-   $(XYYX_GPU_OBJS) $(SR2_GPU_OBJS) $(SM_OBJS) $(SM_GPU_OBJS)
-
-all: $(CPU_PROGS) $(GPU_PROGS)
+   $(XYYX_GPU_OBJS) $(SR2_GPU_OBJS) $(SM_OBJS) $(SM_GPU_OBJS) $(MF_METAL_OBJS)
 
 cpu_all: $(CPU_PROGS)
 
+ifeq ($(strip $(HAS_METAL)),yes)
+all: $(CPU_PROGS) $(GPU_PROGS) $(METAL_PROGS)
+gpu_all: $(GPU_PROGS) $(METAL_PROGS) 
+else
+all: $(CPU_PROGS) $(GPU_PROGS)
 gpu_all: $(GPU_PROGS)
+endif
 
 %.o: %.S
 	$(CC) $(CPPFLAGS) -c -o $@ $< 
@@ -155,6 +178,34 @@ gpu_all: $(GPU_PROGS)
     
 %_gpu.o: %.cpp
 	$(CC) $(CPPFLAGS) $(GPUCPPFLAGS) -c -o $@ $<
+
+%_metal.o: %.cpp
+	$(CC) $(CPPFLAGS) $(GPUCPPFLAGS) $(METALCPPFLAGS) -c -o $@ $<
+
+# This is here to allow us to verify that the .mh file will not give errors when
+# initializing the device and the function in MetalDevice.InitializeFunction()
+%.air: %.metal
+	$(XC) $(XCFLAGS) -c $< -o $@ 
+
+# This is here to allow us to verify that the .mh file will not give errors when
+# initializing the device and the function in MetalDevice.InitializeFunction()
+%.metallib: %.air
+	$(XC) $(XCFLAGS) $< -o $@ 
+
+%.opencl.h: %.cl
+	$(PERL) $(PERLFLAGS) $< > $@
+
+%.metal.h: %.metal
+	$(PERL) $(PERLFLAGS) $< > $@
+
+# Add the targets here to build the .h files needed for the OpenCL and Metal GPU workers.
+# This means that it is no longer need to explicitly use perl to create these files.  Yay!
+# Only some are here right now, but it shouldn't take long to add all of them.
+ifeq ($(strip $(HAS_METAL)),yes)
+multi_factorial/MultiFactorialGpuWorker.cpp: multi_factorial/mf_kernel.opencl.h multi_factorial/mf_kernel.metal.h multi_factorial/mf_kernel.metallib 
+else
+multi_factorial/MultiFactorialGpuWorker.cpp: multi_factorial/mf_kernel.opencl.h multi_factorial/mf_kernel.metal.h 
+endif
 
 afsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(AF_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(EXTRALDFLAGS)
@@ -197,6 +248,9 @@ mfsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(MF_OBJS)
 
 mfsievecl: $(GPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(MF_GPU_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(GPULDFLAGS) $(EXTRALDFLAGS)
+  
+mfsievemtl: $(METAL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(MF_METAL_OBJS)
+	$(CC) $(CPPFLAGS) $(METALCPPFLAGS) $(LDFLAGS) -o $@ $^ $(METALLDFLAGS) $(EXTRALDFLAGS)
    
 pixsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(PIX_OBJS)
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^ $(EXTRALDFLAGS)
@@ -238,4 +292,4 @@ clean_objs:
 	rm -f $(ALL_OBJS) *.log
    
 clean:
-	rm -f $(CPU_PROGS) $(GPU_PROGS) $(ALL_OBJS) *.log
+	rm -f $(CPU_PROGS) $(GPU_PROGS) $(ALL_OBJS) $(AIRLIBS $(METALLIBS) *.log
