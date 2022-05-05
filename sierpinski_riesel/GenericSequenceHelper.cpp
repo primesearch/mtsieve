@@ -10,7 +10,7 @@
 #include "GenericSequenceHelper.h"
 #include "GenericWorker.h"
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
 #include "GenericGpuWorker.h"
 #endif
 
@@ -30,7 +30,7 @@ Worker   *GenericSequenceHelper::CreateWorker(uint32_t id, bool gpuWorker, uint6
    // Note that GenericWorker inherits from Worker.  This will not
    // only create the worker, but also start it.
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    if (gpuWorker)
       theWorker = new GenericGpuWorker(id, ip_App, this);
    else
@@ -46,7 +46,7 @@ uint32_t    GenericSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
 {
    uint32_t      bit, i, j, k, n;
    uint32_t      bestQ, Q = 2880;  // DEFAULT_LIMIT_BASE from the old code
-   vector<bool>  R;
+   std::vector<bool>  R;
    choice_bc_t  *S = 0;
    seq_t        *seqPtr;
 
@@ -96,7 +96,7 @@ uint32_t    GenericSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
    return bestQ;
 }
 
-uint32_t GenericSequenceHelper::ForEachDivisor(uint32_t Q, vector<bool> R, choice_bc_t *S, bool firstTime)
+uint32_t GenericSequenceHelper::ForEachDivisor(uint32_t Q, std::vector<bool> R, choice_bc_t *S, bool firstTime)
 {
    uint32_t A[9], P[9], M[9], d, i, j, k, t;
 

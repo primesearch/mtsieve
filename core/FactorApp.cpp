@@ -53,7 +53,7 @@ void FactorApp::ParentHelp(void)
    printf("-O --outputfactors=O  output file with new factors\n");
 }
 
-void  FactorApp::ParentAddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  FactorApp::ParentAddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    App::ParentAddCommandLineOptions(shortOpts, longOpts);
 
@@ -332,7 +332,7 @@ bool  FactorApp::BuildFactorsPerSecondRateString(uint32_t currentStatusEntry, do
    uint32_t     previousStatusEntry;
    uint32_t     factorPrecision;
    const char  *factorRateUnit;
-   uint64_t     factorsFound;
+   uint64_t     factorsFound = 0;
    uint64_t     factorTimeUS = 0;
    double       factorsPerSecond = 0;
    double       adjustedFactorTimeSeconds;
@@ -341,7 +341,7 @@ bool  FactorApp::BuildFactorsPerSecondRateString(uint32_t currentStatusEntry, do
 
    previousStatusEntry = currentStatusEntry;
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    // In the GPU we could have an uneven distribution of factors because factors are only
    // reported when the GPU is done with its chunk.  If each chunk requires more than a
    // few seconds in the GPU, the factor rate will bounce up and down making it harder to
@@ -416,7 +416,7 @@ bool  FactorApp::BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, do
 
    previousStatusEntry = currentStatusEntry;
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    // In the GPU we could have an uneven distribution of factors because factors are only
    // reported when the GPU is done with its chunk.  If each chunk requires more than a
    // few seconds in the GPU, the factor rate will bounce up and down making it harder to

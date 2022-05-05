@@ -12,13 +12,21 @@
 #include "../core/main.h"
 #include "../core/Parser.h"
 #include "../core/Clock.h"
+#include "../core/MpArith.h"
+
 #include "PrimesInXApp.h"
 #include "PrimesInXWorker.h"
-#ifdef HAVE_GPU_WORKERS  
+
+#if defined(USE_OPENCL)
 #include "PrimesInXGpuWorker.h"
+#define APP_NAME        "pixsievecl"
+#elif defined(USE_METAL)
+#include "PrimesInXGpuWorker.h"
+#define APP_NAME        "pixsievemtl"
+#else
+#define APP_NAME        "pixsieve"
 #endif
 
-#define APP_NAME        "pixsieve"
 #define APP_VERSION     "2.5"
 
 #define BIT(l)          ((l) - ii_MinLength)
@@ -49,8 +57,9 @@ PrimesInXApp::PrimesInXApp() : FactorApp()
    ii_e1TermCount = ii_e3TermCount = ii_e6TermCount = ii_e9TermCount = 0;
    ii_e1Terms = ii_e3Terms = ii_e6Terms = ii_e9Terms = 0;
 
-#ifdef HAVE_GPU_WORKERS
-   ii_StepL = 5000;
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   ii_MaxGpuSteps = 100000;
+   ii_MaxGpuFactors = GetGpuWorkGroups() * 10;
 #endif
 }
 
@@ -71,8 +80,9 @@ void PrimesInXApp::Help(void)
    printf("-s --stringfile=s     file containing a decimal representation of any number\n");
    printf("-S --searchstring=S   starting point of substring to start factoring\n");
    
-#ifdef HAVE_GPU_WORKERS
-   printf("-N --step=N           N iterated per call to GPU (default %u)\n", ii_StepL);
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   printf("-N --step=N           max steps iterated per call to GPU (default %d)\n", ii_MaxGpuSteps);
+   printf("-M --maxfactors=M     max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
 #endif
 }
 
@@ -80,7 +90,7 @@ void  PrimesInXApp::AddCommandLineOptions(string &shortOpts, struct option *long
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "l:L:s:S:i:o:N:";
+   shortOpts += "l:L:s:S:i:o:N:M:";
 
    AppendLongOpt(longOpts, "minlength",     required_argument, 0, 'l');
    AppendLongOpt(longOpts, "maxlength",     required_argument, 0, 'L');
@@ -89,8 +99,9 @@ void  PrimesInXApp::AddCommandLineOptions(string &shortOpts, struct option *long
    AppendLongOpt(longOpts, "inputfile",     required_argument, 0, 'i');
    AppendLongOpt(longOpts, "outputfile",    required_argument, 0, 'o');
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    AppendLongOpt(longOpts, "steps",         required_argument, 0, 'N');
+   AppendLongOpt(longOpts, "maxfactors",        required_argument, 0, 'M');
 #endif
 }
 
@@ -122,9 +133,13 @@ parse_t PrimesInXApp::ParseOption(int opt, char *arg, const char *source)
          status = P_SUCCESS;
          break;
          
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
       case 'N':
-         status = Parser::Parse(arg, 1, 1000000000, ii_StepL);
+         status = Parser::Parse(arg, 100, 1000000000, ii_MaxGpuSteps);
+         break;
+
+      case 'M':
+         status = Parser::Parse(arg, 10, 1000000, ii_MaxGpuFactors);
          break;
 #endif
    }
@@ -178,7 +193,7 @@ Worker *PrimesInXApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largest
 {
    Worker *theWorker;
 
-#ifdef HAVE_GPU_WORKERS  
+#if defined(USE_OPENCL) || defined(USE_METAL)  
    if (gpuWorker)
       theWorker = new PrimesInXGpuWorker(id, this);
    else
@@ -267,17 +282,19 @@ void PrimesInXApp::ProcessInputTermsFile(bool haveBitMap)
    xfree(buffer);
 }
 
-bool  PrimesInXApp::ApplyFactor(uint64_t thePrime, const char *term)
+bool  PrimesInXApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
-   uint32_t c;
+   uint32_t n;
    
-   if (sscanf(term, "pix(%u)", &c) != 1)
+   if (sscanf(term, "pix(%u)", &n) != 1)
       FatalError("Could not parse term %s\n", term);
 
-   if (c < ii_MinLength || c > ii_MaxLength)
+   if (n < ii_MinLength || n > ii_MaxLength)
       return false;
    
-   uint64_t bit = BIT(c);
+   VerifyFactor(theFactor, n);
+   
+   uint64_t bit = BIT(n);
    
    // No locking is needed because the Workers aren't running yet
    if (iv_Terms[bit])
@@ -433,12 +450,14 @@ void PrimesInXApp::GetExtraTextForSieveStartedMessage(char *extraText)
       sprintf(extraText, "%d <= length <= %d", ii_MinLength, ii_MaxLength);
 }
 
-bool PrimesInXApp::ReportFactor(uint64_t p, uint32_t n)
+bool PrimesInXApp::ReportFactor(uint64_t theFactor, uint32_t n)
 {
    bool newFactor = false;
    
    if (n < ii_MinLength || n > ii_MaxLength)
       return false;
+   
+   VerifyFactor(theFactor, n);
    
    ip_FactorAppLock->Lock();
       
@@ -451,7 +470,7 @@ bool PrimesInXApp::ReportFactor(uint64_t p, uint32_t n)
       il_FactorCount++;
       il_TermCount--;
       
-      LogFactor(p, "pix(%u)", n);
+      LogFactor(theFactor, "pix(%u)", n);
    }
    
    ip_FactorAppLock->Release();
@@ -459,10 +478,12 @@ bool PrimesInXApp::ReportFactor(uint64_t p, uint32_t n)
    return newFactor;
 }
 
-void PrimesInXApp::ReportPrime(uint64_t p, uint32_t n)
+void PrimesInXApp::ReportPrime(uint64_t thePrime, uint32_t n)
 {
    if (n < ii_MinLength || n > ii_MaxLength)
       return;
+   
+   VerifyFactor(thePrime, n);
    
    ip_FactorAppLock->Lock();
       
@@ -474,12 +495,44 @@ void PrimesInXApp::ReportPrime(uint64_t p, uint32_t n)
       il_FactorCount++;
       il_TermCount--;
  
-      LogFactor(p, "pix(%u)", n);
+      LogFactor(thePrime, "pix(%u)", n);
          
-      WriteToConsole(COT_OTHER, "pix(%u) is prime! (%" PRIu64")", n, p);
+      WriteToConsole(COT_OTHER, "pix(%u) is prime! (%" PRIu64")", n, thePrime);
 
-      WriteToLog("pix(%u) is prime! (%" PRIu64")", n, p);
+      WriteToLog("pix(%u) is prime! (%" PRIu64")", n, thePrime);
    }
    
    ip_FactorAppLock->Release();
+}
+
+void  PrimesInXApp::VerifyFactor(uint64_t theFactor, uint32_t termLength)
+{
+   // Note that p is limited to 2^52, so we are not using extended precision
+   // in this function.
+
+   MpArith  mp(theFactor);
+   MpRes    mpDigits[10];
+   MpRes    mpRem = mp.zero();
+   
+   mpDigits[0] = mp.zero();
+   mpDigits[1] = mp.one();
+   mpDigits[2] = mp.add(mpDigits[1], mpDigits[1]);
+   mpDigits[3] = mp.add(mpDigits[2], mpDigits[1]);
+   mpDigits[4] = mp.add(mpDigits[3], mpDigits[1]);
+   mpDigits[5] = mp.add(mpDigits[4], mpDigits[1]);
+   mpDigits[6] = mp.add(mpDigits[5], mpDigits[1]);
+   mpDigits[7] = mp.add(mpDigits[6], mpDigits[1]);
+   mpDigits[8] = mp.add(mpDigits[7], mpDigits[1]);
+   mpDigits[9] = mp.add(mpDigits[8], mpDigits[1]);
+   
+   MpRes mpTen = mp.add(mpDigits[9], mpDigits[1]);
+      
+   for (uint32_t i=0; i<termLength; i++)
+   {
+      mpRem = mp.mul(mpRem, mpTen);
+      mpRem = mp.add(mpRem, mpDigits[ii_e1Terms[i]]);
+   }
+      
+   if (mp.resToN(mpRem) != 0)
+      FatalError("%" PRIu64" does not divide pix(%u)", theFactor, termLength);
 }

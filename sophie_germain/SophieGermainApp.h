@@ -26,17 +26,17 @@ public:
    ~SophieGermainApp(void) {};
 
    void              Help(void);
-   void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
+   void              AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(uint64_t thePrime, const char *term);
+   bool              ApplyFactor(uint64_t theFactor, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
    uint64_t          GetMinK(void) { return il_MinK; };
    uint64_t          GetMaxK(void) { return il_MaxK; };
    uint32_t          GetN(void) { return ii_N; };
    
-   bool              ReportFactor(uint64_t p, uint64_t k, bool firstOfPair);
+   bool              ReportFactor(uint64_t theFactor, uint64_t k, bool firstOfPair);
 
 protected:
    void              PreSieveHook(void) {};
@@ -54,12 +54,12 @@ private:
    uint64_t          WriteABCDTermsFile(uint64_t maxPrime, FILE *termsFile);
    uint64_t          WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsFile);
    
-   vector<bool>      iv_Terms;
+   std::vector<bool> iv_Terms;
    
    format_t          it_Format;
    
-   string            is_InputFileName;
-   string            is_OutputFileName;
+   std::string       is_InputFileName;
+   std::string       is_OutputFileName;
 
    uint64_t          il_MinK;
    uint64_t          il_MaxK;

@@ -11,8 +11,13 @@
 
 #include "GFNDivisorApp.h"
 #include "../core/Worker.h"
-#include "../opencl/Kernel.h"
-#include "../opencl/KernelArgument.h"
+
+#ifdef USE_OPENCL
+#include "../gpu_opencl/Kernel.h"
+#else
+#include "../gpu_metal/Kernel.h"
+#endif
+
 
 using namespace std;
 
@@ -32,13 +37,7 @@ protected:
 private:
    GFNDivisorApp    *ip_GFNDivisorApp;
       
-   Kernel           *ip_GFNDivisorKernel;
-   
-   KernelArgument   *ip_KAPrime;
-   KernelArgument   *ip_KAParams;
-   KernelArgument   *ip_KARemainder;
-   KernelArgument   *ip_KAFactorCount;
-   KernelArgument   *ip_KAFactorList;
+   Kernel           *ip_Kernel;
    
    uint64_t          il_MinK;
    uint64_t          il_MaxK;
@@ -47,10 +46,10 @@ private:
    uint32_t          ii_MaxGpuSteps;
    uint32_t          ii_MaxGpuFactors;
    uint32_t          ii_MaxIterations;
-   uint32_t          ii_FactorCount;
-   uint32_t          ii_Params[5];
    
-   uint64_t         *il_RemainderList;
+   uint32_t         *ii_Parameters;
+   uint64_t         *il_Remainders;
+   uint32_t         *ii_FactorCount;
    uint64_t         *il_FactorList;
 };
 

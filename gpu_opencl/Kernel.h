@@ -14,23 +14,30 @@
 #include <string.h>
 
 #include "Device.h"
-#include "KernelArgument.h"
 
 using namespace std;
 
-#define MAX_KERNEL_ARGUMENTS 50
+#define MAX_KERNEL_ARGUMENTS  20
+
+typedef struct {
+   char              name[100];
+   uint32_t          size;
+   uint32_t          count;
+   uint32_t          bytes;
+   cl_mem_flags      memFlags;
+   void             *cpuBuffer;
+   cl_mem            gpuBuffer;
+} ka_t;
 
 class Kernel
 {
 public:
    // The last entry in this array needs to be NULL
-   Kernel(Device *device, const char *kernelName, const char *kernelSource[], bool useFMA = false);
+   Kernel(Device *device, const char *kernelName, const char *kernelSource, const char *preKernelSources[] = NULL);
 
    ~Kernel(void);
 
-   // Add an function argument for this kernel
-   void       AddArgument(KernelArgument *theArgument);
-   void       ReplaceArgument(KernelArgument *oldArgument, KernelArgument *newArgument);
+   Device    *GetDevice(void) { return ip_Device; };
 
    void       PrintStatistics(uint64_t bytesPerWorkGroup);
 
@@ -41,7 +48,25 @@ public:
 
    uint32_t   GetWorkGroupSize(void) { return ii_WorkGroupSize; };
 
+   // This adds an argument to the Kernel for memory that the CPU will write to
+   // but that the GPU will only read.
+   void      *AddCpuArgument(const char *name, uint32_t size, uint32_t count);
+   void      *AddCpuArgument(const char *name, uint32_t size, uint32_t count, void *cpuMemory);
+   
+   // This adds an argument to the Kernel for memory that the GPU will write to
+   // but that the CPU will only read.
+   void      *AddGpuArgument(const char *name, uint32_t size, uint32_t count);
+   
+   // This adds an argument to the Kernel for memory that bot the CPU and GPU
+   // can read and write.
+   void      *AddSharedArgument(const char *name, uint32_t size, uint32_t count);
+
 private:
+   void      *AddArgument(const char *name, uint32_t size, uint32_t count, cl_mem_flags memFlags);
+
+   void       SetGPUInput(void);
+   void       GetGPUOutput(void);
+   
    string            is_KernelName;
 
    cl_program        im_Program;
@@ -55,15 +80,13 @@ private:
    uint32_t          ii_LocalMemorySize;
    uint32_t          ii_PrivateMemorySize;
    
-   uint32_t          ii_ArgumentCount;
 
    size_t            ii_KernelWorkGroupSize;
    
    Device           *ip_Device;
-   KernelArgument   *ip_Arguments[MAX_KERNEL_ARGUMENTS];
-
-   void       SetGPUInput(void);
-   void       GetGPUOutput(void);
+   
+   uint32_t          ii_ArgumentCount;
+   ka_t             *ip_KernelArguments;
 };
 
 #endif

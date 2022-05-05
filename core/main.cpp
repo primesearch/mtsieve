@@ -121,7 +121,7 @@ static int parse_option(App *theApp, int opt, char *arg, const char *source)
 int   ProcessArgs(App *theApp, int argc, char *argv[])
 {
    int      count = 0, ind = -1, opt;
-   string   shortOpts = "h";
+   std::string   shortOpts = "h";
    struct option longOpts[50];
 
    memset(longOpts, 0, 50*sizeof(struct option));

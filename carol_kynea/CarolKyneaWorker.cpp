@@ -280,10 +280,10 @@ void CarolKyneaWorker::CheckFactor(uint64_t p, uint32_t n, int32_t c)
    }
    
    if (ip_CarolKyneaApp->ReportFactor(p, n, c))
-      VerifyFactor(true, p, n, c);
+      VerifyFactor(p, n, c);
 }
 
-bool CarolKyneaWorker::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t n, int32_t c)
+void CarolKyneaWorker::VerifyFactor(uint64_t p, uint32_t n, int32_t c)
 {
    uint64_t rem;
    
@@ -296,12 +296,5 @@ bool CarolKyneaWorker::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t 
    fpu_pop();
    
    if (rem != 2)
-   {
-      if (badFactorIsFatal)         
-         FatalError("(%u^%u%+d)-2 mod %" PRIu64" = %" PRIu64"", ii_Base, n, c, p, rem-2);
-
-      return false;
-   }
-  
-   return true;
+      FatalError("(%u^%u%+d)-2 mod %" PRIu64" = %" PRIu64"", ii_Base, n, c, p, rem-2);
 }

@@ -35,6 +35,7 @@ App::App(void)
    il_InitUS = Clock::GetCurrentMicrosecond();
    ii_CpuWorkerCount = 0;
    ii_GpuWorkerCount = 0;
+   il_TotalSieveUS = 0;
 
    ip_Console = new SharedMemoryItem("console");
    ip_AppStatus = new SharedMemoryItem("appstatus");
@@ -64,10 +65,9 @@ App::App(void)
 
    ip_Workers = (Worker **) xmalloc((MAX_WORKERS + 1) * sizeof(Worker *));
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    ip_Device = new Device();
-   ii_GpuWorkGroupSize = 0;
-   ii_GpuWorkGroups = 10;
+   ii_GpuWorkGroups = 8;
 #endif
 }
 
@@ -101,7 +101,7 @@ void App::ParentHelp(void)
    printf("-w --worksize=w       primes per chunk of work (default %u)\n", ii_CpuWorkSize);
    printf("-W --workers=W        start W workers (default %u)\n", ii_CpuWorkerCount);
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    printf("-g --gpuworkgroups=g  work groups per call to GPU (default %u)\n", ii_GpuWorkGroups);
    printf("-G --gpuworkers=G     start G GPU workers (default %u)\n", ii_GpuWorkerCount);
    
@@ -109,7 +109,7 @@ void App::ParentHelp(void)
 #endif
 }
 
-void  App::ParentAddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  App::ParentAddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    shortOpts += "p:P:w:W:";
 
@@ -118,7 +118,7 @@ void  App::ParentAddCommandLineOptions(string &shortOpts, struct option *longOpt
    AppendLongOpt(longOpts, "worksize",      required_argument, 0, 'w');
    AppendLongOpt(longOpts, "workers",       required_argument, 0, 'W');
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    shortOpts += "g:G:";
    
    AppendLongOpt(longOpts, "gpuworkgroups", required_argument, 0, 'g');
@@ -138,7 +138,7 @@ parse_t App::ParentParseOption(int opt, char *arg, const char *source)
    parse_t      status = P_UNSUPPORTED;
    uint64_t     minPrime;
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    status = ip_Device->ParseOption(opt, arg, source);
    
    if (status != P_UNSUPPORTED)
@@ -161,7 +161,7 @@ parse_t App::ParentParseOption(int opt, char *arg, const char *source)
          status = Parser::Parse(arg, 10, 1000000000, ii_CpuWorkSize);
          break;
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
       case 'W':
          status = Parser::Parse(arg, 0, MAX_WORKERS, ii_CpuWorkerCount);
          break;
@@ -190,7 +190,7 @@ void App::ParentValidateOptions(void)
       
    if (ii_CpuWorkerCount + ii_GpuWorkerCount == 0)
    {
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
       ii_GpuWorkerCount = 1;
 #else
       ii_CpuWorkerCount = 1;
@@ -208,7 +208,7 @@ void App::ParentValidateOptions(void)
 
    ii_TotalWorkerCount = ii_CpuWorkerCount + ii_GpuWorkerCount;
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    ip_Device->Validate();
 #endif
 }
@@ -245,7 +245,7 @@ void App::ConvertNumberToShortString(uint64_t value, char *buffer)
    sprintf(buffer, "%" PRIu64"e%u", value, e);
 }
 
-void App::SetLogFileName(string logFileName)
+void App::SetLogFileName(std::string logFileName)
 { 
    is_LogFileName = logFileName;
    
@@ -397,14 +397,9 @@ void  App::Run(void)
     
       CreateWorkers(il_MinPrime);
 
-#ifdef HAVE_GPU_WORKERS
-      if (ii_GpuWorkerCount > 0)
-      {
-         if (ii_GpuWorkGroupSize == 0)
-            FatalError("could not compute optimal size of GPU work group");
-         
-         WriteToConsole(COT_OTHER, "GPU primes per worker is %u", GetGpuWorkSize());
-      }
+#if defined(USE_OPENCL) || defined(USE_METAL)
+      if (ii_GpuWorkerCount > 0)       
+         WriteToConsole(COT_OTHER, "GPU primes per worker is %u", GetGpuPrimesPerWorker());
 #endif
 
       Sieve();
@@ -465,7 +460,7 @@ void  App::Sieve(void)
          {
             CheckReportStatus();
             
-            Sleep(10);
+            Sleep(1);
          }
 
          useSingleThread = (ip_Workers[th]->GetLargestPrimeTested() < il_MaxPrimeForSingleWorker);
@@ -528,7 +523,7 @@ uint32_t  App::GetNextAvailableWorker(bool useSingleThread, uint64_t &largestPri
       }
       
       // If we didn't find one, sleep
-      Sleep(10);
+      Sleep(1);
    }
 }
 
@@ -654,7 +649,7 @@ void  App::Finish(void)
    
    cpuUtilization = ((double) processCpuUS) / ((double) elapsedTimeUS);
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    uint64_t    processGpuUS = ip_Device->GetGpuMicroseconds();
    
    // This outputs statistics regarding CPU time, i.e. time the CPU (or cores) spent
@@ -700,7 +695,7 @@ void  App::ReportStatus(void)
    
    GetWorkerStats(workerCpuUS, largestPrimeTestedNoGaps, largestPrimeTested, primesTested);
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    // Treat time spent in GPU as if spent in CPU
      
    // TODO : figure out what we are usinga full CPU core (on Windows) when using the GPU.  I will assume
@@ -829,7 +824,7 @@ void  App::GetWorkerStats(uint64_t &workerCpuUS, uint64_t &largestPrimeTestedNoG
    largestPrimeTested = 0;
    largestPrimeTestedNoGaps = PMAX_MAX_62BIT;
          
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    // Treat time spent in GPU as if spent in CPU
    workerCpuUS += ip_Device->GetGpuMicroseconds();
 #endif

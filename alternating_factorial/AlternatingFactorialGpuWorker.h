@@ -11,8 +11,12 @@
 
 #include "AlternatingFactorialApp.h"
 #include "../core/Worker.h"
-#include "../opencl/Kernel.h"
-#include "../opencl/KernelArgument.h"
+
+#ifdef USE_OPENCL
+#include "../gpu_opencl/Kernel.h"
+#else
+#include "../gpu_metal/Kernel.h"
+#endif
 
 using namespace std;
 
@@ -29,32 +33,18 @@ public:
 
 protected:
 
-private:
-   void              ValidateFactor(int64_t p, uint32_t term);
-   
+private:   
    AlternatingFactorialApp      *ip_AlternatingFactorialApp;
 
-   int64_t          *il_RemainderList;
-   int64_t          *il_NM1TermList;
-   uint64_t         *il_MagicNumber;
-   uint64_t         *il_MagicShift;
+   uint32_t          ii_MaxGpuFactors;
+   
+   uint64_t         *il_FactorialResiduals;
+   uint64_t         *il_AltFactorialResiduals;
+   uint32_t         *ii_FactorCount;
    uint64_t         *il_FactorList;
-   int32_t           ii_NRange[10];
-   uint32_t          ii_MaxFactors;
+   uint32_t         *ii_Parameters;
 
-   Kernel           *ip_MagicKernel;
-   Kernel           *ip_AlternatingFactorialKernel;
-
-   KernelArgument   *ip_KAPrime;
-   KernelArgument   *ip_MKAMagicNumber;
-   KernelArgument   *ip_MKAMagicShift;
-
-   KernelArgument   *ip_FKAMagicNumber;
-   KernelArgument   *ip_FKAMagicShift;
-   KernelArgument   *ip_KANRange;
-   KernelArgument   *ip_KARemainder;
-   KernelArgument   *ip_KANM1Term;
-   KernelArgument   *ip_KAFactor;
+   Kernel           *ip_Kernel;
 };
 
 #endif

@@ -13,8 +13,12 @@
 #include "AbstractSequenceHelper.h"
 #include "CisOneWithOneSequenceHelper.h"
 #include "AbstractWorker.h"
-#include "../opencl/Kernel.h"
-#include "../opencl/KernelArgument.h"
+
+#ifdef USE_OPENCL
+#include "../gpu_opencl/Kernel.h"
+#else
+#include "../gpu_metal/Kernel.h"
+#endif
 
 using namespace std;
 
@@ -35,43 +39,32 @@ protected:
    CisOneWithOneSequenceHelper *ip_CisOneHelper;
    
    uint32_t          ii_MaxGpuFactors;
-   uint64_t         *ip_FactorList;
-   uint32_t          ii_FactorCount;
+   uint32_t          ii_ChunksPerGpuWorker;
+   uint32_t          ii_KernelWorkSize;
    
-   uint32_t         *ip_BabySteps;
-   uint32_t         *ip_GiantSteps;
-      
-   uint32_t         *ip_CongruentQIndices;
-   uint32_t         *ip_LadderIndices;
+   Kernel           *ip_Kernel;
    
-   uint16_t         *ip_AllQs;
-   uint16_t         *ip_AllLadders;
+   uint64_t         *il_Primes;
+   uint8_t          *ii_DualParityMapM1;
+   uint8_t          *ii_DualParityMapP1;
+   uint8_t          *ii_SingleParityMap;
    
-   uint16_t         *ip_SeqQs;
-   uint16_t         *ip_SeqLadders;
+   uint32_t         *ii_BabySteps;
+   uint32_t         *ii_GiantSteps;
+
+   int16_t          *ii_DivisorShifts;
+   uint16_t         *ii_PowerResidueIndices;
+
+   uint32_t         *ii_QIndices;
+   uint16_t         *ii_Qs;
    
-   legendre_t       *ip_Legendre;
-   uint8_t          *ip_LegendreTable;
+   uint32_t         *ii_LadderIndices;
+   uint16_t         *ii_Ladders;
    
-   uint32_t          ii_Dim1;
-   uint32_t          ii_Dim2;
-   uint32_t          ii_Dim3;
+   uint32_t         *ii_FactorCount;
+   uint64_t         *il_FactorList;
    
-   Kernel           *ip_SRKernel;
-   KernelArgument   *ip_KAPrime;
-   KernelArgument   *ip_KADualParityMapM1;
-   KernelArgument   *ip_KADualParityMapP1;
-   KernelArgument   *ip_KAOneParityMap;
-   KernelArgument   *ip_KASubSeqBS;
-   KernelArgument   *ip_KASubSeqGS;
-   KernelArgument   *ip_KADivisorShifts;
-   KernelArgument   *ip_KAPrlIndices;
-   KernelArgument   *ip_KAQIndices;
-   KernelArgument   *ip_KAQs;
-   KernelArgument   *ip_KALadderIndices;
-   KernelArgument   *ip_KALadders;
-   KernelArgument   *ip_KAFactorCount;
-   KernelArgument   *ip_KAFactorList;
+   
 };
 
 #endif

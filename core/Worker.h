@@ -86,20 +86,14 @@ protected:
    void              SetMiniChunkRange(uint64_t minPrimeForMiniChunkMode, uint64_t maxPrimeForMiniChunkMode, uint32_t chunkSize);
 
    void              SetLargestPrimeTested(uint64_t largestPrimeTested, uint64_t primesTested)  { il_LargestPrimeTested = largestPrimeTested; il_PrimesTested += primesTested; }
-   
-#ifdef HAVE_GPU_WORKERS
-   // This is called by GPU workers.  It will allocate memory for il_PrimeList
-   // and return the number of primes per worker.
-   void              AllocatePrimeList(uint32_t workGroupSize);
-#endif
 
    uint32_t          ii_MyId;
    bool              ib_Initialized;
    bool              ib_GpuWorker;
    
-   vector<uint64_t>  iv_Primes;
+   std::vector<uint64_t>  iv_Primes;
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    uint64_t         *il_PrimeList;
 #endif
 
@@ -124,7 +118,7 @@ private:
    uint64_t          il_MinPrimeForMiniChunkMode;
    uint64_t          il_MaxPrimeForMiniChunkMode;
    
-   vector<uint64_t>::iterator it_PrimeIterator;
+   std::vector<uint64_t>::iterator it_PrimeIterator;
    
    // Total number of milliseconds spent in the thread.
    uint64_t          il_WorkerCpuUS;

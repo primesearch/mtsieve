@@ -50,19 +50,18 @@ public:
    ~XYYXApp(void) {};
 
    void              Help(void);
-   void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
+   void              AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(uint64_t thePrime, const char *term);
+   bool              ApplyFactor(uint64_t theFactor, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
-   bool              ReportFactor(uint64_t p, uint32_t x, uint32_t y, int32_t c);
+   bool              ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y);
    
    uint32_t          GetMinX(void) { return ii_MinX; };
    uint32_t          GetMaxX(void) { return ii_MaxX; };
    uint32_t          GetMinY(void) { return ii_MinY; };
    uint32_t          GetMaxY(void) { return ii_MaxY; };
-   uint32_t          GetGpuSteps(void) { return ii_GpuSteps; }
    uint64_t          GetTermCount(void) { return il_TermCount; }
    uint32_t          GetXCount(void) { return (ii_MaxX - ii_MinX + 1); };
    uint32_t          GetYCount(void) { return (ii_MaxY - ii_MinY + 1); };
@@ -73,9 +72,12 @@ public:
 
    void              GetTerms(uint32_t fpuRemaindersCount, uint32_t avxRemaindersCount, bases_t *bases);
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          GetNumberOfGroups(void);
    uint32_t          GetGroupedTerms(uint32_t *terms);
+   
+   uint32_t          GetMaxGpuSteps(void) { return ii_MaxGpuSteps; };
+   uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
 #endif
 
 protected:
@@ -92,8 +94,9 @@ protected:
 
 private:
    void              SetInitialTerms(void);
+   void              VerifyFactor(uint64_t theFactor, uint32_t x, uint32_t y);
    
-   vector<bool>      iv_Terms;
+   std::vector<bool> iv_Terms;
    
    bool              ib_UseAvx;
    bool              ib_IsPlus;
@@ -104,7 +107,11 @@ private:
    uint32_t          ii_MaxY;
    uint32_t          ii_SplitYCount;
    uint32_t          ii_SplitYValue;
-   uint32_t          ii_GpuSteps;
+
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   uint32_t          ii_MaxGpuSteps;
+   uint32_t          ii_MaxGpuFactors;
+#endif
 };
 
 #endif

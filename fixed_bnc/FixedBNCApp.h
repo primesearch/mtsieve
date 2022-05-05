@@ -26,10 +26,10 @@ public:
    ~FixedBNCApp(void) {};
 
    void              Help(void);
-   void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
+   void              AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(uint64_t thePrime, const char *term);
+   bool              ApplyFactor(uint64_t theFactor, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
    uint64_t          GetMinK(void) { return il_MinK; };
@@ -38,7 +38,7 @@ public:
    uint32_t          GetN(void) { return ii_N; };
    int32_t           GetC(void) { return ii_C; };
    
-   bool              ReportFactor(uint64_t p, uint64_t k);
+   bool              ReportFactor(uint64_t theFactor, uint64_t k);
 
 protected:
    void              PreSieveHook(void) {};
@@ -58,11 +58,11 @@ private:
    uint64_t          WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsFile);
    void              AdjustMaxPrime(void);
    
-   vector<bool>      iv_Terms;
+   std::vector<bool> iv_Terms;
 
-   string            is_Sequence;
-   string            is_InputFileName;
-   string            is_OutputFileName;
+   std::string       is_Sequence;
+   std::string       is_InputFileName;
+   std::string       is_OutputFileName;
 
    format_t          it_Format;
    uint64_t          il_MaxPrimeForValidFactor;

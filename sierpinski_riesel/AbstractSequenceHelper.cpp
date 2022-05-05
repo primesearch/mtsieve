@@ -78,8 +78,8 @@ uint64_t    AbstractSequenceHelper::MakeSubsequencesForNewSieve(void)
 
 void        AbstractSequenceHelper::MakeSubsequencesForOldSieve(uint64_t expectedTerms)
 {
-   vector<bool>     needss; 
-   vector<uint32_t> rss;
+   std::vector<bool>     needss; 
+   std::vector<uint32_t> rss;
    
    uint32_t  bit, r, n;
    uint32_t  expectedSubsequences;
@@ -218,10 +218,10 @@ uint32_t  AbstractSequenceHelper::AddSubsequence(seq_t *seqPtr, uint32_t q, uint
    return ssIdx;
 }
 
-uint32_t    AbstractSequenceHelper::CountResidueClasses(uint32_t d, uint32_t Q, vector<bool> R)
+uint32_t    AbstractSequenceHelper::CountResidueClasses(uint32_t d, uint32_t Q, std::vector<bool> R)
 {
    uint32_t i, count;
-   vector<bool>  R0;
+   std::vector<bool>  R0;
 
    assert(Q % d == 0);
 

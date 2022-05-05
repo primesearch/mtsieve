@@ -33,7 +33,7 @@ typedef struct
    uint32_t     ssIdxFirst;   // index of first subsequence for the sequence
    uint32_t     ssIdxLast;    // index of first subsequence for the sequence
    
-   vector<bool> nTerms;       // remaining n for this sequences
+   std::vector<bool> nTerms;  // remaining n for this sequences
    
    void        *next;         // points to the next sequence
 } seq_t;
@@ -46,7 +46,7 @@ typedef struct
    uint64_t     k;            // k in k*b^n+c
    int64_t      c;            // c in k*b^n+c
    uint16_t     q;
-   vector<bool> mTerms;       // remaining m for this sub-sequence
+   std::vector<bool> mTerms;  // remaining m for this sub-sequence
    
    uint32_t     babySteps;    // baby steps for CIsOne logic
    uint32_t     giantSteps;   // giant steps for CIsOne logic
@@ -87,7 +87,7 @@ protected:
    
    virtual uint32_t  FindBestQ(uint32_t &expectedSubsequences) = 0;
    
-   uint32_t          CountResidueClasses(uint32_t d, uint32_t Q, vector<bool> R);
+   uint32_t          CountResidueClasses(uint32_t d, uint32_t Q, std::vector<bool> R);
    void              ChooseSteps(uint32_t Q, uint32_t s, uint32_t &babySteps, uint32_t &giantSteps);
    
    App              *ip_App;

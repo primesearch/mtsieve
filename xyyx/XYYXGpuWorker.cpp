@@ -14,69 +14,48 @@
 #include <time.h>
 
 #include "XYYXGpuWorker.h"
-#include "magiccl.h"
-#include "xyyx_kernel.h"
-#include "../x86_asm/fpu-asm-x86.h"
+#include "xyyx_kernel.gpu.h"
 
 XYYXGpuWorker::XYYXGpuWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
-{
-   const char *magicSource[3];
-   const char *xyyxSource[5];
+{ 
+   char        defines[10][50];
+   const char *preKernelSources[10];
+   uint32_t    defineCount = 0, idx;
    
    ib_GpuWorker = true;
    
    ip_XYYXApp = (XYYXApp *) theApp;
 
-   magicSource[0] = magic;
-   magicSource[1] = 0;
-   
-   xyyxSource[0] = xyyx_kernel;
-   xyyxSource[1] = 0;
-
-   ip_MagicKernel = new Kernel(ip_XYYXApp->GetDevice(), "magic_kernel", magicSource);
-
-   ip_XYYXKernel = new Kernel(ip_XYYXApp->GetDevice(), "xyyx_kernel", xyyxSource);
-
-   AllocatePrimeList(ip_XYYXKernel->GetWorkGroupSize());
-   
-   ii_GroupSize = ip_XYYXApp->GetGpuSteps();
-   
    // Allocate enough memory to hold all of the terms.
    ii_Groups = ip_XYYXApp->GetNumberOfGroups();
+   ii_GroupSize = ip_XYYXApp->GetMaxGpuSteps();
+   ii_MaxGpuFactors = ip_XYYXApp->GetMaxGpuFactors();
+
+   ii_Terms = (uint32_t *) xmalloc(ii_Groups * ii_GroupSize * sizeof(uint32_t));
    
-   ii_GroupedTerms = (uint32_t *) xmalloc(ii_Groups * ii_GroupSize * sizeof(uint32_t));
+   if (ip_XYYXApp->IsPlus())
+      sprintf(defines[defineCount++], "#define IS_PLUS");
    
-   if (myId == 1)
-      ip_XYYXApp->WriteToConsole(COT_OTHER, "Creating %u groups with %u terms each for GPU", ii_Groups, ii_GroupSize);
+   if (ip_XYYXApp->IsMinus())
+      sprintf(defines[defineCount++], "#define IS_MINUS");
+
+   sprintf(defines[defineCount++], "#define D_MAX_FACTORS %u", ii_MaxGpuFactors);
       
-   il_PrimeList = (uint64_t *) xmalloc(ii_WorkSize*sizeof(uint64_t));
-   il_MagicNumber = (uint64_t *) xmalloc(ii_WorkSize*sizeof(uint64_t));
-   il_MagicShift = (uint64_t *) xmalloc(ii_WorkSize*sizeof(uint64_t));
-   il_MinusFactorList = (uint64_t *) xmalloc(ii_GroupSize*sizeof(uint64_t));
-   il_PlusFactorList = (uint64_t *) xmalloc(ii_GroupSize*sizeof(uint64_t));
+   for (idx=0; idx<defineCount; idx++)
+      preKernelSources[idx] = defines[idx];
    
-   ip_KAPrime        = new KernelArgument(ip_XYYXApp->GetDevice(), "prime", KA_HOST_TO_GPU, il_PrimeList, ii_WorkSize);
-   ip_MKAMagicNumber = new KernelArgument(ip_XYYXApp->GetDevice(), "magic_number", KA_GPU_TO_HOST, il_MagicNumber, ii_WorkSize);
-   ip_MKAMagicShift  = new KernelArgument(ip_XYYXApp->GetDevice(), "magic_shift", KA_GPU_TO_HOST, il_MagicShift, ii_WorkSize);
+   preKernelSources[idx] = 0;
+   
+   ip_Kernel = new Kernel(ip_XYYXApp->GetDevice(), "xyyx_kernel", xyyx_kernel, preKernelSources);
 
-   ip_XYYXKAMagicNumber = new KernelArgument(ip_XYYXApp->GetDevice(), "magic_number", KA_HOST_TO_GPU, il_MagicNumber, ii_WorkSize);
-   ip_XYYXKAMagicShift  = new KernelArgument(ip_XYYXApp->GetDevice(), "magic_shift", KA_HOST_TO_GPU, il_MagicShift, ii_WorkSize);
-
-   // We will change the pointer before executing the kernel
-   ip_KATerms        = new KernelArgument(ip_XYYXApp->GetDevice(), "terms", KA_HOST_TO_GPU, ii_GroupedTerms, ii_GroupSize);
-   ip_KAMinusFactors = new KernelArgument(ip_XYYXApp->GetDevice(), "minus_factors", KA_BIDIRECTIONAL, il_MinusFactorList, ii_GroupSize);
-   ip_KAPlusFactors  = new KernelArgument(ip_XYYXApp->GetDevice(), "plus_factors", KA_BIDIRECTIONAL, il_PlusFactorList, ii_GroupSize);
-
-   ip_MagicKernel->AddArgument(ip_KAPrime);
-   ip_MagicKernel->AddArgument(ip_MKAMagicNumber);
-   ip_MagicKernel->AddArgument(ip_MKAMagicShift);
-
-   ip_XYYXKernel->AddArgument(ip_KAPrime);
-   ip_XYYXKernel->AddArgument(ip_XYYXKAMagicNumber);
-   ip_XYYXKernel->AddArgument(ip_XYYXKAMagicShift);
-   ip_XYYXKernel->AddArgument(ip_KATerms);
-   ip_XYYXKernel->AddArgument(ip_KAMinusFactors);
-   ip_XYYXKernel->AddArgument(ip_KAPlusFactors);
+   ip_XYYXApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
+   
+   ii_WorkSize = ip_XYYXApp->GetGpuPrimesPerWorker();
+   
+   il_PrimeList = (uint64_t *) ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_WorkSize);
+   ii_KernelTerms = (uint32_t *) ip_Kernel->AddCpuArgument("terms", sizeof(uint32_t), ii_GroupSize);
+   ii_FactorCount = (uint32_t *) ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 1);
+   il_FactorList = (uint64_t *) ip_Kernel->AddGpuArgument("factorList", sizeof(uint64_t), 4*ii_MaxGpuFactors);
 
    // The thread can't start until initialization is done
    ib_Initialized = true;
@@ -86,47 +65,25 @@ XYYXGpuWorker::XYYXGpuWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
 
 void  XYYXGpuWorker::CleanUp(void)
 {
-   delete ip_KAPrime;
-
-   delete ip_MKAMagicNumber;
-   delete ip_MKAMagicShift;
-   
-   delete ip_XYYXKAMagicNumber;
-   delete ip_XYYXKAMagicShift;
-
-   delete ip_KATerms;
-   delete ip_KAPlusFactors;
-   delete ip_KAMinusFactors;
-
-   delete ip_MagicKernel;
-   delete ip_XYYXKernel;
-
-   xfree(ii_GroupedTerms);
-   xfree(il_MagicNumber);
-   xfree(il_MagicShift);
-   xfree(il_MinusFactorList);
-   xfree(il_PlusFactorList);
+   delete ip_Kernel;
 }
 
 void  XYYXGpuWorker::TestMegaPrimeChunk(void)
 {
-   uint64_t  factor;
    uint32_t  group;
-   uint32_t  ii, idx;
+   uint32_t  idx;
    uint32_t  x, y;
+   uint64_t  thePrime;
    time_t    reportTime = time(NULL) + 60;
 
    // Every once in a while rebuild the term lists as it will have fewer entries
    // which will speed up testing for the next range of p.
    if (il_PrimeList[0] > il_NextTermsBuild)
    {
-      ii_Groups = ip_XYYXApp->GetGroupedTerms(ii_GroupedTerms);
+      ii_Groups = ip_XYYXApp->GetGroupedTerms(ii_Terms);
       
       il_NextTermsBuild = (il_PrimeList[0] << 1);
    }
-      
-   // Compute magic numbers
-   ip_MagicKernel->Execute(ii_WorkSize);
 
    for (group=0; group<ii_Groups; group++)
    {
@@ -136,53 +93,30 @@ void  XYYXGpuWorker::TestMegaPrimeChunk(void)
          reportTime = time(NULL) + 60;
       }
       
-      for (ii=0; ii<ii_GroupSize; ii++)
-      {
-         il_MinusFactorList[ii] = PMAX_MAX_62BIT;
-         il_PlusFactorList[ii] = PMAX_MAX_62BIT;
-      }
-      
       idx = group * ii_GroupSize;
-      ip_KATerms->SetHostMemory(&ii_GroupedTerms[idx]);
+      
+      memcpy(ii_KernelTerms, &ii_Terms[idx], ii_GroupSize * sizeof(uint32_t));
+      
+      ii_FactorCount[0] = 0;
+      
+      ip_Kernel->Execute(ii_WorkSize);
 
-      ip_XYYXKernel->Execute(ii_WorkSize);
+      for (uint32_t ii=0; ii<ii_FactorCount[0]; ii++)
+      {  
+         idx = ii*4;
+         
+         x = (uint32_t) il_FactorList[idx+0];
+         y = (int32_t) il_FactorList[idx+1];
+         thePrime = il_FactorList[idx+2];
 
-      ii = 0;
-      while (ii_GroupedTerms[idx] != 0)
-      {
-         x = ii_GroupedTerms[idx];         
-         idx++;
-         ii++;
+         ip_XYYXApp->ReportFactor(thePrime, x, y);
          
-         while (ii_GroupedTerms[idx] != 0)
-         {
-            y = ii_GroupedTerms[idx];
-            
-            if (il_MinusFactorList[ii] != PMAX_MAX_62BIT)
-            {
-               factor = il_MinusFactorList[ii];
-               
-               if (ip_XYYXApp->ReportFactor(factor, x, y, -1))
-                  VerifyFactor(factor, x, y, -1);
-            }
-                        
-            if (il_PlusFactorList[ii] != PMAX_MAX_62BIT)
-            {
-               factor = il_PlusFactorList[ii];
-               
-               if (ip_XYYXApp->ReportFactor(factor, x, y, +1))
-                  VerifyFactor(factor, x, y, +1);
-            }
-            
-            // Go to the next term
-            idx++;
-            ii++;
-         }
-         
-         // Skip the 0 (marking the end of y for this x
-         idx++;
-         ii++;
+         if ((ii+1) == ii_MaxGpuFactors)
+            break;
       }
+
+      if (ii_FactorCount[0] >= ii_MaxGpuFactors)
+         FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factors", ii_FactorCount[0], ii_MaxGpuFactors);
    }
    
    SetLargestPrimeTested(il_PrimeList[ii_WorkSize-1], ii_WorkSize);
@@ -191,22 +125,4 @@ void  XYYXGpuWorker::TestMegaPrimeChunk(void)
 void  XYYXGpuWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 {
    FatalError("XYYXGpuWorker::TestMiniPrimeChunk not implemented");
-}
-
-void  XYYXGpuWorker::VerifyFactor(uint64_t p, uint32_t x, uint32_t y, int32_t c)
-{
-   uint64_t xPowY, yPowX;
-   
-   fpu_push_1divp(p);
-      
-   xPowY = fpu_powmod(x, y, p);
-   yPowX = fpu_powmod(y, x, p);
-   
-   fpu_pop();
-      
-   if (c == -1 && xPowY != yPowX)
-      FatalError("%" PRIu64" does not divide %u^%u-%u^%u", p, x, y, y, x);
-   
-   if (c == +1 && xPowY + yPowX != p)
-      FatalError("%" PRIu64" does not divide %u^%u+%u^%u", p, x, y, y, x);
 }

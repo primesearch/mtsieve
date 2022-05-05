@@ -10,8 +10,11 @@
 #include <time.h>
 
 #include "CullenWoodallWorker.h"
+
+#ifdef USE_X86
 #include "../x86_asm/fpu-asm-x86.h"
 #include "../x86_asm/avx-asm-x86.h"
+#endif
 
 // This is for building a list of even powers for b
 #define MAX_POWERS   50
@@ -34,7 +37,8 @@ CullenWoodallWorker::CullenWoodallWorker(uint32_t myId, App *theApp) : Worker(my
 
    il_NextTermsBuild = 0;
    ib_Initialized = true;
-   
+
+#ifdef USE_X86
    if (CpuSupportsAvx())
    {
       if (ii_Base < ii_MaxN)
@@ -42,6 +46,7 @@ CullenWoodallWorker::CullenWoodallWorker(uint32_t myId, App *theApp) : Worker(my
       else
          SetMiniChunkRange(ii_Base + 1, PMAX_MAX_52BIT, AVX_ARRAY_SIZE);
    }
+#endif
 }
 
 void  CullenWoodallWorker::CleanUp(void)
@@ -93,6 +98,7 @@ void  CullenWoodallWorker::TestMegaPrimeChunk(void)
    }
 }
 
+#ifdef USE_X86
 void  CullenWoodallWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 {
    // Every once in a while rebuild the term lists as it will have fewer entries
@@ -107,6 +113,7 @@ void  CullenWoodallWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 
    TestPrimesAVX(miniPrimeChunk);
 }
+#endif
 
 // For small p, we need to iterate from minn to maxn as the large prime algorithm
 // does not work correctly when p < maxN.
@@ -333,6 +340,7 @@ void  CullenWoodallWorker::TestLargePrimesFPU(uint64_t *ps)
    fpu_pop();
 }
 
+#ifdef USE_X86
 // Same as TestLargePrimesFPU, but using AVX
 void  CullenWoodallWorker::TestPrimesAVX(uint64_t *ps)
 {
@@ -444,6 +452,24 @@ void  CullenWoodallWorker::CheckAVXResult(uint32_t theN, uint64_t *ps, double *d
             ip_CullenWoodallApp->ReportFactor(ps[idx], theN, +1);
    }
 }
+
+// Build a list of powers for a from a^0 thru a^n for all even n up to count.
+void  CullenWoodallWorker::BuildListOfPowers(uint64_t a, uint64_t p, uint32_t count, uint64_t *powers)
+{
+   uint32_t index;
+   
+   fpu_push_adivb(a, p);
+   
+   powers[0] = 1;
+   powers[1] = a;
+   
+   // Multiply successive terms by a (mod p)
+   for (index=2; index<count; index++)
+       powers[index] = fpu_mulmod_iter(powers[index-1], a, p);
+
+   fpu_pop();
+}
+#endif
    
 uint64_t CullenWoodallWorker::ComputeMultiplicativeInverse(uint64_t a, uint64_t p)
 {
@@ -473,21 +499,4 @@ uint64_t CullenWoodallWorker::ComputeMultiplicativeInverse(uint64_t a, uint64_t 
       x += p;
 
    return x;
-}
-
-// Build a list of powers for a from a^0 thru a^n for all even n up to count.
-void  CullenWoodallWorker::BuildListOfPowers(uint64_t a, uint64_t p, uint32_t count, uint64_t *powers)
-{
-   uint32_t index;
-   
-   fpu_push_adivb(a, p);
-   
-   powers[0] = 1;
-   powers[1] = a;
-   
-   // Multiply successive terms by a (mod p)
-   for (index=2; index<count; index++)
-       powers[index] = fpu_mulmod_iter(powers[index-1], a, p);
-
-   fpu_pop();
 }

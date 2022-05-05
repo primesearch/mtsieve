@@ -11,15 +11,22 @@
 #include <time.h>
 #include "PrimorialApp.h"
 #include "PrimorialWorker.h"
-#ifdef HAVE_GPU_WORKERS
-#include "PrimorialGpuWorker.h"
-#endif
-#include "../core/Parser.h"
-#include "../sieve/primesieve.hpp"
-#include "../x86_asm/fpu-asm-x86.h"
 
+#include "../core/Parser.h"
+#include "../core/MpArith.h"
+#include "../sieve/primesieve.hpp"
+
+#if defined(USE_OPENCL)
+#include "PrimorialGpuWorker.h"
+#define APP_NAME        "psievecl"
+#elif defined(USE_METAL)
+#include "PrimorialGpuWorker.h"
+#define APP_NAME        "psievemtl"
+#else
 #define APP_NAME        "psieve"
-#define APP_VERSION     "1.4"
+#endif
+
+#define APP_VERSION     "1.5"
 
 #define BIT(primorial)  ((primorial) - ii_MinPrimorial)
 
@@ -45,7 +52,7 @@ PrimorialApp::PrimorialApp() : FactorApp()
    // This is because the assembly code is using SSE to do the mulmods
    SetAppMaxPrime(PMAX_MAX_52BIT);
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    ii_MaxGpuSteps = 50000;
    ii_MaxGpuFactors = GetGpuWorkGroups() * 100;
 #endif
@@ -58,13 +65,13 @@ void PrimorialApp::Help(void)
    printf("-n --minn=n           minimum primorial to search\n");
    printf("-N --maxn=M           maximum primorial to search\n");
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    printf("-S --step=S           max steps iterated per call to GPU (default %u)\n", ii_MaxGpuSteps);
    printf("-M --maxfactors=M     max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
 #endif
 }
 
-void  PrimorialApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  PrimorialApp::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
@@ -73,7 +80,7 @@ void  PrimorialApp::AddCommandLineOptions(string &shortOpts, struct option *long
    AppendLongOpt(longOpts, "minn",           required_argument, 0, 'n');
    AppendLongOpt(longOpts, "maxn",           required_argument, 0, 'N');
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    shortOpts += "S:M:";
    
    AppendLongOpt(longOpts, "maxsteps",       required_argument, 0, 'S');
@@ -98,7 +105,7 @@ parse_t PrimorialApp::ParseOption(int opt, char *arg, const char *source)
          status = Parser::Parse(arg, 100, 1000000000, ii_MaxPrimorial);
          break;
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
       case 'S':
          status = Parser::Parse(arg, 1, 1000000000, ii_MaxGpuSteps);
          break;
@@ -116,8 +123,8 @@ void PrimorialApp::ValidateOptions(void)
 {
    uint32_t primesInRange;
    uint32_t thisPrime, prevPrime;
-   vector<uint64_t>  primes;
-   vector<uint64_t>::iterator it;
+   std::vector<uint64_t>  primes;
+   std::vector<uint64_t>::iterator it;
    
    if (is_OutputTermsFileName.length() == 0)
       is_OutputTermsFileName = "primorial.pfgw";
@@ -131,12 +138,12 @@ void PrimorialApp::ValidateOptions(void)
          FatalError("The value for -N must be greater than the value for -n");
    }
       
-   // Count the list of primorial primes from FIRST_PRIMORIAL_PRIME to maxPrimorial
+   // Count the list of primorial primes from FIRST_PRIMORIAL_PRIME+1  to maxPrimorial
    primesInRange = primesieve::count_primes(FIRST_PRIMORIAL_PRIME + 1, ii_MaxPrimorial + 1);
    
    primes.clear();
    
-   // Generate the list of primorial primes from FIRST_PRIMORIAL_PRIME to maxPrimorial
+   // Generate the list of primorial primes from FIRST_PRIMORIAL_PRIME+1 to maxPrimorial
    primesieve::generate_n_primes(primesInRange, FIRST_PRIMORIAL_PRIME + 1, &primes);
    
    it = primes.begin();
@@ -197,7 +204,7 @@ void PrimorialApp::ValidateOptions(void)
       }
    }
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    SetMinGpuPrime(ii_MaxPrimorial + 1);
 #endif
 
@@ -206,7 +213,7 @@ void PrimorialApp::ValidateOptions(void)
 
 Worker *PrimorialApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested)
 {
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    if (gpuWorker)
       return new PrimorialGpuWorker(id, this);
 #endif
@@ -285,8 +292,7 @@ bool PrimorialApp::ApplyFactor(uint64_t thePrime, const char *term)
    if (primorial < ii_MinPrimorial || primorial > ii_MaxPrimorial)
       return false;
    
-   if (!VerifyFactor(false, thePrime, primorial, c))
-      return false;
+   VerifyFactor(thePrime, primorial, c);
    
    uint32_t bit = BIT(primorial);
    
@@ -348,7 +354,7 @@ void PrimorialApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
    sprintf(extraTtext, "%u <= primorial <= %u", ii_MinPrimorial, ii_MaxPrimorial);
 }
 
-bool PrimorialApp::ReportFactor(uint64_t primeFactor, uint32_t primorial, int32_t c, bool verifyFactor)
+bool PrimorialApp::ReportFactor(uint64_t theFactor, uint32_t primorial, int32_t c)
 {
    uint32_t bit;
    bool     newFactor = false;
@@ -356,8 +362,7 @@ bool PrimorialApp::ReportFactor(uint64_t primeFactor, uint32_t primorial, int32_
    if (primorial < ii_MinPrimorial || primorial > ii_MaxPrimorial)
       return false;
 
-   if (verifyFactor)
-      VerifyFactor(true, primeFactor, primorial, c);
+   VerifyFactor(theFactor, primorial, c);
    
    ip_FactorAppLock->Lock();
 
@@ -370,7 +375,7 @@ bool PrimorialApp::ReportFactor(uint64_t primeFactor, uint32_t primorial, int32_
       il_TermCount--;
       il_FactorCount++;
       
-      LogFactor(primeFactor, "%u#-1", primorial);
+      LogFactor(theFactor, "%u#-1", primorial);
    }
 
    if (c == +1 && iv_PlusTerms[bit])
@@ -380,7 +385,7 @@ bool PrimorialApp::ReportFactor(uint64_t primeFactor, uint32_t primorial, int32_
       il_TermCount--;
       il_FactorCount++;
       
-      LogFactor(primeFactor, "%u#+1", primorial);
+      LogFactor(theFactor, "%u#+1", primorial);
    }
    
    ip_FactorAppLock->Release();
@@ -388,31 +393,24 @@ bool PrimorialApp::ReportFactor(uint64_t primeFactor, uint32_t primorial, int32_
    return newFactor;
 }
 
-bool  PrimorialApp::VerifyFactor(bool badFactorIsFatal, uint64_t primeFactor, uint32_t primorial, int32_t theC)
+void  PrimorialApp::VerifyFactor(uint64_t theFactor, uint32_t primorial, int32_t c)
 {
-   uint64_t rem = FIRST_PRIMORIAL;
-   uint32_t i = 0;
-   
-   fpu_push_1divp(primeFactor);
-   
-   for (i=0; ; i++)
+   MpArith  mp(theFactor);
+   MpRes    pOne = mp.one();
+   MpRes    mOne = mp.sub(mp.zero(), pOne);
+   MpRes    res = mp.nToRes(FIRST_PRIMORIAL);
+
+   for (uint32_t i=0; ; i++)
    {
-      rem = fpu_mulmod(rem, ip_PrimorialPrimes[i], primeFactor);
+      res = mp.mul(res, mp.nToRes(ip_PrimorialPrimes[i]));
 
       if (ip_PrimorialPrimes[i] == primorial)
          break;
    }
-  
-   fpu_pop();
-
-   if (theC == -1 && rem == +1)
-      return true;
+   
+   if (c == -1 && res != pOne)
+      FatalError("%" PRIu64" is not a factor of %u#-1", theFactor, primorial);
       
-   if (theC == +1 && rem == primeFactor-1)
-      return true;
-       
-   if (badFactorIsFatal)
-      FatalError("%" PRIu64" is not a factor of %u#%+d (%" PRIu64")", primeFactor, primorial, theC, rem);
-
-   return false;
+   if (c == +1 && res != mOne)
+      FatalError("%" PRIu64" is not a factor of %u#+1", theFactor, primorial);
 }

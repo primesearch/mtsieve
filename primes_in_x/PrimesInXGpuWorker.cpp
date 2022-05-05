@@ -12,172 +12,119 @@
 
 #include <cinttypes>
 #include "PrimesInXGpuWorker.h"
-#include "magiccl.h"
-#include "pix_kernel.h"
-#include <time.h>
+#include "pix_kernel.gpu.h"
 
 #define   VECTOR_SIZE   2
 
 PrimesInXGpuWorker::PrimesInXGpuWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
 {
-   const char *magicSource[3];
-   const char *source[10];
+   char        defines[10][50];
+   const char *preKernelSources[10];
+   uint32_t    idx, defineCount;
    
    ib_GpuWorker = true;
    
    ip_PrimesInXApp = (PrimesInXApp *) theApp;
    
-   ii_MaxSteps = ip_PrimesInXApp->GetSteps();
-
-   BuildMixedTerms();
-   BuildSingleTerms();
-
-   source[0] = pix_kernel;
-   source[1] = 0;
-
-   magicSource[0] = magic;
-   magicSource[1] = 0;
-
-   ip_MagicKernel = new Kernel(ip_PrimesInXApp->GetDevice(), "magic_kernel", magicSource);
-   ip_PrimesInXKernel = new Kernel(ip_PrimesInXApp->GetDevice(), "pix_kernel", source);
-
-   AllocatePrimeList(ip_PrimesInXKernel->GetWorkGroupSize());
+   ii_MaxSteps = ip_PrimesInXApp->GetMaxGpuSteps();
+   ii_MaxGpuFactors = ip_PrimesInXApp->GetMaxGpuFactors() + 10;
+   ii_GroupSize = (5 + ii_MaxSteps);
    
-   il_RemainderList = (int64_t *) xmalloc(ii_WorkSize*sizeof(int64_t));
-   il_MagicNumber = (uint64_t *) xmalloc(ii_WorkSize*sizeof(uint64_t));
-   il_MagicShift = (uint64_t *) xmalloc(ii_WorkSize*sizeof(uint64_t));
-   ii_KernelDigitList = (uint32_t *) xmalloc(ii_MaxSteps*sizeof(uint32_t));
-   il_FactorList = (uint64_t *) xmalloc(ii_MaxSteps*sizeof(uint64_t)); 
-
-   ip_KAPrime     = new KernelArgument(ip_PrimesInXApp->GetDevice(), "prime", KA_HOST_TO_GPU, il_PrimeList, ii_WorkSize);
-   ip_MKAMagicNumber = new KernelArgument(ip_PrimesInXApp->GetDevice(), "magic_number", KA_GPU_TO_HOST, il_MagicNumber, ii_WorkSize);
-   ip_MKAMagicShift = new KernelArgument(ip_PrimesInXApp->GetDevice(), "magic_shift", KA_GPU_TO_HOST, il_MagicShift, ii_WorkSize);
+   ii_e1DigitList = BuildDigitList();
+   ii_e3DigitList = BuildDigitList(1000, 3, ip_PrimesInXApp->Get3DigitTermsCopy());
+   ii_e6DigitList = BuildDigitList(1000000, 6, ip_PrimesInXApp->Get6DigitTermsCopy());
+   ii_e9DigitList = BuildDigitList(1000000000, 9, ip_PrimesInXApp->Get9DigitTermsCopy());
    
-   ip_MagicKernel->AddArgument(ip_KAPrime);
-   ip_MagicKernel->AddArgument(ip_MKAMagicNumber);
-   ip_MagicKernel->AddArgument(ip_MKAMagicShift);
+   defineCount = 0;
+   sprintf(defines[defineCount++], "#define D_MAX_FACTORS %u", ii_MaxGpuFactors);
+   sprintf(defines[defineCount++], "#define D_EOL %u", (1 << 31));
+      
+   for (idx=0; idx<defineCount; idx++)
+      preKernelSources[idx] = defines[idx];
    
-   ip_KARemainders  = new KernelArgument(ip_PrimesInXApp->GetDevice(), "remainder", KA_BIDIRECTIONAL, il_RemainderList, ii_WorkSize);
-   ip_SKAMagicNumber = new KernelArgument(ip_PrimesInXApp->GetDevice(), "magic_number", KA_HOST_TO_GPU, il_MagicNumber, ii_WorkSize);
-   ip_SKAMagicShift = new KernelArgument(ip_PrimesInXApp->GetDevice(), "magic_shift", KA_HOST_TO_GPU, il_MagicShift, ii_WorkSize);
-   ip_KADigits = new KernelArgument(ip_PrimesInXApp->GetDevice(), "digits", KA_HOST_TO_GPU, ii_KernelDigitList, ii_MaxSteps);  
-   ip_KAFactors = new KernelArgument(ip_PrimesInXApp->GetDevice(), "factors", KA_BIDIRECTIONAL, il_FactorList, ii_MaxSteps);  
+   preKernelSources[idx] = 0;
+ 
+   ip_Kernel = new Kernel(ip_PrimesInXApp->GetDevice(), "pix_kernel", pix_kernel, preKernelSources);
 
-   ip_PrimesInXKernel->AddArgument(ip_KAPrime);
-   ip_PrimesInXKernel->AddArgument(ip_SKAMagicNumber);
-   ip_PrimesInXKernel->AddArgument(ip_SKAMagicShift);
-   ip_PrimesInXKernel->AddArgument(ip_KARemainders);
-   ip_PrimesInXKernel->AddArgument(ip_KADigits);
-   ip_PrimesInXKernel->AddArgument(ip_KAFactors);
+   ip_PrimesInXApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
+   
+   ii_WorkSize = ip_PrimesInXApp->GetGpuPrimesPerWorker();
+   
+   il_PrimeList = (uint64_t *) ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_WorkSize);
+   il_Residuals = (uint64_t *) ip_Kernel->AddSharedArgument("residuals", sizeof(uint64_t), ii_WorkSize);
+   ii_DigitList = (uint32_t *) ip_Kernel->AddCpuArgument("digitList", sizeof(uint32_t), ii_GroupSize);
+   ii_FactorCount = (uint32_t *) ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 1);
+   il_FactorList = (uint64_t *) ip_Kernel->AddGpuArgument("factorList", sizeof(uint64_t), 2*ii_MaxGpuFactors);
    
    ib_Initialized = true;
 }
 
 void  PrimesInXGpuWorker::CleanUp(void)
 {
-   delete ip_KAPrime;
-   delete ip_MKAMagicNumber;
-   delete ip_MKAMagicShift;
-   
-   delete ip_SKAMagicNumber;
-   delete ip_SKAMagicShift;
-   delete ip_KARemainders;
-   delete ip_KAFactors;
-   delete ip_KADigits;
-   
-   xfree(ii_KernelDigitList);
-   xfree(il_RemainderList);
-   xfree(il_FactorList);
-   xfree(il_MagicNumber);
-   xfree(il_MagicShift);
-   
-   for (uint32_t ii=0; ii<ii_MixedDigitListCount; ii++)
-      xfree(ii_MixedDigitList[ii]);
+   delete ip_Kernel;
 
-   xfree(ii_MixedDigitList);
-
-   for (uint32_t ii=0; ii<ii_SingleDigitListCount; ii++)
-      xfree(ii_SingleDigitList[ii]);
-
-   xfree(ii_SingleDigitList);
+   xfree(ii_e1DigitList);
+   
+   if (ii_e3DigitList != NULL)
+      xfree(ii_e3DigitList);
+   
+   if (ii_e6DigitList != NULL)
+      xfree(ii_e6DigitList);
+   
+   if (ii_e9DigitList != NULL)
+      xfree(ii_e9DigitList);
 }
 
 void  PrimesInXGpuWorker::TestMegaPrimeChunk(void)
 {
-   uint32_t ii, kk;
-   int64_t  prime, rem;
-   uint32_t term, plength;
-   uint32_t digitListUsed;
-   time_t   reportTime;
-   uint32_t **digitList;
+   uint32_t   dlIdx, termLength;
+   uint64_t   prime;
+   char       sPrime[20];
+   uint32_t  *digitList = ii_e1DigitList;
    
-   // Once we reach 1G, then we can use larger terms to get
-   // to the min term more quickly.
+   if (il_PrimeList[0] > 1000)
+      digitList = ii_e3DigitList;
+
+   if (il_PrimeList[0] > 1000000)
+      digitList = ii_e6DigitList;
+
    if (il_PrimeList[0] > 1000000000)
+      digitList = ii_e9DigitList;
+   
+   dlIdx = 0;
+   while (digitList[dlIdx] > 0)
    {
-      digitList = ii_MixedDigitList;
-      digitListUsed = ii_MixedDigitListUsed;
-   }
-   else
-   {
-      digitList = ii_SingleDigitList;
-      digitListUsed = ii_SingleDigitListUsed;
-   }
-   
-   ip_MagicKernel->Execute(ii_WorkSize);
-   
-   // Initialize the list of remainders
-   for (ii=0; ii<ii_WorkSize; ii++)
-      il_RemainderList[ii] = 0;
-   
-   reportTime = time(NULL) + 60;
+      ii_FactorCount[0] = 0;
+            
+      // The first entry is the number of digits for which the residuals have been calculated.
+      // The second entry is a multiplier for each term in the list.
+      memcpy(ii_DigitList, &digitList[dlIdx], ii_GroupSize*sizeof(uint32_t));
 
-   kk = 0;
-   do
-   {     
-      for (ii=0; ii<ii_MaxSteps; ii++)
+      ip_Kernel->Execute(ii_WorkSize);
+
+      for (uint32_t ii=0; ii<ii_FactorCount[0]; ii++)
       {
-         ii_KernelDigitList[ii] = digitList[kk][ii];
-         il_FactorList[ii] = PMAX_MAX_62BIT;
-      }
+         uint32_t idx = ii*2;
 
-      ip_PrimesInXKernel->Execute(ii_WorkSize);
-
-      // The first two entries will not have factors.
-      for (ii=2; ii<ii_MaxSteps; ii++)
-      {
-         if (ii_KernelDigitList[ii] == ii_KernelDigitList[1])
-            break;
-
-         if (il_FactorList[ii] == PMAX_MAX_62BIT)
-            continue;
+         termLength = il_FactorList[idx+0];
+         prime = il_FactorList[idx+1];
          
-         term = (ii - 1) + ii_KernelDigitList[0];
-
-         prime = il_FactorList[ii];
-         plength = 1;
-         rem = prime;
-         while (rem > 10)
-         {
-            plength++;
-            rem /= 10;
-         }
+         sprintf(sPrime, "%llu", prime);
          
-         if (plength == term)
-            ip_PrimesInXApp->ReportPrime(prime, term);
+         if (strlen(sPrime) == termLength)
+            ip_PrimesInXApp->ReportPrime(prime, termLength);
          else
-            if (ip_PrimesInXApp->ReportFactor(prime, term))
-               VerifyFactor(prime, term);
+            ip_PrimesInXApp->ReportFactor(prime, termLength);
+         
+         if ((ii+1) == ii_MaxGpuFactors)
+            break;
       }
-
-      kk++;
-
-      if (kk < digitListUsed && ip_PrimesInXApp->IsInterrupted() && time(NULL) > reportTime)
-      {
-         ip_PrimesInXApp->WriteToConsole(COT_SIEVE, "Thread %d has completed %d of %d iterations", ii_MyId, kk, digitListUsed);
-         reportTime = time(NULL) + 60;
-      }
-   } while (kk < digitListUsed);
+      
+      if (ii_FactorCount[0] >= ii_MaxGpuFactors)
+         FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factors", ii_FactorCount[0], ii_MaxGpuFactors);
+      
+      dlIdx += ii_GroupSize;
+   }
    
    SetLargestPrimeTested(il_PrimeList[ii_WorkSize-1], ii_WorkSize);
 }
@@ -187,184 +134,114 @@ void  PrimesInXGpuWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
    FatalError("PrimesInXGpuWorker::TestMiniPrimeChunk not implemented");
 }
 
-void  PrimesInXGpuWorker::BuildMixedTerms(void)
+
+uint32_t  *PrimesInXGpuWorker::BuildDigitList(void)
 {
-   uint32_t    ii, index;
-   uint32_t    digitLength = 0;
-   uint32_t    e9Terms, e1Terms;
-   uint32_t    e9Term, e1Term;
-   uint32_t   *digitList;
+   uint32_t smallTermsInList = ip_PrimesInXApp->GetMaxLength();
+   uint32_t smallGroupsNeeded = 2 + (smallTermsInList / ii_MaxSteps);
 
-   e9Terms = (ip_PrimesInXApp->GetMinLength() / 9);
-   e1Terms = ip_PrimesInXApp->GetMaxLength() - (9 * e9Terms);
+   uint32_t *groupedDigitList = (uint32_t *) xmalloc(smallGroupsNeeded * ii_GroupSize * sizeof(uint32_t));
+   uint32_t groupIdx = 0;
+   uint32_t dlIdx = 0;
+   uint32_t termLength = 0;
 
-   ii_MixedDigitListCount = 2 + (e9Terms + e1Terms) / (ii_MaxSteps - 4);
-
-   ii_MixedDigitList = (uint32_t **) xmalloc(ii_MixedDigitListCount*sizeof(uint32_t *));
+   uint32_t *digitList = ip_PrimesInXApp->Get1DigitTerms();
    
-   for (ii=0; ii<ii_MixedDigitListCount; ii++)
-      ii_MixedDigitList[ii] = (uint32_t *) xmalloc(2 + ii_MaxSteps*sizeof(uint32_t));
-
-   index = 0;
-   e1Term = e9Term = 0;
-
-   // ii_MixedDigitList[index][0] is the total length of terms prior to this list
-   ii_MixedDigitList[index][0] = 0;
-   if (e9Terms == 0)
+   for (uint32_t idx=0; idx<smallGroupsNeeded; idx++)
    {
-      ii_MixedDigitList[index][1] = 10;
-      e1Term = 2;
-   }
-   else
-   {
-      ii_MixedDigitList[index][1] = 1000000000;
-      e9Term = 2;
-   }
-
-   digitList = ip_PrimesInXApp->Get1DigitTerms();
-   for (ii=0; ii<ip_PrimesInXApp->GetMaxLength(); ii++)
-   {
-      if (ii < e9Terms * 9)
-      {
-         if (ii > 0 && ii % 9 == 0)
-         {
-            e9Term++;
-
-            // If we don't have room for more terms, set the last term
-            // to 1e9 to let the kernel know when to exit the loop, then
-            // create the next digitList
-            if (e9Term == (ii_MaxSteps - 2))
-            {
-               ii_MixedDigitList[index][e9Term] = 1000000000;
-               index++;
-               ii_MixedDigitList[index][0] = digitLength;
-               ii_MixedDigitList[index][1] = 1000000000;
-               e9Term = 2;
-            }
-         }
-
-         ii_MixedDigitList[index][e9Term] *= 10;
-         ii_MixedDigitList[index][e9Term] += digitList[ii];
-         digitLength++;
-      }
-      else
-      {
-         if (ii > 0 && ii == e9Terms * 9)
-         {
-            e9Term++;
-            ii_MixedDigitList[index][e9Term] = 1000000000;
-            index++;
-            ii_MixedDigitList[index][0] = digitLength;
-            ii_MixedDigitList[index][1] = 10;
-            e1Term = 2;
-         }
-
-         // If we don't have room for more terms, set the last term
-         // to 1e1 to let the kernel know when to exit the loop, then
-         // create the next digitList
-         if (e1Term == (ii_MaxSteps - 2))
-         {
-            ii_MixedDigitList[index][e1Term] = 10;
-            index++;
-            ii_MixedDigitList[index][0] = digitLength;
-            ii_MixedDigitList[index][1] = 10;
-            e1Term = 2;
-         }
-
-         ii_MixedDigitList[index][e1Term] = digitList[ii];
-         digitLength++;
-         e1Term++;
-
-      }
-   }
-
-   ii_MixedDigitList[index][e1Term] = 10;
-   
-   ii_MixedDigitListUsed = index + 1;
-}
-
-void  PrimesInXGpuWorker::BuildSingleTerms(void)
-{
-   uint32_t    ii, index;
-   uint32_t    digitLength = 0;
-   uint32_t    e1Terms;
-   uint32_t    e1Term;
-   uint32_t   *digitList;
-
-   e1Terms = ip_PrimesInXApp->GetMaxLength();
-
-   ii_SingleDigitListCount = 2 + e1Terms / (ii_MaxSteps - 4);
-
-   ii_SingleDigitList = (uint32_t **) xmalloc(ii_SingleDigitListCount*sizeof(uint32_t *));
-   
-   for (ii=0; ii<ii_SingleDigitListCount; ii++)
-      ii_SingleDigitList[ii] = (uint32_t *) xmalloc(2 + ii_MaxSteps*sizeof(uint32_t));
-
-   index = 0;
-
-   // ii_SingleDigitList[index][0] is the total length of terms prior to this list
-   ii_SingleDigitList[index][0] = 0;
-   ii_SingleDigitList[index][1] = 10;
-   e1Term = 2;
-
-   digitList = ip_PrimesInXApp->Get1DigitTerms();
-   for (ii=0; ii<ip_PrimesInXApp->GetMaxLength(); ii++)
-   {
-      // If we don't have room for more terms, set the last term
-      // to 1e1 to let the kernel know when to exit the loop, then
-      // create the next digitList
-      if (e1Term == (ii_MaxSteps - 2))
-      {
-         ii_SingleDigitList[index][e1Term] = 10;
-         index++;
-         ii_SingleDigitList[index][0] = digitLength;
-         ii_SingleDigitList[index][1] = 10;
-         e1Term = 2;
-      }
-
-      ii_SingleDigitList[index][e1Term] = digitList[ii];
-      digitLength++;
-      e1Term++;
-   }
-
-   ii_SingleDigitList[index][e1Term] = 10;
-   
-   ii_SingleDigitListUsed = index + 1;
-}
-
-void  PrimesInXGpuWorker::VerifyFactor(uint64_t prime, uint32_t n)
-{
-   // Note that p is limited to 2^52, so we are not using extended precision
-   // in this function.
-
-   // We know that a factor was found, but the call to pixsieve
-   // doesn't tell us the term or the p for it, so we will use
-   // the long way to find it.
-   double   inverse, qd;
-   uint32_t i;
-   int64_t  p;
-   int64_t  q, rem;
-   
-   uint32_t *terms = ip_PrimesInXApp->Get1DigitTerms();
+      uint32_t groupEntries = (ii_MaxSteps < smallTermsInList ? ii_MaxSteps : smallTermsInList);
+     
+      groupedDigitList[groupIdx + 0] = 10;
+      groupedDigitList[groupIdx + 1] = 1;
+      groupedDigitList[groupIdx + 2] = termLength;
       
-   inverse = 1.0/prime;
-   rem = 0;
-
-   p = prime;
-   for (i=0; i<n; i++)
-   {
-      qd = (((double)rem * 10.0) + (double)terms[i]);
-
-      q = (int64_t) (qd * inverse);
-
-      rem = (rem*10)+terms[i] - p*q;
-
-      if (rem < 0)
-         rem += p;
-      else if (rem >= p)
-         rem -= p;
+      memcpy(&groupedDigitList[groupIdx + 3], &digitList[dlIdx], groupEntries * sizeof(uint32_t));
+      groupedDigitList[groupIdx + 3 + groupEntries] = (1 << 31);
+      
+      groupIdx += ii_GroupSize;
+      dlIdx += groupEntries;
+      termLength += groupEntries;
+      
+      smallTermsInList -= groupEntries;
+      
+      if (smallTermsInList == 0)
+         break;
    }
+      
+   return groupedDigitList;
+}
 
-   if (rem != 0)
-      FatalError("%" PRIu64" does not divide pix(%u) (remainder is %" PRIu64")", prime, n, rem);
+uint32_t  *PrimesInXGpuWorker::BuildDigitList(uint32_t multiplier, uint32_t power, uint32_t *digitList)
+{
+   uint32_t minLength = ip_PrimesInXApp->GetMinLength();
+   uint32_t bigTermsInList = (minLength / power);
+   uint32_t bigGroupsNeeded = bigTermsInList / ii_MaxSteps;
+   
+   // This ensures that all groups with big terms are "full".
+   bigTermsInList = bigGroupsNeeded * ii_MaxSteps;
+   
+   uint32_t smallTermsInList = ip_PrimesInXApp->GetMaxLength() - (bigTermsInList * power);
+   uint32_t smallGroupsNeeded = 2 + (smallTermsInList / ii_MaxSteps);
+
+   // If I did my math correctly, this is what I expectL
+   //    With these inputs:  multiplier = 1000, power = 3, minLength = 316, maxLength = 4970, maxSteps = 800
+   //        we should get:  bigTermsInList = 316 /3 --> 105
+   //                        bigGroupsNeeded = 105 / 800 --> 0
+   //                        smallTermsInList = 4970 - (0 * 800 * 3) --> 4970
+   //                        smallGroupsNeeded = (2 * 4970) / 800 --> 8
+   //    This means 7 calls to the kernel to evaluate all terms as the 8th entry is empty.
+
+   uint32_t *groupedDigitList = (uint32_t *) xmalloc((smallGroupsNeeded + bigGroupsNeeded) * ii_GroupSize * sizeof(uint32_t));
+   uint32_t groupIdx = 0;
+   uint32_t dlIdx = 0;
+   uint32_t termLength = 0;
+   
+   for (uint32_t idx=0; idx<bigGroupsNeeded; idx++)
+   {
+      uint32_t groupEntries = (ii_MaxSteps < bigTermsInList ? ii_MaxSteps : bigTermsInList);
+      
+      groupedDigitList[groupIdx + 0] = multiplier;
+      groupedDigitList[groupIdx + 1] = power;
+      groupedDigitList[groupIdx + 2] = termLength;
+      
+      memcpy(&groupedDigitList[groupIdx + 3], &digitList[dlIdx], groupEntries * sizeof(uint32_t));
+      groupedDigitList[groupIdx + 3 + groupEntries] = (1 << 31);
+      
+      groupIdx += ii_GroupSize;
+      dlIdx += groupEntries;
+      
+      bigTermsInList -= groupEntries;
+      termLength += (groupEntries * power);
+      
+      if (bigTermsInList == 0)
+         break;
+   }
+   
+   xfree(digitList);
+
+   digitList = ip_PrimesInXApp->Get1DigitTerms();
+   dlIdx *= power;
+   
+   for (uint32_t idx=0; idx<smallGroupsNeeded; idx++)
+   {
+      uint32_t groupEntries = (ii_MaxSteps < smallTermsInList ? ii_MaxSteps : smallTermsInList);
+     
+      groupedDigitList[groupIdx + 0] = 10;
+      groupedDigitList[groupIdx + 1] = 1;
+      groupedDigitList[groupIdx + 2] = termLength;
+      
+      memcpy(&groupedDigitList[groupIdx + 3], &digitList[dlIdx], groupEntries * sizeof(uint32_t));
+      groupedDigitList[groupIdx + 3 + groupEntries] = (1 << 31);
+      
+      groupIdx += ii_GroupSize;
+      dlIdx += groupEntries;
+      termLength += groupEntries;
+      
+      smallTermsInList -= groupEntries;
+      
+      if (smallTermsInList == 0)
+         break;
+   }
+  
+   return groupedDigitList;
 }

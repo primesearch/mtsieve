@@ -52,7 +52,7 @@ void FixedBNCApp::Help(void)
    printf("-r --remove           Remove k where k %% base = 0\n");
 }
 
-void  FixedBNCApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  FixedBNCApp::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
@@ -347,7 +347,7 @@ void FixedBNCApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool FixedBNCApp::ApplyFactor(uint64_t thePrime, const char *term)
+bool FixedBNCApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
    uint64_t k;
    uint32_t b, n;
@@ -504,14 +504,14 @@ void  FixedBNCApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
    sprintf(extraTtext, "%" PRIu64 " < k < %" PRIu64", k*%u^%u%+d", il_MinK, il_MaxK, ii_Base, ii_N, ii_C);
 }
 
-bool  FixedBNCApp::ReportFactor(uint64_t p, uint64_t k)
+bool  FixedBNCApp::ReportFactor(uint64_t theFactor, uint64_t k)
 {
    bool     removedTerm = false;
 
-   if (p > il_MaxPrimeForValidFactor)
+   if (theFactor > il_MaxPrimeForValidFactor)
       return false;
    
-   if (p > GetMaxPrimeForSingleWorker())
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
 
    uint64_t bit = BIT(k);
@@ -521,13 +521,13 @@ bool  FixedBNCApp::ReportFactor(uint64_t p, uint64_t k)
       iv_Terms[bit] = false;
       removedTerm = true;
             
-      LogFactor(p, "%" PRIu64"*%u^%u%+d", k, ii_Base, ii_N, ii_C);
+      LogFactor(theFactor, "%" PRIu64"*%u^%u%+d", k, ii_Base, ii_N, ii_C);
       
       il_FactorCount++;
       il_TermCount--;
    }
    
-   if (p > GetMaxPrimeForSingleWorker())
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
    
    return removedTerm;

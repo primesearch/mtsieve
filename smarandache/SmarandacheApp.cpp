@@ -14,7 +14,7 @@
 #include "../x86_asm/fpu-asm-x86.h"
 #include "../core/Parser.h"
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
 #include "SmarandacheGpuWorker.h"
 #define APP_NAME        "smsievecl"
 #else
@@ -46,7 +46,7 @@ SmarandacheApp::SmarandacheApp() : FactorApp()
 
    SetAppMaxPrime(PMAX_MAX_52BIT);
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    ii_MaxGpuSteps = 1000000;
    ii_MaxGpuFactors = GetGpuWorkGroups() * 10;
 #endif
@@ -59,13 +59,13 @@ void SmarandacheApp::Help(void)
    printf("-n --minn=n           minimum n to search\n");
    printf("-N --maxn=M           maximum n to search\n");
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    printf("-S --step=S           max steps iterated per call to GPU (default %u)\n", ii_MaxGpuSteps);
    printf("-M --maxfactors=M     max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
 #endif
 }
 
-void  SmarandacheApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  SmarandacheApp::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
@@ -74,7 +74,7 @@ void  SmarandacheApp::AddCommandLineOptions(string &shortOpts, struct option *lo
    AppendLongOpt(longOpts, "minn",           required_argument, 0, 'n');
    AppendLongOpt(longOpts, "maxn",           required_argument, 0, 'N');
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    shortOpts += "S:M:";
    
    AppendLongOpt(longOpts, "maxsteps",       required_argument, 0, 'S');
@@ -99,7 +99,7 @@ parse_t SmarandacheApp::ParseOption(int opt, char *arg, const char *source)
          status = Parser::Parse(arg, 100000, 9999999, ii_MaxN);
          break;
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
       case 'S':
          status = Parser::Parse(arg, 1, 1000000000, ii_MaxGpuSteps);
          break;
@@ -156,7 +156,7 @@ void SmarandacheApp::ValidateOptions(void)
 
 Worker *SmarandacheApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested)
 {
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    if (gpuWorker)
       return new SmarandacheGpuWorker(id, this);
 #endif
@@ -248,8 +248,7 @@ bool SmarandacheApp::ApplyFactor(uint64_t thePrime, const char *term)
    if (n < ii_MinN || n > ii_MaxN)
       return false;
      
-   if (!VerifyFactor(false, thePrime, n))
-      return false;
+   VerifyFactor(thePrime, n);
    
    uint64_t bit = BIT(n);
    
@@ -298,13 +297,15 @@ void SmarandacheApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
    sprintf(extraTtext, "%u <= n <= %u", ii_MinN, ii_MaxN);
 }
 
-bool SmarandacheApp::ReportFactor(uint64_t p, uint32_t n)
+bool SmarandacheApp::ReportFactor(uint64_t theFactor, uint32_t n)
 {
    uint32_t bit;
    bool     newFactor = false;
    
    if (n < ii_MinN || n > ii_MaxN)
       return false;
+      
+   VerifyFactor(theFactor, n);
    
    ip_FactorAppLock->Lock();
    
@@ -317,101 +318,98 @@ bool SmarandacheApp::ReportFactor(uint64_t p, uint32_t n)
       il_TermCount--;
       il_FactorCount++;
       
-      LogFactor(p, "Sm(%u)", n);
+      LogFactor(theFactor, "Sm(%u)", n);
    }
    
    ip_FactorAppLock->Release();
    
-   VerifyFactor(true, p, n);
-   
    return newFactor;
 }
 
-bool  SmarandacheApp::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t n)
+void  SmarandacheApp::VerifyFactor(uint64_t theFactor, uint32_t n)
 {
    uint64_t rem = 1, i;
-   char     buffer[100];
    
-   fpu_push_1divp(p);
+   fpu_push_1divp(theFactor);
    
    for (i=2; i<=n; i++)
    {
       if (i < 10)
       {
-         rem = fpu_mulmod(rem, 10, p);
+         rem = fpu_mulmod(rem, 10, theFactor);
          rem += i;
-         while (rem >= p)
-            rem -= p;
+         while (rem >= theFactor)
+            rem -= theFactor;
          
          continue;
       }
 
       if (i < 100)
       {
-         rem = fpu_mulmod(rem, 100, p);
+         rem = fpu_mulmod(rem, 100, theFactor);
          rem += i;
-         while (rem >= p)
-            rem -= p;
+         while (rem >= theFactor)
+            rem -= theFactor;
          
          continue;
       }
       
       if (i < 1000)
       {
-         rem = fpu_mulmod(rem, 1000, p);
+         rem = fpu_mulmod(rem, 1000, theFactor);
          rem += i;
-         while (rem >= p)
-            rem -= p;
+         while (rem >= theFactor)
+            rem -= theFactor;
          
          continue;
       }
       
       if (i < 10000)
       {
-         rem = fpu_mulmod(rem, 10000, p);
+         rem = fpu_mulmod(rem, 10000, theFactor);
          rem += i;
-         while (rem >= p)
-            rem -= p;
+         while (rem >= theFactor)
+            rem -= theFactor;
          
          continue;
       }
       
       if (i < 100000)
       {
-         rem = fpu_mulmod(rem, 100000, p);
+         rem = fpu_mulmod(rem, 100000, theFactor);
          rem += i;
-         while (rem >= p)
-            rem -= p;
+         while (rem >= theFactor)
+            rem -= theFactor;
          
          continue;
       }
       
       if (i < 1000000)
       {
-         rem = fpu_mulmod(rem, 1000000, p);
+         rem = fpu_mulmod(rem, 1000000, theFactor);
          rem += i;
-         while (rem >= p)
-            rem -= p;
+         while (rem >= theFactor)
+            rem -= theFactor;
          
          continue;
       }
       
       if (i < 10000000)
       {
-         rem = fpu_mulmod(rem, 10000000, p);
+         rem = fpu_mulmod(rem, 10000000, theFactor);
          rem += i;
-         while (rem >= p)
-            rem -= p;
+         while (rem >= theFactor)
+            rem -= theFactor;
          
          continue;
       }
       
       if (i < 100000000)
       {
-         rem = fpu_mulmod(rem, 100000000, p);
+         rem = fpu_mulmod(rem, 100000000, theFactor);
          rem += i;
-         while (rem >= p)
-            rem -= p;
+         while (rem >= theFactor)
+            rem -= theFactor;
          
          continue;
       }
@@ -420,14 +418,7 @@ bool  SmarandacheApp::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t n
    fpu_pop();
 
    if (rem == 0)
-      return true;
+      return;
 
-   sprintf(buffer, "%" PRIu64" is not a factor of not a factor of Sm(%u)", p, n);
-
-   if (badFactorIsFatal)
-      FatalError(buffer);
-   else
-      WriteToConsole(COT_OTHER, buffer);
-
-   return false;
+   FatalError("%" PRIu64" is not a factor of not a factor of Sm(%u)", theFactor, n);
 }

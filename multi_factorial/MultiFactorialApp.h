@@ -30,10 +30,10 @@ public:
    ~MultiFactorialApp() {};
 
    void              Help(void);
-   void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
+   void              AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(uint64_t thePrime, const char *term);
+   bool              ApplyFactor(uint64_t theFactor, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
    bool              IsMultiFactorial(void) { return (ii_MultiFactorial > 1); };
@@ -41,12 +41,12 @@ public:
    uint32_t          GetMinN(void) { return ii_MinN; };
    uint32_t          GetMaxN(void) { return ii_MaxN; };
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          GetMaxGpuSteps(void) { return ii_MaxGpuSteps; };
    uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
 #endif
 
-   bool              ReportFactor(uint64_t p, uint32_t n, int32_t c);
+   bool              ReportFactor(uint64_t theFactor, uint32_t n, int32_t c);
 
    terms_t          *GetTerms(void);
    
@@ -64,16 +64,16 @@ protected:
    
 
 private:
-   bool              VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint32_t n, int32_t c);
+   void              VerifyFactor(uint64_t theFactor, uint32_t n, int32_t c);
    
-   vector<bool>      iv_PlusTerms;
-   vector<bool>      iv_MinusTerms;
+   std::vector<bool> iv_PlusTerms;
+   std::vector<bool> iv_MinusTerms;
 
    uint32_t          ii_MultiFactorial;
    uint32_t          ii_MinN;
    uint32_t          ii_MaxN;
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          ii_MaxGpuSteps;
    uint32_t          ii_MaxGpuFactors;
 #endif

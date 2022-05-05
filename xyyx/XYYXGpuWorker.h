@@ -11,8 +11,12 @@
 
 #include "XYYXApp.h"
 #include "../core/Worker.h"
-#include "../opencl/Kernel.h"
-#include "../opencl/KernelArgument.h"
+
+#ifdef USE_OPENCL
+#include "../gpu_opencl/Kernel.h"
+#else
+#include "../gpu_metal/Kernel.h"
+#endif
 
 using namespace std;
 
@@ -28,36 +32,21 @@ public:
    
    void              CleanUp(void);
 
-protected:
-   void              VerifyFactor(uint64_t p, uint32_t x, uint32_t y, int32_t c);
-   
-   uint64_t         *il_MagicNumber;
-   uint64_t         *il_MagicShift;
-   uint64_t         *il_MinusFactorList;
-   uint64_t         *il_PlusFactorList;
+protected:   
+   uint32_t         *ii_Terms;
+   uint64_t          il_NextTermsBuild;
    
    uint32_t          ii_Groups;
    uint32_t          ii_GroupSize;
-   uint32_t         *ii_GroupedTerms;
-   uint64_t          il_NextTermsBuild;
+   uint32_t          ii_MaxGpuFactors;
+   
+   uint32_t         *ii_KernelTerms;
+   uint32_t         *ii_FactorCount;
+   uint64_t         *il_FactorList;
 
    XYYXApp          *ip_XYYXApp;
 
-   Kernel           *ip_MagicKernel;
-   Kernel           *ip_XYYXKernel;
-
-   KernelArgument   *ip_KAPrime;
-   KernelArgument   *ip_MKAMagicNumber;
-   KernelArgument   *ip_MKAMagicShift;
-
-   KernelArgument   *ip_XYYXKAMagicNumber;
-   KernelArgument   *ip_XYYXKAMagicShift;
-
-   KernelArgument   *ip_FKAMagicNumber;
-   KernelArgument   *ip_FKAMagicShift;
-   KernelArgument   *ip_KATerms;
-   KernelArgument   *ip_KAMinusFactors;
-   KernelArgument   *ip_KAPlusFactors;
+   Kernel           *ip_Kernel;
 };
 
 #endif

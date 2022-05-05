@@ -11,12 +11,12 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <time.h>
-#include "../x86_asm/fpu-asm-x86.h"
+#include "../core/MpArith.h"
 
 #include "CullenWoodallApp.h"
 #include "CullenWoodallWorker.h"
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
 #include "CullenWoodallGpuWorker.h"
 #define APP_NAME        "gcwsievecl"
 #else
@@ -48,7 +48,7 @@ CullenWoodallApp::CullenWoodallApp(void) : AlgebraicFactorApp()
 
    SetAppMinPrime(3);
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    ii_MaxGpuSteps = 100000;
    ii_MaxGpuFactors = GetGpuWorkGroups() * 10;
 #endif
@@ -63,13 +63,13 @@ void CullenWoodallApp::Help(void)
    printf("-N --max_n=N          Maximum N to search\n");
    printf("-s --sign=+/-/b       Sign to sieve for (+ = Cullen, - = Woodall)\n");
    printf("-f --format=f         Format of output file (A=ABC (default), L=LLR\n");
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    printf("-S --step=S           max steps iterated per call to GPU (default %d)\n", ii_MaxGpuSteps);
    printf("-M --maxfactors=M     max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
 #endif
 }
 
-void  CullenWoodallApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  CullenWoodallApp::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
@@ -81,7 +81,7 @@ void  CullenWoodallApp::AddCommandLineOptions(string &shortOpts, struct option *
    AppendLongOpt(longOpts, "sign",           required_argument, 0, 's');
    AppendLongOpt(longOpts, "format",         required_argument, 0, 'f');
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    shortOpts += "S:M:";
    
    AppendLongOpt(longOpts, "maxsteps",       required_argument, 0, 'S');
@@ -133,7 +133,7 @@ parse_t CullenWoodallApp::ParseOption(int opt, char *arg, const char *source)
             ib_Woodall = ib_Cullen = true;
          break;
          
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
       case 'S':
          status = Parser::Parse(arg, 1, 1000000000, ii_MaxGpuSteps);
          break;
@@ -228,7 +228,7 @@ Worker *CullenWoodallApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t lar
 {
    Worker *theWorker;
 
-#ifdef HAVE_GPU_WORKERS  
+#if defined(USE_OPENCL) || defined(USE_METAL)  
    if (gpuWorker)
       theWorker = new CullenWoodallGpuWorker(id, this);
    else
@@ -319,7 +319,7 @@ void CullenWoodallApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool CullenWoodallApp::ApplyFactor(uint64_t thePrime, const char *term)
+bool CullenWoodallApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
    uint32_t n1, b, n2;
    int32_t  c;
@@ -339,8 +339,7 @@ bool CullenWoodallApp::ApplyFactor(uint64_t thePrime, const char *term)
    if (n1 < ii_MinN || n1 > ii_MaxN)
       return false;
    
-   if (!VerifyFactor(false, thePrime, n1, c))
-      return false;
+   VerifyFactor(theFactor, n1, c);
       
    uint64_t bit = BIT(n1);
    
@@ -610,7 +609,7 @@ uint32_t  CullenWoodallApp::GetTerms(uint32_t *terms, uint32_t maxTermsInGroup, 
    return groupCount + 1;
 }
 
-bool CullenWoodallApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
+bool CullenWoodallApp::ReportFactor(uint64_t theFactor, uint32_t n, int32_t c)
 {
    uint64_t bit;
    bool     removedTerm = false;
@@ -628,9 +627,9 @@ bool CullenWoodallApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
       il_TermCount--;
       il_FactorCount++;
       removedTerm = true;
-      LogFactor(p, "%u*%u^%u+1", n, ii_Base, n);
+      LogFactor(theFactor, "%u*%u^%u+1", n, ii_Base, n);
 
-      VerifyFactor(true, p, n, c);
+      VerifyFactor(theFactor, n, c);
    }
    
    if (ib_Woodall && c == -1 && iv_WoodallTerms[bit])
@@ -639,9 +638,9 @@ bool CullenWoodallApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
       il_TermCount--;
       il_FactorCount++;
       removedTerm = true;
-      LogFactor(p, "%u*%u^%u-1", n, ii_Base, n);
+      LogFactor(theFactor, "%u*%u^%u-1", n, ii_Base, n);
 
-      VerifyFactor(true, p, n, c);
+      VerifyFactor(theFactor, n, c);
    }
    
    ip_FactorAppLock->Release();
@@ -649,35 +648,26 @@ bool CullenWoodallApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
    return removedTerm;
 }
 
-bool  CullenWoodallApp::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t n, int32_t c)
+void  CullenWoodallApp::VerifyFactor(uint64_t theFactor, uint32_t n, int32_t c)
 {
    uint64_t rem;
-   bool     isValid = true;
+   bool     isValid = false;
+
+   MpArith  mp(theFactor);
+   MpRes    res = mp.pow(mp.nToRes(ii_Base), n);
+
+   res = mp.mul(res, mp.nToRes(n));
+   
+   rem = mp.resToN(res);
       
-   fpu_push_1divp(p);
-   
-   rem = fpu_powmod(ii_Base, n, p);
-   rem = fpu_mulmod(rem, n, p);
-   
-   fpu_pop();
-   
    if (c == -1)
       isValid = (rem == +1);
       
    if (c == +1)
-      isValid = (rem == p-1);
+      isValid = (rem == theFactor-1);
       
    if (isValid)
-      return isValid;
+      return;
    
-   char buffer[100];
-   
-   sprintf(buffer, "%" PRIu64" is not a factor of %u*%u^%u%+d", p, n, ii_Base, n, c);
-   
-   if (badFactorIsFatal)
-      FatalError(buffer);
-   else
-      WriteToConsole(COT_OTHER, buffer);
-
-   return isValid;
+   FatalError("%" PRIu64" is not a factor of %u*%u^%u%+d", theFactor, n, ii_Base, n, c);
 }

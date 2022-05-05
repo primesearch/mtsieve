@@ -22,13 +22,17 @@ public:
    ~PrimesInXApp(void);
 
    void              Help(void);
-   void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
+   void              AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(uint64_t thePrime, const char *term);
+   bool              ApplyFactor(uint64_t theFactor, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
-   uint32_t          GetSteps(void) { return ii_StepL; };
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   uint32_t          GetMaxGpuSteps(void) { return ii_MaxGpuSteps; };
+   uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
+#endif
+
    uint32_t          GetMinLength(void) { return ii_MinLength; };
    uint32_t          GetMinLengthRemaining(void) { return ii_MinLengthRemaining; };
    uint32_t          GetMaxLength(void) { return ii_MaxLength; };
@@ -38,8 +42,8 @@ public:
    uint32_t         *Get6DigitTermsCopy(void);
    uint32_t         *Get9DigitTermsCopy(void);
    
-   bool              ReportFactor(uint64_t p, uint32_t n);
-   void              ReportPrime(uint64_t p, uint32_t n);
+   bool              ReportFactor(uint64_t theFactor, uint32_t n);
+   void              ReportPrime(uint64_t thePrime, uint32_t n);
 
 protected:
    void              PreSieveHook(void) {};
@@ -56,14 +60,16 @@ protected:
 private:
    void              ProcessInputStringFile(void);
    void              BuildTerms(char *inputTerm);
-      
-   vector<bool>      iv_Terms;
+   void              VerifyFactor(uint64_t theFactor, uint32_t termLength);
    
-   string            is_SearchString;
-   string            is_FullTerm;
-   string            is_StringFileName;
+   std::vector<bool> iv_Terms;
+   
+   std::string       is_SearchString;
+   std::string       is_FullTerm;
+  std:: string       is_StringFileName;
 
-   uint32_t          ii_StepL;
+   uint32_t          ii_MaxGpuSteps;
+   uint32_t          ii_MaxGpuFactors;
    uint32_t          ii_MinLength;
    uint32_t          ii_MinLengthRemaining;
    uint32_t          ii_MaxLength;

@@ -12,9 +12,12 @@
 #include <stdarg.h>
 #include <time.h>
 #include "../core/inline.h"
+#include "../core/MpArith.h"
+
 #include "XYYXApp.h"
 #include "XYYXWorker.h"
-#ifdef HAVE_GPU_WORKERS
+
+#if defined(USE_OPENCL) || defined(USE_METAL)
 #include "XYYXGpuWorker.h"
 #endif
 
@@ -42,11 +45,15 @@ XYYXApp::XYYXApp(void) : FactorApp()
    ii_SplitYCount = 0;
    ii_SplitYValue = 0;
    ii_CpuWorkSize = 10000;
-   ii_GpuSteps = 5000;
    ib_IsPlus = false;
    ib_IsMinus = false;
    SetAppMinPrime(3);
    ib_UseAvx = true;
+   
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   ii_MaxGpuSteps = 100000;
+   ii_MaxGpuFactors = GetGpuWorkGroups() * 100;
+#endif
 }
 
 void XYYXApp::Help(void)
@@ -59,8 +66,9 @@ void XYYXApp::Help(void)
    printf("-Y --maxy=Y           maximum y to search\n");
    printf("-D --disableavx       disableavx\n");
    printf("-s --sign=+/-/b       sign to sieve for\n");
-#ifdef HAVE_GPU_WORKERS
-   printf("-S --step=S           steps iterated per call to GPU (default %d)\n", ii_GpuSteps);
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   printf("-S --step=S           max steps iterated per call to GPU (default %d)\n", ii_MaxGpuSteps);
+   printf("-M --maxfactors=M     max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
 #endif
 }
 
@@ -68,7 +76,7 @@ void  XYYXApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "x:X:y:Y:s:S:z:Z:D";
+   shortOpts += "x:X:y:Y:s:S:z:Z:M:D";
 
    AppendLongOpt(longOpts, "minx",              required_argument, 0, 'x');
    AppendLongOpt(longOpts, "maxx",              required_argument, 0, 'X');
@@ -76,8 +84,10 @@ void  XYYXApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
    AppendLongOpt(longOpts, "sign",              required_argument, 0, 's');
    AppendLongOpt(longOpts, "disableavx",        no_argument, 0, 'D');
    AppendLongOpt(longOpts, "sign",              required_argument, 0, 's');
-#ifdef HAVE_GPU_WORKERS
+   
+#if defined(USE_OPENCL) || defined(USE_METAL)
    AppendLongOpt(longOpts, "steps",             required_argument, 0, 'S');
+   AppendLongOpt(longOpts, "maxfactors",        required_argument, 0, 'M');
 #endif
 }
 
@@ -129,9 +139,13 @@ parse_t XYYXApp::ParseOption(int opt, char *arg, const char *source)
          ib_IsMinus = (value == '-');
          break;
          
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
       case 'S':
-         status = Parser::Parse(arg, 1, 1000000000, ii_GpuSteps);
+         status = Parser::Parse(arg, 1, 1000000000, ii_MaxGpuSteps);
+         break;
+
+      case 'M':
+         status = Parser::Parse(arg, 10, 1000000, ii_MaxGpuFactors);
          break;
 #endif
    }
@@ -196,6 +210,9 @@ void XYYXApp::ValidateOptions(void)
       SetInitialTerms();
    }
    
+   if (ib_IsPlus && ib_IsMinus)
+      FatalError("cannot support both + and - forms concurrently");
+      
    FactorApp::ParentValidateOptions();
 }
 
@@ -203,7 +220,7 @@ Worker *XYYXApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrime
 {
    Worker *theWorker;
 
-#ifdef HAVE_GPU_WORKERS  
+#if defined(USE_OPENCL) || defined(USE_METAL)  
    if (gpuWorker)
       theWorker = new XYYXGpuWorker(id, this);
    else
@@ -249,9 +266,6 @@ void XYYXApp::ProcessInputTermsFile(bool haveBitMap)
       if (sscanf(buffer, "%u %u", &x, &y) != 2)
          FatalError("Line %s is malformed", buffer);
 
-      if (y >= x)
-         continue;
-
       if (haveBitMap)
       {
          iv_Terms[BIT(x, y)] = true;
@@ -276,7 +290,7 @@ void XYYXApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool XYYXApp::ApplyFactor(uint64_t thePrime, const char *term)
+bool XYYXApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
    uint32_t x1, x2, y1, y2;
    uint8_t  c;
@@ -295,6 +309,14 @@ bool XYYXApp::ApplyFactor(uint64_t thePrime, const char *term)
    
    if (y1 < ii_MinY || y1 > ii_MaxY)
       return false;
+
+   if (ib_IsPlus && c != '+')
+      FatalError("+/- for term %s is not the expected value\n", term);
+   
+   if (ib_IsMinus && c != '-')
+      FatalError("+/- for term %s is not the expected value\n", term);
+
+   VerifyFactor(theFactor, x1, y1);
 
    uint64_t bit = BIT(x1, y1);
    
@@ -374,7 +396,7 @@ void  XYYXApp::GetExtraTextForSieveStartedMessage(char *extraText)
    sprintf(extraText, "%d <= x <= %d, %d <= y <= %d",ii_MinX, ii_MaxX, ii_MinY, ii_MaxY);
 }
 
-bool XYYXApp::ReportFactor(uint64_t p, uint32_t x, uint32_t y, int32_t c)
+bool XYYXApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y)
 {
    uint64_t bit;
    bool     removedTerm = false;
@@ -385,26 +407,19 @@ bool XYYXApp::ReportFactor(uint64_t p, uint32_t x, uint32_t y, int32_t c)
    if (y < ii_MinY || y > ii_MaxY)
       return false;
    
+   VerifyFactor(theFactor, x, y);
+   
    ip_FactorAppLock->Lock();
 
    bit = BIT(x, y);
    
-   if (ib_IsPlus && c == +1 && iv_Terms[bit])
+   if (iv_Terms[bit])
    {
       iv_Terms[bit] = false;
       il_TermCount--;
       il_FactorCount++;
       removedTerm = true;
-      LogFactor(p, "%u^%u+%u^%u", x, y, y, x);
-   }
-   
-   if (ib_IsMinus && c == -1 && iv_Terms[bit])
-   {
-      iv_Terms[bit] = false;
-      il_TermCount--;
-      il_FactorCount++;
-      removedTerm = true;
-      LogFactor(p, "%u^%u-%u^%u", x, y, y, x);
+      LogFactor(theFactor, "%u^%u%c%u^%u", x, y, (ib_IsPlus ? '+' : '-'), y, x);
    }
    
    ip_FactorAppLock->Release();
@@ -412,6 +427,29 @@ bool XYYXApp::ReportFactor(uint64_t p, uint32_t x, uint32_t y, int32_t c)
    return removedTerm;
 }
 
+void  XYYXApp::VerifyFactor(uint64_t theFactor, uint32_t x, uint32_t y)
+{
+   uint64_t xPowY, yPowX;
+   bool     isValid = true;
+   
+   MpArith  mp(theFactor);
+   MpRes    resXY = mp.pow(mp.nToRes(x), y);
+   MpRes    resYX = mp.pow(mp.nToRes(y), x);
+   
+   xPowY = mp.resToN(resXY);
+   yPowX = mp.resToN(resYX);
+   
+   if (ib_IsMinus && xPowY != yPowX)
+      isValid = false;
+   
+   if (ib_IsPlus && xPowY + yPowX != theFactor)
+      isValid = false;
+   
+   if (isValid)
+      return;
+   
+   FatalError("%" PRIu64" does not divide %u^%u%c%u^%u", theFactor, x, y, (ib_IsPlus ? '+' : '-'), y, x);
+}
 
 void  XYYXApp::SetInitialTerms(void)
 {
@@ -621,7 +659,7 @@ void   XYYXApp::GetTerms(uint32_t fpuRemaindersCount, uint32_t avxRemaindersCoun
    ip_FactorAppLock->Release();
 }
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
 uint32_t  XYYXApp::GetNumberOfGroups(void)
 {
    uint32_t bit, x, y;
@@ -655,13 +693,13 @@ uint32_t  XYYXApp::GetNumberOfGroups(void)
       termsInGroup += 2;
       
       // We need all y for the first x to fit into a group.
-      if (firstXInGroup && termsForX >= (ii_GpuSteps - 2))
+      if (firstXInGroup && termsForX >= (ii_MaxGpuSteps - 2))
          FatalError("Too many terms for x = %u.  Increase setting for -S to %u and try again", x, termsForX+10);
 
       firstXInGroup = false;
 
       // If not enough space for all y for this x, then put this x into the next group.
-      if ((termsForX + termsInGroup) >= (ii_GpuSteps - 2))
+      if ((termsForX + termsInGroup) >= (ii_MaxGpuSteps - 2))
       {
          termsInGroup = 0;
          firstXInGroup = true;
@@ -688,7 +726,7 @@ uint32_t   XYYXApp::GetGroupedTerms(uint32_t *terms)
    ip_FactorAppLock->Lock();
 
    index = 0;
-   maxIndexForGroup = index + ii_GpuSteps;
+   maxIndexForGroup = index + ii_MaxGpuSteps;
 
    x = ii_MinX;
    
@@ -709,8 +747,8 @@ uint32_t   XYYXApp::GetGroupedTerms(uint32_t *terms)
       {
          terms[index] = 0;
          groupIndex++;
-         index = groupIndex * ii_GpuSteps;
-         maxIndexForGroup = index + ii_GpuSteps;
+         index = groupIndex * ii_MaxGpuSteps;
+         maxIndexForGroup = index + ii_MaxGpuSteps;
          continue;
       }
       

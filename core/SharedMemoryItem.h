@@ -51,7 +51,7 @@ public:
    void        ClearCondition(void);
 
 private:
-   string      is_ItemName;
+   std::string is_ItemName;
    bool        ib_HasCondition;
    int64_t     il_Value;
 

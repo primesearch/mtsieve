@@ -761,7 +761,7 @@ uint32_t AlgebraicFactorHelper::GetFactorList(uint64_t theNumber, uint32_t *fact
    uint32_t  power;
    uint64_t  thePrime;
 
-   vector<uint64_t>::iterator it = iv_SmallPrimes.begin(); 
+   std::vector<uint64_t>::iterator it = iv_SmallPrimes.begin(); 
          
    // Get the prime factorization of the input number.  Note that since the vector only has
    // 100000 primes, some numbers might not get fully factored.

@@ -14,9 +14,13 @@
 
 #include "MultiFactorialApp.h"
 #include "../core/Worker.h"
-#include "../opencl/Kernel.h"
-#include "../opencl/KernelArgument.h"
 
+#ifdef USE_OPENCL
+#include "../gpu_opencl/Kernel.h"
+#else
+#include "../gpu_metal/Kernel.h"
+#endif
+   
 using namespace std;
 
 class MultiFactorialGpuWorker : public Worker
@@ -39,19 +43,13 @@ protected:
    uint32_t          ii_MultiFactorial;
    uint32_t          ii_MaxGpuFactors;
    
+   // Variables used by the kernel
    uint64_t         *il_RemainderList;
-   uint32_t          ii_Params[5];
-   uint32_t          ii_FactorCount;
+   uint32_t         *ii_Parameters;
+   uint32_t         *ii_FactorCount;
    int64_t          *il_FactorList;
 
-   Kernel           *ip_FactorialKernel;
-
-   KernelArgument   *ip_KAPrime;
-   KernelArgument   *ip_KARemainder;
-   KernelArgument   *ip_KAParams;
-   KernelArgument   *ip_KATemp;
-   KernelArgument   *ip_KAFactorCount;
-   KernelArgument   *ip_KAFactorList;
+   Kernel           *ip_Kernel;
 };
 
 #endif

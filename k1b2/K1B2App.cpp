@@ -52,7 +52,7 @@ void K1B2App::Help(void)
    printf("-C --cmax=C           Maximum c to search\n");
 }
 
-void  K1B2App::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  K1B2App::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
@@ -179,7 +179,7 @@ void K1B2App::ValidateOptions(void)
 
 Worker *K1B2App::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested)
 {
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    if (gpuWorker)
       return new K1B2GpuWorker(id, this);
 #endif
@@ -248,7 +248,7 @@ void K1B2App::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool  K1B2App::ApplyFactor(uint64_t thePrime, const char *term)
+bool  K1B2App::ApplyFactor(uint64_t theFactor, const char *term)
 {
    uint32_t n;
    int64_t  c;
@@ -312,7 +312,7 @@ void  K1B2App::GetExtraTextForSieveStartedMessage(char *extraText)
    sprintf(extraText, "%u <= n <= %u, %" PRId64" <= c <= %" PRId64", 2^n+c", ii_MinN, ii_MaxN, il_MinC, il_MaxC);
 }
 
-bool  K1B2App::ReportFactor(uint64_t p, uint32_t n, int64_t c)
+bool  K1B2App::ReportFactor(uint64_t theFactor, uint32_t n, int64_t c)
 {
    if (n < ii_MinN || n > ii_MaxN)
       return false;
@@ -322,7 +322,7 @@ bool  K1B2App::ReportFactor(uint64_t p, uint32_t n, int64_t c)
    
    bool removedTerm = false;
    
-   if (p > GetMaxPrimeForSingleWorker())
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
       
    if (iv_Terms[n-ii_MinN][c-il_MinC])
@@ -332,11 +332,11 @@ bool  K1B2App::ReportFactor(uint64_t p, uint32_t n, int64_t c)
       il_FactorCount++;
       il_TermCount--;
       
-      LogFactor(p, "2^%u%+" PRId64"", n, c);
+      LogFactor(theFactor, "2^%u%+" PRId64"", n, c);
       removedTerm = true;
    }
    
-   if (p > GetMaxPrimeForSingleWorker())
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
 
    return removedTerm;

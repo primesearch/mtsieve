@@ -54,7 +54,7 @@ void SophieGermainApp::Help(void)
    printf("-f --format=f         Format of output file (D=ABCD (default), N=NEWPGEN)\n");
 }
 
-void  SophieGermainApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  SophieGermainApp::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
@@ -282,7 +282,7 @@ void SophieGermainApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool SophieGermainApp::ApplyFactor(uint64_t thePrime, const char *term)
+bool SophieGermainApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
    uint64_t k;
    uint32_t n;
@@ -403,11 +403,11 @@ void  SophieGermainApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
    sprintf(extraTtext, "%" PRIu64 " < k < %" PRIu64", k*2^%u+1 and 2*(k*2^%u+1)-1", il_MinK, il_MaxK, ii_N, ii_N);
 }
 
-bool  SophieGermainApp::ReportFactor(uint64_t p, uint64_t k, bool firstOfPair)
+bool  SophieGermainApp::ReportFactor(uint64_t theFactor, uint64_t k, bool firstOfPair)
 {
    bool     removedTerm = false;
    
-   if (p > GetMaxPrimeForSingleWorker())
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
 
    uint64_t bit = BIT(k);
@@ -418,15 +418,15 @@ bool  SophieGermainApp::ReportFactor(uint64_t p, uint64_t k, bool firstOfPair)
       removedTerm = true;
       
       if (firstOfPair)
-         LogFactor(p, "%" PRIu64"*2^%u+1", k, ii_N);
+         LogFactor(theFactor, "%" PRIu64"*2^%u+1", k, ii_N);
       else
-         LogFactor(p, "2*(%" PRIu64"*2^%u+1)-1", k, ii_N);
+         LogFactor(theFactor, "2*(%" PRIu64"*2^%u+1)-1", k, ii_N);
       
       il_FactorCount++;
       il_TermCount--;
    }
    
-   if (p > GetMaxPrimeForSingleWorker())
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
    
    return removedTerm;

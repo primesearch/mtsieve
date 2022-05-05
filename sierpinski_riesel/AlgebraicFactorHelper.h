@@ -34,7 +34,7 @@ private:
    uint32_t          ii_KPower;
    
    // These variables are used by this class when looking for algebraic factors.
-   vector<uint64_t>  iv_SmallPrimes;
+   std::vector<uint64_t>  iv_SmallPrimes;
    
    FILE             *ip_AlgebraicFactorFile;
 

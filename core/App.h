@@ -24,8 +24,12 @@
 #include "main.h"
 #include "Parser.h"
 
-#ifdef HAVE_GPU_WORKERS
-#include "../opencl/Device.h"
+#if defined(USE_OPENCL)
+#include "../gpu_opencl/Device.h"
+#endif
+
+#if defined(USE_METAL)
+#include "../gpu_metal/Device.h"
 #endif
 
 #define MAX_PRIME_REPORT_COUNT   60
@@ -57,7 +61,7 @@ public:
    void              Banner(void);
    
    virtual void      Help(void) = 0;
-   virtual void      AddCommandLineOptions(string &shortOpts, struct option *longOpts) = 0;
+   virtual void      AddCommandLineOptions(std::string &shortOpts, struct option *longOpts) = 0;
    virtual parse_t   ParseOption(int opt, char *arg, const char *source) = 0;
    virtual void      ValidateOptions(void) = 0;
    
@@ -70,12 +74,12 @@ public:
    uint32_t          GetCpuWorkerCount(void) { return ii_CpuWorkerCount; };
    uint32_t          GetGpuWorkerCount(void) { return ii_GpuWorkerCount; };
    
-#ifdef HAVE_GPU_WORKERS
-   uint32_t          GetGpuWorkSize(void) { return ii_GpuWorkGroupSize * ii_GpuWorkGroups; };
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   uint32_t          GetGpuPrimesPerWorker(void) { return ii_GpuWorkGroupSize * ii_GpuWorkGroups; };
    uint32_t          GetGpuWorkGroups(void) { return ii_GpuWorkGroups; };
    uint32_t          GetGpuWorkGroupSize(void) { return ii_GpuWorkGroupSize; };
    void              SetGpuWorkGroupSize(uint32_t gpuWorkGroupSize) { ii_GpuWorkGroupSize = gpuWorkGroupSize; };
-   
+      
    Device           *GetDevice(void) { return ip_Device; }
    uint64_t          GetMinGpuPrime(void) { return il_MinGpuPrime; };
 #endif
@@ -115,8 +119,8 @@ protected:
    virtual void      PreSieveHook(void) = 0;
    virtual bool      PostSieveHook(void) = 0;
 
-   void              SetBanner(string banner) { is_Banner = banner; };
-   void              SetLogFileName(string logFileName);
+   void              SetBanner(std::string banner) { is_Banner = banner; };
+   void              SetLogFileName(std::string logFileName);
    void              SetMaxPrimeForSingleWorker(uint64_t maxPrimeForSingleWorker) { il_MaxPrimeForSingleWorker = maxPrimeForSingleWorker; };
    
    void              SetAppMinPrime(uint64_t minPrime) { il_MinPrime = il_AppMinPrime = minPrime; };
@@ -126,7 +130,7 @@ protected:
    void              SetMinGpuPrime(uint64_t minGpuPrime) { il_MinGpuPrime = minGpuPrime; };
    
    void              ParentHelp(void);
-   void              ParentAddCommandLineOptions(string &shortOpts, struct option *longOpts);
+   void              ParentAddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    parse_t           ParentParseOption(int opt, char *arg, const char *source);
    void              ParentValidateOptions(void);
 
@@ -159,7 +163,7 @@ protected:
    
    uint32_t          ii_CpuWorkSize;
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          ii_GpuWorkGroupSize;
    uint32_t          ii_GpuWorkGroups;
 #endif
@@ -185,7 +189,7 @@ private:
    uint16_t          ii_SavedFpuMode;
 #endif
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    Device           *ip_Device;
 #endif
 
@@ -202,8 +206,8 @@ private:
    uint32_t          ii_GpuWorkerCount;
    uint32_t          ii_TotalWorkerCount;
    
-   string            is_LogFileName;
-   string            is_Banner;
+   std::string       is_LogFileName;
+   std::string       is_Banner;
    
    // These represent a number of milli-seconds
    uint64_t          il_TotalClockTime;

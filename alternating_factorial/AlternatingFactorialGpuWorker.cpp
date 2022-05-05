@@ -9,151 +9,83 @@
 #include <cinttypes>
 #include <time.h>
 #include "AlternatingFactorialGpuWorker.h"
-#include "magiccl.h"
-#include "af_kernel.h"
+#include "af_kernel.gpu.h"
 
 AlternatingFactorialGpuWorker::AlternatingFactorialGpuWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
 {
-   const char *magicSource[3];
-   const char *source[10];
-   
-   ip_AlternatingFactorialApp = (AlternatingFactorialApp *) theApp;
+   char        defines[10][50];
+   const char *preKernelSources[10];
+   uint32_t    idx, defineCount;
    
    ib_GpuWorker = true;
    
-   ii_MaxFactors = ip_AlternatingFactorialApp->GetStepN() + 10;
+   ip_AlternatingFactorialApp = (AlternatingFactorialApp *) theApp;
    
-   source[0] = af_kernel;
-   source[1] = 0;
-
-   magicSource[0] = magic;
-   magicSource[1] = 0;
-
-   ip_MagicKernel = new Kernel(ip_AlternatingFactorialApp->GetDevice(), "magic_kernel", magicSource);
-
-   ip_AlternatingFactorialKernel = new Kernel(ip_AlternatingFactorialApp->GetDevice(), "af_kernel", source);
-
-   AllocatePrimeList(ip_AlternatingFactorialKernel->GetWorkGroupSize());
-
-   il_RemainderList = (int64_t *) xmalloc(ii_WorkSize*sizeof(int64_t));
-   il_NM1TermList = (int64_t *) xmalloc(ii_WorkSize*sizeof(int64_t));
-   il_MagicNumber = (uint64_t *) xmalloc(ii_WorkSize*sizeof(uint64_t));
-   il_MagicShift = (uint64_t *) xmalloc(ii_WorkSize*sizeof(uint64_t));
-   il_FactorList = (uint64_t *) xmalloc(ii_MaxFactors*sizeof(uint64_t));
-
-   ip_KAPrime     = new KernelArgument(ip_AlternatingFactorialApp->GetDevice(), "prime", KA_HOST_TO_GPU, il_PrimeList, ii_WorkSize);
-   ip_MKAMagicNumber = new KernelArgument(ip_AlternatingFactorialApp->GetDevice(), "magic_number", KA_GPU_TO_HOST, il_MagicNumber, ii_WorkSize);
-   ip_MKAMagicShift = new KernelArgument(ip_AlternatingFactorialApp->GetDevice(), "magic_shift", KA_GPU_TO_HOST, il_MagicShift, ii_WorkSize);
-
-   ip_FKAMagicNumber = new KernelArgument(ip_AlternatingFactorialApp->GetDevice(), "magic_number", KA_HOST_TO_GPU, il_MagicNumber, ii_WorkSize);
-   ip_FKAMagicShift = new KernelArgument(ip_AlternatingFactorialApp->GetDevice(), "magic_shift", KA_HOST_TO_GPU, il_MagicShift, ii_WorkSize);
-   ip_KARemainder = new KernelArgument(ip_AlternatingFactorialApp->GetDevice(), "remainder", KA_BIDIRECTIONAL, il_RemainderList, ii_WorkSize);
-   ip_KANM1Term   = new KernelArgument(ip_AlternatingFactorialApp->GetDevice(), "nm1_term", KA_BIDIRECTIONAL, il_NM1TermList, ii_WorkSize);
-   ip_KANRange    = new KernelArgument(ip_AlternatingFactorialApp->GetDevice(), "n_range", KA_HOST_TO_GPU, (int32_t *) &ii_NRange, 10);
-   ip_KAFactor    = new KernelArgument(ip_AlternatingFactorialApp->GetDevice(), "factors", KA_BIDIRECTIONAL, il_FactorList, ii_MaxFactors);
-
-   ip_MagicKernel->AddArgument(ip_KAPrime);
-   ip_MagicKernel->AddArgument(ip_MKAMagicNumber);
-   ip_MagicKernel->AddArgument(ip_MKAMagicShift);
-
-   ip_AlternatingFactorialKernel->AddArgument(ip_KAPrime);
-   ip_AlternatingFactorialKernel->AddArgument(ip_FKAMagicNumber);
-   ip_AlternatingFactorialKernel->AddArgument(ip_FKAMagicShift);
-   ip_AlternatingFactorialKernel->AddArgument(ip_KARemainder);
-   ip_AlternatingFactorialKernel->AddArgument(ip_KANM1Term);
-   ip_AlternatingFactorialKernel->AddArgument(ip_KANRange);
-   ip_AlternatingFactorialKernel->AddArgument(ip_KAFactor);
+   ii_MaxGpuFactors = ip_AlternatingFactorialApp->GetMaxGpuFactors() + 10;
    
+   defineCount = 0;
+   sprintf(defines[defineCount++], "#define D_MAX_FACTORS %u", ii_MaxGpuFactors);
+   sprintf(defines[defineCount++], "#define D_MAX_N %u", ip_AlternatingFactorialApp->GetMaxN());
+   sprintf(defines[defineCount++], "#define D_MAX_STEPS %u", ip_AlternatingFactorialApp->GetMaxGpuSteps());
+      
+   for (idx=0; idx<defineCount; idx++)
+      preKernelSources[idx] = defines[idx];
+   
+   preKernelSources[idx] = 0;
+   
+   ip_Kernel = new Kernel(ip_AlternatingFactorialApp->GetDevice(), "af_kernel", af_kernel, preKernelSources);
+
+   ip_AlternatingFactorialApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
+   
+   ii_WorkSize = ip_AlternatingFactorialApp->GetGpuPrimesPerWorker();
+   
+   il_PrimeList = (uint64_t *) ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_WorkSize);
+   ii_Parameters = (uint32_t *) ip_Kernel->AddCpuArgument("parameters", sizeof(uint32_t), 4);
+   il_FactorialResiduals = (uint64_t *) ip_Kernel->AddSharedArgument("factorialResiduals", sizeof(uint64_t), ii_WorkSize);
+   il_AltFactorialResiduals = (uint64_t *) ip_Kernel->AddSharedArgument("altFactorialResiduals", sizeof(uint64_t), ii_WorkSize);
+   ii_FactorCount = (uint32_t *) ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 1);
+   il_FactorList = (uint64_t *) ip_Kernel->AddGpuArgument("factorList", sizeof(uint64_t), 2*ii_MaxGpuFactors);
+
    // The thread can't start until initialization is done
    ib_Initialized = true;
 }
 
 void  AlternatingFactorialGpuWorker::CleanUp(void)
 {
-   delete ip_KAPrime;
-   delete ip_MKAMagicNumber;
-   delete ip_MKAMagicShift;
-   
-   delete ip_FKAMagicNumber;
-   delete ip_FKAMagicShift;
-   delete ip_KARemainder;
-   delete ip_KANM1Term;
-   delete ip_KANRange;
-   delete ip_KAFactor;
-
-   xfree(il_RemainderList);
-   xfree(il_NM1TermList);
-   xfree(il_FactorList);
-   xfree(il_MagicNumber);
-   xfree(il_MagicShift);
+   delete ip_Kernel;
 }
 
 void  AlternatingFactorialGpuWorker::TestMegaPrimeChunk(void)
-{   
-   uint32_t ii, kk, kkMax;
-   int32_t  maxN = ip_AlternatingFactorialApp->GetMaxN();
-   uint32_t stepN = ip_AlternatingFactorialApp->GetStepN();
-   int64_t  prime;
-   uint32_t term;
-   time_t   reportTime;
-   
-   ip_MagicKernel->Execute(ii_WorkSize);
-   ii_NRange[0] = 2;
+{
+   uint64_t thePrime;
+   uint32_t term, idx;
 
-   // Initialize the list of remainders
-   for (ii=0; ii<ii_WorkSize; ii++)
-   {
-      il_RemainderList[ii] = 1;
-      il_NM1TermList[ii] = 1;
-   }
+   ii_Parameters[0] = 1;
 
-   // Note the use of < rather than <= both here and in the kernel
-   maxN += 1;
-
-   reportTime = time(NULL) + 60;
-
-   kk = 0;
-   kkMax = 1 + ((maxN - 2) / stepN);
-   
    do
-   {
-      ii_NRange[1] = ii_NRange[0] + stepN;
-
-      if (ii_NRange[1] > maxN)
-         ii_NRange[1] = maxN;
+   {      
+      ii_FactorCount[0] = 0;
       
-      for (ii=0; ii<ii_MaxFactors; ii++)
-         il_FactorList[ii] = PMAX_MAX_62BIT;
+      ip_Kernel->Execute(ii_WorkSize);
 
-      ip_AlternatingFactorialKernel->Execute(ii_WorkSize);
-
-      for (ii=0; ii<stepN; ii++)
+      for (uint32_t ii=0; ii<ii_FactorCount[0]; ii++)
       {
-         if (il_FactorList[ii] == PMAX_MAX_62BIT)
-            continue;
+         idx = ii*2;
          
-         term = ii + ii_NRange[0];
-         prime = il_FactorList[ii];
-
-         ip_AlternatingFactorialApp->ReportFactor(prime, term);
+         term = (uint32_t) il_FactorList[idx+0];
+         thePrime = il_FactorList[idx+1];
+         
+         ip_AlternatingFactorialApp->ReportFactor(thePrime, term);
+         
+         if ((ii+1) == ii_MaxGpuFactors)
+            break;
       }
-
-      ii_NRange[0] = ii_NRange[1];
-
-      ii_NRange[1] = ii_NRange[0] + stepN;
-
-      if (ii_NRange[1] > maxN)
-         ii_NRange[1] = maxN;
-
-      ii_NRange[2] = 0;
-
-      kk++;
-      if (ii_NRange[0] < maxN && ip_AlternatingFactorialApp->IsInterrupted() && time(NULL) > reportTime)
-      {
-         ip_AlternatingFactorialApp->WriteToConsole(COT_SIEVE, "Thread %d has completed %d of %d iterations", ii_MyId, kk, kkMax);
-         reportTime = time(NULL) + 60;
-      }
-   } while (ii_NRange[0] < maxN);
+   
+      if (ii_FactorCount[0] >= ii_MaxGpuFactors)
+         FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factors", ii_FactorCount[0], ii_MaxGpuFactors);
+      
+      ii_Parameters[0] += ip_AlternatingFactorialApp->GetMaxGpuSteps();
+   } while (ii_Parameters[0] < ip_AlternatingFactorialApp->GetMaxN());
 
    SetLargestPrimeTested(il_PrimeList[ii_WorkSize-1], ii_WorkSize);
 }
@@ -162,43 +94,3 @@ void  AlternatingFactorialGpuWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk
 {
    FatalError("AlternatingFactorialGpuWorker::TestMiniPrimeChunk not implemented");
 }
-
-void AlternatingFactorialGpuWorker::ValidateFactor(int64_t p, uint32_t term)
-{
-   // Note that p is limited to 2^52, so we are not using extended precision
-   // in this function.
-   
-   double   inverse, qd;
-   uint32_t n;
-   int64_t  up = p;
-   int64_t  q, rem;
-   int64_t  nm1term;
-   
-   inverse = 1.0 / p;
-   nm1term = 1;
-   rem = 1;
-   
-   for (n=2; n<=term; n++)
-   {
-      qd = ((double) rem * (double) n);
-
-      q = (int64_t) (qd * inverse);
-
-      rem = (rem*n) - p*q;
-
-      if (rem < 0)
-         rem += p;
-      else if (rem >= up)
-         rem -= p;
-      
-      // Set nm1term to af(n) % p
-      if (rem > nm1term)
-         nm1term = rem - nm1term;
-      else
-         nm1term = (rem + p - nm1term);
-   }
-
-   if (rem != 0)
-      FatalError("%" PRIu64" does not divide af(%u) (remainder is %" PRIu64")", p, term, rem);
-}
-

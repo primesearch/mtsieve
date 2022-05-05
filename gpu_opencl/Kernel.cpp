@@ -13,11 +13,12 @@
 #include "../core/App.h"
 #include "../core/Clock.h"
 
-Kernel::Kernel(Device *device, const char *kernelName, const char *kernelSource[], bool useFMA)
+Kernel::Kernel(Device *device, const char *kernelName, const char *kernelSource, const char *preKernelSources[])
 {
    cl_int    status;
-   int       computeUnits, ii, count;
-   size_t   *sourceSize;
+   int       computeUnits, ii;
+   const char     *sources[3];
+   size_t    sourcesSize[3];
    size_t    len;
    size_t    workGroupSizeMultiple;
    cl_ulong  deviceGlobalMemorySize;
@@ -25,29 +26,36 @@ Kernel::Kernel(Device *device, const char *kernelName, const char *kernelSource[
    cl_ulong  localMemorySize;
    cl_ulong  privateMemorySize;
    char      buffer[16384];
+   char     *tempSource;
    string    madEnable = "-cl-mad-enable";
    string    buildOptions = "";
 
-   if (useFMA)
-      buildOptions += madEnable;
+   tempSource = (char *) xmalloc(50000);
 
-   ii = 0;
-   while (kernelSource[ii])
-      ii++;
-
-   count = ii;
-   sourceSize = (size_t *) xmalloc(sizeof(size_t) * (ii+1));
-
-   ii = 0;
-   while (kernelSource[ii])
+   sources[0] = tempSource;
+   sources[1] = kernelSource;
+   sources[2] = NULL;
+   
+   sprintf(tempSource, "#define USE_OPENCL\n");
+   
+   if (preKernelSources != NULL)
    {
-      sourceSize[ii] = strlen(kernelSource[ii]);
-      ii++;
+      ii = 0;
+      while (preKernelSources[ii])
+      {
+         strcat(tempSource, preKernelSources[ii]);
+         strcat(tempSource, "\n");
+         ii++;
+      }
    }
-   sourceSize[ii] = 0;
+
+   sourcesSize[0] = strlen(sources[0]);
+   sourcesSize[1] = strlen(sources[1]);
+   sourcesSize[2] = 0;
 
    ip_Device = device;
    
+   ip_KernelArguments = (ka_t *) xmalloc(sizeof(ka_t) * MAX_KERNEL_ARGUMENTS);
    is_KernelName = kernelName;
    ii_ArgumentCount = 0;
  
@@ -61,15 +69,17 @@ Kernel::Kernel(Device *device, const char *kernelName, const char *kernelSource[
 #endif
    ErrorChecker::ExitIfError("clCreateCommandQueue", status);
 
-   im_Program = clCreateProgramWithSource(ip_Device->GetContext(), count, kernelSource, sourceSize, &status);
+   im_Program = clCreateProgramWithSource(ip_Device->GetContext(), 2, sources, sourcesSize, &status);
    ErrorChecker::ExitIfError("clCreateProgramWithSource", status, "kernelName: %s", kernelName);
+
+   xfree(tempSource);
 
    // create a cl_rogram executable for all the devices specified
    status = clBuildProgram(im_Program, 1, ip_Device->GetDeviceIdPtr(), buildOptions.c_str(), NULL, NULL);
 
    if (status != CL_SUCCESS)
    {
-      clGetProgramBuildInfo(im_Program, ip_Device->GetDeviceId(), CL_PROGRAM_BUILD_LOG, 16384, buffer, &len);
+      clGetProgramBuildInfo(im_Program, ip_Device->GetDeviceId(), CL_PROGRAM_BUILD_LOG, (uint32_t) sizeof(buffer), buffer, &len);
       ErrorChecker::ExitIfError("clBuildProgram", status, "%s", buffer);
    }
 
@@ -109,31 +119,72 @@ Kernel::Kernel(Device *device, const char *kernelName, const char *kernelSource[
    computeUnits = ip_Device->GetMaxComputeUnits();
 
    ii_WorkGroupSize = computeUnits * ii_KernelWorkGroupSize;
-   
-   xfree(sourceSize);
 }
 
 Kernel::~Kernel(void)
 {
+   ka_t      *ka;
+   uint32_t   aa;
+   
    clReleaseKernel(im_Kernel);
    clReleaseProgram(im_Program);
    clReleaseCommandQueue(im_CommandQueue);
-}
 
-void Kernel::AddArgument(KernelArgument *kernelArgument)
-{
-   ip_Arguments[ii_ArgumentCount++] = kernelArgument;
-}
-
-void Kernel::ReplaceArgument(KernelArgument *oldArgument, KernelArgument *newArgument)
-{
-   uint32_t   aa;
-   
    for (aa=0; aa<ii_ArgumentCount; aa++)
    {
-      if (ip_Arguments[ii_ArgumentCount] == oldArgument)
-         ip_Arguments[ii_ArgumentCount] = newArgument;
+      ka = &ip_KernelArguments[aa];
+      clReleaseMemObject(ka->gpuBuffer);
+      xfree(ka->cpuBuffer);
    }
+   
+   xfree(ip_KernelArguments);
+}
+
+void  *Kernel::AddCpuArgument(const char *name, uint32_t size, uint32_t count)
+{
+   return AddArgument(name, size, count, CL_MEM_READ_ONLY);
+}
+
+void  *Kernel::AddCpuArgument(const char *name, uint32_t size, uint32_t count, void *cpuMemory)
+{
+   void *ptr = AddArgument(name, size, count, CL_MEM_READ_ONLY);
+   
+   memcpy(ptr, cpuMemory, size * count);
+   
+   return ptr;
+}
+
+void  *Kernel::AddGpuArgument(const char *name, uint32_t size, uint32_t count)
+{
+   return AddArgument(name, size, count, CL_MEM_WRITE_ONLY);
+}
+
+void  *Kernel::AddSharedArgument(const char *name, uint32_t size, uint32_t count)
+{
+   return AddArgument(name, size, count, CL_MEM_READ_WRITE);
+}
+
+void  *Kernel::AddArgument(const char *name, uint32_t size, uint32_t count, cl_mem_flags memFlags)
+{
+   ka_t      *ka = &ip_KernelArguments[ii_ArgumentCount];
+   cl_int     status;
+   
+   ii_ArgumentCount++;
+
+   strcpy(ka->name, name);
+   ka->size = size;
+   ka->count = count;
+   ka->memFlags = memFlags;
+   ka->cpuBuffer = xmalloc(size * (count + 1));
+   ka->bytes = size * count;
+
+   // Don't know why I get "out of resources" if I don't make this slightly larger
+   ka->gpuBuffer = clCreateBuffer(ip_Device->GetContext(), memFlags, ka->bytes, NULL, &status);
+   
+   if (status != CL_SUCCESS)
+      ErrorChecker::ExitIfError("clCreateBuffer", status, "bytes: %d", ka->bytes);
+   
+   return ka->cpuBuffer;
 }
 
 void Kernel::PrintStatistics(uint64_t bytesPerWorkGroup)
@@ -176,35 +227,54 @@ void Kernel::Execute(uint32_t workSize)
    ErrorChecker::ExitIfError("clEnqueueNDRangeKernel", status, "kernelName: %s  globalworksize %u  localworksize %u", 
                              is_KernelName.c_str(), (uint32_t) globalWorkGroupSize[0], (uint32_t) ii_KernelWorkGroupSize);
 
-   status =  clFinish(im_CommandQueue);
-
    ErrorChecker::ExitIfError("clFinish", status, "kernelName: %s",  is_KernelName.c_str());
                              
    GetGPUOutput();
+   
+   status =  clFinish(im_CommandQueue);
 
    ip_Device->AddGpuMicroseconds(Clock::GetCurrentMicrosecond() - startTime);
 }
 
 void Kernel::SetGPUInput(void)
 {
+   ka_t      *ka;
    cl_int     status;
    uint32_t   aa;
 
    for (aa=0; aa<ii_ArgumentCount; aa++)
    {
-      status = clSetKernelArg(im_Kernel, aa, sizeof(cl_mem), ip_Arguments[aa]->GetAddress());
+      ka = &ip_KernelArguments[aa];
+      status = clSetKernelArg(im_Kernel, aa, sizeof(cl_mem), &ka->gpuBuffer);
+      
       ErrorChecker::ExitIfError("clSetKernelArg", status, "kernelName: %s  index %d  argument: %s  size: %d",
-                                is_KernelName.c_str(), aa, ip_Arguments[aa]->GetName().c_str(), ip_Arguments[aa]->GetSize());
+                                is_KernelName.c_str(), aa, ka->name, ka->bytes);
 
-      ip_Arguments[aa]->WriteToGPU(im_CommandQueue);
+      if (ka->memFlags == CL_MEM_WRITE_ONLY)
+         continue;
+      
+      status = clEnqueueWriteBuffer(im_CommandQueue, ka->gpuBuffer, CL_TRUE, 0, ka->bytes, ka->cpuBuffer, 0, NULL, NULL);
+
+      ErrorChecker::ExitIfError("clEnqueueWriteBuffer", status, "argument: %s", ka->name);
    }
 }
 
 void Kernel::GetGPUOutput(void)
 {
+   ka_t      *ka;
+   cl_int     status;
    uint32_t   aa;
 
    for (aa=0; aa<ii_ArgumentCount; aa++)
-      ip_Arguments[aa]->ReadFromGPU(im_CommandQueue);
+   {
+      ka = &ip_KernelArguments[aa];
+            
+      if (ka->memFlags == CL_MEM_READ_ONLY)
+         continue;
+           
+      status = clEnqueueReadBuffer(im_CommandQueue, ka->gpuBuffer, CL_TRUE, 0, ka->bytes, ka->cpuBuffer, 0, NULL, NULL);
+
+      ErrorChecker::ExitIfError("clEnqueueReadBuffer", status, "argument: %s", ka->name);
+   }
 }
 

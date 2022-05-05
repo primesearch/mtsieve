@@ -46,7 +46,7 @@ void CarolKyneaApp::Help(void)
    printf("-N --maxn=M           maximum n to search\n");
 }
 
-void  CarolKyneaApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  CarolKyneaApp::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
@@ -213,7 +213,7 @@ void CarolKyneaApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool CarolKyneaApp::ApplyFactor(uint64_t thePrime, const char *term)
+bool CarolKyneaApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
    uint32_t b, n;
    int32_t  c;
@@ -294,7 +294,7 @@ void CarolKyneaApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
    sprintf(extraTtext, "%u <= n <= %u, (%u^n+/-1)^2-2", ii_MinN, ii_MaxN, ii_Base);
 }
 
-bool CarolKyneaApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
+bool CarolKyneaApp::ReportFactor(uint64_t theFactor, uint32_t n, int32_t c)
 {
    uint32_t bit;
    bool     removedTerm = false;
@@ -314,7 +314,7 @@ bool CarolKyneaApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
       il_TermCount--;
       il_FactorCount++;
       
-      LogFactor(p, "(%u^%u-1)^2-2", ii_Base, n);
+      LogFactor(theFactor, "(%u^%u-1)^2-2", ii_Base, n);
    }
 
    if (c == +1 && iv_PlusTerms[bit])
@@ -325,7 +325,7 @@ bool CarolKyneaApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
       il_TermCount--;
       il_FactorCount++;
       
-      LogFactor(p, "(%u^%u+1)^2-2", ii_Base, n);
+      LogFactor(theFactor, "(%u^%u+1)^2-2", ii_Base, n);
    }
    
    ip_FactorAppLock->Release();
@@ -334,7 +334,7 @@ bool CarolKyneaApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
 }
 
 
-void CarolKyneaApp::ReportPrime(uint64_t p, uint32_t n, int32_t c)
+void CarolKyneaApp::ReportPrime(uint64_t thePrime, uint32_t n, int32_t c)
 {   
    if (n < ii_MinN || n > ii_MaxN)
       return;
@@ -350,9 +350,9 @@ void CarolKyneaApp::ReportPrime(uint64_t p, uint32_t n, int32_t c)
       il_TermCount--;
       il_FactorCount++;
       
-      WriteToConsole(COT_OTHER, "(%u^%u-1)^2-2 is prime! (%" PRIu64")", ii_Base, n, p);
+      WriteToConsole(COT_OTHER, "(%u^%u-1)^2-2 is prime! (%" PRIu64")", ii_Base, n, thePrime);
 
-      WriteToLog("(%u^%u-1)^2-2 is prime! (%" PRIu64")", ii_Base, n, p);
+      WriteToLog("(%u^%u-1)^2-2 is prime! (%" PRIu64")", ii_Base, n, thePrime);
    }
 
    if (c == +1 && iv_PlusTerms[bit])
@@ -362,9 +362,9 @@ void CarolKyneaApp::ReportPrime(uint64_t p, uint32_t n, int32_t c)
       il_TermCount--;
       il_FactorCount++;
       
-      WriteToConsole(COT_OTHER, "(%u^%u+1)^2-2 is prime! (%" PRIu64")", ii_Base, n, p);
+      WriteToConsole(COT_OTHER, "(%u^%u+1)^2-2 is prime! (%" PRIu64")", ii_Base, n, thePrime);
 
-      WriteToLog("(%u^%u+1)^2-2 is prime! (%" PRIu64")", ii_Base, n, p);
+      WriteToLog("(%u^%u+1)^2-2 is prime! (%" PRIu64")", ii_Base, n, thePrime);
    }
    
    ip_FactorAppLock->Release();

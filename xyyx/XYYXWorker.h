@@ -27,8 +27,6 @@ public:
    void           TestMiniPrimeChunk(uint64_t *miniPrimeChunk);
    void           CleanUp(void);
    
-   bool           VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t x, uint32_t y, int32_t c);
-
 private:         
    void           FreeTerms(void);
    

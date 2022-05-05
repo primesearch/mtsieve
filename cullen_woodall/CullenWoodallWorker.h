@@ -27,9 +27,12 @@ public:
 private:   
    void              TestSmallPrimesFPU(uint64_t *ps);
    void              TestLargePrimesFPU(uint64_t *ps);
+
+#ifdef USE_X86
    void              TestPrimesAVX(uint64_t *ps);
    void              CheckAVXResult(uint32_t theN, uint64_t *ps, double *dps);
-   
+#endif
+
    void              BuildListOfPowers(uint64_t a, uint64_t p, uint32_t count, uint64_t *powers);
    uint64_t          ComputeMultiplicativeInverse(uint64_t a, uint64_t p);
 

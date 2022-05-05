@@ -11,15 +11,18 @@
 #include <time.h>
 #include <cinttypes>
 #include "../core/Parser.h"
-#include "../core/Clock.h"
+
+#include "../core/MpArith.h"
+
 #include "AlternatingFactorialApp.h"
 #include "AlternatingFactorialWorker.h"
-#ifdef HAVE_GPU_WORKERS
+
+#if defined(USE_OPENCL) || defined(USE_METAL)
 #include "AlternatingFactorialGpuWorker.h"
 #endif
 
 #define APP_NAME        "afsieve"
-#define APP_VERSION     "1.1"
+#define APP_VERSION     "1.2"
 
 #define BIT(n)          ((n) - ii_MinN)
 
@@ -44,8 +47,9 @@ AlternatingFactorialApp::AlternatingFactorialApp() : FactorApp()
    // Override the default
    ii_CpuWorkSize = 10000;
 
-#ifdef HAVE_GPU_WORKERS
-   ii_StepN = 10000;
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   ii_MaxGpuSteps = 100000;
+   ii_MaxGpuFactors = GetGpuWorkGroups() * 10;
 #endif
 }
 
@@ -56,12 +60,13 @@ void AlternatingFactorialApp::Help(void)
    printf("-n --minn=n           minimum n to search\n");
    printf("-N --maxn=N           maximum n to search\n");
 
-#ifdef HAVE_GPU_WORKERS
-   printf("-s --step=s           n iterated per call to GPU\n");
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   printf("-S --step=S           max steps iterated per call to GPU (default %d)\n", ii_MaxGpuSteps);
+   printf("-M --maxfactors=M     max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
 #endif
 }
 
-void  AlternatingFactorialApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  AlternatingFactorialApp::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
@@ -70,10 +75,11 @@ void  AlternatingFactorialApp::AddCommandLineOptions(string &shortOpts, struct o
    AppendLongOpt(longOpts, "minn",           required_argument, 0, 'n');
    AppendLongOpt(longOpts, "maxn",           required_argument, 0, 'N');
 
-#ifdef HAVE_GPU_WORKERS
-   shortOpts += "s:";
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   shortOpts += "S:M:";
    
-   AppendLongOpt(longOpts, "step_n",         required_argument, 0, 's');
+   AppendLongOpt(longOpts, "steps",             required_argument, 0, 'S');
+   AppendLongOpt(longOpts, "maxfactors",        required_argument, 0, 'M');
 #endif
 }
 
@@ -94,9 +100,13 @@ parse_t AlternatingFactorialApp::ParseOption(int opt, char *arg, const char *sou
          status = Parser::Parse(arg, 2, 1000000000, ii_MaxN);
          break;
          
-#ifdef HAVE_GPU_WORKERS
-      case 's':
-         status = Parser::Parse(arg, 1, 1000000000, ii_StepN);
+#if defined(USE_OPENCL) || defined(USE_METAL)
+      case 'S':
+         status = Parser::Parse(arg, 1, 1000000000, ii_MaxGpuSteps);
+         break;
+
+      case 'M':
+         status = Parser::Parse(arg, 10, 1000000, ii_MaxGpuFactors);
          break;
 #endif
    }
@@ -140,7 +150,7 @@ Worker *AlternatingFactorialApp::CreateWorker(uint32_t id, bool gpuWorker, uint6
 {
    Worker *theWorker;
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    if (gpuWorker)
       theWorker = new AlternatingFactorialGpuWorker(id, this);
    else
@@ -200,7 +210,7 @@ void AlternatingFactorialApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool AlternatingFactorialApp::ApplyFactor(uint64_t thePrime, const char *term)
+bool AlternatingFactorialApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
    uint32_t c;
       
@@ -209,6 +219,8 @@ bool AlternatingFactorialApp::ApplyFactor(uint64_t thePrime, const char *term)
 
    if (c < ii_MinN || c > ii_MaxN)
       return false;
+   
+   VerifyFactor(theFactor, c);
    
    uint64_t bit = BIT(c);
    
@@ -229,12 +241,14 @@ void AlternatingFactorialApp::GetExtraTextForSieveStartedMessage(char *extraText
    sprintf(extraText, "%d <= n <= %d", ii_MinN, ii_MaxN);
 }
 
-bool AlternatingFactorialApp::ReportFactor(int64_t p, uint32_t term)
+bool AlternatingFactorialApp::ReportFactor(uint64_t theFactor, uint32_t term)
 {
    bool newFactor = false;
    
    if (term < ii_MinN || term > ii_MaxN)
       return false;
+   
+   VerifyFactor(theFactor, term);
    
    ip_FactorAppLock->Lock();
 
@@ -247,7 +261,7 @@ bool AlternatingFactorialApp::ReportFactor(int64_t p, uint32_t term)
       il_TermCount--;
       il_FactorCount++;
       
-      LogFactor(p, "af(%u)", term);
+      LogFactor(theFactor, "af(%u)", term);
    }
 
    ip_FactorAppLock->Release();
@@ -287,4 +301,32 @@ void AlternatingFactorialApp::WriteOutputTermsFile(uint64_t checkpointPrime)
       FatalError("Terms expected != terms counted (%u != %u)", termCount, remaining);
         
    ip_FactorAppLock->Release();
+}
+
+void  AlternatingFactorialApp::VerifyFactor(uint64_t theFactor, uint32_t term)
+{
+   MpArith  mp(theFactor);
+   MpRes    mpN = mp.one();
+   MpRes    mpFn = mp.one();
+   MpRes    mpAfn = mp.one();
+   
+   for (uint32_t n=1; n<term; n++)
+   {
+      mpN = mp.add(mpN, mp.one());
+      
+      // Compute n!
+      mpFn = mp.mul(mpFn, mpN);
+
+      // Compute n! - af(n-1)!      
+      mpAfn = mp.sub(mpFn, mpAfn);
+   }
+
+   uint64_t rem = mp.resToN(mpAfn);
+   
+   bool isValid = (rem == 0);
+   
+   if (isValid)
+      return;
+   
+   FatalError("%" PRIu64" is not a factor of af(%u)", theFactor, term);
 }

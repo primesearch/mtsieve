@@ -21,10 +21,12 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.6.0"
+#define APP_VERSION     "1.6.1"
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
+#elif defined(USE_METAL)
+#define APP_NAME        "srsieve2mtl"
 #else
 #define APP_NAME        "srsieve2"
 #endif
@@ -64,10 +66,11 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    ii_PowerResidueLcmMulitplier = 0;
    ii_LimitBaseMultiplier = 0;
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    ib_UseGPUWorkersUponRebuild = false;
    ii_GpuFactorDensity = 100;
    ii_SequencesPerKernel = 1000000;
+   ii_ChunksPerGpuWorker = 1;
 #endif
 }
 
@@ -83,28 +86,29 @@ void SierpinskiRieselApp::Help(void)
    printf("-L --legendrefile=L   Input/output diretory for Legendre tables (no files if -L not specified or -l0 is used)\n");
    printf("-R --remove=r         Remove sequence r\n");
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    printf("-M --maxfactordensity=M   factors per 1e6 terms per GPU worker chunk (default %u)\n", ii_GpuFactorDensity);
    printf("-S --sequencesperkernel=S the number of sequences per GPU kernel execution (default %u)\n", ii_SequencesPerKernel);
+   printf("-C --chunksperworker=C    the number of chunks of primes per GPU worker (default %u)\n", ii_ChunksPerGpuWorker);
 #endif
    
    printf("-U --bmmulitplier=U   muliplied by 2 to compute BASE_MULTIPLE (default %u for single %u for multi\n", 
             DEFAULT_BM_MULTIPLIER_SINGLE, DEFAULT_BM_MULTIPLIER_MULTI);
-   printf("-                     default BASE_MULTIPLE=%u, BASE_MULTIPLE=%u for multi)\n", 
+   printf("                      default BASE_MULTIPLE=%u, BASE_MULTIPLE=%u for multi)\n", 
             DEFAULT_BM_MULTIPLIER_SINGLE * 2, DEFAULT_BM_MULTIPLIER_MULTI * 2);
 
    printf("-V --prmmultiplier=V  muliplied by BASE_MULTIPLE to compute POWER_RESIDUE_LCM (default %u for single %u for multi\n",
             DEFAULT_PRL_MULTIPLIER_SINGLE, DEFAULT_PRL_MULTIPLIER_MULTI);
-   printf("-                     default POWER_RESIDUE_LCM=%u, POWER_RESIDUE_LCM=%u for multi)\n", 
+   printf("                      default POWER_RESIDUE_LCM=%u, POWER_RESIDUE_LCM=%u for multi)\n", 
             DEFAULT_PRL_MULTIPLIER_SINGLE * DEFAULT_BM_MULTIPLIER_SINGLE, DEFAULT_PRL_MULTIPLIER_MULTI * DEFAULT_BM_MULTIPLIER_MULTI);
             
    printf("-X --lbmultipler=X    muliplied by POWER_RESIDUE_LCM to compute LIMIT_BASE  (default %u for single %u for multi\n",
             DEFAULT_LB_MULTIPLIER_SINGLE, DEFAULT_LB_MULTIPLIER_MULTI);
-   printf("-                     default LIMIT_BASE=%u, LIMIT_BASE=%u for multi)\n", 
+   printf("                      default LIMIT_BASE=%u, LIMIT_BASE=%u for multi)\n", 
             DEFAULT_LB_MULTIPLIER_SINGLE * DEFAULT_PRL_MULTIPLIER_SINGLE, DEFAULT_LB_MULTIPLIER_MULTI * DEFAULT_PRL_MULTIPLIER_MULTI);
 }
 
-void  SierpinskiRieselApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  SierpinskiRieselApp::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
@@ -121,11 +125,12 @@ void  SierpinskiRieselApp::AddCommandLineOptions(string &shortOpts, struct optio
    AppendLongOpt(longOpts, "limitbase",      required_argument, 0, 'V');
    AppendLongOpt(longOpts, "powerresidue",   required_argument, 0, 'X');
    
-#ifdef HAVE_GPU_WORKERS
-   shortOpts += "M:S:";
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   shortOpts += "M:S:C:";
    
    AppendLongOpt(longOpts, "maxfactordensity",  required_argument, 0, 'M');
    AppendLongOpt(longOpts, "sequencesperkernel",  required_argument, 0, 'S');
+   AppendLongOpt(longOpts, "chunksperworker",  required_argument, 0, 'C');
 #endif
 }
 
@@ -195,13 +200,17 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
          status = Parser::Parse(arg, 1, 10, ii_LimitBaseMultiplier);
          break;
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
       case 'M':
          status = Parser::Parse(arg, 1, 1000000, ii_GpuFactorDensity);
          break;
          
       case 'S':
          status = Parser::Parse(arg, 10, 100000000, ii_SequencesPerKernel);
+         break;
+         
+      case 'C':
+         status = Parser::Parse(arg, 1, 100000, ii_ChunksPerGpuWorker);
          break;
 #endif
    }
@@ -319,7 +328,7 @@ void SierpinskiRieselApp::ValidateOptions(void)
    // larger than this limit is passed to the worker even if the worker does not test it.
    SetMaxPrimeForSingleWorker(il_SmallPrimeSieveLimit + 1000);
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    SetMinGpuPrime(1000000);
    
    double factors = (double) (ii_MaxN - ii_MinN) * (double) (ii_SequenceCount) / 1000000.0;
@@ -735,7 +744,7 @@ void  SierpinskiRieselApp::RemoveSequence(uint64_t k, uint32_t b, int64_t c, uin
       WriteToConsole(COT_OTHER, "Sequence %s wasn't removed because it wasn't found", sequence);
 }
 
-bool SierpinskiRieselApp::ApplyFactor(uint64_t thePrime, const char *term)
+bool SierpinskiRieselApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
    uint64_t   k;
    uint32_t   b, n, d;
@@ -761,11 +770,10 @@ bool SierpinskiRieselApp::ApplyFactor(uint64_t thePrime, const char *term)
    {
       if (seqPtr->k == k && seqPtr->c == c && seqPtr->d == d)
       {
+         VerifyFactor(theFactor, seqPtr, n);
+            
          if (seqPtr->nTerms[NBIT(n)])
          {
-            if (!VerifyFactor(false, thePrime, seqPtr, n))
-               return false;
-            
             seqPtr->nTerms[NBIT(n)] = false;
             il_TermCount--;
          
@@ -1083,7 +1091,7 @@ seq_t    *SierpinskiRieselApp::GetSequence(uint64_t k, int64_t c, uint32_t d)
 // Note that this is only called if all workers are paused and waiting for work
 void  SierpinskiRieselApp::NotifyAppToRebuild(uint64_t largestPrimeTested)
 {
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    if (ib_UseGPUWorkersUponRebuild)
       return;
 #endif
@@ -1213,7 +1221,7 @@ void  SierpinskiRieselApp::CheckForLegendreSupport(void)
 
    // If we can use CisOne logic, then we need to compute squareFreeK and squareFreeB even if
    // Legendre tables cannot be used.
-   vector<uint64_t> primes;
+   std::vector<uint64_t> primes;
    
    primesieve::generate_n_primes(sqrt(il_MaxK) + 1, &primes);
 
@@ -1233,7 +1241,7 @@ void  SierpinskiRieselApp::CheckForLegendreSupport(void)
    primes.clear();
 }
 
-void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, seq_t *seqPtr, uint32_t n, bool verifyFactor)
+void     SierpinskiRieselApp::ReportFactor(uint64_t theFactor, seq_t *seqPtr, uint32_t n, bool verifyFactor)
 {
    uint32_t nbit;
    bool     wasRemoved = false;
@@ -1250,14 +1258,14 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, seq_t *seqPtr, uin
    
    nbit = NBIT(n);
    
-   if (thePrime > GetMaxPrimeForSingleWorker())
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
       
    if (seqPtr->nTerms[nbit])
    {
       // Do not remove terms where k*b^n+c is prime.  This means that PRP testing program
       // should identify this term as prime and stop testing other terms of this sequence.
-      if (IsPrime(thePrime, seqPtr, n))
+      if (IsPrime(theFactor, seqPtr, n))
       {
          WriteToConsole(COT_OTHER, "%s is prime!", buffer);
          WriteToLog("%s is prime!", buffer);
@@ -1272,30 +1280,29 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t thePrime, seq_t *seqPtr, uin
       }
    }
          
-   if (thePrime > GetMaxPrimeForSingleWorker())
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
 
    if (isPrime)
       return;
 
    if (verifyFactor)
-      VerifyFactor(true, thePrime, seqPtr, n);
+      VerifyFactor(theFactor, seqPtr, n);
 
    if (!wasRemoved)
       return;   
 
-   LogFactor(thePrime, "%s", buffer);
+   LogFactor(theFactor, "%s", buffer);
 }
 
-bool  SierpinskiRieselApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, seq_t *seqPtr, uint32_t n)
+void  SierpinskiRieselApp::VerifyFactor(uint64_t theFactor, seq_t *seqPtr, uint32_t n)
 {
    uint64_t  rem;
-   bool      isValid;
 
-   fpu_push_1divp(thePrime);
+   fpu_push_1divp(theFactor);
    
-   rem = fpu_powmod(ii_Base, n, thePrime);
-   rem = fpu_mulmod(rem, seqPtr->k, thePrime);
+   rem = fpu_powmod(ii_Base, n, theFactor);
+   rem = fpu_mulmod(rem, seqPtr->k, theFactor);
 
    fpu_pop();
    
@@ -1303,36 +1310,29 @@ bool  SierpinskiRieselApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime
       rem += seqPtr->c;
    else
    {
-      int64_t adj = seqPtr->c + thePrime;
+      int64_t adj = seqPtr->c + theFactor;
       
       while (adj < 0)
-         adj += thePrime;
+         adj += theFactor;
       
       rem += adj;
    }
       
-   if (rem >= thePrime)
-      rem -= thePrime;
+   if (rem >= theFactor)
+      rem -= theFactor;
 
-   // At some point need logic if gcd(d, thePrime) != 1
-   isValid = (rem == 0);
-   
-   if (isValid)
-      return isValid;
-      
+   // At some point need logic if gcd(d, theFactor) != 1
+   if (rem == 0)
+      return;
+         
    char buffer[200];
    
    if (seqPtr->d > 1)
-      sprintf(buffer, "Invalid factor: (%" PRIu64"*%u^%u%+" PRId64")/%u mod %" PRIu64" = %" PRIu64"", seqPtr->k, ii_Base, n, seqPtr->c, seqPtr->d, thePrime, rem);
+      sprintf(buffer, "Invalid factor: (%" PRIu64"*%u^%u%+" PRId64")/%u mod %" PRIu64" = %" PRIu64"", seqPtr->k, ii_Base, n, seqPtr->c, seqPtr->d, theFactor, rem);
    else
-      sprintf(buffer, "Invalid factor: %" PRIu64"*%u^%u%+" PRId64" mod %" PRIu64" = %" PRIu64"", seqPtr->k, ii_Base, n, seqPtr->c, thePrime, rem);
+      sprintf(buffer, "Invalid factor: %" PRIu64"*%u^%u%+" PRId64" mod %" PRIu64" = %" PRIu64"", seqPtr->k, ii_Base, n, seqPtr->c, theFactor, rem);
    
-   if (badFactorIsFatal)
-      FatalError("%s", buffer);
-   else
-      WriteToConsole(COT_OTHER, "%s", buffer);
-   
-   return isValid;
+   FatalError("%s", buffer);
 }
 
 bool  SierpinskiRieselApp::IsPrime(uint64_t p, seq_t *seqPtr, uint32_t n)
@@ -1384,11 +1384,11 @@ bool  SierpinskiRieselApp::IsPrime(uint64_t p, seq_t *seqPtr, uint32_t n)
 //    n =  36 --> 2^2 * 3^2 * 1 --> return 1
 //    n =  91 --> 7 * 13        --> return 91
 //    n = 180 --> 2^2 * 3^2 * 5 --> return 5
-uint64_t    SierpinskiRieselApp::GetSquareFreeFactor(uint64_t n, vector<uint64_t> primes)
+uint64_t    SierpinskiRieselApp::GetSquareFreeFactor(uint64_t n, std::vector<uint64_t> primes)
 {
    uint64_t c = 1, q, r;
    
-   vector<uint64_t>::iterator it = primes.begin();
+   std::vector<uint64_t>::iterator it = primes.begin();
    
    r = sqrt(n);
    

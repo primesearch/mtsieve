@@ -55,10 +55,10 @@ public:
    ~Device(void);
 
    // List all platforms and devices available.  Note that just because a platform/device is
-   // listed, it does not mean that it can be used by the GPUSieve framework
+   // listed, it does not mean that it can be used by the framework
    void           ListAllDevices(void);
 
-   void           AddCommandLineOptions(string &shortOpts, struct option *longOpts);
+   void           AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    void           Help(void);
    parse_t        ParseOption(int opt, char *arg, const char *source);
    void           Validate(void);

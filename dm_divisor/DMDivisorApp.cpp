@@ -85,7 +85,7 @@ void DMDivisorApp::Help(void)
    printf("-X --kperchunk=X      when using -x, number of k to sieve at a time (default 1e10)\n");
 }
 
-void  DMDivisorApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  DMDivisorApp::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
@@ -353,7 +353,7 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool DMDivisorApp::ApplyFactor(uint64_t thePrime, const char *term)
+bool DMDivisorApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
    uint64_t k;
    uint32_t n;
@@ -367,8 +367,7 @@ bool DMDivisorApp::ApplyFactor(uint64_t thePrime, const char *term)
    if (k < il_MinK || k > il_MaxK)
       return false;
 
-   if (!VerifyFactor(false, thePrime, k))
-      return false;
+   VerifyFactor(theFactor, k);
       
    uint64_t bit = k - il_MinK;
    
@@ -443,48 +442,48 @@ void  DMDivisorApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
    sprintf(extraTtext, "%" PRIu64 " < k < %" PRIu64", 2*k*(2^%u-1)+1", il_MinK, il_MaxK, ii_N);
 }
 
-bool  DMDivisorApp::ReportFactor(uint64_t p, uint64_t k, bool verifyFactor)
+bool  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFactor)
 {
    bool     removedTerm = false;
    char     kStr[50];
 
-   if (p > GetMaxPrimeForSingleWorker())
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
 
    uint64_t bit = BIT(k);
 
    if (iv_MMPTerms[bit])
    {
-      if (ii_N == 13 && p == 8191)
+      if (ii_N == 13 && theFactor == 8191)
          return false;
       
-      if (ii_N == 17 && p == 131071)
+      if (ii_N == 17 && theFactor == 131071)
          return false;
       
-      if (ii_N == 19 && p == 524287)
+      if (ii_N == 19 && theFactor == 524287)
          return false;
       
-      if (ii_N == 31 && p == 2147483647)
+      if (ii_N == 31 && theFactor == 2147483647)
          return false;
       
-      if (ii_N == 61 && p == 2305843009213693951)
+      if (ii_N == 61 && theFactor == 2305843009213693951)
          return false;
+         
+      if (verifyFactor)
+         VerifyFactor(theFactor, k);
       
       iv_MMPTerms[bit] = false;
       removedTerm = true;
       
       sprintf(kStr, "%" PRIu64"", k);
       
-      LogFactor(p, "2*%s*(2^%u-1)+1", kStr, ii_N);
+      LogFactor(theFactor, "2*%s*(2^%u-1)+1", kStr, ii_N);
       
       il_FactorCount++;
       il_TermCount--;
-   
-      if (verifyFactor)
-         VerifyFactor(true, p, k);
    }
 
-   if (p > GetMaxPrimeForSingleWorker())
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
    
    return removedTerm;
@@ -784,40 +783,31 @@ void  DMDivisorApp::CheckRedc(mp_limb_t *xp, uint32_t xn, uint32_t b, uint64_t k
    mpz_clear(B);
 }
 
-bool  DMDivisorApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint64_t k)
+void  DMDivisorApp::VerifyFactor(uint64_t theFactor, uint64_t k)
 {
    uint64_t rem;
 
-   fpu_push_1divp(thePrime);
+   fpu_push_1divp(theFactor);
       
-   rem = fpu_powmod(2, ii_N, thePrime);
+   rem = fpu_powmod(2, ii_N, theFactor);
    
    if (rem == 0)
-      rem = thePrime - 1;
+      rem = theFactor - 1;
    else
       rem--;
    
-   rem = fpu_mulmod(rem, k, thePrime);
+   rem = fpu_mulmod(rem, k, theFactor);
 
    rem <<= 1;
    rem++;
    
-   if (rem >= thePrime)
-      rem -= thePrime;
+   if (rem >= theFactor)
+      rem -= theFactor;
    
    fpu_pop();
    
    if (rem == 0)
-      return true;
-      
-   char buffer[200];
+      return;
    
-   sprintf(buffer, "Invalid factor: 2*%" PRIu64"*(2^%u-1)+1 mod %" PRIu64" = %" PRIu64"", k, ii_N, thePrime, rem);
-   
-   if (badFactorIsFatal)
-      FatalError(buffer);
-   else
-      WriteToConsole(COT_OTHER, buffer);
-   
-   return false;
+   FatalError("Invalid factor: 2*%" PRIu64"*(2^%u-1)+1 mod %" PRIu64" = %" PRIu64"", k, ii_N, theFactor, rem);
 }

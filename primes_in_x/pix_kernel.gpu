@@ -1,0 +1,243 @@
+/* pixsieve.cl -- (C) Mark Rodenkirch, July 2017
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 3 of the License, or
+   (at your option) any later version.
+ */
+
+#if !defined(USE_OPENCL) && !defined(USE_METAL)
+#define MEED_METALLIB
+#endif
+
+
+#ifdef USE_METAL
+#include <metal_stdlib>
+#include <metal_atomic>
+using namespace metal;
+#endif
+
+// If we have to generate a metallib (which is only done to verify that the code below
+// compiles, then add these #defines.  If not generating a metallib, then the
+// code that includes this file will prepend the #defines that the kernel uses.
+#ifdef MEED_METALLIB
+#define D_MAX_FACTORS      1000
+#endif
+
+#if defined(USE_OPENCL)
+#pragma OPENCL EXTENSION cl_khr_int64_extended_atomics: enable
+#define MUL_HI          mul_hi
+
+void collectFactor(uint    termLength,
+                   ulong   p,
+ volatile __global uint   *factorCount,
+          __global ulong2 *factors);
+#else
+#define MUL_HI          mulhi
+
+void collectFactor(uint        termLength,
+                   ulong       p,
+   volatile device atomic_int *factorCount,
+            device ulong2     *factors);
+#endif
+ 
+ulong mmmInvert(ulong _p);
+ulong mmmOne(ulong _p);
+ulong mmmR2(ulong _p, ulong _q, ulong _one);
+ulong mmmAdd(ulong a, ulong b, ulong _p);
+ulong mmmSub(ulong a, ulong b, ulong _p);
+ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q);
+ulong mmmNtoRes(ulong n, ulong _p, ulong _q, ulong _r2);
+ulong mmmResToN(ulong res, ulong _p, ulong _q);
+
+__kernel void pix_kernel(__global const  ulong  *primes,
+                         __global        ulong  *residuals,
+                         __global        uint   *terms,
+                volatile __global        uint   *factorCount,
+                         __global        ulong2 *factors)
+{
+   int   gid = get_global_id(0);
+
+   ulong thePrime = primes[gid];
+   
+   ulong pOne = mmmOne(thePrime);
+   ulong _q = mmmInvert(thePrime);
+   ulong _r2 = mmmR2(thePrime, _q, pOne);
+   
+   ulong multiplier = terms[0];
+   ulong lengthOfEachTerm = terms[1];
+   uint  termLength = terms[2];
+   
+   ulong res = (termLength == 0 ? 0 : residuals[gid]);
+
+   ulong resMultiplier = mmmNtoRes(multiplier, thePrime, _q, _r2);
+   
+   uint dlIdx = 3;
+   
+   if (multiplier == 10)
+   {
+      ulong resDigit[10];
+      
+      resDigit[0] = 0;
+      resDigit[1] = pOne;
+      resDigit[2] = mmmAdd(resDigit[1], pOne, thePrime);
+      resDigit[3] = mmmAdd(resDigit[2], pOne, thePrime);
+      resDigit[4] = mmmAdd(resDigit[3], pOne, thePrime);
+      resDigit[5] = mmmAdd(resDigit[4], pOne, thePrime);
+      resDigit[6] = mmmAdd(resDigit[5], pOne, thePrime);
+      resDigit[7] = mmmAdd(resDigit[6], pOne, thePrime);
+      resDigit[8] = mmmAdd(resDigit[7], pOne, thePrime);
+      resDigit[9] = mmmAdd(resDigit[8], pOne, thePrime);
+
+      while (terms[dlIdx] != D_EOL)
+      {
+         res = mmmMulmod(res, resMultiplier, thePrime, _q);
+                  
+         res = mmmAdd(res, resDigit[terms[dlIdx]], thePrime);
+
+         termLength += lengthOfEachTerm;
+         
+         if (res == 0)
+            collectFactor(termLength, thePrime, factorCount, factors);
+         
+         dlIdx++;
+      }
+   }
+   else 
+   {
+      ulong resAdder;
+   
+      while (terms[dlIdx] != D_EOL)
+      {
+         res = mmmMulmod(res, resMultiplier, thePrime, _q);
+         
+         resAdder = mmmNtoRes(terms[dlIdx], thePrime, _q, _r2);
+         
+         res = mmmAdd(res, resAdder, thePrime);
+
+         termLength += lengthOfEachTerm;
+         
+         if (res == 0)
+            collectFactor(termLength, thePrime, factorCount, factors);
+         
+         dlIdx++;
+      }
+   }
+
+      
+   residuals[gid] = res;
+}
+
+// Compute the residual of n (mod p)
+ulong mmmNtoRes(ulong n, ulong _p, ulong _q, ulong _r2)
+{
+   return mmmMulmod(n, _r2, _p, _q);
+}
+
+// Convert a residual back to n
+ulong mmmResToN(ulong res, ulong _p, ulong _q)
+{
+   return mmmMulmod(res, 1, _p, _q);
+}
+
+ulong mmmInvert(ulong _p)
+{
+   ulong p_inv = 1;
+   ulong prev = 0;
+   
+   while (p_inv != prev)
+   {
+      prev = p_inv;
+      p_inv *= (2 - _p * p_inv);
+   }
+   
+   return p_inv;
+}
+
+// Compute the residual of 1 (mod p)
+ulong mmmOne(ulong _p)
+{
+   return ((-_p) % _p);
+}
+
+// Compute the residual of 2^64 (mod p)
+ulong mmmR2(ulong _p, ulong _q, ulong _one)
+{
+	ulong t = mmmAdd(_one, _one, _p);
+   
+   t = mmmAdd(t, t, _p);   // 4
+	for (size_t i=0; i<5; i++)
+      t = mmmMulmod(t, t, _p, _q);   // 4^{2^5} = 2^64
+      
+	return t;
+}
+
+ulong mmmAdd(ulong a, ulong b, ulong _p)
+{
+   ulong c = (a >= _p - b) ? _p : 0;
+   return a + b - c;
+}
+
+ulong mmmSub(ulong a, ulong b, ulong _p)
+{
+   ulong c = (a < b) ? _p : 0;
+   return a - b + c;
+}
+
+ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q)
+{
+   ulong lo, hi;
+
+#ifdef __NV_CL_C_VERSION
+   const uint a0 = (uint)(a), a1 = (uint)(a >> 32);
+   const uint b0 = (uint)(b), b1 = (uint)(b >> 32);
+
+   uint c0 = a0 * b0, c1 = mul_hi(a0, b0), c2, c3;
+
+   asm volatile ("mad.lo.cc.u32 %0, %1, %2, %3;" : "=r" (c1) : "r" (a0), "r" (b1), "r" (c1));
+   asm volatile ("madc.hi.u32 %0, %1, %2, 0;" : "=r" (c2) : "r" (a0), "r" (b1));
+
+   asm volatile ("mad.lo.cc.u32 %0, %1, %2, %3;" : "=r" (c2) : "r" (a1), "r" (b1), "r" (c2));
+   asm volatile ("madc.hi.u32 %0, %1, %2, 0;" : "=r" (c3) : "r" (a1), "r" (b1));
+
+   asm volatile ("mad.lo.cc.u32 %0, %1, %2, %3;" : "=r" (c1) : "r" (a1), "r" (b0), "r" (c1));
+   asm volatile ("madc.hi.cc.u32 %0, %1, %2, %3;" : "=r" (c2) : "r" (a1), "r" (b0), "r" (c2));
+   asm volatile ("addc.u32 %0, %1, 0;" : "=r" (c3) : "r" (c3));
+
+   lo = upsample(c1, c0); hi = upsample(c3, c2);
+#else
+   lo = a * b; hi = MUL_HI(a, b);
+#endif
+
+   ulong m = lo * _q;
+   ulong mp = MUL_HI(m, _p);
+   long r = (long)(hi - mp);
+   return (r < 0) ? r + _p : r;
+}
+
+#if defined(USE_OPENCL)
+void collectFactor(uint    termLength,
+                   ulong   p,
+ volatile __global uint   *factorCount,
+          __global ulong2 *factors)
+#else
+void collectFactor(uint        termLength,
+                   ulong       p,
+   volatile device atomic_int *factorCount,
+            device ulong2     *factors)
+#endif
+{      
+#if defined(USE_OPENCL)
+   int old = atomic_inc(factorCount);
+#else
+   int old = atomic_fetch_add_explicit(factorCount, 1, memory_order_relaxed);
+#endif
+
+   // If we reach the end, stop adding to the buffer.  The CPU code will end
+   // with an error as the buffer is not large enough to capture all factors.
+   if (old >= D_MAX_FACTORS)
+      return;
+   
+   factors[old].x = termLength;
+   factors[old].y = p;
+}

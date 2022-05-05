@@ -25,10 +25,10 @@ public:
    ~KBBApp(void) {};
 
    void              Help(void);
-   void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
+   void              AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(uint64_t thePrime, const char *term);
+   bool              ApplyFactor(uint64_t theFactor, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
    uint64_t          GetK(void) { return il_K; };
@@ -36,7 +36,7 @@ public:
    uint32_t          GetMaxB(void) { return ii_MaxB; };
    void              GetBases(uint32_t *bases);
    
-   bool              ReportFactor(uint64_t prime, uint32_t b, int32_t c);
+   bool              ReportFactor(uint64_t theFactor, uint32_t b, int32_t c);
 
 protected:
    void              PreSieveHook(void) {};
@@ -61,11 +61,11 @@ private:
    bool              CheckAlgebraicFactor(uint32_t b, int32_t c, const char *fmt, ...)  __attribute__ ((format (printf, 4, 5)));
 #endif
 
-   vector<bool>      iv_PlusTerms;
-   vector<bool>      iv_MinusTerms;
+   std::vector<bool> iv_PlusTerms;
+   std::vector<bool> iv_MinusTerms;
 
-   string            is_InputFileName;
-   string            is_OutputFileName;
+   std::string       is_InputFileName;
+   std::string       is_OutputFileName;
 
    uint64_t          il_K;
    uint32_t          ii_MinB;

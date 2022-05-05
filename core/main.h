@@ -25,8 +25,6 @@
 #include <math.h>
 #include <cinttypes>
 
-using namespace std;
-
 #ifdef WIN32
    #if defined(_MSC_VER) && defined(MEMLEAK)
       #define _CRTDBG_MAP_ALLOC

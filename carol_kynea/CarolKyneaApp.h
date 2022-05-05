@@ -20,18 +20,18 @@ public:
    ~CarolKyneaApp(void) {};
 
    void              Help(void);
-   void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
+   void              AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(uint64_t thePrime, const char *term);
+   bool              ApplyFactor(uint64_t theFactor, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
 
    uint32_t          GetBase(void) { return ii_Base; };
    uint32_t          GetMinN(void) { return ii_MinN; };
    uint32_t          GetMaxN(void) { return ii_MaxN; };
 
-   bool              ReportFactor(uint64_t p, uint32_t n, int32_t c);
-   void              ReportPrime(uint64_t p, uint32_t n, int32_t c);
+   bool              ReportFactor(uint64_t theFactor, uint32_t n, int32_t c);
+   void              ReportPrime(uint64_t thePrime, uint32_t n, int32_t c);
 
 protected:
    void              PreSieveHook(void) {};
@@ -46,8 +46,8 @@ protected:
    void              WriteOutputTermsFile(uint64_t largestPrime);
    
 private:
-   vector<bool>      iv_PlusTerms;
-   vector<bool>      iv_MinusTerms;
+   std::vector<bool> iv_PlusTerms;
+   std::vector<bool> iv_MinusTerms;
    
    uint32_t          ii_Base;
    uint32_t          ii_MinN;

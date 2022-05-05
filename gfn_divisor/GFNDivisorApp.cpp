@@ -19,7 +19,7 @@
 
 #define APP_VERSION     "2.1"
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
 #include "GFNDivisorGpuWorker.h"
 #define APP_NAME        "gfndsievecl"
 #else
@@ -56,9 +56,9 @@ GFNDivisorApp::GFNDivisorApp(void) : FactorApp()
 
    SetAppMinPrime(3);
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    ii_MaxGpuSteps = 1000000;
-   ii_MaxGpuFactors = GetGpuWorkGroups() * 100;
+   ii_MaxGpuFactors = GetGpuWorkGroups() * 1000;
 #endif
 }
 
@@ -76,13 +76,13 @@ void GFNDivisorApp::Help(void)
    printf("-r --notermsbitmap       do not generate terms bitmap\n");
    printf("-R --smallprimelimit=R   used with -r, do not output terms with a divisor < R (default 32767)\n");
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    printf("-S --step=S              max steps iterated per call to GPU (default %u)\n", ii_MaxGpuSteps);
    printf("-M --maxfactors=M        max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
 #endif
 }
 
-void  GFNDivisorApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  GFNDivisorApp::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
@@ -98,11 +98,11 @@ void  GFNDivisorApp::AddCommandLineOptions(string &shortOpts, struct option *lon
    AppendLongOpt(longOpts, "notermsbitmap",     no_argument,       0, 'r');
    AppendLongOpt(longOpts, "smallprimelimit",   required_argument, 0, 'R');
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    shortOpts += "S:M:";
    
-   AppendLongOpt(longOpts, "maxsteps",       required_argument, 0, 'S');
-   AppendLongOpt(longOpts, "maxfactors",     required_argument, 0, 'M');
+   AppendLongOpt(longOpts, "maxsteps",          required_argument, 0, 'S');
+   AppendLongOpt(longOpts, "maxfactors",        required_argument, 0, 'M');
 #endif
 }
 
@@ -153,13 +153,13 @@ parse_t GFNDivisorApp::ParseOption(int opt, char *arg, const char *source)
          status = Parser::Parse(arg, 1000000000, KMAX_MAX, il_KPerChunk);
          break;
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
       case 'S':
          status = Parser::Parse(arg, 1, 1000000000, ii_MaxGpuSteps);
          break;
          
       case 'M':
-         status = Parser::Parse(arg, 1, 1000000, ii_MaxGpuFactors);
+         status = Parser::Parse(arg, 1, 100000000, ii_MaxGpuFactors);
          break;
 #endif
    }
@@ -447,7 +447,7 @@ bool  GFNDivisorApp::PostSieveHook(void)
 
 Worker *GFNDivisorApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested)
 {
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    if (gpuWorker)
       return new GFNDivisorGpuWorker(id, this);
 #endif
@@ -596,7 +596,7 @@ void GFNDivisorApp::ProcessInputTermsFile(bool haveBitMap, FILE *fPtr, char *fil
    }
 }
 
-bool  GFNDivisorApp::ApplyFactor(uint64_t thePrime, const char *term)
+bool  GFNDivisorApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
    uint64_t k;
    uint32_t b, n;
@@ -620,8 +620,7 @@ bool  GFNDivisorApp::ApplyFactor(uint64_t thePrime, const char *term)
    if (k < il_MinK || k > il_MaxK)
       return false;
 
-   if (!VerifyFactor(false, thePrime, k, n))
-      return false;
+   VerifyFactor(theFactor, k, n);
       
    uint64_t bit = BIT(k);
    
@@ -757,7 +756,7 @@ void  GFNDivisorApp::GetExtraTextForSieveStartedMessage(char *extraText)
    sprintf(extraText, "%s <= k <= %s, %d <= n <= %d, k*2^n+1", minK, maxK, ii_MinN, ii_MaxN);
 }
 
-bool  GFNDivisorApp::ReportFactor(uint64_t p, uint64_t k, uint32_t n, bool verifyFactor)
+bool  GFNDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, uint32_t n, bool verifyFactor)
 {
    bool removedTerm = false;
    
@@ -769,15 +768,15 @@ bool  GFNDivisorApp::ReportFactor(uint64_t p, uint64_t k, uint32_t n, bool verif
          return true;
 
       il_FactorCount++;
-      LogFactor(p, "%" PRIu64"*2^%u+1", k, n);
+      LogFactor(theFactor, "%" PRIu64"*2^%u+1", k, n);
 
       if (verifyFactor)
-         VerifyFactor(true, p, k, n);
+         VerifyFactor(theFactor, k, n);
          
       return true;
    }
       
-   if (p > GetMaxPrimeForSingleWorker() && GetTotalWorkers() > 1)
+   if (theFactor > GetMaxPrimeForSingleWorker() && GetTotalWorkers() > 1)
       ip_FactorAppLock->Lock();
 
    uint64_t bit = BIT(k);
@@ -793,21 +792,21 @@ bool  GFNDivisorApp::ReportFactor(uint64_t p, uint64_t k, uint32_t n, bool verif
       {
          uint64_t nexp = (1L << n);
          
-         if (nexp < p)
+         if (nexp < theFactor)
          {
-            if (((p - 1) >> n) == k)
-               WriteToConsole(COT_OTHER, "%" PRIu64"*2^%u+1 is prime (= %" PRIu64")", k, n, p);
+            if (((theFactor - 1) >> n) == k)
+               WriteToConsole(COT_OTHER, "%" PRIu64"*2^%u+1 is prime (= %" PRIu64")", k, n, theFactor);
          }
       }
 
-      LogFactor(p, "%" PRIu64"*2^%u+1", k, n);
+      LogFactor(theFactor, "%" PRIu64"*2^%u+1", k, n);
       removedTerm = true;
 
       if (verifyFactor)
-         VerifyFactor(true, p, k, n);
+         VerifyFactor(theFactor, k, n);
    }
    
-   if (p > GetMaxPrimeForSingleWorker() && GetTotalWorkers() > 1)
+   if (theFactor > GetMaxPrimeForSingleWorker() && GetTotalWorkers() > 1)
       ip_FactorAppLock->Release();
 
    return removedTerm;
@@ -853,30 +852,21 @@ uint32_t GFNDivisorApp::GetSmallPrimeFactor(uint64_t k, uint32_t n)
 }
 
 
-bool  GFNDivisorApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint64_t k, uint32_t n)
+void  GFNDivisorApp::VerifyFactor(uint64_t theFactor, uint64_t k, uint32_t n)
 {
    uint64_t rem;
 
-   fpu_push_1divp(thePrime);
+   fpu_push_1divp(theFactor);
    
-   rem = fpu_powmod(2, n, thePrime);
+   rem = fpu_powmod(2, n, theFactor);
 
-   rem = fpu_mulmod(rem, k, thePrime);
+   rem = fpu_mulmod(rem, k, theFactor);
    
    fpu_pop();
    
-   if (rem == thePrime - 1)
-      return true;
-      
-   char buffer[200];
+   if (rem == theFactor - 1)
+      return;
    
-   sprintf(buffer, "Invalid factor: %" PRIu64"*2^%u+1 mod %" PRIu64" = %" PRIu64"", k, n, thePrime, rem+1);
-   
-   if (badFactorIsFatal)
-      FatalError(buffer);
-   else
-      WriteToConsole(COT_OTHER, buffer);
-   
-   return false;
+   FatalError("Invalid factor: %" PRIu64"*2^%u+1 mod %" PRIu64" = %" PRIu64"", k, n, theFactor, rem+1);
 }
 

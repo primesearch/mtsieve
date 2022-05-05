@@ -6,20 +6,16 @@
    (at your option) any later version.
 */
 
+#include <time.h>
 #include <cinttypes>
 #include "MultiFactorialGpuWorker.h"
-#include "mf_kernel.h"
-#include "../x86_asm/fpu-asm-x86.h"
-#include <time.h>
+#include "mf_kernel.gpu.h"
 
 MultiFactorialGpuWorker::MultiFactorialGpuWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
 {
-   char        define1[40];
-   char        define2[40];
-   char        define3[40];
-   char        define4[40];
-   char        define5[40];
-   const char *source[10];
+   char        defines[10][50];
+   const char *preKernelSources[10];
+   uint32_t    defineCount = 0, idx;
 
    ib_GpuWorker = true;
    
@@ -31,56 +27,39 @@ MultiFactorialGpuWorker::MultiFactorialGpuWorker(uint32_t myId, App *theApp) : W
    ii_MultiFactorial = ip_MultiFactorialApp->GetMultiFactorial();
    
    ii_MaxGpuFactors = ip_MultiFactorialApp->GetMaxGpuFactors();
-   
-   sprintf(define1, "#define D_MIN_N %d\n", ii_MinN);
-   sprintf(define2, "#define D_MAX_N %d\n", ii_MaxN);
-   sprintf(define3, "#define D_MAX_STEPS %d\n", ii_MaxGpuSteps);
-   sprintf(define4, "#define D_MULTIFACTORIAL %d\n", ii_MultiFactorial);
-   sprintf(define5, "#define D_MAX_FACTORS %d\n", ii_MaxGpuFactors);
-   
-   source[0] = define1;
-   source[1] = define2;
-   source[2] = define3;
-   source[3] = define4;
-   source[4] = define5;
-   source[5] = mf_kernel;
-   source[6] = 0;
 
-   ip_FactorialKernel = new Kernel(ip_MultiFactorialApp->GetDevice(), "mf_kernel", source);
-
-   AllocatePrimeList(ip_FactorialKernel->GetWorkGroupSize());
+   sprintf(defines[defineCount++], "#define D_MIN_N %d", ii_MinN);
+   sprintf(defines[defineCount++], "#define D_MAX_N %d", ii_MaxN);
+   sprintf(defines[defineCount++], "#define D_MAX_STEPS %d", ii_MaxGpuSteps);
+   sprintf(defines[defineCount++], "#define D_MULTIFACTORIAL %d", ii_MultiFactorial);
+   sprintf(defines[defineCount++], "#define D_MAX_FACTORS %d", ii_MaxGpuFactors);
    
-   il_RemainderList = (uint64_t *) xmalloc(2*ii_WorkSize*sizeof(uint64_t));
-   il_FactorList    = (int64_t *)  xmalloc(4*ii_MaxGpuFactors*sizeof(int64_t));
-
-   ip_KAPrime        = new KernelArgument(ip_MultiFactorialApp->GetDevice(), "prime", KA_HOST_TO_GPU, il_PrimeList, ii_WorkSize);
-   ip_KARemainder    = new KernelArgument(ip_MultiFactorialApp->GetDevice(), "remainder", KA_BIDIRECTIONAL, il_RemainderList, 2*ii_WorkSize);
-   ip_KAParams       = new KernelArgument(ip_MultiFactorialApp->GetDevice(), "n_range", KA_HOST_TO_GPU, (int32_t *) &ii_Params, 5);
-   ip_KAFactorCount  = new KernelArgument(ip_MultiFactorialApp->GetDevice(), "factor_count", KA_BIDIRECTIONAL, &ii_FactorCount, 1);
-   ip_KAFactorList   = new KernelArgument(ip_MultiFactorialApp->GetDevice(), "factor_list", KA_GPU_TO_HOST, il_FactorList, 4*ii_MaxGpuFactors);
-
-   ip_FactorialKernel->AddArgument(ip_KAPrime);
-   ip_FactorialKernel->AddArgument(ip_KARemainder);
-   ip_FactorialKernel->AddArgument(ip_KAParams);
-   ip_FactorialKernel->AddArgument(ip_KAFactorCount);
-   ip_FactorialKernel->AddArgument(ip_KAFactorList);
+   for (idx=0; idx<defineCount; idx++)
+      preKernelSources[idx] = defines[idx];
    
-   ip_FactorialKernel->PrintStatistics(0);
+   preKernelSources[idx] = 0;
+
+   ip_Kernel = new Kernel(ip_MultiFactorialApp->GetDevice(), "mf_kernel", mf_kernel, preKernelSources);
+
+   ip_MultiFactorialApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
    
+   ii_WorkSize = ip_MultiFactorialApp->GetGpuPrimesPerWorker();
+   
+   il_PrimeList = (uint64_t *) ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_WorkSize);
+   il_RemainderList = (uint64_t *) ip_Kernel->AddGpuArgument("remainders", sizeof(uint64_t), 2*ii_WorkSize);
+   ii_Parameters = (uint32_t *) ip_Kernel->AddCpuArgument("parameters", sizeof(uint32_t), 5);
+   ii_FactorCount = (uint32_t *) ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 1);
+   il_FactorList = (int64_t *) ip_Kernel->AddGpuArgument("factorList", sizeof(uint64_t), 4*ii_MaxGpuFactors);
+   
+   ip_Kernel->PrintStatistics(0);
+
    // The thread can't start until initialization is done
    ib_Initialized = true;
 }
 
 void  MultiFactorialGpuWorker::CleanUp(void)
 {
-   delete ip_KAPrime;
-   delete ip_KARemainder;
-   delete ip_KAParams;
-   delete ip_KAFactorCount;
-   delete ip_KAFactorList;
-
-   xfree(il_RemainderList);
-   xfree(il_FactorList);
+   delete ip_Kernel;
 }
 
 void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
@@ -113,24 +92,19 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
          continue;
 
       // The first parameter is the starting n for the calculation, i.e. n!
-      ii_Params[0] = startN;
-
-      // Initialize the list of remainders
-      for (idx=0; idx<ii_WorkSize; idx++)
-         il_RemainderList[idx] = 1;
+      ii_Parameters[0] = startN;
+      ii_Parameters[1] = startN;
 
       reportTime = time(NULL) + 60;
-
-      ii_Params[1] = startN;
       
       do
       {
          iteration++;
-         ii_FactorCount = 0;
+         ii_FactorCount[0] = 0;
      
-         ip_FactorialKernel->Execute(ii_WorkSize);
+         ip_Kernel->Execute(ii_WorkSize);
 
-         for (ii=0; ii<ii_FactorCount; ii++)
+         for (ii=0; ii<ii_FactorCount[0]; ii++)
          {  
             idx = ii*4;
             
@@ -140,12 +114,12 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
          
             ip_MultiFactorialApp->ReportFactor(prime, n, c);
             
-            if (ii >= ii_MaxGpuFactors)
+            if ((ii+1) == ii_MaxGpuFactors)
                break;
          }
 
-         if (ii_FactorCount >= ii_MaxGpuFactors)
-            FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factors", ii_FactorCount, ii_MaxGpuFactors);
+         if (ii_FactorCount[0] >= ii_MaxGpuFactors)
+            FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factors", ii_FactorCount[0], ii_MaxGpuFactors);
 
          if (iteration < maxIterations && ip_MultiFactorialApp->IsInterrupted() && time(NULL) > reportTime)
          {
@@ -154,8 +128,8 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
          }
          
          // Set where the next range is starting.
-         ii_Params[1] += (ii_MaxGpuSteps * ii_MultiFactorial);
-      } while (ii_Params[1] <= ii_MaxN);
+         ii_Parameters[1] += (ii_MaxGpuSteps * ii_MultiFactorial);
+      } while (ii_Parameters[1] <= ii_MaxN);
    }
    
    SetLargestPrimeTested(il_PrimeList[ii_WorkSize-1], ii_WorkSize);

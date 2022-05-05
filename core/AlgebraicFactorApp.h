@@ -30,7 +30,7 @@ protected:
    
 private:   
    // These variables are used by this class when looking for algebraic factors.
-   vector<uint64_t>  iv_SmallPrimes;
+   std::vector<uint64_t>  iv_SmallPrimes;
    
    void              GetSmallPrimes(void);
    uint32_t          GetFactorList(uint64_t the_number, uint64_t *factor_list, uint32_t *power_list);

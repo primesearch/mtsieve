@@ -1,5 +1,43 @@
 The relative speed differnce between CPU and GPU is for an i7-8850H and NVIDIA Quadro P3200.
 
+2.3.0 - April 22, 2022
+   framework:
+      Updated to msys2 gcc version 11.2.0, which required changing string to std:string
+      and vector to std::vector instead of using the std namespace.
+
+      Due to a compiler bug, now compiling xyyxsieve and afsieve with -O2 instead of -O3.
+      
+      Refactored the OpenCL implementation so that Metal implementation can use the same
+      interface as OpenCL.  As a result KernelArgument.cpp no longer exists.  The Kernel
+      now manages all CPU and GPU memory used by the Kernel.
+            
+      Added Metal support (for Apple hardware) since Apple has deprecated OpenCL on their
+      hardware.  As a result, all sieves that can use OpenCL on Apple hardware can now use
+      Metal on that same hardware.
+      
+      Added ARM support for sieves that do not require x86 ASM functions.
+      
+      Updated factor validation of mfsieve, gcwsieve, etc. to no longer require x86 asm.
+      
+      Moved cltoh.pl to the main directory.  make will now build the xxx.gpu.h file used
+      by the GpuWorkers as part of compiling the GpuWorker object files.
+ 
+      afsieve, afsievecl: version 1.2:
+         The GPU code uses the Montgomery logic for the mulmod.
+         All factors, found by either CPU or GPU are now validated.
+
+      psieve, psievecl: version 1.5
+         Replaced x86 ASM FPU code with Montgomery logic for the mulmod as the x86 ASM FPU
+         code was missing factors.  There is no speed difference between the two.  The x86
+         AVX code worked and has not been changed.
+         
+      srsieve2, srsieve2cl: version 1.6.1
+         Changed default value for -g from to to 16.  GPUs tend to like powers of 2 due
+         to their architecture.
+         
+         Added -C for single sequence sieving with the GPU.  This reduces threading overhead
+         which has a noticable impact on sieving speed.  Using -C5 can improve speed by 50%.
+         
 2.2.3 - January 03, 2022
    framework:
       Modified sieving and factor rate calculations to account for long-running sieving

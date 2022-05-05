@@ -11,8 +11,12 @@
 
 #include "SmarandacheApp.h"
 #include "../core/Worker.h"
-#include "../opencl/Kernel.h"
-#include "../opencl/KernelArgument.h"
+
+#ifdef USE_OPENCL
+#include "../gpu_opencl/Kernel.h"
+#else
+#include "../gpu_metal/Kernel.h"
+#endif
 
 using namespace std;
 
@@ -32,22 +36,18 @@ protected:
    
    SmarandacheApp   *ip_SmarandacheApp;
 
-   uint32_t          ii_KernelCount;
    bool              ib_NeedToRebuildTerms;
-   uint32_t        **ii_Terms;
+   uint32_t          ii_KernelCount;
+   uint32_t        **ii_AllTerms;
    
    uint32_t          ii_MaxGpuFactors;
+   uint32_t          ii_MaxGpuSteps;
    
-   uint32_t          ii_FactorCount;
+   uint32_t         *ii_KernelTerms;
+   uint32_t         *ii_FactorCount;
    uint64_t         *il_FactorList;
 
-   Kernel          **ip_SmarandacheKernel6;
-   Kernel          **ip_SmarandacheKernel7;
-
-   KernelArgument   *ip_KAPrime;
-   KernelArgument  **ip_KATerms;
-   KernelArgument   *ip_KAFactorCount;
-   KernelArgument   *ip_KAFactorList;
+   Kernel           *ip_Kernel;
 };
 
 #endif

@@ -14,9 +14,12 @@
 #include "../core/Parser.h"
 #include "../core/MpArith.h"
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL)
 #include "MultiFactorialGpuWorker.h"
 #define APP_NAME        "mfsievecl"
+#elif defined(USE_METAL)
+#include "MultiFactorialGpuWorker.h"
+#define APP_NAME        "mfsievemtl"
 #else
 #define APP_NAME        "mfsieve"
 #endif
@@ -47,7 +50,7 @@ MultiFactorialApp::MultiFactorialApp() : FactorApp()
 
    SetAppMaxPrime(PMAX_MAX_52BIT);
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    ii_MaxGpuSteps = 100000;
    ii_MaxGpuFactors = GetGpuWorkGroups() * 10;
 #endif
@@ -61,13 +64,13 @@ void MultiFactorialApp::Help(void)
    printf("-N --maxn=M           maximum n to search\n");
    printf("-m --multifactorial=m multifactorial, e.g. x!m where m = 3 --> x!!! (default 1)\n");
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    printf("-S --step=S           max steps iterated per call to GPU (default %u)\n", ii_MaxGpuSteps);
    printf("-M --maxfactors=M     max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
 #endif
 }
 
-void  MultiFactorialApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  MultiFactorialApp::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
@@ -77,7 +80,7 @@ void  MultiFactorialApp::AddCommandLineOptions(string &shortOpts, struct option 
    AppendLongOpt(longOpts, "maxn",           required_argument, 0, 'N');
    AppendLongOpt(longOpts, "multifactorial", required_argument, 0, 'm');
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    shortOpts += "S:M:";
    
    AppendLongOpt(longOpts, "maxsteps",       required_argument, 0, 'S');
@@ -106,7 +109,7 @@ parse_t MultiFactorialApp::ParseOption(int opt, char *arg, const char *source)
          status = Parser::Parse(arg, 1, 1000000000, ii_MaxN);
          break;
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
       case 'S':
          status = Parser::Parse(arg, 1, 1000000000, ii_MaxGpuSteps);
          break;
@@ -183,7 +186,7 @@ void MultiFactorialApp::ValidateOptions(void)
 
    SetMinGpuPrime(ii_MaxN + 1);
  
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    ii_MaxGpuFactors = GetGpuWorkGroups() * (ii_MaxN - ii_MinN) / 100;
 #endif
 
@@ -196,7 +199,7 @@ void MultiFactorialApp::ValidateOptions(void)
 
 Worker *MultiFactorialApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested)
 {
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    if (gpuWorker)
       return new MultiFactorialGpuWorker(id, this);
 #endif
@@ -310,7 +313,7 @@ void MultiFactorialApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool MultiFactorialApp::ApplyFactor(uint64_t thePrime, const char *term)
+bool MultiFactorialApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
    uint32_t n, mf;
    int32_t  c;
@@ -324,8 +327,7 @@ bool MultiFactorialApp::ApplyFactor(uint64_t thePrime, const char *term)
    if (n < ii_MinN || n > ii_MaxN)
       return false;
      
-   if (!VerifyFactor(false, thePrime, n, c))
-      return false;
+   VerifyFactor(theFactor, n, c);
    
    uint64_t bit = BIT(n);
    
@@ -390,13 +392,15 @@ void MultiFactorialApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
       sprintf(extraTtext, "%d <= n <= %d, factorial", ii_MinN, ii_MaxN);
 }
 
-bool MultiFactorialApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
+bool MultiFactorialApp::ReportFactor(uint64_t theFactor, uint32_t n, int32_t c)
 {
    uint32_t bit;
    bool     newFactor = false;
    
    if (n < ii_MinN || n > ii_MaxN)
       return false;
+   
+   VerifyFactor(theFactor, n, c);
    
    ip_FactorAppLock->Lock();
 
@@ -409,7 +413,7 @@ bool MultiFactorialApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
       il_TermCount--;
       il_FactorCount++;
       
-      LogFactor(p, "%u!%u-1", n, ii_MultiFactorial);
+      LogFactor(theFactor, "%u!%u-1", n, ii_MultiFactorial);
    }
 
    if (c == +1 && iv_PlusTerms[bit])
@@ -419,17 +423,15 @@ bool MultiFactorialApp::ReportFactor(uint64_t p, uint32_t n, int32_t c)
       il_TermCount--;
       il_FactorCount++;
       
-      LogFactor(p, "%u!%u+1", n, ii_MultiFactorial);
+      LogFactor(theFactor, "%u!%u+1", n, ii_MultiFactorial);
    }
    
    ip_FactorAppLock->Release();
    
-   VerifyFactor(true, p, n, c);
-   
    return newFactor;
 }
 
-bool  MultiFactorialApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint32_t n, int32_t c)
+void  MultiFactorialApp::VerifyFactor(uint64_t theFactor, uint32_t n, int32_t c)
 {
    uint32_t currN = n;
    bool     termIsPrime = true;
@@ -447,7 +449,7 @@ bool  MultiFactorialApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, 
       if (nextRem < rem)
          termIsPrime = false;
       
-      if (nextRem > thePrime + 1)
+      if (nextRem > theFactor + 1)
          termIsPrime = false;
       
       rem = nextRem;
@@ -457,15 +459,15 @@ bool  MultiFactorialApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, 
    if (termIsPrime)
    {
       if (ii_MultiFactorial == 1)
-         sprintf(buffer, "%u!%+d is prime! (%" PRId64")", n, c, thePrime);
+         sprintf(buffer, "%u!%+d is prime! (%" PRId64")", n, c, theFactor);
       else
-         sprintf(buffer, "%u!%u%+d is prime! (%" PRId64")", n, ii_MultiFactorial, c, thePrime);
+         sprintf(buffer, "%u!%u%+d is prime! (%" PRId64")", n, ii_MultiFactorial, c, theFactor);
          
       WriteToConsole(COT_OTHER, "%s", buffer);
 
       WriteToLog("%s", buffer);
       
-      return termIsPrime;
+      return;
    }
 
    if (n % ii_MultiFactorial == 0)
@@ -473,7 +475,7 @@ bool  MultiFactorialApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, 
    else
       currN = (n % ii_MultiFactorial);
   
-   MpArith  mp(thePrime);
+   MpArith  mp(theFactor);
    MpRes    pOne = mp.one();
    MpRes    mOne = mp.sub(mp.zero(), pOne);
 
@@ -496,17 +498,12 @@ bool  MultiFactorialApp::VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, 
       isValid = (rf == mOne);
       
    if (isValid)
-      return true;
+      return;
    
    if (ii_MultiFactorial == 1)
-      sprintf(buffer, "%" PRIu64" is not a factor of not a factor of %u!%+d", thePrime, n, c);
+      sprintf(buffer, "%" PRIu64" is not a factor of not a factor of %u!%+d", theFactor, n, c);
    else
-      sprintf(buffer, "%" PRIu64" is not a factor of not a factor of %u!%u%+d", thePrime, n, ii_MultiFactorial, c);
+      sprintf(buffer, "%" PRIu64" is not a factor of not a factor of %u!%u%+d", theFactor, n, ii_MultiFactorial, c);
 
-   if (badFactorIsFatal)
-      FatalError("%s", buffer);
-   else
-      WriteToConsole(COT_OTHER, "%s", buffer);
-
-   return false;
+   FatalError("%s", buffer);
 }

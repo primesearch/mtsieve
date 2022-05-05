@@ -46,7 +46,7 @@ void KBBApp::Help(void)
    printf("-B --bmax=B           Maximum B to search\n");
 }
 
-void  KBBApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  KBBApp::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
@@ -240,7 +240,7 @@ void KBBApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool KBBApp::ApplyFactor(uint64_t thePrime, const char *term)
+bool KBBApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
    uint64_t k;
    uint32_t b1, b2;
@@ -347,14 +347,14 @@ void KBBApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
    sprintf(extraTtext, "k = %" PRIu64", %u <= b <= %u", il_K, ii_MinB, ii_MaxB);
 }
 
-bool  KBBApp::ReportFactor(uint64_t p, uint32_t b, int32_t c)
+bool  KBBApp::ReportFactor(uint64_t theFactor, uint32_t b, int32_t c)
 {
    bool     removedTerm = false;
    
    if (b < ii_MinB) return false;
    if (b > ii_MaxB) return false;
    
-   if (p > GetMaxPrimeForSingleWorker())
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
 
    uint32_t bit = BIT(b);
@@ -364,7 +364,7 @@ bool  KBBApp::ReportFactor(uint64_t p, uint32_t b, int32_t c)
       iv_PlusTerms[bit] = false;
       removedTerm = true;
             
-      LogFactor(p, "%" PRIu64"*%u^%u+1", il_K, b, b);
+      LogFactor(theFactor, "%" PRIu64"*%u^%u+1", il_K, b, b);
       
       il_FactorCount++;
       il_TermCount--;
@@ -375,13 +375,13 @@ bool  KBBApp::ReportFactor(uint64_t p, uint32_t b, int32_t c)
       iv_MinusTerms[bit] = false;
       removedTerm = true;
             
-      LogFactor(p, "%" PRIu64"*%u^%u-1", il_K, b, b);
+      LogFactor(theFactor, "%" PRIu64"*%u^%u-1", il_K, b, b);
       
       il_FactorCount++;
       il_TermCount--;
    }
    
-   if (p > GetMaxPrimeForSingleWorker())
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
    
    return removedTerm;

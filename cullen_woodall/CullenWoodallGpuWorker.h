@@ -11,8 +11,12 @@
 
 #include "CullenWoodallApp.h"
 #include "../core/Worker.h"
-#include "../opencl/Kernel.h"
-#include "../opencl/KernelArgument.h"
+
+#ifdef USE_OPENCL
+#include "../gpu_opencl/Kernel.h"
+#else
+#include "../gpu_metal/Kernel.h"
+#endif
 
 using namespace std;
 
@@ -32,22 +36,20 @@ protected:
    uint64_t          il_NextTermsBuild;   
    uint32_t          ii_MaxGpuSteps;
    uint32_t          ii_MaxGpuFactors;
-   int64_t          *il_FactorList;
+   uint32_t         *ii_Terms;
 
    uint32_t          ii_Base;
-   uint32_t         *ii_Terms;
    uint32_t          ii_Groups;
    uint32_t          ii_GroupSize;
-   uint32_t          ii_FactorCount;
+
+   // Variables used by the kernel
+   uint32_t         *ii_KernelTerms;
+   uint32_t         *ii_FactorCount;
+   int64_t          *il_FactorList;
 
    CullenWoodallApp *ip_CullenWoodallApp;
    
-   Kernel           *ip_GCWKernel;
-
-   KernelArgument   *ip_KAPrime;
-   KernelArgument   *ip_KATerms;
-   KernelArgument   *ip_KAFactorCount;
-   KernelArgument   *ip_KAFactorList;
+   Kernel           *ip_Kernel;
 };
 
 #endif

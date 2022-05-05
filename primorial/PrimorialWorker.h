@@ -11,8 +11,11 @@
 
 #include "PrimorialApp.h"
 #include "../core/Worker.h"
+#include "../core/MpArithVector.h"
 
-using namespace std;
+// The first prime gap over 300 is at 2e9.  Unlikely anyone will ever search that far
+// in the foreseeable future.
+#define MAX_GAPS     300
 
 class PrimorialWorker : public Worker
 {
@@ -31,13 +34,22 @@ protected:
 private:
    void              ExtractFactors(uint64_t p);
    
+#ifdef USE_X86
    void              CheckAVXResult(uint64_t *ps, double *dps, uint32_t theN);
    void              VerifyAVXFactor(uint64_t p, uint32_t theN, int32_t theC);
+#endif
+
+   uint32_t          ii_MinPrimorial;
+   uint32_t          ii_MaxPrimorial;
    
+   double           *id_PrimorialPrimes;
+   uint32_t         *ip_PrimorialPrimes;
    uint32_t          ii_NumberOfPrimorialPrimes;
    
-   uint32_t         *ip_PrimorialPrimes;
-   double           *id_PrimorialPrimes;
+   uint16_t         *ip_PrimorialPrimeGaps;
+   uint16_t          ii_BiggestGap;
+   
+   MpResVec          ip_ResGaps[MAX_GAPS];
 };
 
 #endif

@@ -14,7 +14,7 @@
 #include "CisOneWithMultipleSequencesHelper.h"
 #include "CisOneWithMultipleSequencesWorker.h"
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
 #include "CisOneWithOneSequenceGpuWorker.h"
 #endif
 
@@ -57,7 +57,7 @@ Worker  *CisOneWithMultipleSequencesHelper::CreateWorker(uint32_t id, bool gpuWo
    // Note that GenericWorker inherits from Worker.  This will not
    // only create the worker, but also start it.
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    if (gpuWorker)
       theWorker = new CisOneWithOneSequenceGpuWorker(id, ip_App, this);
    else

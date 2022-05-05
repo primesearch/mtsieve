@@ -53,7 +53,7 @@ Worker::Worker(uint32_t myId, App *theApp)
 
    ii_WorkSize = ip_App->GetCpuWorkSize();
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    // This is only used by GPU workers.
    il_PrimeList = 0;
 #endif
@@ -81,11 +81,6 @@ Worker::~Worker()
 {
    delete ip_StatsLocker;
    delete ip_WorkerStatus;
-
-#ifdef HAVE_GPU_WORKERS
-   if (il_PrimeList)
-      xfree(il_PrimeList);
-#endif
 }
 
 #ifdef WIN32
@@ -109,17 +104,6 @@ static void *ThreadEntryPoint(void *threadInfo)
    pthread_exit(0);
 #endif
 }
-
-#ifdef HAVE_GPU_WORKERS
-void  Worker::AllocatePrimeList(uint32_t workGroupSize)
-{
-   ip_App->SetGpuWorkGroupSize(workGroupSize);
-   
-   ii_WorkSize = ip_App->GetGpuWorkSize();
-   
-   il_PrimeList = (uint64_t *) xmalloc(ii_WorkSize*sizeof(uint64_t));
-}
-#endif
 
 // This is called by the main thread to determine if this worker
 // is waiting for work.
@@ -200,7 +184,7 @@ void  Worker::WaitForHandOff(void)
          if (ip_App->IsSievingDone())
             break;
       
-         Sleep(10);
+         Sleep(1);
          continue;
       }
                   
@@ -214,10 +198,10 @@ void  Worker::WaitForHandOff(void)
       savedSseMode = sse_mod_init();
 #endif
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
       if (ib_GpuWorker)
       {
-         vector<uint64_t>::iterator it = iv_Primes.begin();
+         std::vector<uint64_t>::iterator it = iv_Primes.begin();
          uint32_t idx = 0;
          
          while (it != iv_Primes.end())
@@ -249,7 +233,7 @@ void  Worker::WaitForHandOff(void)
       
       ip_StatsLocker->Release();
 
-#ifdef HAVE_GPU_WORKERS      
+#if defined(USE_OPENCL) || defined(USE_METAL)      
       // If this is the special CPU worker and we no longer need it,
       // then we can break out of this loop and stop this thread.
       if (ii_MyId == 0 && il_LargestPrimeTested > ip_App->GetMinGpuPrime())
@@ -274,7 +258,7 @@ void   Worker::SetMiniChunkRange(uint64_t minPrimeForMiniChunkMode, uint64_t max
 
 void    Worker::TestWithMiniChunks(void)
 {
-   vector<uint64_t>::iterator it = iv_Primes.begin();
+   std::vector<uint64_t>::iterator it = iv_Primes.begin();
    uint64_t maxPrime = ip_App->GetMaxPrime();
    uint32_t countInChunk = 0;
    uint64_t miniPrimeChunk[128];

@@ -23,20 +23,21 @@ public:
    ~AlternatingFactorialApp(void) {};
 
    void              Help(void);
-   void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
+   void              AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(uint64_t thePrime, const char *term);
+   bool              ApplyFactor(uint64_t theFactor, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
    uint32_t          GetMinN(void) { return ii_MinN; };
    uint32_t          GetMaxN(void) { return ii_MaxN; };
 
-#ifdef HAVE_GPU_WORKERS
-   uint32_t          GetStepN(void) { return ii_StepN; };
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   uint32_t          GetMaxGpuSteps(void) { return ii_MaxGpuSteps; };
+   uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
 #endif
 
-   bool              ReportFactor(int64_t p, uint32_t term);
+   bool              ReportFactor(uint64_t theFactor, uint32_t term);
 
 protected:
    void              PreSieveHook(void) {};
@@ -51,13 +52,16 @@ protected:
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
    
 private:    
-   vector<bool>      iv_Terms;
+   void              VerifyFactor(uint64_t theFactor, uint32_t term);
+   
+   std::vector<bool> iv_Terms;
  
    uint32_t          ii_MinN;
    uint32_t          ii_MaxN;
 
-#ifdef HAVE_GPU_WORKERS
-   uint32_t          ii_StepN;
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   uint32_t          ii_MaxGpuSteps;
+   uint32_t          ii_MaxGpuFactors;
 #endif
 };
 

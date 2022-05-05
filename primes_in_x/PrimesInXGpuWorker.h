@@ -14,8 +14,13 @@
 
 #include "PrimesInXApp.h"
 #include "../core/Worker.h"
-#include "../opencl/Kernel.h"
-#include "../opencl/KernelArgument.h"
+
+#ifdef USE_OPENCL
+#include "../gpu_opencl/Kernel.h"
+#else
+#include "../gpu_metal/Kernel.h"
+#endif
+
 
 using namespace std;
 
@@ -31,40 +36,26 @@ public:
    void              CleanUp(void);
 
 protected:
-   void              VerifyFactor(uint64_t prime, uint32_t n);
-   
-   void              BuildMixedTerms(void);
-   void              BuildSingleTerms(void);
+   uint32_t         *BuildDigitList(void);
+   uint32_t         *BuildDigitList(uint32_t multiplier, uint32_t power, uint32_t *digitList);
 
-   uint32_t          ii_MixedDigitListCount;
-   uint32_t          ii_MixedDigitListUsed;
-   uint32_t        **ii_MixedDigitList;
-
-   uint32_t          ii_SingleDigitListCount;
-   uint32_t          ii_SingleDigitListUsed;
-   uint32_t        **ii_SingleDigitList;
-   
-   uint32_t         *ii_KernelDigitList;
-   int64_t          *il_RemainderList;
-   uint64_t         *il_FactorList;
-   uint64_t         *il_MagicNumber;
-   uint64_t         *il_MagicShift;
    uint32_t          ii_MaxSteps;
+   uint32_t          ii_MaxGpuFactors;
+   uint32_t          ii_GroupSize;
+   
+   uint32_t         *ii_e1DigitList;
+   uint32_t         *ii_e3DigitList;
+   uint32_t         *ii_e6DigitList;
+   uint32_t         *ii_e9DigitList;
+   
+   uint64_t         *il_Residuals;
+   uint32_t         *ii_DigitList;
+   uint32_t         *ii_FactorCount;
+   uint64_t         *il_FactorList;
 
    PrimesInXApp     *ip_PrimesInXApp;
 
-   Kernel           *ip_MagicKernel;
-   Kernel           *ip_PrimesInXKernel;
-
-   KernelArgument   *ip_KAPrime;
-   KernelArgument   *ip_MKAMagicNumber;
-   KernelArgument   *ip_MKAMagicShift;
-
-   KernelArgument   *ip_SKAMagicNumber;
-   KernelArgument   *ip_SKAMagicShift;
-   KernelArgument   *ip_KARemainders;
-   KernelArgument   *ip_KAFactors;
-   KernelArgument   *ip_KADigits;
+   Kernel           *ip_Kernel;
 };
 
 #endif

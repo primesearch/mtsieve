@@ -1,0 +1,251 @@
+/* xyyxsieve.cl -- (C) Mark Rodenkirch, June 2014
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 3 of the License, or
+   (at your option) any later version.
+ */
+ 
+#pragma OPENCL EXTENSION cl_khr_int64_extended_atomics: enable
+
+#define MAX_POWERS 50
+
+#if defined(USE_OPENCL)
+void collectFactor(uint    x,
+                   uint    y,
+                   ulong   p,
+ volatile __global uint   *factorCount,
+          __global ulong4 *factors);
+#else
+void collectFactor(uint        x,
+                   uint        y,
+                   ulong       p,
+   volatile device atomic_int *factorCount,
+            device ulong4     *factors);
+#endif
+          
+void computeMagicValues(ulong thePrime,
+                        ulong *magicNumber,
+                        ulong *magicShift);
+                   
+ulong powmod(ulong base,
+             ulong exp,
+             ulong thePrime,
+             ulong magicNumber,
+             ulong magicShift);
+
+ulong mulmod(ulong a,
+             ulong b,
+             ulong thePrime,
+             ulong magicNumber,
+             ulong magicShift);
+
+__kernel void xyyx_kernel(__global const ulong  *primes,
+                          __global const uint   *terms,
+                 volatile __global       uint   *factorCount,
+                          __global       ulong4 *factors)
+{
+   uint   gid = get_global_id(0);
+
+   uint   termIndex;
+   uint   currentX;
+   uint   currentY, previousY;
+   uint   pIndex;
+
+   ulong  thePrime = primes[gid];
+   ulong  magicNumber;
+   ulong  magicShift;
+   ulong  xPowY, xPowN;
+   ulong  yPowX;
+
+   ulong powers[MAX_POWERS];
+
+   if (thePrime == 0)
+      return;
+
+   computeMagicValues(thePrime, &magicNumber, &magicShift);
+
+   termIndex = 0;
+
+   while (terms[termIndex] > 0)
+   {
+      currentX = terms[termIndex];
+      termIndex++;
+      
+      previousY = 0;
+
+      // If we have at least one y for this x
+      if (terms[termIndex] > 0)
+      {
+         currentY = terms[termIndex];
+
+         xPowY = mulmod(currentX, currentX, thePrime, magicNumber, magicShift);
+                  
+         powers[0] = 1;
+         powers[1] = xPowY;
+         
+         // Multiply successive terms by x^2 (mod p)
+         for (pIndex=2; pIndex<=MAX_POWERS; pIndex++)
+             powers[pIndex] = mulmod(powers[pIndex-1], xPowY, thePrime, magicNumber, magicShift);
+       
+         xPowY = powmod(currentX, currentY, thePrime, magicNumber, magicShift);
+
+         previousY = currentY;
+  
+         while (terms[termIndex] > 0)
+         {
+            currentY = terms[termIndex];
+      
+            // If x is even then y must be odd and if x is odd
+            // then y must be even so y - prevY is always even
+            pIndex = (currentY - previousY) >> 1;
+            
+            if (pIndex >= MAX_POWERS)
+               xPowN = powmod(currentX, currentY - previousY, thePrime, magicNumber, magicShift);
+            else
+               xPowN = powers[pIndex];
+
+            // We have x^prevY (mod p).
+            // Now compute x^y (mod p) as (x^prevY * x^(y-prevY) (mod p)
+            xPowY = mulmod(xPowY, xPowN, thePrime, magicNumber, magicShift);
+            
+            yPowX = powmod(currentY, currentX, thePrime, magicNumber, magicShift);
+
+#ifdef IS_MINUS
+            // x^y - y^x = 0(mod p)
+            if (xPowY == yPowX)
+               collectFactor(currentX, currentY, thePrime, factorCount, factors);
+#else
+            // x^y + y^x == 0(mod p)
+            if (xPowY + yPowX == thePrime)
+               collectFactor(currentX, currentY, thePrime, factorCount, factors);
+#endif
+               
+            termIndex++;
+            previousY = currentY;
+         }
+      }
+      
+      // Get the next x
+      termIndex++;
+   };
+}
+
+void computeMagicValues(ulong  thePrime,
+                        ulong *magicNumber,
+                        ulong *magicShift)
+{
+   ulong two63 = 0x8000000000000000;
+
+   ulong d = thePrime;
+   ulong t = two63;
+   ulong anc = t - 1 - t%d;    // Absolute value of nc.
+   ulong p = 63;               // Init p.
+   ulong q1 = two63/anc;       // Init q1 = 2**p/|nc|.
+   ulong r1 = two63 - q1*anc;  // Init r1 = rem(2**p, |nc|).
+   ulong q2 = two63/d;         // Init q2 = 2**p/|d|.
+   ulong r2 = two63- q2*d;     // Init r2 = rem(2**p, |d|).
+   ulong delta;
+
+   do {
+      p = p + 1;
+      q1 = 2*q1;               // Update q1 = 2**p/|nc|.
+      r1 = 2*r1;               // Update r1 = rem(2**p, |nc|.
+      if (r1 >= anc) {         // Must be an unsigned comparison
+         q1 = q1 + 1; 
+         r1 = r1 - anc;
+      }
+      q2 = 2*q2;               // Update q2 = 2**p/|d|.
+      r2 = 2*r2;               // Update r2 = rem(2**p, |d|.
+      if (r2 >= d) {           // Must be an unsigned comparison
+         q2 = q2 + 1; 
+         r2 = r2 - d;
+      }
+      delta = d - r2;
+  } while (q1 < delta || (q1 == delta && r1 == 0));
+
+   *magicNumber = (q2 + 1);
+   *magicShift = (p - 64);
+}
+
+ulong powmod(ulong base,
+             ulong exp,
+             ulong thePrime,
+             ulong magicNumber,
+             ulong magicShift)
+{
+   long x = base, y = 1;
+
+   while (true)
+   {
+      if (exp & 1)
+         y = mulmod(x, y, thePrime, magicNumber, magicShift);
+
+      exp >>= 1;
+
+      if (!exp)
+         return y;
+
+      x = mulmod(x, x, thePrime, magicNumber, magicShift);
+   }
+}
+
+ulong mulmod(ulong a,
+             ulong b,
+             ulong thePrime,
+             ulong magicNumber,
+             ulong magicShift)
+{
+   ulong xa_low, xa_high;
+   long xa_rem, xa_quot;
+   ulong x196m, x196m1, x196m2, x196h;
+
+   xa_low = a * b;
+   xa_high = mul_hi(a, b);
+
+   // xa_high | xa_low contains a 128-bit product of a*b
+
+   x196m1 = mul_hi(xa_low, magicNumber);
+   x196m2 = xa_high * magicNumber;
+   x196h = mul_hi(xa_high, magicNumber);
+
+   x196m = x196m1 + x196m2;
+   if (x196m < x196m1) x196h++;
+
+   xa_quot  = (x196m >> magicShift);
+   xa_quot |= (x196h << (64 - magicShift));
+
+   xa_rem = xa_low - (xa_quot * thePrime);
+   if (xa_rem < 0) { xa_rem += thePrime; xa_quot -= 1; }
+
+   return xa_rem;
+}
+
+#if defined(USE_OPENCL)
+void collectFactor(uint    x,
+                   uint    y,
+                   ulong   p,
+ volatile __global uint   *factorCount,
+          __global ulong4 *factors)
+#else
+void collectFactor(uint        x,
+                   uint        y,
+                   ulong       p,
+   volatile device atomic_int *factorCount,
+            device long4      *factors)
+#endif
+{      
+#if defined(USE_OPENCL)
+   int old = atomic_inc(factorCount);
+#else
+   int old = atomic_fetch_add_explicit(factorCount, 1, memory_order_relaxed);
+#endif
+   // If we reach the end, stop adding to the buffer.  The CPU code will end
+   // with an error as the buffer is not large enough to capture all factors.
+   if (old >= D_MAX_FACTORS)
+      return;
+   
+   factors[old].x = x;
+   factors[old].y = y;
+   factors[old].z = p;
+}

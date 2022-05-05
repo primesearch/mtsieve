@@ -27,7 +27,7 @@ public:
    ~PrimorialApp() {};
 
    void              Help(void);
-   void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
+   void              AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
    bool              ApplyFactor(uint64_t thePrime, const char *term);
@@ -39,12 +39,12 @@ public:
    uint32_t         *GetPrimorialPrimes(uint32_t &numberOfPrimorialPrimes) { numberOfPrimorialPrimes = ii_NumberOfPrimorialPrimes; return ip_PrimorialPrimes; };
    uint16_t         *GetPrimorialPrimeGaps(uint16_t &biggestGap) { biggestGap = ii_BiggestGap; return ip_PrimorialPrimeGaps; };   
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          GetMaxGpuSteps(void) { return ii_MaxGpuSteps; };
    uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
 #endif
 
-   bool              ReportFactor(uint64_t primeFactor, uint32_t primorial, int32_t c, bool verifyFactor);
+   bool              ReportFactor(uint64_t theFactor, uint32_t primorial, int32_t c);
 
 protected:
    void              PreSieveHook(void) {};
@@ -58,11 +58,11 @@ protected:
    
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
 
-   bool              VerifyFactor(bool badFactorIsFatal, uint64_t primeFactor, uint32_t primorial, int32_t theC);
+   void              VerifyFactor(uint64_t theFactor, uint32_t primorial, int32_t c);
 
 private:
-   vector<bool>      iv_PlusTerms;
-   vector<bool>      iv_MinusTerms;
+   std::vector<bool> iv_PlusTerms;
+   std::vector<bool> iv_MinusTerms;
 
    uint32_t         *ip_PrimorialPrimes;
    uint32_t          ii_NumberOfPrimorialPrimes;
@@ -73,7 +73,7 @@ private:
    uint32_t          ii_MinPrimorial;
    uint32_t          ii_MaxPrimorial;
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          ii_MaxGpuSteps;
    uint32_t          ii_MaxGpuFactors;
 #endif

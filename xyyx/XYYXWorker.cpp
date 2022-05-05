@@ -351,20 +351,14 @@ void  XYYXWorker::CheckFpuResult(uint32_t x, uint32_t y, uint64_t *ps, uint64_t 
    {            
       for (idx=0; idx<4; idx++)
          if (powerOfX[idx] == powerOfY[idx])
-         {
-            if (ip_XYYXApp->ReportFactor(ps[idx], x, y, -1))
-               VerifyFactor(true, ps[idx], x, y, -1);
-         }
+            ip_XYYXApp->ReportFactor(ps[idx], x, y);
    }
 
    if (ib_IsPlus)
    {
       for (idx=0; idx<4; idx++)
          if (powerOfX[idx] == ps[idx] - powerOfY[idx])
-         {
-            if (ip_XYYXApp->ReportFactor(ps[idx], x, y, +1))
-               VerifyFactor(true, ps[idx], x, y, +1);
-         }
+            ip_XYYXApp->ReportFactor(ps[idx], x, y);
    }
 }
 
@@ -541,7 +535,7 @@ void  XYYXWorker::CheckAvxXYRemainders(uint64_t *ps, double *dps, double *recipr
 
 void  XYYXWorker::BuildAvxListOfPowers(uint32_t base, double *dps, double *reciprocals, uint32_t count)
 {
-   uint32_t idx;
+   uint32_t  idx;
    double    __attribute__((aligned(32))) a[AVX_ARRAY_SIZE];
 
    for (int i=0; i<AVX_ARRAY_SIZE; i++)
@@ -581,10 +575,7 @@ void  XYYXWorker::CheckAvxResult(uint32_t x, uint32_t y, uint64_t *ps, double *d
             
       for (idx=0; idx<AVX_ARRAY_SIZE; idx++)
          if (rems[idx] == powerOfX[idx])
-         {
-            if (ip_XYYXApp->ReportFactor(ps[idx], x, y, -1))
-               VerifyFactor(true, ps[idx], x, y, -1);
-         }
+            ip_XYYXApp->ReportFactor(ps[idx], x, y);
    }
       
    // Only go further if one or more of the 16 primes yielded a factor for this n
@@ -594,39 +585,6 @@ void  XYYXWorker::CheckAvxResult(uint32_t x, uint32_t y, uint64_t *ps, double *d
       
       for (idx=0; idx<AVX_ARRAY_SIZE; idx++)
          if (rems[idx] == dps[idx] - powerOfX[idx])
-         {
-            if (ip_XYYXApp->ReportFactor(ps[idx], x, y, +1))
-               VerifyFactor(true, ps[idx], x, y, +1);
-         }
+            ip_XYYXApp->ReportFactor(ps[idx], x, y);
    }
-}
-
-bool  XYYXWorker::VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t x, uint32_t y, int32_t c)
-{
-   uint64_t xPowY, yPowX;
-      
-   fpu_push_1divp(p);
-   
-   xPowY = fpu_powmod(x, y, p);
-   yPowX = fpu_powmod(y, x, p);
-   
-   fpu_pop();
-   
-   if (c == -1 && xPowY != yPowX)
-   {
-      if (badFactorIsFatal)
-         FatalError("%" PRIu64" does not divide %u^%u-%u^%u", p, x, y, y, x);
-         
-      return false;
-   }
-   
-   if (c == +1 && xPowY + yPowX != p)
-   {
-      if (badFactorIsFatal)
-         FatalError("%" PRIu64" does not divide %u^%u+%u^%u", p, x, y, y, x);
-         
-      return false;
-   }
-
-   return true;
 }

@@ -12,8 +12,12 @@
 #include "SierpinskiRieselApp.h"
 #include "AbstractSequenceHelper.h"
 #include "AbstractWorker.h"
-#include "../opencl/Kernel.h"
-#include "../opencl/KernelArgument.h"
+
+#ifdef USE_OPENCL
+#include "../gpu_opencl/Kernel.h"
+#else
+#include "../gpu_metal/Kernel.h"
+#endif
 
 using namespace std;
 
@@ -36,28 +40,21 @@ protected:
    bool              ib_CanUseCIsOneLogic;
    uint64_t          il_MaxK;
    
+   uint32_t          ii_KernelCount;
    uint32_t          ii_MaxGpuFactors;
    uint32_t          ii_SequencesPerKernel;
-   uint64_t         *il_FactorList;
-   uint32_t          ii_FactorCount;
    
    uint32_t         *ii_SubseqIdx;
    
+   uint64_t        **il_Primes;
    uint64_t        **il_K;
    int64_t         **il_C;
    uint32_t        **ii_SeqIdx;
    uint32_t        **ii_Q;
+   uint32_t        **ii_FactorCount;
+   uint64_t        **il_FactorList;
    
-   uint32_t          ii_KernelCount;
-   Kernel          **ip_SRKernel;
-
-   KernelArgument   *ip_KAPrime;
-   KernelArgument  **ip_KASeqK;
-   KernelArgument  **ip_KASeqC;
-   KernelArgument  **ip_KASubSeqSeqIdx;
-   KernelArgument  **ip_KASubSeqQ;
-   KernelArgument   *ip_KAFactorCount;
-   KernelArgument   *ip_KAFactorList;
+   Kernel          **ip_Kernel;
 };
 
 #endif

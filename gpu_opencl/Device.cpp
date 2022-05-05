@@ -73,7 +73,7 @@ void  Device::Help(void)
    ListAllDevices();
 }
 
-void  Device::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  Device::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    shortOpts += "HD:d:";
 

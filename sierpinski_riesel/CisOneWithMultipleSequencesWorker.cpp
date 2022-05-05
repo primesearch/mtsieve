@@ -84,7 +84,7 @@ void  CisOneWithMultipleSequencesWorker::TestMegaPrimeChunk(void)
    uint64_t maxPrime = ip_App->GetMaxPrime();
    uint64_t p;
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    bool     switchToGPUWorkers = false;
    
    // If this is the scenario where a CPU worker was created (even though CpuWorkerCount = 0)
@@ -112,7 +112,7 @@ void  CisOneWithMultipleSequencesWorker::TestMegaPrimeChunk(void)
       
       if (p >= maxPrime)
       {
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
          // This can only be true if we can switch to only running GPU workers.  Since this
          // is a CPU worker.  Its life effectively ends upon return from this method.
          if (switchToGPUWorkers)

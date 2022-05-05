@@ -25,13 +25,13 @@ public:
    ~CullenWoodallApp(void) {};
 
    void              Help(void);
-   void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
+   void              AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(uint64_t thePrime,  const char *term);
+   bool              ApplyFactor(uint64_t theFactor, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
-   bool              ReportFactor(uint64_t p, uint32_t n, int32_t c);
+   bool              ReportFactor(uint64_t theFactor, uint32_t n, int32_t c);
    
    bool              IsCullenSearch() { return ib_Cullen; };
    bool              IsWoodallSearch() { return ib_Woodall; };
@@ -40,8 +40,7 @@ public:
    int32_t           GetMinN(void) { return ii_MinN; };
    int32_t           GetMaxN(void) { return ii_MaxN; };
 
-
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          GetMaxGpuSteps(void) { return ii_MaxGpuSteps; };
    uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
 #endif
@@ -74,11 +73,11 @@ private:
    bool              CheckAlgebraicFactor(uint32_t n, int32_t c, const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
 #endif
 
-   bool              VerifyFactor(bool badFactorIsFatal, uint64_t p, uint32_t n, int32_t c);
+   void              VerifyFactor(uint64_t theFactor, uint32_t n, int32_t c);
    
    format_t          it_Format;
-   vector<bool>      iv_CullenTerms;
-   vector<bool>      iv_WoodallTerms;
+   std::vector<bool> iv_CullenTerms;
+   std::vector<bool> iv_WoodallTerms;
 
    uint32_t          ii_Base;
    uint32_t          ii_MinN;
@@ -86,7 +85,7 @@ private:
    bool              ib_Woodall;
    bool              ib_Cullen;
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          ii_MaxGpuSteps;
    uint32_t          ii_MaxGpuFactors;
 #endif

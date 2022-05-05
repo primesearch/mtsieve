@@ -25,17 +25,17 @@ public:
    ~DMDivisorApp(void) {};
 
    void              Help(void);
-   void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
+   void              AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(uint64_t thePrime, const char *term);
+   bool              ApplyFactor(uint64_t theFactor, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
    uint64_t          GetMinK(void) { return il_MinK; };
    uint64_t          GetMaxK(void) { return il_MaxK; };
    uint32_t          GetN(void) { return ii_N; };
    
-   bool              ReportFactor(uint64_t p, uint64_t k, bool verifyFactor);
+   bool              ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFactor);
 
 protected:
    void              PreSieveHook(void);
@@ -53,12 +53,12 @@ private:
    void              TestRemainingTerms(void);
    bool              IsDoubleMersenneDivisor(uint64_t k);
    void              CheckRedc(mp_limb_t *xp, uint32_t xn, uint32_t b, uint64_t k);
-   bool              VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint64_t k);
+   void              VerifyFactor(uint64_t theFactor, uint64_t k);
    
-   vector<bool>      iv_MMPTerms;
+   std::vector<bool> iv_MMPTerms;
    
-   string            is_InputFileName;
-   string            is_OutputFileName;
+   std::string       is_InputFileName;
+   std::string       is_OutputFileName;
 
    uint64_t          il_MinK;
    uint64_t          il_MaxK;

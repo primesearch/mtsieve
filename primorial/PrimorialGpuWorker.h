@@ -14,8 +14,12 @@
 
 #include "PrimorialApp.h"
 #include "../core/Worker.h"
-#include "../opencl/Kernel.h"
-#include "../opencl/KernelArgument.h"
+
+#ifdef USE_OPENCL
+#include "../gpu_opencl/Kernel.h"
+#else
+#include "../gpu_metal/Kernel.h"
+#endif
 
 using namespace std;
 
@@ -31,34 +35,28 @@ public:
    void              CleanUp(void);
 
 protected:
-   PrimorialApp *ip_PrimorialApp;
+   void              BuildPrimeGapGroups(void);
+   
+   PrimorialApp     *ip_PrimorialApp;
    
    uint32_t          ii_MinPrimorial;
    uint32_t          ii_MaxPrimorial;
-   
-   uint32_t         *ip_PrimorialPrimes;
-   uint32_t          ii_NumberOfPrimorialPrimes;
-   
-   uint16_t         *ip_PrimorialPrimeGaps;
+      
+   uint32_t          ii_IdxOfMinPrimorial;
+   uint32_t          ii_GroupCount;
    uint16_t          ii_BiggestGap;
+   uint16_t        **ip_GapGroups;
    
    uint32_t          ii_MaxGpuSteps;
    uint32_t          ii_MaxGpuFactors;
    
-   uint64_t         *ip_RemainderList;
-   uint64_t          ii_Params[5];
-   uint32_t          ii_MaxIterations;
-   uint32_t          ii_FactorCount;
-   int64_t          *ip_FactorList;
+   uint64_t         *il_Residues;
+   uint16_t         *ii_PrimeGaps;
+   uint32_t         *ii_Parameters;
+   uint32_t         *ii_FactorCount;
+   int64_t          *il_FactorList;
 
-   Kernel           *ip_PrimorialKernel;
-
-   KernelArgument   *ip_KAPrime;
-   KernelArgument   *ip_KAPrimorialGaps;
-   KernelArgument   *ip_KARemainder;
-   KernelArgument   *ip_KAParams;
-   KernelArgument   *ip_KAFactorCount;
-   KernelArgument   *ip_KAFactorList;
+   Kernel           *ip_Kernel;
 };
 
 #endif

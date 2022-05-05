@@ -151,7 +151,7 @@ void    SophieGermainWorker::RemoveTermsSmallPrime(uint64_t prime, uint64_t k, b
    do
 	{
       if (ip_SophieGermainApp->ReportFactor(prime, k, firstOfPair))
-         VerifyFactor(true, prime, k, firstOfPair);
+         VerifyFactor(prime, k, firstOfPair);
 
 		k += (prime << 1); 
 	} while (k <= il_MaxK);
@@ -171,23 +171,21 @@ void    SophieGermainWorker::RemoveTermsLargePrime(uint64_t prime, uint64_t k, b
       return;
 
    if (ip_SophieGermainApp->ReportFactor(prime, k, firstOfPair))
-      VerifyExternalFactor(true, prime, k, ii_N, firstOfPair);
+      VerifyExternalFactor(prime, k, ii_N, firstOfPair);
 }
 
-bool  SophieGermainWorker::VerifyExternalFactor(bool badFactorIsFatal, uint64_t prime, uint64_t k, uint32_t n, bool firstOfPair)
+void  SophieGermainWorker::VerifyExternalFactor(uint64_t prime, uint64_t k, uint32_t n, bool firstOfPair)
 {
    fpu_push_1divp(prime);
    
    il_BpowN = fpu_powmod(2, ii_N, prime);
    
-   bool isValid = VerifyFactor(badFactorIsFatal, prime, k, firstOfPair);
+   VerifyFactor(prime, k, firstOfPair);
    
    fpu_pop();
-
-   return isValid;
 }
 
-bool  SophieGermainWorker::VerifyFactor(bool badFactorIsFatal, uint64_t prime, uint64_t k, bool firstOfPair)
+void  SophieGermainWorker::VerifyFactor(uint64_t prime, uint64_t k, bool firstOfPair)
 {
    uint64_t rem;
 
@@ -203,16 +201,9 @@ bool  SophieGermainWorker::VerifyFactor(bool badFactorIsFatal, uint64_t prime, u
    
    if (rem != prime - 1)
    {
-      if (badFactorIsFatal)
-      {
-         if (firstOfPair)
-            FatalError("%" PRIu64"*2^%u+1 mod %" PRIu64" = %" PRIu64"", k, ii_N, prime, rem + 1);
-         else
-            FatalError("2*(%" PRIu64"*2^%u+1)-1 mod %" PRIu64" = %" PRIu64"", k, ii_N+1, prime, rem + 1);
-      }
-            
-      return false;
+      if (firstOfPair)
+         FatalError("%" PRIu64"*2^%u+1 mod %" PRIu64" = %" PRIu64"", k, ii_N, prime, rem + 1);
+      else
+         FatalError("2*(%" PRIu64"*2^%u+1)-1 mod %" PRIu64" = %" PRIu64"", k, ii_N+1, prime, rem + 1);
    }
-   
-   return true;
 }

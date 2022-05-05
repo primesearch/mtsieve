@@ -26,10 +26,10 @@ public:
    ~FixedKBNApp(void) {};
 
    void              Help(void);
-   void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
+   void              AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(uint64_t thePrime, const char *term);
+   bool              ApplyFactor(uint64_t theFactor, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
    uint64_t          GetK(void) { return il_K; };
@@ -39,7 +39,7 @@ public:
    int64_t           GetMaxC(void) { return il_MaxC; };
    uint64_t          GetTermCount(void) { return il_TermCount; };
    
-   bool              ReportFactor(uint64_t p, int64_t c);
+   bool              ReportFactor(uint64_t theFactor, int64_t c);
 
 protected:
    void              PreSieveHook(void) {};
@@ -54,11 +54,11 @@ protected:
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
 
 private:   
-   vector<bool>      iv_Terms;
+   std::vector<bool> iv_Terms;
 
-   string            is_Sequence;
-   string            is_InputFileName;
-   string            is_OutputFileName;
+   std::string       is_Sequence;
+   std::string       is_InputFileName;
+   std::string       is_OutputFileName;
 
    uint64_t          il_K;
    int64_t           il_MinC;

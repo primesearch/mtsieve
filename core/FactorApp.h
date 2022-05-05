@@ -33,11 +33,11 @@ protected:
    virtual void      ProcessInputTermsFile(bool haveBitMap) = 0;
    virtual bool      IsWritingOutputTermsFile(void) = 0;
    virtual void      WriteOutputTermsFile(uint64_t largestPrime) = 0;
-   virtual bool      ApplyFactor(uint64_t thePrime, const char *term) = 0;
+   virtual bool      ApplyFactor(uint64_t theFactor, const char *term) = 0;
    virtual void      GetExtraTextForSieveStartedMessage(char *extraText) = 0;
    
    void              ParentHelp(void);
-   void              ParentAddCommandLineOptions(string &shortOpts, struct option *longOpts);
+   void              ParentAddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    parse_t           ParentParseOption(int opt, char *arg, const char *source);
    void              ParentValidateOptions(void);
    
@@ -67,10 +67,10 @@ protected:
    uint64_t          il_PreviousFactorCount;
    uint64_t          il_TermCount;
    
-   string            is_InputTermsFileName;
-   string            is_InputFactorsFileName;
-   string            is_OutputTermsFileName;
-   string            is_OutputFactorsFileName;
+   std::string       is_InputTermsFileName;
+   std::string       is_InputFactorsFileName;
+   std::string       is_OutputTermsFileName;
+   std::string       is_OutputFactorsFileName;
    
 private:
    bool              BuildFactorsPerSecondRateString(uint32_t currentStatusEntry, double cpuUtilization, char *factoringRate);

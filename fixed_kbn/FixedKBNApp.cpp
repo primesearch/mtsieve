@@ -44,7 +44,7 @@ void FixedKBNApp::Help(void)
    printf("-s --sequence=s       Sequence to find factors of in form k*b^n+c where k, b, and n are integer values\n");
 }
 
-void  FixedKBNApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  FixedKBNApp::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
@@ -213,7 +213,7 @@ void FixedKBNApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool FixedKBNApp::ApplyFactor(uint64_t thePrime, const char *term)
+bool FixedKBNApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
    uint64_t k;
    uint32_t b, n;
@@ -310,14 +310,14 @@ void  FixedKBNApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
    sprintf(extraTtext, "%" PRId64" <= c <= %" PRId64", %" PRIu64 "*%u^%u+c", il_MinC, il_MaxC, il_K, ii_Base, ii_N);
 }
 
-bool  FixedKBNApp::ReportFactor(uint64_t p, int64_t c)
+bool  FixedKBNApp::ReportFactor(uint64_t theFactor, int64_t c)
 {   
    bool     removedTerm = false;
    
    if (c < il_MinC || c > il_MaxC)
       return false;
    
-   if (p > GetMaxPrimeForSingleWorker())
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
 
    int64_t bit = BIT(c);
@@ -327,13 +327,13 @@ bool  FixedKBNApp::ReportFactor(uint64_t p, int64_t c)
       iv_Terms[bit] = false;
       removedTerm = true;
             
-      LogFactor(p, "%" PRIu64"*%u^%u%+" PRId64"", il_K, ii_Base, ii_N, c);
+      LogFactor(theFactor, "%" PRIu64"*%u^%u%+" PRId64"", il_K, ii_Base, ii_N, c);
       
       il_FactorCount++;
       il_TermCount--;
    }
    
-   if (p > GetMaxPrimeForSingleWorker())
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
    
    return removedTerm;

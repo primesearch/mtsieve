@@ -26,10 +26,10 @@ public:
    ~TwinApp(void) {};
 
    void              Help(void);
-   void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
+   void              AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(uint64_t thePrime, const char *term);
+   bool              ApplyFactor(uint64_t theFactor, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
    uint64_t          GetMinK(void) { return il_MinK; };
@@ -37,7 +37,7 @@ public:
    uint32_t          GetBase(void) { return ii_Base; };
    uint32_t          GetN(void) { return ii_N; };
    
-   bool              ReportFactor(uint64_t p, uint64_t k, int32_t c);
+   bool              ReportFactor(uint64_t theFactor, uint64_t k, int32_t c);
 
 protected:
    void              PreSieveHook(void) {};
@@ -56,12 +56,12 @@ private:
    uint64_t          WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsFile);
    void              AdjustMaxPrime(void);
 
-   vector<bool>      iv_TwinTerms;
-   vector<bool>      iv_MinusTerms;
-   vector<bool>      iv_PlusTerms;
+   std::vector<bool> iv_TwinTerms;
+   std::vector<bool> iv_MinusTerms;
+   std::vector<bool> iv_PlusTerms;
    
-   string            is_InputFileName;
-   string            is_OutputFileName;
+   std::string       is_InputFileName;
+   std::string       is_OutputFileName;
 
    format_t          it_Format;
    uint64_t          il_MaxPrimeForValidFactor;

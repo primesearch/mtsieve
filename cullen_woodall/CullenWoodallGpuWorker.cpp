@@ -10,16 +10,13 @@
 #include <time.h>
 
 #include "CullenWoodallGpuWorker.h"
-#include "cw_kernel.h"
-#include "../x86_asm/fpu-asm-x86.h"
+#include "cw_kernel.gpu.h"
 
 CullenWoodallGpuWorker::CullenWoodallGpuWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
 {
-   const char *gcwSource[9];
-   char  maxFactors[50];
-   char  isCullen[50];
-   char  isWoodall[50];
-   char  theBase[50];
+   char        defines[10][50];
+   const char *preKernelSources[10];
+   uint32_t    defineCount = 0, idx, groupCount;
    
    ib_GpuWorker = true;
    
@@ -29,55 +26,41 @@ CullenWoodallGpuWorker::CullenWoodallGpuWorker(uint32_t myId, App *theApp) : Wor
    ii_MaxGpuSteps = ip_CullenWoodallApp->GetMaxGpuSteps();
    ii_MaxGpuFactors = ip_CullenWoodallApp->GetMaxGpuFactors();
 
-   sprintf(theBase, "#define BASE %d\n", ii_Base);
-   
-   if (ip_CullenWoodallApp->IsCullenSearch())
-      sprintf(isCullen, "#define CHECK_CULLEN\n"); 
-   else
-      sprintf(isCullen, "\n");
-   
-   if (ip_CullenWoodallApp->IsWoodallSearch())
-      sprintf(isWoodall, "#define CHECK_WOODALL\n");
-   else
-      sprintf(isWoodall, "\n");
-   
-   sprintf(maxFactors, "#define MAX_FACTORS %d\n", ii_MaxGpuFactors);
+   groupCount = 1 + (ip_CullenWoodallApp->GetTermCount() / ii_MaxGpuSteps);
 
-   gcwSource[0] = theBase;
-   gcwSource[1] = isCullen;
-   gcwSource[2] = isWoodall;
-   gcwSource[3] = maxFactors;
-   gcwSource[4] = cw_kernel;
-   gcwSource[5] = 0;
-
-   ip_GCWKernel = new Kernel(ip_CullenWoodallApp->GetDevice(), "cw_kernel", gcwSource);
-   
-   AllocatePrimeList(ip_GCWKernel->GetWorkGroupSize());
-   
-   // If there are more y for any x than the number of steps, then we'll give an error
-   // to the user at runtime when building the term groups.
-   ii_GroupSize = ii_MaxGpuSteps + 10;
-
-   uint32_t groupCount = 1 + (ip_CullenWoodallApp->GetTermCount() / ii_MaxGpuSteps);
-   
    // Allocate enough memory to hold all of the terms.
    ii_Terms = (uint32_t *) xmalloc(groupCount*ii_MaxGpuSteps*sizeof(int32_t));
+   
+   sprintf(defines[defineCount++], "#define BASE %d", ii_Base);
+   
+   if (ip_CullenWoodallApp->IsCullenSearch())
+      sprintf(defines[defineCount++], "#define CHECK_CULLEN");
+   
+   if (ip_CullenWoodallApp->IsWoodallSearch())
+      sprintf(defines[defineCount++], "#define CHECK_WOODALL");
+   
+   sprintf(defines[defineCount++], "#define D_MAX_FACTORS %d", ii_MaxGpuFactors);
+   
+   for (idx=0; idx<defineCount; idx++)
+      preKernelSources[idx] = defines[idx];
+   
+   preKernelSources[idx] = 0;
 
-   il_FactorList  =  (int64_t *) xmalloc(4*ii_MaxGpuFactors*sizeof(int64_t));
+   ip_Kernel = new Kernel(ip_CullenWoodallApp->GetDevice(), "cw_kernel", cw_kernel, preKernelSources);
 
-   ip_KAPrime        = new KernelArgument(ip_CullenWoodallApp->GetDevice(), "prime", KA_HOST_TO_GPU, il_PrimeList, ii_WorkSize);
+   ip_CullenWoodallApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
+   
+   ii_WorkSize = ip_CullenWoodallApp->GetGpuPrimesPerWorker();
 
-   // We will change the pointer before executing the kernel
-   ip_KATerms          = new KernelArgument(ip_CullenWoodallApp->GetDevice(), "terms", KA_HOST_TO_GPU, ii_Terms, ii_GroupSize);
-   ip_KAFactorCount    = new KernelArgument(ip_CullenWoodallApp->GetDevice(), "factor_count", KA_BIDIRECTIONAL, &ii_FactorCount, 1);
-   ip_KAFactorList     = new KernelArgument(ip_CullenWoodallApp->GetDevice(), "factor_list", KA_GPU_TO_HOST, il_FactorList, 4*ii_MaxGpuFactors);
+   // Add space for a few extra terms to guarantee that the last term in the group is 0.
+   ii_GroupSize = ii_MaxGpuSteps + 10;
+   
+   il_PrimeList = (uint64_t *) ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_WorkSize);
+   ii_KernelTerms = (uint32_t *) ip_Kernel->AddCpuArgument("terms", sizeof(uint32_t), ii_GroupSize);
+   ii_FactorCount = (uint32_t *) ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 1);
+   il_FactorList = (int64_t *) ip_Kernel->AddGpuArgument("factorList", sizeof(uint64_t), 4*ii_MaxGpuFactors);
 
-   ip_GCWKernel->AddArgument(ip_KAPrime);
-   ip_GCWKernel->AddArgument(ip_KATerms);
-   ip_GCWKernel->AddArgument(ip_KAFactorCount);
-   ip_GCWKernel->AddArgument(ip_KAFactorList);
-
-   ip_GCWKernel->PrintStatistics(0);
+   ip_Kernel->PrintStatistics(0);
    
    il_NextTermsBuild = 0;
    
@@ -87,16 +70,7 @@ CullenWoodallGpuWorker::CullenWoodallGpuWorker(uint32_t myId, App *theApp) : Wor
 
 void  CullenWoodallGpuWorker::CleanUp(void)
 {
-   delete ip_KAPrime;
-
-   delete ip_KATerms;
-   delete ip_KAFactorCount;
-   delete ip_KAFactorList;
-
-   delete ip_GCWKernel;
-   
-   xfree(il_FactorList);
-   xfree(ii_Terms);
+   delete ip_Kernel;
 }
 
 void  CullenWoodallGpuWorker::TestMegaPrimeChunk(void)
@@ -104,7 +78,6 @@ void  CullenWoodallGpuWorker::TestMegaPrimeChunk(void)
    uint32_t group, idx;
    int32_t  n, c;
    uint64_t prime;
-   time_t   reportTime = time(NULL) + 60;
    
    // Every once in a while rebuild the term lists as it will have fewer entries
    // which will speed up testing for the next range of p.
@@ -114,37 +87,32 @@ void  CullenWoodallGpuWorker::TestMegaPrimeChunk(void)
       
       il_NextTermsBuild = (il_PrimeList[0] << 1);
    }
-      
+
    for (group=0; group<ii_Groups; group++)
    {
-      if (ip_CullenWoodallApp->IsInterrupted() || time(NULL) > reportTime)
-      {
-         ip_CullenWoodallApp->WriteToConsole(COT_SIEVE, "Thread %d has completed %d of %d iterations", ii_MyId, group, ii_Groups);
-         reportTime = time(NULL) + 60;
-      }
-
-      ii_FactorCount = 0;
+      ii_FactorCount[0] = 0;
       idx = group * ii_GroupSize;
-      ip_KATerms->SetHostMemory(&ii_Terms[idx]);
+      
+      memcpy(ii_KernelTerms, &ii_Terms[idx], ii_GroupSize * sizeof(uint32_t));
 
-      ip_GCWKernel->Execute(ii_WorkSize);
+      ip_Kernel->Execute(ii_WorkSize);
 
-      for (uint32_t ii=0; ii<ii_FactorCount; ii++)
+      for (uint32_t ii=0; ii<ii_FactorCount[0]; ii++)
       {  
          idx = ii*4;
          
          n = (uint32_t) il_FactorList[idx+0];
          c = (int32_t) il_FactorList[idx+1];
          prime = il_FactorList[idx+2];
-      
+
          ip_CullenWoodallApp->ReportFactor(prime, n, c);
          
-         if (ii_FactorCount >= ii_MaxGpuFactors)
+         if ((ii+1) == ii_MaxGpuFactors)
             break;
       }
 
-      if (ii_FactorCount >= ii_MaxGpuFactors)
-         FatalError("Could not handle all GPU factors.  A range of p generated %u factors.  Use -M to increase max factors", ii_FactorCount);
+      if (ii_FactorCount[0] >= ii_MaxGpuFactors)
+         FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factors", ii_FactorCount[0], ii_MaxGpuFactors);
    }
 
    SetLargestPrimeTested(il_PrimeList[ii_WorkSize-1], ii_WorkSize);

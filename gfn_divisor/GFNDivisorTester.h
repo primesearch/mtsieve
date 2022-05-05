@@ -27,11 +27,11 @@ protected:
 private:
    bool              IsFermatDivisor(uint64_t k, uint32_t n);
    void              CheckRedc(mp_limb_t *xp, uint32_t xn, uint32_t b, uint32_t m, uint64_t k, uint32_t n);
-   bool              VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint64_t k, uint32_t n);
+   void              VerifyFactor(uint64_t thePrime, uint64_t k, uint32_t n);
    
    App              *ip_App;
    
-   vector<vector<bool>>  iv_Terms;
+   std::vector<std::vector<bool>>  iv_Terms;
    uint64_t          il_MinK;
    uint64_t          il_MaxK;
    uint32_t          ii_MinN;

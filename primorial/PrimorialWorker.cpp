@@ -7,20 +7,26 @@
 */
 
 #include "PrimorialWorker.h"
-#include "../x86_asm/fpu-asm-x86.h"
 #include "../x86_asm/avx-asm-x86.h"
-extern "C" int primorial(const uint32_t *N, const uint64_t *P);
 
 PrimorialWorker::PrimorialWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
 {
-   uint32_t pIdx;
-   
    ip_PrimorialApp = (PrimorialApp *) theApp;
    
    ip_PrimorialPrimes = ip_PrimorialApp->GetPrimorialPrimes(ii_NumberOfPrimorialPrimes);
+   ip_PrimorialPrimeGaps = ip_PrimorialApp->GetPrimorialPrimeGaps(ii_BiggestGap);
 
+   ii_MinPrimorial = ip_PrimorialApp->GetMinPrimorial();
+   ii_MaxPrimorial = ip_PrimorialApp->GetMaxPrimorial();
+      
+   if (ii_BiggestGap > MAX_GAPS)
+      FatalError("ip_ResGaps not large enough.  Update MAX_GAPS and rebuild");
+      
+#ifndef USE_X86
    if (CpuSupportsAvx())
    {
+      uint32_t pIdx;
+   
       id_PrimorialPrimes = (double *) xmalloc((ii_NumberOfPrimorialPrimes + 1) * sizeof(double));
       
       for (pIdx=0; pIdx<ii_NumberOfPrimorialPrimes; pIdx++)
@@ -29,7 +35,8 @@ PrimorialWorker::PrimorialWorker(uint32_t myId, App *theApp) : Worker(myId, theA
       id_PrimorialPrimes[pIdx] = 0.0;
       SetMiniChunkRange(ip_PrimorialApp->GetMaxPrimorial() + 1, PMAX_MAX_52BIT, AVX_ARRAY_SIZE);
    }
-   
+#endif
+
    ib_Initialized = true;
 }
 
@@ -37,13 +44,16 @@ void  PrimorialWorker::CleanUp(void)
 {
    if (id_PrimorialPrimes != NULL)
       xfree(id_PrimorialPrimes);
+   
+   xfree(ip_PrimorialPrimes);
+   xfree(ip_PrimorialPrimeGaps);
 }
 
 void  PrimorialWorker::TestMegaPrimeChunk(void)
 {
    uint64_t  ps[4], maxPrime = ip_App->GetMaxPrime();
-   vector<uint64_t>::iterator it = iv_Primes.begin();
-      
+   std::vector<uint64_t>::iterator it = iv_Primes.begin();
+   
    while (it != iv_Primes.end())
    {
       ps[0] = *it;
@@ -57,13 +67,61 @@ void  PrimorialWorker::TestMegaPrimeChunk(void)
       
       ps[3] = *it;
       it++;
-   
-      if (primorial(ip_PrimorialPrimes, ps))
+
+      MpArithVec mp(ps);
+
+      const MpResVec pOne = mp.one();
+      const MpResVec mOne = mp.sub(mp.zero(), pOne);
+      uint32_t pIdx, primeGap;
+
+      ip_ResGaps[2] = mp.nToRes(2);
+      for (uint32_t i=4; i<=ii_BiggestGap; i+=2)
+         ip_ResGaps[i] = mp.add(ip_ResGaps[i-2], ip_ResGaps[2]);
+      
+      // ri = residue of primorial
+      // rf = residue of primorial#
+      MpResVec ri = mp.nToRes(FIRST_PRIMORIAL_PRIME);
+      MpResVec rf = mp.nToRes(FIRST_PRIMORIAL);
+
+      for (pIdx=0; ip_PrimorialPrimes[pIdx]<ii_MinPrimorial; pIdx++)
       {
-         ExtractFactors(ps[0]);
-         ExtractFactors(ps[1]);
-         ExtractFactors(ps[2]);
-         ExtractFactors(ps[3]);
+         primeGap = ip_PrimorialPrimeGaps[pIdx];
+
+         ri = mp.add(ri, ip_ResGaps[primeGap]);
+         rf = mp.mul(rf, ri);
+         
+if (ps[0] == 1000121) printf("%llu %llu\n", ri[0], rf[0]);
+if (ps[1] == 1000121) printf("%llu %llu\n", ri[1], rf[1]);
+if (ps[2] == 1000121) printf("%llu %llu\n", ri[2], rf[2]);
+if (ps[3] == 1000121) printf("%llu %llu\n", ri[3], rf[3]);
+      }
+
+      // Primorial and check if primorial# (mod p) = +/-1
+      while (ip_PrimorialPrimes[pIdx] > 0)
+      {
+         primeGap = ip_PrimorialPrimeGaps[pIdx];
+         
+         ri = mp.add(ri, ip_ResGaps[primeGap]);
+         rf = mp.mul(rf, ri);
+
+         if (MpArithVec::at_least_one_is_equal(rf, pOne) | MpArithVec::at_least_one_is_equal(rf, mOne))
+         {
+            for (size_t k = 0; k < VECTOR_SIZE; ++k)
+            {
+               if (rf[k] == pOne[k])
+                  ip_PrimorialApp->ReportFactor(ps[k], ip_PrimorialPrimes[pIdx], -1);
+                  
+               if (rf[k] == mOne[k]) 
+                  ip_PrimorialApp->ReportFactor(ps[k], ip_PrimorialPrimes[pIdx], +1);
+            }
+         }
+         
+if (ps[0] == 1000121) printf("%llu %llu\n", ri[0], rf[0]);
+if (ps[1] == 1000121) printf("%llu %llu\n", ri[1], rf[1]);
+if (ps[2] == 1000121) printf("%llu %llu\n", ri[2], rf[2]);
+if (ps[3] == 1000121) printf("%llu %llu\n", ri[3], rf[3]);
+
+         pIdx++;
       }
       
       SetLargestPrimeTested(ps[3], 4);
@@ -104,13 +162,14 @@ void  PrimorialWorker::ExtractFactors(uint64_t p)
          r -= p;
       
       if (r == +1) 
-         ip_PrimorialApp->ReportFactor(p, term, -1, false);
+         ip_PrimorialApp->ReportFactor(p, term, -1);
       
       if (r == (int64_t) p-1) 
-         ip_PrimorialApp->ReportFactor(p, term, +1, false);
+         ip_PrimorialApp->ReportFactor(p, term, +1);
    }
 }
 
+#ifdef USE_X86
 void  PrimorialWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 {
    double __attribute__((aligned(32))) dps[AVX_ARRAY_SIZE];
@@ -154,7 +213,7 @@ void  PrimorialWorker::CheckAVXResult(uint64_t *ps, double *dps, uint32_t primor
       
       for (idx=0; idx<AVX_ARRAY_SIZE; idx++)
          if (rems[idx] == comparator[0])
-            ip_PrimorialApp->ReportFactor(ps[idx], primorial, -1, true);
+            ip_PrimorialApp->ReportFactor(ps[idx], primorial, -1);
    }
       
    // Only go further if one or more of the 16 primes yielded a factor for this n
@@ -164,6 +223,13 @@ void  PrimorialWorker::CheckAVXResult(uint64_t *ps, double *dps, uint32_t primor
       
       for (idx=0; idx<AVX_ARRAY_SIZE; idx++)
          if (rems[idx] == dps[idx] - comparator[0])
-            ip_PrimorialApp->ReportFactor(ps[idx], primorial, +1, true);
+            ip_PrimorialApp->ReportFactor(ps[idx], primorial, +1);
    }
 }
+#else
+   
+void  PrimorialWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
+{
+   FatalError("PrimorialWorker::TestMiniPrimeChunk not implemented");
+}
+#endif

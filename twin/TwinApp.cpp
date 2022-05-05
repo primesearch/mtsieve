@@ -62,7 +62,7 @@ void TwinApp::Help(void)
    printf("-s --independent      Sieve +1 and -1 independently\n");       
 }
 
-void  TwinApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  TwinApp::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
@@ -435,7 +435,7 @@ void TwinApp::ProcessInputTermsFile(bool haveBitMap)
    fclose(fPtr);
 }
 
-bool TwinApp::ApplyFactor(uint64_t thePrime,  const char *term)
+bool TwinApp::ApplyFactor(uint64_t theFactor,  const char *term)
 {
    uint64_t k;
    uint32_t b, n;
@@ -633,15 +633,15 @@ void  TwinApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
    sprintf(extraTtext, "%" PRIu64 " < k < %" PRIu64", k*%u^%u", il_MinK, il_MaxK, ii_Base, ii_N);
 }
 
-bool  TwinApp::ReportFactor(uint64_t p, uint64_t k, int32_t c)
+bool  TwinApp::ReportFactor(uint64_t theFactor, uint64_t k, int32_t c)
 {
    bool     removedTerm = false;
    char     kStr[50];
 
-   if (p > il_MaxPrimeForValidFactor)
+   if (theFactor > il_MaxPrimeForValidFactor)
       return false;
    
-   if (p > GetMaxPrimeForSingleWorker())
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
 
    uint64_t bit = BIT(k);
@@ -655,7 +655,7 @@ bool  TwinApp::ReportFactor(uint64_t p, uint64_t k, int32_t c)
          iv_TwinTerms[bit] = false;
          removedTerm = true;
          
-         LogFactor(p, "%s*%u^%u%+d", kStr, ii_Base, ii_N, c);
+         LogFactor(theFactor, "%s*%u^%u%+d", kStr, ii_Base, ii_N, c);
          
          il_FactorCount++;
          il_TermCount--;
@@ -668,7 +668,7 @@ bool  TwinApp::ReportFactor(uint64_t p, uint64_t k, int32_t c)
          iv_MinusTerms[bit] = false;
          removedTerm = true;
          
-         LogFactor(p, "%s*%u^%u-1", kStr, ii_Base, ii_N);
+         LogFactor(theFactor, "%s*%u^%u-1", kStr, ii_Base, ii_N);
          
          il_FactorCount++;
          il_TermCount--;
@@ -679,14 +679,14 @@ bool  TwinApp::ReportFactor(uint64_t p, uint64_t k, int32_t c)
          iv_PlusTerms[bit] = false;
          removedTerm = true;
          
-         LogFactor(p, "%s*%u^%u+1", kStr, ii_Base, ii_N);
+         LogFactor(theFactor, "%s*%u^%u+1", kStr, ii_Base, ii_N);
          
          il_FactorCount++;
          il_TermCount--;
       }
    }
    
-   if (p > GetMaxPrimeForSingleWorker())
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
    
    return removedTerm;

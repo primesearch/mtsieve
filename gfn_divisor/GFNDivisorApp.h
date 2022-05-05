@@ -20,10 +20,10 @@ public:
    ~GFNDivisorApp(void) {};
 
    void              Help(void);
-   void              AddCommandLineOptions(string &shortOpts, struct option *longOpts);
+   void              AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
-   bool              ApplyFactor(uint64_t thePrime, const char *term);
+   bool              ApplyFactor(uint64_t theFactor, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
    uint64_t          GetMinK(void) { return il_MinK; };
@@ -33,11 +33,11 @@ public:
    uint32_t          GetMaxN(void) { return ii_MaxN; };
    uint32_t          GetNCount(void) { return (ii_MaxN - ii_MinN + 1); };
    
-   vector<vector<bool>> GetTerms(void) { return iv_Terms; };
+   std::vector<std::vector<bool>> GetTerms(void) { return iv_Terms; };
 
-   bool              ReportFactor(uint64_t p, uint64_t k, uint32_t n, bool verifyFactor);
+   bool              ReportFactor(uint64_t theFactor, uint64_t k, uint32_t n, bool verifyFactor);
    
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          GetMaxGpuSteps(void) { return ii_MaxGpuSteps; };
    uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
 #endif
@@ -58,14 +58,14 @@ protected:
 
 private:
    uint32_t          GetSmallPrimeFactor(uint64_t k, uint32_t n);
-   bool              VerifyFactor(bool badFactorIsFatal, uint64_t thePrime, uint64_t k, uint32_t n);
+   void              VerifyFactor(uint64_t theFactor, uint64_t k, uint32_t n);
    
-   vector<vector<bool>>  iv_Terms;
-   string            is_OutputTermsFilePrefix;
+   std::vector<std::vector<bool>>  iv_Terms;
+   std::string            is_OutputTermsFilePrefix;
    
    bool              ib_UseTermsBitmap;
    uint32_t          ii_SmallPrimeFactorLimit;
-   vector<uint64_t>  iv_SmallPrimes;
+   std::vector<uint64_t>  iv_SmallPrimes;
    
    uint32_t          ii_NsPerFile;
    uint64_t          il_MinK;
@@ -89,7 +89,7 @@ private:
    uint64_t          il_TotalTerms;
    uint64_t          il_TotalTermsInChunk;
 
-#ifdef HAVE_GPU_WORKERS
+#if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          ii_MaxGpuSteps;
    uint32_t          ii_MaxGpuFactors;
 #endif

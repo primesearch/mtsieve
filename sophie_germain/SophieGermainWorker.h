@@ -24,8 +24,8 @@ public:
    void              TestMegaPrimeChunk(void);
    void              TestMiniPrimeChunk(uint64_t *miniPrimeChunk);
    void              CleanUp(void);
-   bool              VerifyExternalFactor(bool badFactorIsFatal, uint64_t prime, uint64_t k, uint32_t n, bool firstOfPair);
-   bool              VerifyFactor(bool badFactorIsFatal, uint64_t prime, uint64_t k, bool firstOfPair);
+   void              VerifyExternalFactor(uint64_t prime, uint64_t k, uint32_t n, bool firstOfPair);
+   void              VerifyFactor(uint64_t prime, uint64_t k, bool firstOfPair);
 
 protected:
 
