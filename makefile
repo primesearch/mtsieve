@@ -174,9 +174,19 @@ SR2_METAL_OBJS=sierpinski_riesel/SierpinskiRieselApp_metal.o sierpinski_riesel/A
    sierpinski_riesel/CisOneWithMultipleSequencesHelper_metal.o sierpinski_riesel/CisOneWithMultipleSequencesWorker_metal.o
 XYYX_METAL_OBJS=xyyx/XYYXApp_metal.o xyyx/XYYXWorker_metal.o xyyx/XYYXGpuWorker_metal.o
 
-AIR_LIBS=multi_factorial/mf_kernel.air cullen_woodall/cw_kernel.air
-METAL_LIBS=multi_factorial/mf_kernel.cullen_woodall multi_factorial/cw_kernel.air
-GPU_HEADERS=multi_factorial/mf_kernel.gpu.h cullen_woodall/cw_kernel.gpu.h
+AIR_LIBS=alternating_factorial/af_kernel.air cullen_woodall/cw_kernel.air gfn_divisor/gfn_kernel.air \
+   multi_factorial/mf_kernel.air primes_in_x/pix_kernel.air primorial/primorial_kernel.air \
+   sierpinski_riesel/cisonesingle_kernel.air sierpinski_riesel/generic_kernel.air \
+   smarandache/sm_kernel.air xyyx/xyyx_kernel.air
+METAL_LIBS=alternating_factorial/af_kernel.metallib cullen_woodall/cw_kernel.metallib gfn_divisor/gfn_kernel.metallib \
+   multi_factorial/mf_kernel.metallib primes_in_x/pix_kernel.metallib primorial/primorial_kernel.metallib \
+   sierpinski_riesel/cisonesingle_kernel.metallib sierpinski_riesel/generic_kernel.metallib \
+   smarandache/sm_kernel.metallib xyyx/xyyx_kernel.metallib
+GPU_HEADERS=alternating_factorial/af_kernel.gpu.h cullen_woodall/cw_kernel.gpu.h gfn_divisor/gfn_kernel.gpu.h \
+   multi_factorial/mf_kernel.gpu.h primes_in_x/pix_kernel.gpu.h primorial/primorial_kernel.gpu.h \
+   sierpinski_riesel/cisonesingle_kernel.gpu.h sierpinski_riesel/generic_kernel.gpu.h \
+   smarandache/sm_kernel.gpu.h xyyx/xyyx_kernel.gpu.h
+
 
 ALL_OBJS=$(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(CPU_CORE_OBJS) $(OPENCL_CORE_OBJS) $(METAL_CORE_OBJS) \
    $(AF_OBJS) $(MF_OBJS) $(FBNC_OBJS) $(FKBN_OBJS) $(GFND_OBJS) $(CK_OBJS) \
