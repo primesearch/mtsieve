@@ -188,33 +188,18 @@ ulong mmmSub(ulong a, ulong b, ulong _p)
 
 ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q)
 {
-   ulong lo, hi;
-
-#ifdef __NV_CL_C_VERSION
-   const uint a0 = (uint)(a), a1 = (uint)(a >> 32);
-   const uint b0 = (uint)(b), b1 = (uint)(b >> 32);
-
-   uint c0 = a0 * b0, c1 = MUL_HI(a0, b0), c2, c3;
-
-   asm volatile ("mad.lo.cc.u32 %0, %1, %2, %3;" : "=r" (c1) : "r" (a0), "r" (b1), "r" (c1));
-   asm volatile ("madc.hi.u32 %0, %1, %2, 0;" : "=r" (c2) : "r" (a0), "r" (b1));
-
-   asm volatile ("mad.lo.cc.u32 %0, %1, %2, %3;" : "=r" (c2) : "r" (a1), "r" (b1), "r" (c2));
-   asm volatile ("madc.hi.u32 %0, %1, %2, 0;" : "=r" (c3) : "r" (a1), "r" (b1));
-
-   asm volatile ("mad.lo.cc.u32 %0, %1, %2, %3;" : "=r" (c1) : "r" (a1), "r" (b0), "r" (c1));
-   asm volatile ("madc.hi.cc.u32 %0, %1, %2, %3;" : "=r" (c2) : "r" (a1), "r" (b0), "r" (c2));
-   asm volatile ("addc.u32 %0, %1, 0;" : "=r" (c3) : "r" (c3));
-
-   lo = upsample(c1, c0); hi = upsample(c3, c2);
-#else
-   lo = a * b; hi = MUL_HI(a, b);
-#endif
-
+   ulong lo = a * b;
+   ulong hi = MUL_HI(a, b);
+   
    ulong m = lo * _q;
-   ulong mp = MUL_HI(m, _p);
-   long r = (long)(hi - mp);
-   return (r < 0) ? r + _p : r;
+   
+   ulong hi2 = MUL_HI(m, _p);
+   long r = (long) hi - (long) hi2;
+
+   if (r < 0)
+      return (ulong) (r + _p);
+      
+   return (ulong) r;
 }
 
 // Compute the residual of n (mod p)
