@@ -7,7 +7,7 @@ use warnings;
 use File::Basename;
 
 my $file_name = substr($ARGV[0], 0, length($ARGV[0]) - 3);
-my ($file,$dir,$ext) = fileparse($file_name, qr/\.[^.]*/);
+my ($file,$dir,$ext) = fileparse($file_name, qr'\.[^\.]*');
    
 my $func_name = $file;
 my $def_name = uc $func_name;
