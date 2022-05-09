@@ -62,6 +62,7 @@ else
    ifeq ($(UNAME_S),Darwin)
       XC=xcrun
       XC_FLAGS=-sdk macosx metal
+      HAS_METAL=yes
       CPP_FLAGS+=-std=c++17
       CPP_FLAGS_METAL=-DUSE_METAL -Igpu_metal
       LD_FLAGS_OPENCL+=-framework OpenCL

@@ -16,9 +16,6 @@ PrimorialGpuWorker::PrimorialGpuWorker(uint32_t myId, App *theApp) : Worker(myId
    const char *preKernelSources[10];
    uint32_t    defineCount = 0, idx;
 
-   std::vector<uint64_t>  primes;
-   std::vector<uint64_t>::iterator it;
-   
    ib_GpuWorker = true;
    
    ip_PrimorialApp = (PrimorialApp *) theApp;

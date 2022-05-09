@@ -775,7 +775,7 @@ void  DMDivisorApp::CheckRedc(mp_limb_t *xp, uint32_t xn, uint32_t b, uint64_t k
       {        
          WriteToConsole(COT_OTHER, "REDC ERROR: %u^2^%u mod %" PRIu64"*2^%u+1\n", b, ii_N, k, ii_N);
          
-         FatalError("limb %u=%" PRIu64", xp[%u]=%" PRIu64"\n", i, mpz_getlimbn(B, i), i, xp[i]);
+         FatalError("limb %u=%" PRIu64", xp[%u]=%" PRIu64"\n", i, (uint64_t) mpz_getlimbn(B, i), i, (uint64_t) xp[i]);
       }
 
    mpz_clear(N);

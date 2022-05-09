@@ -292,7 +292,6 @@ void  FixedBNCWorker::DeterminePrimeTermRange(void)
    double    tooBig = (double) KMAX_MAX;
    double    b = (double) ii_Base;
    double    bpown = 1.0;
-   uint64_t  intbpown = 1;
    double    mink = (double) il_MinK;
    
    // KMAX_MAX is the same as PMAX_MAX, 2^62.
@@ -306,7 +305,6 @@ void  FixedBNCWorker::DeterminePrimeTermRange(void)
    for (uint32_t i=0; i<ii_N; i++)
    {
       bpown *= b;
-      intbpown *= ii_Base;
 
       // If mink*b^n-1.0 > 2^62, then we don't need to worry about removing terms
       // that are prime.

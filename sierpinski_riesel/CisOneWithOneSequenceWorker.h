@@ -73,7 +73,6 @@ private:
    uint32_t          ii_Dim1;
    uint32_t          ii_Dim2;
    uint32_t          ii_Dim3;
-   uint32_t          ii_Dim4;
 };
 
 #endif

@@ -66,10 +66,13 @@ private:
    
    std::string       is_SearchString;
    std::string       is_FullTerm;
-  std:: string       is_StringFileName;
+   std::string       is_StringFileName;
 
+#if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          ii_MaxGpuSteps;
    uint32_t          ii_MaxGpuFactors;
+#endif
+
    uint32_t          ii_MinLength;
    uint32_t          ii_MinLengthRemaining;
    uint32_t          ii_MaxLength;
