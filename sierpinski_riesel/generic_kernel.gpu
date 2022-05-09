@@ -39,6 +39,12 @@ using namespace metal;
 #pragma OPENCL EXTENSION cl_khr_int64_extended_atomics: enable
 #define MUL_HI          mul_hi
 
+ulong buildTables(ulong thePrime, ulong _q, ulong _r2, ulong _one, ulong *resBDCK64,
+   __global const ulong  *SEQ_K,
+   __global const  long  *SEQ_C,
+   __global const uint   *SUBSEQ_SEQ,
+   __global const uint   *SUBSEQ_Q);
+   
 void collectFactor(ulong   p,
                    uint    ssIdx,
                    uint    n,
@@ -47,12 +53,19 @@ void collectFactor(ulong   p,
 #else
 #define MUL_HI          mulhi
 
+ulong buildTables(ulong thePrime, ulong _q, ulong _r2, ulong _one, ulong *resBDCK64,
+   device const ulong  *SEQ_K,
+   device const  long  *SEQ_C,
+   device const uint   *SUBSEQ_SEQ,
+   device const uint   *SUBSEQ_Q);
+   
 void collectFactor(ulong       p,
                    uint        ssIdx,
                    uint        n,
    volatile device atomic_int *factorCount,
             device ulong4     *factors);
 #endif
+
 
 #define N_TERM(ssIdx, i, j)   ((SIEVE_LOW + (i)*BABY_STEPS + (j))*BESTQ + SUBSEQ_Q[(ssIdx)])
 #define HASH_NOT_FOUND        UINT_MAX
@@ -92,13 +105,8 @@ inline ulong  umod(ulong a, ulong p)
 {
    return (a < p) ? a : a%p;
 }
-
-ulong buildTables(ulong thePrime, ulong _q, ulong _r2, ulong _one, ulong *resBDCK64,
-   __global const ulong  *SEQ_K,
-   __global const  long  *SEQ_C,
-   __global const uint   *SUBSEQ_SEQ,
-   __global const uint   *SUBSEQ_Q);
-ulong babySteps(ulong thePrime, ulong _q, ulong _r2, ulong _one, ushort *h_table, ushort *h_olist, ulong *h_BJ64);
+   
+ulong computeOrderOfB(ulong thePrime, ulong _q, ulong _r2, ulong _one, ushort *h_table, ushort *h_olist, ulong *h_BJ64);
 void  hashInsert(ulong bj, uint j, ushort *h_table, ushort *h_olist, ulong *h_BJ64);
 uint  hashLookup(ulong bj, ushort *h_table, ushort *h_olist, ulong *h_BJ64);
                      
@@ -159,7 +167,7 @@ kernel void generic_kernel(device const ulong  *primes,
    
    ulong resBM64 = buildTables(thePrime, _q, _r2, _one, resBDCK64, SEQ_K, SEQ_C, SUBSEQ_SEQ, SUBSEQ_Q);
    
-   uint orderOfB = babySteps(thePrime, _q, _r2, _one, h_table, h_olist, h_BJ64);
+   uint orderOfB = computeOrderOfB(thePrime, _q, _r2, _one, h_table, h_olist, h_BJ64);
 
    if (orderOfB > 0)
    {
@@ -294,7 +302,7 @@ ulong   mmmPowmod(ulong resbase, ulong exp, ulong _p, ulong _q, ulong _one)
    return 0;
 }
 
-ulong babySteps(ulong thePrime, ulong _q, ulong _r2, ulong _one, ushort *h_table, ushort *h_olist, ulong *h_BJ64)
+ulong computeOrderOfB(ulong thePrime, ulong _q, ulong _r2, ulong _one, ushort *h_table, ushort *h_olist, ulong *h_BJ64)
 {
    uint    j;
    ulong   resBase = mmmNToRes(BASE, thePrime, _q, _r2);
@@ -315,11 +323,19 @@ ulong babySteps(ulong thePrime, ulong _q, ulong _r2, ulong _one, ushort *h_table
    return 0;
 }
 
+#ifdef USE_OPENCL
 ulong buildTables(ulong thePrime, ulong _q, ulong _r2, ulong _one, ulong *resBDCK64,
    __global const ulong  *SEQ_K,
    __global const  long  *SEQ_C,
    __global const uint   *SUBSEQ_SEQ,
    __global const uint   *SUBSEQ_Q)
+#else
+ulong buildTables(ulong thePrime, ulong _q, ulong _r2, ulong _one, ulong *resBDCK64,
+   device const ulong  *SEQ_K,
+   device const  long  *SEQ_C,
+   device const uint   *SUBSEQ_SEQ,
+   device const uint   *SUBSEQ_Q)
+#endif
 {
    uint  qIdx, seqIdx, ssIdx;
    ulong resBD64[BESTQ];
@@ -336,17 +352,22 @@ ulong buildTables(ulong thePrime, ulong _q, ulong _r2, ulong _one, ulong *resBDC
       
       resBM64 = mmmMulmod(resBM64, firstResBM64, thePrime, _q);
    }
-   
+
+#ifdef SINGLE_C
+   ulong v2 = lmod(-SINGLE_C, thePrime);
+   v2 = mmmNToRes(v2, thePrime, _q, _r2);
+#endif
+
    for (seqIdx=0; seqIdx<SEQUENCES; seqIdx++)
    {
       ulong v1 = umod(SEQ_K[seqIdx], thePrime);
-      
-      ulong v2 = lmod(-SEQ_C[seqIdx], thePrime);
-           
       ulong v3 = invmod(v1, thePrime);
-      
-      v2 = mmmNToRes(v2, thePrime, _q, _r2);
       v3 = mmmNToRes(v3, thePrime, _q, _r2);
+      
+#ifndef SINGLE_C
+      ulong v2 = lmod(-SEQ_C[seqIdx], thePrime);
+      v2 = mmmNToRes(v2, thePrime, _q, _r2);
+#endif
       
       resCK64[seqIdx] = mmmMulmod(v2, v3, thePrime, _q);
    }

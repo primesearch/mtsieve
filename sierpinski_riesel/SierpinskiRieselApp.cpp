@@ -21,7 +21,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.6.1"
+#define APP_VERSION     "1.6.2"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
@@ -69,7 +69,7 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
 #if defined(USE_OPENCL) || defined(USE_METAL)
    ib_UseGPUWorkersUponRebuild = false;
    ii_GpuFactorDensity = 100;
-   ii_SequencesPerKernel = 1000000;
+   ii_KernelCount = 1;
    ii_ChunksPerGpuWorker = 1;
 #endif
 }
@@ -88,7 +88,7 @@ void SierpinskiRieselApp::Help(void)
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    printf("-M --maxfactordensity=M   factors per 1e6 terms per GPU worker chunk (default %u)\n", ii_GpuFactorDensity);
-   printf("-S --sequencesperkernel=S the number of sequences per GPU kernel execution (default %u)\n", ii_SequencesPerKernel);
+   printf("-K --kernelcount=K        the number of kernels when splitting large numbers of sequences for the GPU (default %u)\n", ii_KernelCount);
    printf("-C --chunksperworker=C    the number of chunks of primes per GPU worker (default %u)\n", ii_ChunksPerGpuWorker);
 #endif
    
@@ -126,11 +126,11 @@ void  SierpinskiRieselApp::AddCommandLineOptions(std::string &shortOpts, struct 
    AppendLongOpt(longOpts, "powerresidue",   required_argument, 0, 'X');
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
-   shortOpts += "M:S:C:";
+   shortOpts += "M:K:C:";
    
    AppendLongOpt(longOpts, "maxfactordensity",  required_argument, 0, 'M');
-   AppendLongOpt(longOpts, "sequencesperkernel",  required_argument, 0, 'S');
-   AppendLongOpt(longOpts, "chunksperworker",  required_argument, 0, 'C');
+   AppendLongOpt(longOpts, "kernelcount",       required_argument, 0, 'K');
+   AppendLongOpt(longOpts, "chunksperworker",   required_argument, 0, 'C');
 #endif
 }
 
@@ -205,8 +205,8 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
          status = Parser::Parse(arg, 1, 1000000, ii_GpuFactorDensity);
          break;
          
-      case 'S':
-         status = Parser::Parse(arg, 10, 100000000, ii_SequencesPerKernel);
+      case 'K':
+         status = Parser::Parse(arg, 1, 1000000, ii_KernelCount);
          break;
          
       case 'C':
@@ -283,20 +283,26 @@ void SierpinskiRieselApp::ValidateOptions(void)
       MakeSubsequences(true, GetMinPrime());  
    }
 
-   if (it_Format == FF_BOINC)
+   seqPtr = ip_FirstSequence;
+   int64_t firstC = seqPtr->c;
+   ib_HaveSingleC = true;
+   
+   do
    {
-      seqPtr = ip_FirstSequence;
-      do
+      if (firstC != seqPtr->c)
+         ib_HaveSingleC = false;      
+      
+      if (it_Format == FF_BOINC)
       {
          if (abs(seqPtr->c) != 1)
             FatalError("When using BOINC format, all sequences must have c=+1 or c=-1");
          
          if (seqPtr->c != ip_FirstSequence->c)
             FatalError("When using BOINC format, cannot mix c=+1 and c=-1 sequences");
+      }
 
-         seqPtr = (seq_t *) seqPtr->next;
-      } while (seqPtr != NULL);
-   }
+      seqPtr = (seq_t *) seqPtr->next;
+   } while (seqPtr != NULL);
 
    if (is_OutputTermsFileName.length() == 0)
    {

@@ -1,5 +1,18 @@
 The relative speed differnce between CPU and GPU is for an i7-8850H and NVIDIA Quadro P3200.
 
+2.3.1 - May 10, 2022
+   Removed the embedded ASM logic for NVIDIA from all GPU kernels.  The OpenCL compiler
+   generates code that is about 10% faster.  This is likely due to hard-coded register
+   usage in the ASM.
+   
+   srsieve2, srsieve2cl: version 1.6.2      
+      Add support for -C to generic sequence sieving which should be faster when one
+      has few sequences to test.
+      
+      Change -S to -K so that less guessing is needed when one requires multiple GPU
+      kernels due to having a lot of sequences.  The program will now create groups of
+      sequences that are approximately the same size for each call to the kernel.
+
 2.3.0 - April 22, 2022
    framework:
       Updated to msys2 gcc version 11.2.0, which required changing string to std:string

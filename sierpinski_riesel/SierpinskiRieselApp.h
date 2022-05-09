@@ -48,6 +48,7 @@ public:
 
    bool              CanUseCIsOneLogic(void) { return ib_CanUseCIsOneLogic; };
    uint64_t          GetMaxK(void) { return il_MaxK; };
+   uint64_t          HasSingleC(void) { return ib_HaveSingleC; };
    uint64_t          GetLegendreTableBytes(void) { return il_LegendreTableBytes; };
    std::string       GetLegendreDirectoryName(void) { return is_LegendreDirectoryName; };
    
@@ -59,7 +60,7 @@ public:
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
-   uint32_t          GetSequecesPerKernel(void) { return ii_SequencesPerKernel; };
+   uint32_t          GetKernelCount(void) { return ii_KernelCount; };
    void              UseGpuWorkersUponRebuild(void) { ib_UseGPUWorkersUponRebuild = true; };
    uint32_t          GetChunksPerGpuWorker(void) { return ii_ChunksPerGpuWorker; };
 #endif
@@ -118,6 +119,7 @@ private:
    uint64_t          il_SmallPrimeSieveLimit;
 
    bool              ib_HaveNewSequences;
+   bool              ib_HaveSingleC;
    format_t          it_Format;
    
    uint32_t          ii_Base;
@@ -133,7 +135,7 @@ private:
 #if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          ii_GpuFactorDensity;
    uint32_t          ii_MaxGpuFactors;
-   uint32_t          ii_SequencesPerKernel;
+   uint32_t          ii_KernelCount;
    uint32_t          ii_ChunksPerGpuWorker;
 #endif
 };

@@ -16,6 +16,19 @@
 #define HASH_MINIMUM_ELTS  8
 #define HASH_MINIMUM_SHIFT 10
 
+#define PARAM_SEQUENCE        0
+#define PARAM_SUBSEQUENCE     1
+#define PARAM_SIEVE_RANGE     2
+#define PARAM_BABY_STEPS      3
+#define PARAM_GIANT_STEPS     4
+
+// These are only used by the Worker.  They are not used by the Kernel.
+#define PARAM_SUBSEQ_IDX     11
+#define PARAM_HASH_SIZE      12
+#define PARAM_HASH_ELEMENTS  13
+
+#define MAX_PARAMETERS       19
+
 GenericGpuWorker::GenericGpuWorker(uint32_t myId, App *theApp, AbstractSequenceHelper *appHelper) : AbstractWorker(myId, theApp, appHelper)
 {
    ib_GpuWorker = true;
@@ -24,104 +37,112 @@ GenericGpuWorker::GenericGpuWorker(uint32_t myId, App *theApp, AbstractSequenceH
    
    ib_CanUseCIsOneLogic = ip_SierpinskiRieselApp->CanUseCIsOneLogic();
    il_MaxK = ip_SierpinskiRieselApp->GetMaxK();
+   ib_HaveSingleC = ip_SierpinskiRieselApp->HasSingleC();
 
    ii_MaxGpuFactors = ip_SierpinskiRieselApp->GetMaxGpuFactors();
-   ii_SequencesPerKernel = ip_SierpinskiRieselApp->GetSequecesPerKernel();
+   ii_KernelCount = ip_SierpinskiRieselApp->GetKernelCount();
+   ii_ChunksPerGpuWorker = ip_SierpinskiRieselApp->GetChunksPerGpuWorker();
    
-   // We need to explicitly allocate in this GPU worker since there are multiple Kernels, each with its own list
-   il_PrimeList = (uint64_t *) xmalloc(ii_WorkSize*sizeof(uint64_t));
+   il_PrimeList = NULL;
 }
 
 void  GenericGpuWorker::Prepare(uint64_t largestPrimeTested, uint32_t bestQ)
 { 
    ii_BestQ = bestQ;
-   
-   ii_KernelCount = ii_SequenceCount / ii_SequencesPerKernel;
-  
-   if (ii_SequenceCount % ii_SequencesPerKernel > 0)
-      ii_KernelCount++;
-   
-   uint32_t *seqsPerKernel = (uint32_t *)  xmalloc(ii_KernelCount*sizeof(uint32_t));
-   uint32_t *subseqsPerKernel = (uint32_t *)  xmalloc(ii_KernelCount*sizeof(uint32_t));
-   
-   ip_Kernel      = (Kernel   **) xmalloc(ii_KernelCount*sizeof(Kernel));
-   il_Primes      = (uint64_t **) xmalloc(ii_KernelCount*sizeof(uint64_t *));
-   il_K           = (uint64_t **) xmalloc(ii_KernelCount*sizeof(uint64_t *));
-   il_C           = ( int64_t **) xmalloc(ii_KernelCount*sizeof( int64_t *));
-   ii_SeqIdx      = (uint32_t **) xmalloc(ii_KernelCount*sizeof(uint32_t *));
-   ii_Q           = (uint32_t **) xmalloc(ii_KernelCount*sizeof(uint32_t *));
-   ii_SubseqIdx   = (uint32_t  *) xmalloc(ii_KernelCount*sizeof(uint32_t  ));
-   ii_FactorCount = (uint32_t **) xmalloc(ii_KernelCount*sizeof(uint32_t *));
-   il_FactorList  = (uint64_t **) xmalloc(ii_KernelCount*sizeof(uint64_t *));
-   
-   seq_t   *seqPtr = ip_FirstSequence;
-   uint32_t seqIdx = 0;
-   uint32_t kIdx = 0;
-   uint32_t kSubseqIdx = 0;
-   
-   while (seqPtr != NULL)
-   {
-      if (seqIdx == ii_SequencesPerKernel)
-      {
-         kIdx++;
-         seqIdx = 0;
-      }
-      
-      seqsPerKernel[kIdx]++;
-      subseqsPerKernel[kIdx] += seqPtr->ssCount;
 
-      seqPtr = (seq_t *) seqPtr->next;
-      seqIdx++;
-   }
+   uint32_t sequencesPerKernel = ii_SequenceCount / ii_KernelCount;
    
-   seqPtr = ip_FirstSequence;
-   seqIdx = 0;
-   kIdx = 0;
-   ii_SubseqIdx[0] = 0;
+   while (sequencesPerKernel * ii_KernelCount < ii_SequenceCount)
+      sequencesPerKernel++; 
    
-   while (seqPtr != NULL)
-   {
-      if (seqPtr == ip_FirstSequence || seqIdx == ii_SequencesPerKernel)
-      {
-         if (seqIdx == ii_SequencesPerKernel)
-            kIdx++;
-
-         ip_Kernel[kIdx] = CreateKernel(kIdx, seqsPerKernel[kIdx], subseqsPerKernel[kIdx]);
-                  
-         seqIdx = 0;
-         kSubseqIdx = 0;
-      }
-      
-      il_K[kIdx][seqIdx] = seqPtr->k;
-      il_C[kIdx][seqIdx] = seqPtr->c;
-
-      if (seqIdx == 0)
-         ii_SubseqIdx[kIdx] = seqPtr->ssIdxFirst;
-
-      for (uint32_t ssIdx=seqPtr->ssIdxFirst; ssIdx<=seqPtr->ssIdxLast; ssIdx++)
-      {
-         ii_SeqIdx[kIdx][kSubseqIdx] = seqIdx;
-         ii_Q[kIdx][kSubseqIdx] = ip_Subsequences[ssIdx].q;
-         kSubseqIdx++;
-      }      
-
-      seqPtr = (seq_t *) seqPtr->next;
-      seqIdx++;
-   }
-
-   xfree(seqsPerKernel);
-   xfree(subseqsPerKernel);
+   CreateKernels(sequencesPerKernel);
+   
+   PopulateKernelArguments(sequencesPerKernel);
 
    // The thread can't start until initialization is done
    ib_Initialized = true;
 }
 
-Kernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uint32_t subsequences)
+void    GenericGpuWorker::CreateKernels(uint32_t sequencesPerKernel)
 {
-   char        defines[20][50];
-   const char *preKernelSources[20];
-   uint32_t    defineCount = 0, idx;
-  
+   seq_t   *seqPtr = ip_FirstSequence;
+   uint32_t kIdx = 0;
+   uint32_t seqCount = 0;
+   uint32_t ssCount = 0;
+   
+   ii_SubseqIdx   = (uint32_t  *) xmalloc(ii_KernelCount*sizeof(uint32_t));
+   ip_Kernel      = (  Kernel **) xmalloc(ii_KernelCount*sizeof(Kernel *));
+   
+   il_Primes      = (uint64_t **) xmalloc(ii_KernelCount*sizeof(uint64_t *));
+   il_Ks          = (uint64_t **) xmalloc(ii_KernelCount*sizeof(uint64_t *));
+   il_Cs          = ( int64_t **) xmalloc(ii_KernelCount*sizeof( int64_t *));
+   ii_SeqIdxs     = (uint32_t **) xmalloc(ii_KernelCount*sizeof(uint32_t *));
+   ii_Qs          = (uint32_t **) xmalloc(ii_KernelCount*sizeof(uint32_t *));
+   ii_FactorCount = (uint32_t **) xmalloc(ii_KernelCount*sizeof(uint32_t *));
+   il_FactorList  = (uint64_t **) xmalloc(ii_KernelCount*sizeof(uint64_t *));
+   
+   ii_SubseqIdx[kIdx] = seqPtr->ssIdxFirst;
+   
+   // Create the Kernels which in turn will allocate memory for the kernel arguments
+   while (seqPtr != NULL)
+   {
+      if (seqCount == sequencesPerKernel)
+      {
+         ip_Kernel[kIdx] = CreateKernel(kIdx, seqCount, ssCount);
+         
+         kIdx++;
+         
+         seqCount = 0;
+         ssCount = 0;
+         ii_SubseqIdx[kIdx] = seqPtr->ssIdxFirst;
+      }
+      
+      seqCount++;
+      ssCount += seqPtr->ssCount;
+
+      seqPtr = (seq_t *) seqPtr->next;
+   }
+         
+   // Create the last Kernel
+   ip_Kernel[kIdx] = CreateKernel(kIdx, seqCount, ssCount);
+}
+
+void    GenericGpuWorker::PopulateKernelArguments(uint32_t sequencesPerKernel)
+{
+   seq_t   *seqPtr = ip_FirstSequence;
+   uint32_t kIdx = 0;
+   uint32_t kSeqIdx = 0;
+   uint32_t kSubseqIdx = 0;
+      
+   // Now we can populate the memory for the kernel arguments
+   while (seqPtr != NULL)
+   {
+      if (kSeqIdx == sequencesPerKernel)
+      {         
+         kIdx++;
+         
+         kSeqIdx = 0;
+         kSubseqIdx = 0;
+      }
+      
+      il_Ks[kIdx][kSeqIdx] = seqPtr->k;
+      il_Cs[kIdx][kSeqIdx] = seqPtr->c;
+
+      for (uint32_t ssIdx=seqPtr->ssIdxFirst; ssIdx<=seqPtr->ssIdxLast; ssIdx++)
+      {
+         ii_SeqIdxs[kIdx][kSubseqIdx] = kSeqIdx;
+         ii_Qs[kIdx][kSubseqIdx] = ip_Subsequences[ssIdx].q;
+         
+         kSubseqIdx++;
+      }      
+
+      kSeqIdx++;
+      seqPtr = (seq_t *) seqPtr->next;
+   }   
+}
+
+Kernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uint32_t subsequences)
+{ 
    uint32_t r = ii_MaxN/ii_BestQ - ii_MinN/ii_BestQ + 1;
    double babyStepFactor = 1.0; // DEFAULT_BABY_STEP_FACTOR from srsieve
 
@@ -145,18 +166,25 @@ Kernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uint32
    for (hsize = 1<<HASH_MINIMUM_SHIFT; hsize < elements/DEFAULT_HASH_MAX_DENSITY; )
       hsize <<= 1;
 
-   sprintf(defines[defineCount++], "#define BASE %u", ii_Base);
+   char        defines[20][50];
+   const char *preKernelSources[20];
+   uint32_t    defineCount = 0, idx;
+
+   sprintf(defines[defineCount++], "#define BASE  %u", ii_Base);
    sprintf(defines[defineCount++], "#define BESTQ %u", ii_BestQ);
-   sprintf(defines[defineCount++], "#define SIEVE_LOW %u", sieveLow);
+   sprintf(defines[defineCount++], "#define SIEVE_LOW   %u", sieveLow);
    sprintf(defines[defineCount++], "#define SIEVE_RANGE %u", sieveRange);
+   sprintf(defines[defineCount++], "#define MAX_FACTORS %u", ii_MaxGpuFactors);
    sprintf(defines[defineCount++], "#define BABY_STEPS %u", babySteps);
    sprintf(defines[defineCount++], "#define GIANT_STEPS %u", giantSteps);
    sprintf(defines[defineCount++], "#define SEQUENCES %u", sequences);
    sprintf(defines[defineCount++], "#define SUBSEQUENCES %u", subsequences);
    sprintf(defines[defineCount++], "#define HASH_ELEMENTS %u", elements);
    sprintf(defines[defineCount++], "#define HASH_SIZE %u", hsize);
-   sprintf(defines[defineCount++], "#define MAX_FACTORS %u", ii_MaxGpuFactors);
-
+   
+   if (ib_HaveSingleC)
+      sprintf(defines[defineCount++], "#define SINGLE_C %" PRId64"", ip_FirstSequence->c);
+   
    for (idx=0; idx<defineCount; idx++)
       preKernelSources[idx] = defines[idx];
    
@@ -166,15 +194,19 @@ Kernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uint32
 
    ip_SierpinskiRieselApp->SetGpuWorkGroupSize(kernel->GetWorkGroupSize());
    
-   ii_WorkSize = ip_SierpinskiRieselApp->GetGpuPrimesPerWorker();
+   ii_WorkSize = ip_SierpinskiRieselApp->GetGpuPrimesPerWorker() * ii_ChunksPerGpuWorker;
+   ii_KernelWorkSize = ii_WorkSize / ii_ChunksPerGpuWorker;
 
-   il_Primes[kIdx]       = (uint64_t *) kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_WorkSize);
-   il_K[kIdx]            = (uint64_t *) kernel->AddGpuArgument("k", sizeof(uint64_t), sequences);
-   il_C[kIdx]            = ( int64_t *) kernel->AddCpuArgument("c", sizeof(int64_t), sequences);
-   ii_SeqIdx[kIdx]       = (uint32_t *) kernel->AddCpuArgument("seqidx", sizeof(uint32_t), subsequences);
-   ii_Q[kIdx]            = (uint32_t *) kernel->AddCpuArgument("q", sizeof(uint32_t), subsequences);
-   ii_FactorCount[kIdx]  = (uint32_t *) kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 1);
-   il_FactorList[kIdx]   = (uint64_t *) kernel->AddGpuArgument("factorList", sizeof(uint64_t), 4*ii_MaxGpuFactors);
+   if (il_PrimeList == NULL)
+      il_PrimeList      = (uint64_t *) xmalloc(sizeof(uint64_t) * ii_WorkSize);
+
+   il_Primes[kIdx]      = (uint64_t *) kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_KernelWorkSize);
+   il_Ks[kIdx]          = (uint64_t *) kernel->AddCpuArgument("k", sizeof(uint64_t), sequences);
+   il_Cs[kIdx]          = ( int64_t *) kernel->AddCpuArgument("c", sizeof(int64_t), sequences);
+   ii_SeqIdxs[kIdx]     = (uint32_t *) kernel->AddCpuArgument("seqIdx", sizeof(uint32_t), subsequences);
+   ii_Qs[kIdx]          = (uint32_t *) kernel->AddCpuArgument("q", sizeof(uint32_t), subsequences);
+   ii_FactorCount[kIdx] = (uint32_t *) kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 1);
+   il_FactorList[kIdx]  = (uint64_t *) kernel->AddGpuArgument("factorList", sizeof(uint64_t), 4*ii_MaxGpuFactors);
 
    if (kIdx == 0)
       kernel->PrintStatistics(hsize * 2 + elements * 2 + (elements+1)*8 + ii_SubsequenceCount*8);
@@ -183,20 +215,20 @@ Kernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uint32
 }
 
 void  GenericGpuWorker::CleanUp(void)
-{
+{ 
    for (uint32_t kIdx=0; kIdx<ii_KernelCount; kIdx++)
       delete ip_Kernel[kIdx];
    
-   delete ip_Kernel;
+   xfree(ip_Kernel);
+   xfree(il_Ks);
+   xfree(il_Cs);  
+   xfree(ii_SeqIdxs);  
+   xfree(ii_Qs);  
+   xfree(ii_FactorCount);
+   xfree(il_FactorList);
    
-   xfree(il_PrimeList);
-   
-   xfree(il_Primes);
-   xfree(il_K);
-   xfree(il_C);
-   xfree(ii_SeqIdx);
-   xfree(ii_Q);
    xfree(ii_SubseqIdx);
+   xfree(il_PrimeList);
 }
 
 void  GenericGpuWorker::TestMegaPrimeChunk(void)
@@ -205,30 +237,36 @@ void  GenericGpuWorker::TestMegaPrimeChunk(void)
    uint32_t n;
    uint64_t prime;
 
-   for (uint32_t kIdx=0; kIdx<ii_KernelCount; kIdx++)
+   for (uint32_t cIdx=0; cIdx<ii_ChunksPerGpuWorker; cIdx++)
    {
-      memcpy(il_Primes[kIdx], il_PrimeList, ii_WorkSize * sizeof(uint64_t));
-      
-      ii_FactorCount[0][0] = 0;
-
-      ip_Kernel[kIdx]->Execute(ii_WorkSize);
-
-      for (uint32_t ii=0; ii<ii_FactorCount[0][0]; ii++)
-      {  
-         idx = ii*4;
+      for (uint32_t kIdx=0; kIdx<ii_KernelCount; kIdx++)
+      {
+         uint32_t pIndex = ii_KernelWorkSize * cIdx;
          
-         ssIdx = (uint32_t) il_FactorList[kIdx][idx+0] + ii_SubseqIdx[kIdx];
-         n = (uint32_t) il_FactorList[kIdx][idx+1];
-         prime = il_FactorList[kIdx][idx+2];
-      
-         ip_SierpinskiRieselApp->ReportFactor(prime, ip_Subsequences[ssIdx].seqPtr, n, true);
+         memcpy(il_Primes[kIdx], &il_PrimeList[pIndex], sizeof(uint64_t) * ii_KernelWorkSize);
          
-         if ((ii+1) == ii_MaxGpuFactors)
-            break;
+         ii_FactorCount[kIdx][0] = 0;
+
+         ip_Kernel[kIdx]->Execute(ii_KernelWorkSize);
+
+         for (uint32_t ii=0; ii<ii_FactorCount[kIdx][0]; ii++)
+         {  
+            idx = ii*4;
+            
+            ssIdx = (uint32_t) il_FactorList[kIdx][idx+0] + ii_SubseqIdx[kIdx];
+            n = (uint32_t) il_FactorList[kIdx][idx+1];
+            prime = il_FactorList[kIdx][idx+2];
+
+            if ((ii+1) == ii_MaxGpuFactors)
+               break;
+         
+            ip_SierpinskiRieselApp->ReportFactor(prime, ip_Subsequences[ssIdx].seqPtr, n, true);
+            
+         }
+
+         //if (ii_FactorCount[kIdx][0] >= ii_MaxGpuFactors)
+         //   FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factor density", ii_FactorCount[kIdx][0], ii_MaxGpuFactors);
       }
-
-      if (ii_FactorCount[0][0] >= ii_MaxGpuFactors)
-         FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factor density", ii_FactorCount[0][0], ii_MaxGpuFactors);
    }
 
    SetLargestPrimeTested(il_PrimeList[ii_WorkSize-1], ii_WorkSize);

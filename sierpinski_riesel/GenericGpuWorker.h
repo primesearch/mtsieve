@@ -35,26 +35,29 @@ public:
    void              CleanUp(void);
 
 protected:
-   Kernel           *CreateKernel(uint32_t kernelIdx, uint32_t sequences, uint32_t subsequences);
+   void              CreateKernels(uint32_t sequencesPerKernel);
+   void              PopulateKernelArguments(uint32_t sequencesPerKernel);
+   Kernel           *CreateKernel(uint32_t kIdx, uint32_t sequences, uint32_t subsequences);
    
    bool              ib_CanUseCIsOneLogic;
    uint64_t          il_MaxK;
+   bool              ib_HaveSingleC;
    
+   uint32_t          ii_KernelWorkSize;
+   uint32_t          ii_ChunksPerGpuWorker;
    uint32_t          ii_KernelCount;
    uint32_t          ii_MaxGpuFactors;
-   uint32_t          ii_SequencesPerKernel;
-   
    uint32_t         *ii_SubseqIdx;
    
+   Kernel          **ip_Kernel;
+   
    uint64_t        **il_Primes;
-   uint64_t        **il_K;
-   int64_t         **il_C;
-   uint32_t        **ii_SeqIdx;
-   uint32_t        **ii_Q;
+   uint64_t        **il_Ks;
+   int64_t         **il_Cs;
+   uint32_t        **ii_SeqIdxs;
+   uint32_t        **ii_Qs;
    uint32_t        **ii_FactorCount;
    uint64_t        **il_FactorList;
-   
-   Kernel          **ip_Kernel;
 };
 
 #endif
