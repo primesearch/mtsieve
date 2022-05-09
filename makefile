@@ -78,14 +78,14 @@ endif
 
 ifeq ($(strip $(HAS_X86)),yes)
 CPU_PROGS=afsieve cksieve dmdsieve gcwsieve gfndsieve fbncsieve fkbnsieve k1b2sieve kbbsieve mfsieve \
-   pixsieve psieve sgsieve smsieve twinsieve xyyxsieve
+   pixsieve psieve sgsieve smsieve srsieve2 twinsieve xyyxsieve
 else
 CPU_PROGS=cksieve dmdsieve gfndsieve fbncsieve fkbnsieve k1b2sieve kbbsieve mfsieve \
    sgsieve smsieve srsieve2 twinsieve psieve
 endif
 
 ifeq ($(strip $(HAS_X86)),yes)
-OPENCL_PROGS=afsievecl mfsievecl gcwsievecl gfndsievecl pixsievecl smsievecl xyyxsievecl psievecl
+OPENCL_PROGS=afsievecl mfsievecl gcwsievecl gfndsievecl pixsievecl smsievecl srsieve2cl xyyxsievecl psievecl
 else
 OPENCL_PROGS=cwsievecl mfsievecl gfndsievecl smsievecl srsieve2cl psievecl
 endif
