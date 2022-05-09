@@ -40,7 +40,7 @@ endif
 ifeq ($(OS),Windows_NT)
    HAS_X86=yes
    HAS_ARM=no
-   LD_FLAGS_OPENCL+=-static
+   LD_FLAGS+=-static
    CPP_FLAGS+=-I"F:\stuff\gmp-6.1.2" -DUSE_X86
    CPP_FLAGS_OPENCL+=-I"F:\stuff\OpenCL-SDK\external\OpenCL-Headers" -DCL_TARGET_OPENCL_VERSION=300
    LD_FLAGS_GMP+=-L"F:\stuff\gmp-6.1.2\.libs"
