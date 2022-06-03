@@ -12,11 +12,12 @@
 #include <stdarg.h>
 #include "../core/Parser.h"
 #include "../core/Clock.h"
+#include "../core/MpArith.h"
 #include "KBBApp.h"
 #include "KBBWorker.h"
 
 #define APP_NAME        "kbbsieve"
-#define APP_VERSION     "1.0"
+#define APP_VERSION     "1.1"
 
 // This is declared in App.h, but implemented here.  This means that App.h
 // can remain unchanged if using the mtsieve framework for other applications.
@@ -30,6 +31,8 @@ KBBApp::KBBApp() : AlgebraicFactorApp()
    SetBanner(APP_NAME " v" APP_VERSION ", a program to find factors of k*b^b+c numbers for fixed k and c = +1/-1");
    SetLogFileName("kbb.log");
 
+   SetAppMinPrime(3);
+   
    il_K = 0;
    ii_MinB = 0;
    ii_MaxB = 0;
@@ -117,6 +120,28 @@ void KBBApp::ValidateOptions(void)
       
       std::fill(iv_MinusTerms.begin(), iv_MinusTerms.end(), true);
       std::fill(iv_PlusTerms.begin(), iv_PlusTerms.end(), true);
+      
+      if (il_K % 2 == 1)
+      {
+         uint64_t termsRemoved = 0;
+         
+         for (uint64_t b=ii_MinB; b<=ii_MaxB; b++)
+         {
+            if (b % 2 == 0)
+               continue;
+
+            uint32_t bit = BIT(b);
+            
+            iv_MinusTerms[bit] = false;
+            iv_PlusTerms[bit] = false;
+            
+            termsRemoved += 2;
+            il_TermCount -= 2;
+         }
+         
+         if (termsRemoved > 0)
+            WriteToConsole(COT_OTHER, "%" PRIu64" even terms removed", termsRemoved);
+      }
       
       EliminateGfnAndMersenneTerms();
    }
@@ -265,6 +290,8 @@ bool KBBApp::ApplyFactor(uint64_t theFactor, const char *term)
    if (b1 < ii_MinB || b1 > ii_MaxB)
       return false;
    
+   VerifyFactor(theFactor, b1, c);
+   
    uint64_t bit = BIT(b1);
    
    // No locking is needed because the Workers aren't running yet
@@ -353,6 +380,8 @@ bool  KBBApp::ReportFactor(uint64_t theFactor, uint32_t b, int32_t c)
    
    if (b < ii_MinB) return false;
    if (b > ii_MaxB) return false;
+   
+   VerifyFactor(theFactor, b, c);
    
    if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
@@ -501,3 +530,19 @@ bool  KBBApp::CheckAlgebraicFactor(uint32_t b, int32_t c, const char *fmt, ...)
    return removedTerm;
 }
 
+void  KBBApp::VerifyFactor(uint64_t theFactor, uint64_t b, int32_t c)
+{   
+   MpArith  mp(theFactor);
+   
+   MpRes    pOne = mp.one();
+   MpRes    mOne = mp.sub(mp.zero(), pOne);
+   MpRes    res = mp.pow(mp.nToRes(b), b);
+
+   res = mp.mul(res, mp.nToRes(il_K));
+
+   if (c == +1 && res != mOne)
+      FatalError("%" PRIu64" is not a factor of not a factor of %" PRIu64"*%" PRIu64"^%" PRIu64"+1", theFactor, il_K, b, b);
+   
+   if (c == -1 && res != pOne)
+      FatalError("%" PRIu64" is not a factor of not a factor of %" PRIu64"*%" PRIu64"^%" PRIu64"-1", theFactor, il_K, b, b);
+}

@@ -33,7 +33,7 @@ AlternatingFactorialGpuWorker::AlternatingFactorialGpuWorker(uint32_t myId, App 
    
    preKernelSources[idx] = 0;
    
-   ip_Kernel = new Kernel(ip_AlternatingFactorialApp->GetDevice(), "af_kernel", af_kernel, preKernelSources);
+   ip_Kernel = (GpuKernel *) ip_App->GetGpuDevice()->CreateKernel("af_kernel", af_kernel, preKernelSources);
 
    ip_AlternatingFactorialApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
    

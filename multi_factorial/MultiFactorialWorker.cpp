@@ -8,8 +8,6 @@
 
 #include <math.h>
 #include "MultiFactorialWorker.h"
-#include "../x86_asm/fpu-asm-x86.h"
-#include "../x86_asm/avx-asm-x86.h"
 #include "../core/MpArithVector.h"
 
 extern "C" int mfsieve(uint32_t start, uint32_t mf, uint32_t minmax, uint64_t *P);
@@ -95,7 +93,7 @@ void  MultiFactorialWorker::TestFactorial(void)
          ri = mp.add(ri, pOne);
          rf = mp.mul(rf, ri);
 
-         if (MpArithVec::at_least_one_is_equal(rf, pOne) | MpArithVec::at_least_one_is_equal(rf, mOne))
+         if (MpArithVec::at_least_one_is_equal(rf, pOne) || MpArithVec::at_least_one_is_equal(rf, mOne))
          {
             for (size_t k = 0; k < VECTOR_SIZE; ++k)
             {
@@ -137,7 +135,6 @@ void  MultiFactorialWorker::TestMultiFactorial(void)
       ps[3] = *it;
       it++;
 
-
       MpArithVec mp(ps);
 
       const MpResVec pOne = mp.one();
@@ -174,7 +171,7 @@ void  MultiFactorialWorker::TestMultiFactorial(void)
             ri = mp.add(ri, resMf);
             rf = mp.mul(rf, ri);
 
-            if (MpArithVec::at_least_one_is_equal(rf, pOne) | MpArithVec::at_least_one_is_equal(rf, mOne))
+            if (MpArithVec::at_least_one_is_equal(rf, pOne) || MpArithVec::at_least_one_is_equal(rf, mOne))
             {
                for (size_t k = 0; k < VECTOR_SIZE; ++k)
                {

@@ -9,7 +9,7 @@
 ///         multiples uses as few instructions as possible since there
 ///         are so many multiples.
 ///
-/// Copyright (C) 2020 Kim Walisch, <kim.walisch@gmail.com>
+/// Copyright (C) 2022 Kim Walisch, <kim.walisch@gmail.com>
 ///
 /// This file is distributed under the BSD License. See the COPYING
 /// file in the top level directory.
@@ -25,6 +25,8 @@
 #include <algorithm>
 #include <cassert>
 #include <vector>
+
+using std::size_t;
 
 /// Update the current sieving prime's multipleIndex
 /// and wheelIndex after sieving has finished.
@@ -43,37 +45,38 @@ namespace primesieve {
 /// @l1CacheSize: CPU L1 cache size
 /// @maxPrime:    Sieving primes <= maxPrime
 ///
-void EratSmall::init(uint64_t stop, uint64_t l1CacheSize, uint64_t maxPrime)
+void EratSmall::init(uint64_t stop,
+                     uint64_t l1CacheSize,
+                     uint64_t maxPrime)
 {
-  assert(maxPrime <= l1CacheSize * 3);
-  assert(l1CacheSize <= SievingPrime::MAX_MULTIPLEINDEX + 1);
+  assert((maxPrime / 30) * getMaxFactor() + getMaxFactor() <= SievingPrime::MAX_MULTIPLEINDEX);
+  static_assert(config::FACTOR_ERATSMALL <= 4.5,
+               "config::FACTOR_ERATSMALL > 4.5 causes multipleIndex overflow 23-bits!");
 
-  enabled_ = true;
   stop_ = stop;
   maxPrime_ = maxPrime;
   l1CacheSize_ = l1CacheSize;
-
   size_t count = primeCountApprox(maxPrime);
   primes_.reserve(count);
 }
 
 /// Add a new sieving prime to EratSmall
-void EratSmall::storeSievingPrime(uint64_t prime, uint64_t multipleIndex, uint64_t wheelIndex)
+void EratSmall::storeSievingPrime(uint64_t prime,
+                                  uint64_t multipleIndex,
+                                  uint64_t wheelIndex)
 {
   assert(prime <= maxPrime_);
   uint64_t sievingPrime = prime / 30;
   primes_.emplace_back(sievingPrime, multipleIndex, wheelIndex);
 }
 
-/// Both EratMedium and EratBig run fastest using a sieve size
-/// that matches the CPU's L2 cache size (or slightly less).
-/// However, proportionally EratSmall does a lot more memory
-/// writes than both EratMedium and EratBig and hence EratSmall
-/// runs fastest using a smaller sieve size that matches the
-/// CPU's L1 cache size.
+/// Both EratMedium and EratBig usually run fastest using a
+/// sieve size that is slightly smaller than the CPU's L2 cache
+/// size. EratSmall however, runs fastest using a smaller sieve
+/// size that matches the CPU's L1 cache size.
 ///
-/// @sieveSize:   CPU L2 cache size / 2
-/// @l1CacheSize: CPU L1 cache size
+/// @sieveSize:   EratBig & EratMedium sieve size
+/// @l1CacheSize: EratSmall sieve size
 ///
 void EratSmall::crossOff(uint8_t* sieve, uint64_t sieveSize)
 {

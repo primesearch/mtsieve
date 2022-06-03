@@ -5,7 +5,7 @@
 ///         primesieve::primesieve_error exception (derived form
 ///         std::runtime_error) is thrown.
 ///
-/// Copyright (C) 2020 Kim Walisch, <kim.walisch@gmail.com>
+/// Copyright (C) 2022 Kim Walisch, <kim.walisch@gmail.com>
 ///
 /// This file is distributed under the BSD License.
 ///
@@ -13,9 +13,9 @@
 #ifndef PRIMESIEVE_HPP
 #define PRIMESIEVE_HPP
 
-#define PRIMESIEVE_VERSION "7.6"
-#define PRIMESIEVE_VERSION_MAJOR 7
-#define PRIMESIEVE_VERSION_MINOR 6
+#define PRIMESIEVE_VERSION "8.0"
+#define PRIMESIEVE_VERSION_MAJOR 8
+#define PRIMESIEVE_VERSION_MINOR 0
 
 #include <primesieve/iterator.hpp>
 #include <primesieve/primesieve_error.hpp>
@@ -172,7 +172,7 @@ int get_num_threads();
 /// Set the sieve size in KiB (kibibyte).
 /// The best sieving performance is achieved with a sieve size
 /// of your CPU's L1 or L2 cache size (per core).
-/// @pre sieve_size >= 8 && <= 4096.
+/// @pre sieve_size >= 16 && <= 8192.
 ///
 void set_sieve_size(int sieve_size);
 

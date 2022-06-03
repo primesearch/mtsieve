@@ -14,7 +14,7 @@
  *         Furthermore primesieve_iterator.is_error is initialized
  *         to 0 and set to 1 if any error occurs.
  *
- * Copyright (C) 2019 Kim Walisch, <kim.walisch@gmail.com>
+ * Copyright (C) 2022 Kim Walisch, <kim.walisch@gmail.com>
  *
  * This file is distributed under the BSD License. See the COPYING
  * file in the top level directory.
@@ -39,12 +39,9 @@ typedef struct
   size_t i;
   size_t last_idx;
   uint64_t start;
-  uint64_t stop;
   uint64_t stop_hint;
-  uint64_t dist;
   uint64_t* primes;
-  void* vector;
-  void* primeGenerator;
+  void* memory;
   int is_error;
 } primesieve_iterator;
 
@@ -55,12 +52,20 @@ void primesieve_init(primesieve_iterator* it);
 void primesieve_free_iterator(primesieve_iterator* it);
 
 /**
+ * Frees most memory, but keeps some smaller data structures
+ * (e.g. primes vector & PreSieve object) that are useful
+ * if the primesieve_iterator is reused. The remaining memory
+ * uses at most 200 kilobytes.
+ */
+void primesieve_clear(primesieve_iterator* it);
+
+/**
  * Reset the primesieve iterator to start.
  * @param start      Generate primes > start (or < start).
  * @param stop_hint  Stop number optimization hint. E.g. if you want
  *                   to generate the primes below 1000 use
  *                   stop_hint = 1000, if you don't know use
- *                   primesieve_get_max_stop().
+ *                   UINT64_MAX.
  */
 void primesieve_skipto(primesieve_iterator* it, uint64_t start, uint64_t stop_hint);
 

@@ -49,7 +49,7 @@ GFNDivisorGpuWorker::GFNDivisorGpuWorker(uint32_t myId, App *theApp) : Worker(my
    
    preKernelSources[idx] = 0;
 
-   ip_Kernel = new Kernel(ip_GFNDivisorApp->GetDevice(), "gfn_kernel", gfn_kernel, preKernelSources);
+   ip_Kernel = (GpuKernel *) ip_App->GetGpuDevice()->CreateKernel("gfn_kernel", gfn_kernel, preKernelSources);
 
    ip_GFNDivisorApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
    

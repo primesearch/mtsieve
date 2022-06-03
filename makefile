@@ -10,6 +10,9 @@
 # On Windows, the OpenCL headers are cloned from:
 #    git clone --recursive https://github.com/KhronosGroup/OpenCL-SDK.git
 
+# On Windows, I am using the llvm-mingw compiler.  I have had problems trying
+# to use other compilers on Windows.  This one seems to work.
+
 # Metal is only available on Mac OS X
 
 DEBUG=no
@@ -96,22 +99,21 @@ METAL_PROGS=cwsievemtl gfndsievemtl mfsievemtl psievemtl smsievemtl srsieve2mtl
 CPU_CORE_OBJS=core/App_cpu.o core/FactorApp_cpu.o core/AlgebraicFactorApp_cpu.o \
    core/Clock_cpu.o core/Parser_cpu.o core/Worker_cpu.o core/HashTable_cpu.o core/main_cpu.o core/SharedMemoryItem_cpu.o
    
-OPENCL_CORE_OBJS=core/App_opencl.o core/FactorApp_opencl.o core/AlgebraicFactorApp_opencl.o \
+OPENCL_CORE_OBJS=core/App_opencl.o core/FactorApp_opencl.o core/AlgebraicFactorApp_opencl.o core/GpuDevice_opencl.o core/GpuKernel_opencl.o \
    core/Clock_opencl.o core/Parser_opencl.o core/Worker_opencl.o core/HashTable_opencl.o core/main_opencl.o core/SharedMemoryItem_opencl.o \
-   gpu_opencl/Device_opencl.o gpu_opencl/Kernel_opencl.o gpu_opencl/ErrorChecker_opencl.o
+   gpu_opencl/OpenCLDevice_opencl.o gpu_opencl/OpenCLKernel_opencl.o gpu_opencl/OpenCLErrorChecker_opencl.o
 
-METAL_CORE_OBJS=core/App_metal.o core/FactorApp_metal.o core/AlgebraicFactorApp_metal.o \
+METAL_CORE_OBJS=core/App_metal.o core/FactorApp_metal.o core/AlgebraicFactorApp_metal.o core/GpuDevice_metal.o core/GpuKernel_metal.o \
    core/Clock_metal.o core/Parser_metal.o core/Worker_metal.o core/HashTable_metal.o core/main_metal.o core/SharedMemoryItem_metal.o \
-   gpu_metal/MetalKernel_metal.o
+   gpu_metal/MetalDevice_metal.o gpu_metal/MetalKernel_metal.o
 
 ifeq ($(strip $(HAS_X86)),yes)
-   ASM_OBJS=x86_asm/fpu_mod_init_fini.o x86_asm/fpu_push_pop.o x86_asm/sse_mulmod.o \
+   ASM_OBJS=x86_asm/fpu_mod_init_fini.o x86_asm/fpu_push_pop.o \
       x86_asm/fpu_mulmod.o x86_asm/fpu_powmod.o x86_asm/fpu_powmod_4b_1n_4p.o \
       x86_asm/fpu_mulmod_iter.o x86_asm/fpu_mulmod_iter_4a.o x86_asm/fpu_mulmod_4a_4b_4p.o \
-      x86_asm/sse_mod_init_fini.o  x86_asm/sse_powmod_4b_1n_4p.o x86_asm/sse_mulmod_4a_4b_4p.o \
       x86_asm/avx_set_a.o x86_asm/avx_set_b.o x86_asm/avx_get.o \
       x86_asm/avx_compute_reciprocal.o x86_asm/avx_compare.o \
-      x86_asm/avx_mulmod.o x86_asm/avx_powmod.o x86_asm/sse_powmod_4b_1n_4p_mulmod_1k.o
+      x86_asm/avx_mulmod.o x86_asm/avx_powmod.o
 
    ASM_EXT_OBJS=x86_asm_ext/m320.o x86_asm_ext/m384.o x86_asm_ext/m448.o x86_asm_ext/m512.o \
       x86_asm_ext/m576.o x86_asm_ext/m640.o x86_asm_ext/m704.o x86_asm_ext/m768.o \

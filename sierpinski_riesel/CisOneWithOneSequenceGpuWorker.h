@@ -14,11 +14,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "AbstractWorker.h"
 
-#ifdef USE_OPENCL
-#include "../gpu_opencl/Kernel.h"
-#else
-#include "../gpu_metal/Kernel.h"
-#endif
+#include "../core/GpuKernel.h"
 
 using namespace std;
 
@@ -42,7 +38,7 @@ protected:
    uint32_t          ii_ChunksPerGpuWorker;
    uint32_t          ii_KernelWorkSize;
    
-   Kernel           *ip_Kernel;
+   GpuKernel        *ip_Kernel;
    
    uint64_t         *il_Primes;
    uint8_t          *ii_DualParityMapM1;

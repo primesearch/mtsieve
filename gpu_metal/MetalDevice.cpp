@@ -1,4 +1,4 @@
-/* MetalDevice.cpp -- (C) Mark Rodenkirch, February 2022
+/* MetalDevice.cpp -- (C) Mark Rodenkirch, May 2022
 
    This classs manages Metal devices.
 
@@ -8,15 +8,19 @@
    (at your option) any later version.
  */
 
-#include <iostream>
-#include "MetalDevice.h"
+#define __STDC_LIMIT_MACROS
+#include <stdint.h>
+#include <stdio.h>
 
-MetalDevice::MetalDevice(void) 
+#include "../core/main.h"
+
+#include "MetalDevice.h"
+#include "MetalKernel.h"
+
+MetalDevice::MetalDevice(void)
 {
    ip_Pool = NS::AutoreleasePool::alloc()->init();
    ip_Device = MTL::CreateSystemDefaultDevice();
-
-   ii_BufferCount = 0;
 }
 
 MetalDevice::~MetalDevice(void)
@@ -24,63 +28,32 @@ MetalDevice::~MetalDevice(void)
    ip_Pool->release();
 }
 
-void MetalDevice::InitializeFunction(const char *source, char *functionName)
+GpuKernel  *MetalDevice::CreateKernel(const char *kernelName, const char *kernelSource, const char *preKernelSources[])
 {
-   NS::Error   *error;
-   NS::String  *theSource = NS::String::string(source, NS::UTF8StringEncoding);
-
-   auto theLibrary = ip_Device->newLibrary(theSource, nullptr, &error);
-
-   if (theLibrary == nullptr) {
-      std::cerr << "Failed to create library with function " << functionName << std::endl;
-      std::exit(-1);
-   }
-
-   auto strFunctionName = NS::String::string(functionName, NS::ASCIIStringEncoding);
-   auto theFunction = theLibrary->newFunction(strFunctionName);
-
-   if (theFunction == nullptr) {
-      std::cerr << "Failed to find the function " << functionName << std::endl;
-      std::exit(-1);
-   }
-
-   ip_ComputePipelineState = ip_Device->newComputePipelineState(theFunction, &error);
-   ip_CommandQueue = ip_Device->newCommandQueue();
-
-   ii_ThreadsPerGroup = ip_ComputePipelineState->maxTotalThreadsPerThreadgroup();
-
-   ip_CommandBuffer = ip_CommandQueue->commandBuffer();
-   ip_ComputeEncoder = ip_CommandBuffer->computeCommandEncoder();
+   return new Kernel(this, kernelName, kernelSource, preKernelSources);
 }
 
-void *MetalDevice::CreateBuffer(uint32_t count, uint32_t size)
+void  MetalDevice::Help(void)
 {
-   ip_Buffer[ii_BufferCount] = ip_Device->newBuffer(count * size, MTL::ResourceStorageModeShared);
-
-   ii_BufferCount++;
-
-   return ip_Buffer[ii_BufferCount - 1]->contents();
+   GpuDevice::ParentHelp();
 }
 
-void MetalDevice::Execute(uint32_t count)
+void  MetalDevice::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
-   ip_ComputeEncoder->setComputePipelineState(ip_ComputePipelineState);
+   GpuDevice::ParentAddCommandLineOptions(shortOpts, longOpts);
+}
 
-   for (uint32_t idx=0; idx<=ii_BufferCount; idx++)
-      ip_ComputeEncoder->setBuffer(ip_Buffer[idx], 0, idx);
+// Returns:
+//    0 if the option is OK
+//   -1 if the argument is invalid
+//   -2 if the argument is out of range
+//   99 if the argument is not supported by this module
+parse_t MetalDevice::ParseOption(int opt, char *arg, const char *source)
+{
+  return GpuDevice::ParentParseOption(opt, arg, source);
+}
 
-   MTL::Size gridSize = MTL::Size(count, 1, 1);
-   MTL::Size threadGroupSize = MTL::Size(ii_ThreadsPerGroup, 1, 1);
-
-   // This shouldn't happen as the count is expected to be a multiple of ii_ThreadsPerGroup
-   if (count < ii_ThreadsPerGroup) {
-      threadGroupSize = MTL::Size(count, 1, 1);
-   }
-
-   ip_ComputeEncoder->dispatchThreads(gridSize, threadGroupSize);
-
-   ip_ComputeEncoder->endEncoding();
-
-   ip_CommandBuffer->commit();
-   ip_CommandBuffer->waitUntilCompleted(); 
+void  MetalDevice::ValidateOptions(void)
+{
+   GpuDevice::ValidateOptions();
 }

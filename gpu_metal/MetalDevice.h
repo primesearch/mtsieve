@@ -1,4 +1,4 @@
-/* MetalDevice.hpp -- (C) Mark Rodenkirch, April 2022
+ /* Device.h -- (C) Mark Rodenkirch, May 2022
 
    This class provides the interface for Metal devices.
 
@@ -8,8 +8,8 @@
    (at your option) any later version.
 */
 
-#ifndef _METALDEVICE_H
-#define _METALDEVICE_H
+#ifndef _DEVICE_H
+#define _DEVICE_H
 
 #define NS_PRIVATE_IMPLEMENTATION
 #define CA_PRIVATE_IMPLEMENTATION
@@ -18,35 +18,27 @@
 #include <Metal/Metal.hpp>
 
 #include "../core/main.h"
+#include "../core/GpuDevice.h"
+#include "../core/GpuKernel.h"
 
-#define MAX_BUFFERS  20
-
-class MetalDevice
+class MetalDevice : public GpuDevice
 {
 public:
    MetalDevice(void);
 
    ~MetalDevice(void);
 
-   void       InitializeFunction(const char *source, char *functionName);
-   void      *CreateBuffer(uint32_t count, uint32_t size);
-   uint32_t   GetThreadsPerGroup(void) { return (uint32_t) ii_ThreadsPerGroup; };
-   void       Execute(uint32_t count);
+   GpuKernel     *CreateKernel(GpuDevice *gpuDevice, const char *kernelName, const char *kernelSource, const char *preKernelSources[]);
 
-private:
-   NS::AutoreleasePool        *ip_Pool;
-   MTL::Device                *ip_Device;
+   void           Help(void);
+   void           AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
+   parse_t        ParseOption(int opt, char *arg, const char *source);
+   void           ValidateOptions(void);
 
-   MTL::ComputePipelineState  *ip_ComputePipelineState;
-   MTL::CommandQueue          *ip_CommandQueue; 
-
-   MTL::CommandBuffer         *ip_CommandBuffer;
-   MTL::ComputeCommandEncoder *ip_ComputeEncoder;
-
-   NS::UInteger         ii_ThreadsPerGroup;
-
-   uint32_t             ii_BufferCount;
-   MTL::Buffer         *ip_Buffer[MAX_BUFFERS];
+private: 
+   NS::AutoreleasePool *ip_Pool;
+   MTL::Device         *ip_MetalDevice;
 };
 
 #endif
+

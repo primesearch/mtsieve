@@ -76,7 +76,7 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
    
    preKernelSources[idx] = 0;
 
-   ip_Kernel = new Kernel(ip_SierpinskiRieselApp->GetDevice(), "cisonesingle_kernel", cisonesingle_kernel, preKernelSources);
+   ip_Kernel = (GpuKernel *) ip_App->GetGpuDevice()->CreateKernel("cisonesingle_kernel", cisonesingle_kernel, preKernelSources);
 
    ip_SierpinskiRieselApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
    

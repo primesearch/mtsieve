@@ -352,7 +352,7 @@ uint64_t  AlgebraicFactorHelper::RemoveComplexRoot(seq_t *seqPtr)
    uint32_t  bf_factor[50], bf_power[50];
    uint32_t  kf_factor[50], kf_power[50];
    uint32_t  kbf_factor[50], kbf_power[50];
-   char      root[50], part[50], addParenthesis;
+   char      root[199], part[50], addParenthesis;
 
    // We want seqPtr->c = +1 or -1
    if (seqPtr->c != 1 && seqPtr->c != -1)
@@ -446,7 +446,7 @@ uint64_t  AlgebraicFactorHelper::RemoveComplexRoot(seq_t *seqPtr)
             else
             {
                addParenthesis = 1;
-               sprintf(part, "%s", root);
+               strcpy(part, root);
                
                if (kbf_power[z1] == z)
                   sprintf(root, "%s*%u", part, kbf_factor[z1]);

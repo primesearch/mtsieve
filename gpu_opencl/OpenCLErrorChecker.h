@@ -1,4 +1,4 @@
-/* ErrorChecker.h -- (C) Mark Rodenkirch, February 2012
+/* OpenCLErrorChecker.h -- (C) Mark Rodenkirch, May 2022
 
    This class provides the interface for error checking after calls to OpenCL APIs.
 
@@ -8,8 +8,8 @@
    (at your option) any later version.
 */
 
-#ifndef _ERRORCHECKER_H
-#define _ERRORCHECKER_H
+#ifndef _OpenCLErrorChecker_H
+#define _OpenCLErrorChecker_H
 
 #include "../core/main.h"
 
@@ -23,7 +23,7 @@
 #endif
 #endif
 
-class ErrorChecker
+class OpenCLErrorChecker
 {
 public:
    // If the status indicates an error, output the error and shutdown

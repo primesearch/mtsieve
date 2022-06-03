@@ -2,7 +2,7 @@
 /// @file   pmath.hpp
 /// @brief  Auxiliary math functions for primesieve.
 ///
-/// Copyright (C) 2018 Kim Walisch, <kim.walisch@gmail.com>
+/// Copyright (C) 2022 Kim Walisch, <kim.walisch@gmail.com>
 ///
 /// This file is distributed under the BSD License. See the COPYING
 /// file in the top level directory.
@@ -33,7 +33,7 @@ constexpr bool isPow2(T x)
 }
 
 template <typename T>
-constexpr T numberOfBits(T)
+constexpr T numberOfBits()
 {
   return (T) std::numeric_limits<
       typename std::make_unsigned<T>::type
@@ -43,7 +43,7 @@ constexpr T numberOfBits(T)
 template <typename T>
 inline T floorPow2(T x)
 {
-  for (T i = 1; i < numberOfBits(x); i += i)
+  for (T i = 1; i < numberOfBits<T>(); i += i)
     x |= (x >> i);
 
   return x - (x >> 1);
@@ -53,7 +53,7 @@ template <typename T>
 inline T ilog2(T x)
 {
   T log2 = 0;
-  T bits = numberOfBits(x);
+  T bits = numberOfBits<T>();
 
   for (T i = bits / 2; i > 0; i /= 2)
   {
@@ -152,19 +152,27 @@ inline B inBetween(A min, B x, C max)
   return x;
 }
 
-/// primeCountApprox(x) >= pi(x)
+/// primeCountApprox(x) >= pi(x).
+/// In order to prevent having to resize vectors with prime numbers
+/// (which would incur additional overhead) it is important that
+/// primeCountApprox(x) >= pi(x). Also for our purpose, it is
+/// actually beneficial if primeCountApprox(x) is a few percent
+/// larger (e.g. 3%) than pi(x), this reduces the number of memory
+/// allocations in PrimeGenerator::fillPrevPrimes().
+///
 inline std::size_t primeCountApprox(uint64_t start, uint64_t stop)
 {
   if (start > stop)
     return 0;
-  if (stop <= 10)
-    return 4;
 
-  // pi(x) <= x / (log(x) - 1.1) + 5, for x >= 4
-  double x = (double) stop;
-  double logx = std::log(x);
-  double div = logx - 1.1;
-  double pix = (stop - start) / div + 5;
+  // pi(x) <= x / (log(x) - 1.1) + 5, for x >= 4.
+  // Pierre Dusart, https://arxiv.org/abs/1002.0442 eq. 6.6.
+  double x = std::max(100.0, (double) stop);
+  double pix = (stop - start) / (std::log(x) - 1.1) + 5;
+
+  // This can only happen on 32-bit OSes
+  if (pix > (double) std::numeric_limits<std::size_t>::max())
+    return std::numeric_limits<std::size_t>::max();
 
   return (std::size_t) pix;
 }

@@ -81,7 +81,11 @@ int   main(int argc, char *argv[])
    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_IDLE);
 #else
    // This seems backwards, but PRIO_MAX refers to maximum niceness.
+#ifdef PRIO_MAX
    setpriority(PRIO_PROCESS, 0, PRIO_MAX);
+#else
+   setpriority(PRIO_PROCESS, 0, 99);
+#endif
 #endif
 
    theApp->Run();

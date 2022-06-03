@@ -12,13 +12,7 @@
 #include "AlternatingFactorialApp.h"
 #include "../core/Worker.h"
 
-#ifdef USE_OPENCL
-#include "../gpu_opencl/Kernel.h"
-#else
-#include "../gpu_metal/Kernel.h"
-#endif
-
-using namespace std;
+#include "../core/GpuKernel.h"
 
 class AlternatingFactorialGpuWorker : public Worker
 {
@@ -44,7 +38,7 @@ private:
    uint64_t         *il_FactorList;
    uint32_t         *ii_Parameters;
 
-   Kernel           *ip_Kernel;
+   GpuKernel        *ip_Kernel;
 };
 
 #endif

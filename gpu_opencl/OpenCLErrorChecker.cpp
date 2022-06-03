@@ -1,7 +1,6 @@
-/* ErrorChecker.cpp -- (C) Mark Rodenkirch, February 2012
+/* OpenCLErrorChecker.cpp -- (C) Mark Rodenkirch, May 2022
 
    This class provides the implementation for error checking after calls to OpenCL APIs.
-
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -9,10 +8,10 @@
    (at your option) any later version.
 */
 
-#include "ErrorChecker.h"
+#include "OpenCLErrorChecker.h"
 #include <stdarg.h>
 
-void ErrorChecker::ExitIfError(const char *functionName, cl_int status)
+void OpenCLErrorChecker::ExitIfError(const char *functionName, cl_int status)
 {
    if (status == CL_SUCCESS) return;
 
@@ -21,7 +20,7 @@ void ErrorChecker::ExitIfError(const char *functionName, cl_int status)
    exit(-1);
 }
 
-void ErrorChecker::ExitIfError(const char *functionName, cl_int status, const char *fmt, ...)
+void OpenCLErrorChecker::ExitIfError(const char *functionName, cl_int status, const char *fmt, ...)
 {
    va_list  args;
    char     buffer[20000];
@@ -38,7 +37,7 @@ void ErrorChecker::ExitIfError(const char *functionName, cl_int status, const ch
    exit(-1);
 }
 
-const char *ErrorChecker::GetErrorText(cl_int err) 
+const char *OpenCLErrorChecker::GetErrorText(cl_int err) 
 {
   switch (err)
   {

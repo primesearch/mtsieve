@@ -24,12 +24,8 @@
 #include "main.h"
 #include "Parser.h"
 
-#if defined(USE_OPENCL)
-#include "../gpu_opencl/Device.h"
-#endif
-
-#if defined(USE_METAL)
-#include "../gpu_metal/Device.h"
+#if defined(USE_OPENCL) || defined(USE_METAL)
+#include "GpuDevice.h"
 #endif
 
 #define MAX_PRIME_REPORT_COUNT   60
@@ -80,7 +76,7 @@ public:
    uint32_t          GetGpuWorkGroupSize(void) { return ii_GpuWorkGroupSize; };
    void              SetGpuWorkGroupSize(uint32_t gpuWorkGroupSize) { ii_GpuWorkGroupSize = gpuWorkGroupSize; };
       
-   Device           *GetDevice(void) { return ip_Device; }
+   GpuDevice        *GetGpuDevice(void) { return ip_GpuDevice; }
    uint64_t          GetMinGpuPrime(void) { return il_MinGpuPrime; };
 #endif
    
@@ -190,7 +186,7 @@ private:
 #endif
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
-   Device           *ip_Device;
+   GpuDevice        *ip_GpuDevice;
 #endif
 
    SharedMemoryItem *ip_Console;

@@ -44,7 +44,7 @@ SmarandacheGpuWorker::SmarandacheGpuWorker(uint32_t myId, App *theApp) : Worker(
    
    preKernelSources[idx] = 0;
    
-   ip_Kernel = new Kernel(ip_SmarandacheApp->GetDevice(), "sm_kernel", sm_kernel, preKernelSources);
+   ip_Kernel = (GpuKernel *) ip_App->GetGpuDevice()->CreateKernel("sm_kernel", sm_kernel, preKernelSources);
 
    ip_SmarandacheApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
    

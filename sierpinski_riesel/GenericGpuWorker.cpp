@@ -71,7 +71,7 @@ void    GenericGpuWorker::CreateKernels(uint32_t sequencesPerKernel)
    uint32_t ssCount = 0;
    
    ii_SubseqIdx   = (uint32_t  *) xmalloc(ii_KernelCount*sizeof(uint32_t));
-   ip_Kernel      = (  Kernel **) xmalloc(ii_KernelCount*sizeof(Kernel *));
+   ip_Kernel      = (GpuKernel **) xmalloc(ii_KernelCount*sizeof(GpuKernel *));
    
    il_Primes      = (uint64_t **) xmalloc(ii_KernelCount*sizeof(uint64_t *));
    il_Ks          = (uint64_t **) xmalloc(ii_KernelCount*sizeof(uint64_t *));
@@ -141,7 +141,7 @@ void    GenericGpuWorker::PopulateKernelArguments(uint32_t sequencesPerKernel)
    }   
 }
 
-Kernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uint32_t subsequences)
+GpuKernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uint32_t subsequences)
 { 
    uint32_t r = ii_MaxN/ii_BestQ - ii_MinN/ii_BestQ + 1;
    double babyStepFactor = 1.0; // DEFAULT_BABY_STEP_FACTOR from srsieve
@@ -190,7 +190,7 @@ Kernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uint32
    
    preKernelSources[idx] = 0;
 
-   Kernel *kernel = new Kernel(ip_SierpinskiRieselApp->GetDevice(), "generic_kernel", generic_kernel, preKernelSources);
+   GpuKernel *kernel = (GpuKernel *) ip_App->GetGpuDevice()->CreateKernel("generic_kernel", generic_kernel, preKernelSources);
 
    ip_SierpinskiRieselApp->SetGpuWorkGroupSize(kernel->GetWorkGroupSize());
    

@@ -28,9 +28,6 @@ public:
 protected:
 
 private:
-   void              VerifyFactor(uint64_t prime, uint64_t b, int32_t c);
-   void              CheckK(uint64_t prime, uint64_t base, uint64_t rem);
-
    KBBApp           *ip_KBBApp;
 
    uint64_t          il_NextBaseBuild;

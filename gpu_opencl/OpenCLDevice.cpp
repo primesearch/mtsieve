@@ -1,4 +1,4 @@
-/* Device.cpp -- (C) Mark Rodenkirch, February 2012
+/* OpenCLDevice.cpp -- (C) Mark Rodenkirch, May 2022
 
    This classs manages OpenCL platforms and devices.
 
@@ -14,27 +14,25 @@
 
 #include "../core/main.h"
 
-#include "Device.h"
-#include "ErrorChecker.h"
+#include "OpenCLDevice.h"
+#include "OpenCLErrorChecker.h"
+#include "OpenCLKernel.h"
 
-Device::Device(void)
+OpenCLDevice::OpenCLDevice(void)
 {
    cl_int status;
 
-   ip_GpuBytes = new SharedMemoryItem("gpu_bytes");
-   ip_GpuMicroseconds = new SharedMemoryItem("gpu_microseconds");
-
-   ii_PlatformId = -1;
-   ii_DeviceId = -1;
+   ii_WhichPlatform = -1;
+   ii_WhichDevice = -1;
    ip_Platforms = 0;
    ii_TotalDeviceCount = 0;
    ib_HavePlatform = false;
-   ib_HaveDevice = false;
+   ib_HaveOpenCLDevice = false;
    ib_PrintDetails = false;
 
    status = clGetPlatformIDs(0, NULL, &ii_PlatformCount);
 
-   ErrorChecker::ExitIfError("clGetPlatformIDs", status, "%s\n%s", 
+   OpenCLErrorChecker::ExitIfError("clGetPlatformIDs", status, "%s\n%s", 
       "Please (re)install OpenCL as described at",
       "http://developer.amd.com/gpu/ATIStreamSDK/assets/ATI_Stream_SDK_Installation_Notes.pdf");
 
@@ -42,21 +40,18 @@ Device::Device(void)
 
    if (!ii_TotalDeviceCount)
    {
-      ListAllDevices();
+      ListAllOpenCLDevices();
       FatalError("\nNo devices were found that can run this code\n");
    }
 }
 
-Device::~Device(void)
+OpenCLDevice::~OpenCLDevice(void)
 {
    cl_uint  pp;
    cl_uint  ii;
 
    for (pp=0; pp<ii_PlatformCount; pp++)
       clReleaseContext(ip_Platforms[pp].context);
-
-   delete ip_GpuBytes;
-   delete ip_GpuMicroseconds;
    
    for (ii=0; ii<ii_PlatformCount; ii++)
       xfree(ip_Platforms[ii].devices);
@@ -64,16 +59,16 @@ Device::~Device(void)
    xfree(ip_Platforms);
 }
 
-void  Device::Help(void)
+void  OpenCLDevice::Help(void)
 {
    printf("-D --platform=D       Use platform D instead of 0\n");
    printf("-d --device=d         Use device d instead of 0\n");
    printf("-H --showgpudetail    Show device and kernel details\n");
    
-   ListAllDevices();
+   ListAllOpenCLDevices();
 }
 
-void  Device::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
+void  OpenCLDevice::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    shortOpts += "HD:d:";
 
@@ -87,7 +82,7 @@ void  Device::AddCommandLineOptions(std::string &shortOpts, struct option *longO
 //   -1 if the argument is invalid
 //   -2 if the argument is out of range
 //   99 if the argument is not supported by this module
-parse_t Device::ParseOption(int opt, char *arg, const char *source)
+parse_t OpenCLDevice::ParseOption(int opt, char *arg, const char *source)
 {
    parse_t      status = P_UNSUPPORTED;
 
@@ -99,20 +94,25 @@ parse_t Device::ParseOption(int opt, char *arg, const char *source)
          break;
 
       case 'D':
-         status = Parser::Parse(arg, 0, INT32_MAX, ii_PlatformId);
+         status = Parser::Parse(arg, 0, INT32_MAX, ii_WhichPlatform);
          ib_HavePlatform = true;
          break;
 
       case 'd':
-         status = Parser::Parse(arg, 0, INT32_MAX, ii_DeviceId);
-         ib_HaveDevice = true;
+         status = Parser::Parse(arg, 0, INT32_MAX, ii_WhichDevice);
+         ib_HaveOpenCLDevice = true;
          break;
   }
 
   return status;
 }
 
-void Device::GetPlatforms(void)
+void  *OpenCLDevice::CreateKernel(const char *kernelName, const char *kernelSource, const char *preKernelSources[])
+{
+   return new OpenCLKernel(this, kernelName, kernelSource, preKernelSources);
+}
+
+void OpenCLDevice::GetPlatforms(void)
 {
    cl_int      status;
    cl_platform_id *platforms; 
@@ -121,7 +121,7 @@ void Device::GetPlatforms(void)
    platforms = (cl_platform_id *) xmalloc(sizeof(cl_platform_id) * ii_PlatformCount);
 
    status = clGetPlatformIDs(ii_PlatformCount, platforms, NULL);
-   ErrorChecker::ExitIfError("clGetPlatformIDs", status, "Unable to get platforms");
+   OpenCLErrorChecker::ExitIfError("clGetPlatformIDs", status, "Unable to get platforms");
 
    ip_Platforms = (platform_t *) xmalloc(sizeof(platform_t) * ii_PlatformCount);
 
@@ -132,13 +132,13 @@ void Device::GetPlatforms(void)
       ip_Platforms[ii].devices = 0;
 
       status = clGetPlatformInfo(platforms[ii], CL_PLATFORM_VENDOR, sizeof(ip_Platforms[ii].vendor), ip_Platforms[ii].vendor, NULL);
-      ErrorChecker::ExitIfError("clGetPlatformInfo", status, "Unable to get vendor");
+      OpenCLErrorChecker::ExitIfError("clGetPlatformInfo", status, "Unable to get vendor");
 
       status = clGetPlatformInfo(platforms[ii], CL_PLATFORM_VERSION, sizeof(ip_Platforms[ii].version), ip_Platforms[ii].version, NULL);
-      ErrorChecker::ExitIfError("clGetPlatformInfo", status, "Unable to get version");
+      OpenCLErrorChecker::ExitIfError("clGetPlatformInfo", status, "Unable to get version");
 
       status = clGetPlatformInfo(platforms[ii], CL_PLATFORM_NAME, sizeof(ip_Platforms[ii].name), ip_Platforms[ii].name, NULL);
-      ErrorChecker::ExitIfError("clGetPlatformInfo", status, "Unable to get version");
+      OpenCLErrorChecker::ExitIfError("clGetPlatformInfo", status, "Unable to get version");
 
       GetDevicesForPlatform(&ip_Platforms[ii]);
    }
@@ -146,7 +146,7 @@ void Device::GetPlatforms(void)
    xfree(platforms);
 }
 
-void Device::GetDevicesForPlatform(platform_t *thePlatform)
+void OpenCLDevice::GetDevicesForPlatform(platform_t *thePlatform)
 {
    cl_int        status;
    cl_context_properties contextProperties[3];
@@ -165,13 +165,13 @@ void Device::GetDevicesForPlatform(platform_t *thePlatform)
    // We only want to run this on GPUs
    thePlatform->context = clCreateContextFromType(contextProperties, CL_DEVICE_TYPE_GPU, NULL, NULL, &status);
    if (status != CL_SUCCESS) return;
-   ErrorChecker::ExitIfError("clCreateContextFromType", status, "Unable to create context");
+   OpenCLErrorChecker::ExitIfError("clCreateContextFromType", status, "Unable to create context");
 
    status = clGetContextInfo(thePlatform->context, CL_CONTEXT_DEVICES, 0, NULL, &deviceListSize);
-   ErrorChecker::ExitIfError("clGetContextInfo", status, "Unable to get device list size");
+   OpenCLErrorChecker::ExitIfError("clGetContextInfo", status, "Unable to get device list size");
 
    status = clGetDeviceIDs(thePlatform->platformId, CL_DEVICE_TYPE_GPU, 0, NULL, &numDevices);
-   ErrorChecker::ExitIfError("clGetDeviceIDs", status, "Unable to get number of devices");
+   OpenCLErrorChecker::ExitIfError("clGetDeviceIDs", status, "Unable to get number of devices");
 
    if (deviceListSize == 0 || numDevices == 0)
       return;
@@ -179,7 +179,7 @@ void Device::GetDevicesForPlatform(platform_t *thePlatform)
    devices = (cl_device_id *) xmalloc(deviceListSize);
  
    status = clGetContextInfo(thePlatform->context, CL_CONTEXT_DEVICES, deviceListSize, devices, NULL);
-   ErrorChecker::ExitIfError("clGetContextInfo", status, "Unable to get device list");
+   OpenCLErrorChecker::ExitIfError("clGetContextInfo", status, "Unable to get device list");
 
    thePlatform->deviceCount = numDevices;
    thePlatform->devices = (device_t *) xmalloc(sizeof(device_t) * numDevices);
@@ -192,28 +192,28 @@ void Device::GetDevicesForPlatform(platform_t *thePlatform)
       theDevice = &thePlatform->devices[ii];
 
       status = clGetDeviceInfo(devices[ii], CL_DEVICE_VENDOR, sizeof(theDevice->vendor), theDevice->vendor, NULL);
-      ErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get device vendor");
+      OpenCLErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get device vendor");
 
       status = clGetDeviceInfo(devices[ii], CL_DEVICE_NAME, sizeof(theDevice->name), theDevice->name, NULL);
-      ErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get device name");
+      OpenCLErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get device name");
 
 #ifdef CL_DEVICE_DOUBLE_FP_CONFIG
       theDevice->fpConfig = 0;
       status = clGetDeviceInfo(devices[ii], CL_DEVICE_DOUBLE_FP_CONFIG, sizeof(theDevice->fpConfig), &theDevice->fpConfig, NULL);
-      ErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get CL_DEVICE_DOUBLE_FP_CONFIG of device");
+      OpenCLErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get CL_DEVICE_DOUBLE_FP_CONFIG of device");
 #endif
 
       status = clGetDeviceInfo(theDevice->deviceId, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(theDevice->maxComputeUnits), &theDevice->maxComputeUnits, NULL);
-      ErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get CL_DEVICE_MAX_COMPUTE_UNITS of device");
+      OpenCLErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get CL_DEVICE_MAX_COMPUTE_UNITS of device");
 
       status = clGetDeviceInfo(theDevice->deviceId, CL_DEVICE_LOCAL_MEM_SIZE, sizeof(theDevice->localMemSize), &theDevice->localMemSize, NULL);
-      ErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get CL_DEVICE_LOCAL_MEM_SIZE of device");
+      OpenCLErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get CL_DEVICE_LOCAL_MEM_SIZE of device");
    }
 
    xfree(devices);
 }
 
-void Device::ListAllDevices(void)
+void OpenCLDevice::ListAllOpenCLDevices(void)
 {
    cl_uint  pp, dd;
 
@@ -233,38 +233,31 @@ void Device::ListAllDevices(void)
    }
 }
 
-void Device::Validate(void)
+void OpenCLDevice::ValidateOptions(void)
 {
-   if (!ib_HavePlatform) ii_PlatformId = 0;
+   if (!ib_HavePlatform) ii_WhichPlatform = 0;
 
-   if (!ib_HaveDevice) ii_DeviceId = 0;
+   if (!ib_HaveOpenCLDevice) ii_WhichDevice = 0;
 
-   if (ii_PlatformId >= ii_PlatformCount)
+   if (ii_WhichPlatform >= ii_PlatformCount)
    {
-      fprintf(stderr, "Platform %d does not exist.  Here is a list of platforms and devices:", ii_PlatformId);
-      ListAllDevices();
+      fprintf(stderr, "Platform %d does not exist.  Here is a list of platforms and devices:", ii_WhichPlatform);
+      ListAllOpenCLDevices();
       exit(0);
    }
 
-   if (ip_Platforms[ii_PlatformId].deviceCount == 0)
+   if (ip_Platforms[ii_WhichPlatform].deviceCount == 0)
    {
-      fprintf(stderr, "Platform %d has no available devices.  Here is a list of platforms and devices:", ii_PlatformId);
-      ListAllDevices();
+      fprintf(stderr, "Platform %d has no available devices.  Here is a list of platforms and devices:", ii_WhichPlatform);
+      ListAllOpenCLDevices();
       exit(0);
    }
 
-   if (ii_DeviceId >= ip_Platforms[ii_PlatformId].deviceCount)
+   if (ii_WhichDevice >= ip_Platforms[ii_WhichPlatform].deviceCount)
    {
-      fprintf(stderr, "Platform %d/Device %d does not exist.  Here is a list of platforms and devices:",
-              ii_PlatformId, ii_DeviceId);
-      ListAllDevices();
+      fprintf(stderr, "Platform %d/OpenCLDevice %d does not exist.  Here is a list of platforms and devices:",
+              ii_WhichPlatform, ii_WhichDevice);
+      ListAllOpenCLDevices();
       exit(0);
    }
-}
-
-bool Device::IsVowel(char ch)
-{
-  char c = toupper(ch);
- 
-  return (c == 'A' || c == 'E' || c == 'I' || c == 'O' || c == 'U');
 }

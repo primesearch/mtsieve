@@ -19,7 +19,6 @@
 
 #ifdef USE_X86
 #include "../x86_asm/fpu-asm-x86.h"
-#include "../x86_asm/sse-asm-x86.h"
 #endif
 
 #ifdef WIN32
@@ -171,7 +170,6 @@ void  Worker::WaitForHandOff(void)
    uint64_t startTime;
 
 #ifdef USE_X86
-   uint32_t savedSseMode;
    uint16_t savedFpuMode;
 #endif
    
@@ -195,7 +193,6 @@ void  Worker::WaitForHandOff(void)
 #ifdef USE_X86
       // This is so the worker classes don't need to do this.
       savedFpuMode = fpu_mod_init();
-      savedSseMode = sse_mod_init();
 #endif
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
@@ -222,7 +219,6 @@ void  Worker::WaitForHandOff(void)
          TestMegaPrimeChunk();
 
 #ifdef USE_X86
-      sse_mod_fini(savedSseMode);
       fpu_mod_fini(savedFpuMode);
 #endif
       

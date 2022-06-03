@@ -39,7 +39,7 @@ MultiFactorialGpuWorker::MultiFactorialGpuWorker(uint32_t myId, App *theApp) : W
    
    preKernelSources[idx] = 0;
 
-   ip_Kernel = new Kernel(ip_MultiFactorialApp->GetDevice(), "mf_kernel", mf_kernel, preKernelSources);
+   ip_Kernel = (GpuKernel *) ip_App->GetGpuDevice()->CreateKernel("mf_kernel", mf_kernel, preKernelSources);
 
    ip_MultiFactorialApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
    

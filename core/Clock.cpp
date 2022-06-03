@@ -78,7 +78,7 @@ uint64_t  Clock::GetThreadMicroseconds(void)
       + (tbi->user_time.microseconds + tbi->system_time.microseconds);
 #else
    struct rusage r;
-   getrusage(RUSAGE_THREAD,&r);
+   getrusage(RUSAGE_SELF,&r);
    return (uint64_t)(r.ru_utime.tv_sec + r.ru_stime.tv_sec)*1000000
       + (r.ru_utime.tv_usec + r.ru_stime.tv_usec);
 #endif
@@ -96,8 +96,13 @@ uint64_t  Clock::GetProcessMicroseconds(void)
    return (uint64_t)(ns100_user.QuadPart)/10;
 #else
    struct rusage r;
+   getrusage(RUSAGE_CHILDREN,&r);
+   
+   uint64_t usage = (uint64_t)(r.ru_utime.tv_sec + r.ru_stime.tv_sec)*1000000
+      + (r.ru_utime.tv_usec + r.ru_stime.tv_usec);
+      
    getrusage(RUSAGE_SELF,&r);
-   return (uint64_t)(r.ru_utime.tv_sec + r.ru_stime.tv_sec)*1000000
+   return usage + (uint64_t)(r.ru_utime.tv_sec + r.ru_stime.tv_sec)*1000000
       + (r.ru_utime.tv_usec + r.ru_stime.tv_usec);
 #endif
 }

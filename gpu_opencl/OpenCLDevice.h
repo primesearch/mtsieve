@@ -1,4 +1,4 @@
- /* Device.h -- (C) Mark Rodenkirch, February 2012
+ /* OpenCLDevice.h -- (C) Mark Rodenkirch, May 2022
 
    This class provides the interface for OpenCL devices.
 
@@ -25,6 +25,8 @@
 #include "../core/main.h"
 #include "../core/SharedMemoryItem.h"
 #include "../core/Parser.h"
+#include "../core/GpuDevice.h"
+#include "../core/GpuKernel.h"
 
 typedef struct
 {
@@ -47,53 +49,45 @@ typedef struct
    device_t      *devices;
 } platform_t;
 
-class Device
+class OpenCLDevice : public GpuDevice
 {
 public:
-   Device(void);
+   OpenCLDevice(void);
 
-   ~Device(void);
+   ~OpenCLDevice(void);
 
+   void          *CreateKernel(const char *kernelName, const char *kernelSource, const char *preKernelSources[]);
+   
    // List all platforms and devices available.  Note that just because a platform/device is
    // listed, it does not mean that it can be used by the framework
-   void           ListAllDevices(void);
+   void           ListAllOpenCLDevices(void);
 
    void           AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    void           Help(void);
    parse_t        ParseOption(int opt, char *arg, const char *source);
-   void           Validate(void);
+   void           ValidateOptions(void);
 
-   cl_context     GetContext(void) { return ip_Platforms[ii_PlatformId].context; };
-   cl_device_id   GetDeviceId(void) { return ip_Platforms[ii_PlatformId].devices[ii_DeviceId].deviceId; };
-   cl_device_id  *GetDeviceIdPtr(void) { return &ip_Platforms[ii_PlatformId].devices[ii_DeviceId].deviceId; };
-   cl_uint        GetMaxComputeUnits(void) { return ip_Platforms[ii_PlatformId].devices[ii_DeviceId].maxComputeUnits; };
-
-   void           IncrementGpuBytes(int64_t bytes) { ip_GpuBytes->IncrementValue(bytes); };
-
-   int64_t        GetGpuBytes(void) { return ip_GpuBytes->GetValueNoLock(); };
-
-   void           AddGpuMicroseconds(int64_t totalMicroseconds) { ip_GpuMicroseconds->IncrementValue(totalMicroseconds); };
-   uint64_t       GetGpuMicroseconds(void) { return ip_GpuMicroseconds->GetValueNoLock(); };
+   cl_context     GetContext(void) { return ip_Platforms[ii_WhichPlatform].context; };
+   cl_device_id   GetDeviceId(void) { return ip_Platforms[ii_WhichPlatform].devices[ii_WhichDevice].deviceId; };
+   cl_device_id  *GetDeviceIdPtr(void) { return &ip_Platforms[ii_WhichPlatform].devices[ii_WhichDevice].deviceId; };
+   cl_uint        GetMaxComputeUnits(void) { return ip_Platforms[ii_WhichPlatform].devices[ii_WhichDevice].maxComputeUnits; };
    
    bool           IsPrintDetails(void) { return ib_PrintDetails; };
 
 private:
    void           GetPlatforms(void);
    void           GetDevicesForPlatform(platform_t *thePlatform);
-   bool           IsVowel(char ch);
 
-   SharedMemoryItem *ip_GpuBytes;
-   SharedMemoryItem *ip_GpuMicroseconds;
    platform_t    *ip_Platforms;
 
    bool           ib_HavePlatform;
-   bool           ib_HaveDevice;
+   bool           ib_HaveOpenCLDevice;
    bool           ib_PrintDetails;
    
    int32_t        ii_TotalDeviceCount;
    cl_uint        ii_PlatformCount;
-   cl_uint        ii_PlatformId;
-   cl_uint        ii_DeviceId;
+   cl_uint        ii_WhichPlatform;
+   cl_uint        ii_WhichDevice;
 };
 
 #endif

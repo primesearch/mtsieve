@@ -61,6 +61,8 @@ private:
    bool              CheckAlgebraicFactor(uint32_t b, int32_t c, const char *fmt, ...)  __attribute__ ((format (printf, 4, 5)));
 #endif
 
+   void              VerifyFactor(uint64_t theFactor, uint64_t b, int32_t c);
+
    std::vector<bool> iv_PlusTerms;
    std::vector<bool> iv_MinusTerms;
 

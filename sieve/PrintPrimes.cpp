@@ -5,26 +5,24 @@
 ///         Erat) PrintPrimes is used to reconstruct primes and prime
 ///         k-tuplets from 1 bits of the sieve array.
 ///
-/// Copyright (C) 2019 Kim Walisch, <kim.walisch@gmail.com>
+/// Copyright (C) 2022 Kim Walisch, <kim.walisch@gmail.com>
 ///
 /// This file is distributed under the BSD License. See the COPYING
 /// file in the top level directory.
 ///
 
+#include <primesieve/PrintPrimes.hpp>
+#include <primesieve/Erat.hpp>
 #include <primesieve/forward.hpp>
 #include <primesieve/littleendian_cast.hpp>
 #include <primesieve/pmath.hpp>
-#include <primesieve/PrintPrimes.hpp>
 #include <primesieve/PrimeSieve.hpp>
-#include <primesieve/Erat.hpp>
 #include <primesieve/SievingPrimes.hpp>
 
 #include <stdint.h>
 #include <algorithm>
 #include <iostream>
 #include <sstream>
-
-using namespace std;
 
 namespace {
 
@@ -49,9 +47,9 @@ PrintPrimes::PrintPrimes(PrimeSieve& ps) :
   uint64_t start = ps.getStart();
   uint64_t stop = ps.getStop();
   uint64_t sieveSize = ps.getSieveSize();
-  start = max<uint64_t>(start, 7);
+  start = std::max<uint64_t>(start, 7);
 
-  Erat::init(start, stop, sieveSize, ps.getPreSieve());
+  Erat::init(start, stop, sieveSize, ps.getPreSieve(), memoryPool_);
 
   if (ps_.isCountkTuplets())
     initCounts();
@@ -84,7 +82,7 @@ void PrintPrimes::initCounts()
 
 void PrintPrimes::sieve()
 {
-  SievingPrimes sievingPrimes(this, ps_.getPreSieve());
+  SievingPrimes sievingPrimes(this, ps_.getPreSieve(), memoryPool_);
   uint64_t prime = sievingPrimes.next();
 
   while (hasNextSegment())
@@ -153,7 +151,7 @@ void PrintPrimes::printPrimes() const
   {
     uint64_t size = i + (1 << 16);
     size = std::min(size, sieveSize_);
-    ostringstream primes;
+    std::ostringstream primes;
 
     for (; i < size; i += 8)
     {
@@ -164,7 +162,7 @@ void PrintPrimes::printPrimes() const
       low += 8 * 30;
     }
 
-    cout << primes.str();
+    std::cout << primes.str();
   }
 }
 
@@ -174,7 +172,7 @@ void PrintPrimes::printkTuplets() const
   // i = 1 twins, i = 2 triplets, ...
   unsigned i = 1;
   uint64_t low = low_;
-  ostringstream kTuplets;
+  std::ostringstream kTuplets;
 
   while (!ps_.isPrint(i))
     i++;
@@ -198,7 +196,7 @@ void PrintPrimes::printkTuplets() const
     }
   }
 
-  cout << kTuplets.str();
+  std::cout << kTuplets.str();
 }
 
 } // namespace

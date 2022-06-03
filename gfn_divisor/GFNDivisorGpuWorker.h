@@ -12,14 +12,7 @@
 #include "GFNDivisorApp.h"
 #include "../core/Worker.h"
 
-#ifdef USE_OPENCL
-#include "../gpu_opencl/Kernel.h"
-#else
-#include "../gpu_metal/Kernel.h"
-#endif
-
-
-using namespace std;
+#include "../core/GpuKernel.h"
 
 class GFNDivisorGpuWorker : public Worker
 {
@@ -37,7 +30,7 @@ protected:
 private:
    GFNDivisorApp    *ip_GFNDivisorApp;
       
-   Kernel           *ip_Kernel;
+   GpuKernel        *ip_Kernel;
    
    uint64_t          il_MinK;
    uint64_t          il_MaxK;

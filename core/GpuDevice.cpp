@@ -1,6 +1,6 @@
-/* Device.cpp -- (C) Mark Rodenkirch, April 2022
+/* GpuDevice.cpp -- (C) Mark Rodenkirch, May 2022
 
-   This classs manages Metal devices.
+   This class provides the generic implementation for GPU devices.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8,35 +8,31 @@
    (at your option) any later version.
  */
 
-#define __STDC_LIMIT_MACROS
-#include <stdint.h>
-#include <stdio.h>
-
 #include "../core/main.h"
 
-#include "Device.h"
+#include "GpuDevice.h"
 
-Device::Device(void)
+GpuDevice::GpuDevice(void)
 {
    ip_GpuBytes = new SharedMemoryItem("gpu_bytes");
    ip_GpuMicroseconds = new SharedMemoryItem("gpu_microseconds");
-   
-   ip_Pool = NS::AutoreleasePool::alloc()->init();
-   ip_Device = MTL::CreateSystemDefaultDevice();
-
-   ii_BufferCount = 0;
 }
 
-Device::~Device(void)
-{
-   ip_Pool->release();
-}
-
-void  Device::Help(void)
+GpuDevice::~GpuDevice(void)
 {
 }
 
-void  Device::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
+void  GpuDevice::CleanUp(void)
+{
+   delete ip_GpuBytes;
+   delete ip_GpuMicroseconds;
+}
+
+void  GpuDevice::ParentHelp(void)
+{
+}
+
+void  GpuDevice::ParentAddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
 }
 
@@ -45,7 +41,11 @@ void  Device::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
 //   -1 if the argument is invalid
 //   -2 if the argument is out of range
 //   99 if the argument is not supported by this module
-parse_t Device::ParseOption(int opt, char *arg, const char *source)
+parse_t GpuDevice::ParentParseOption(int opt, char *arg, const char *source)
 {
-  return P_UNSUPPORTED;
+   return P_UNSUPPORTED;
+}
+
+void GpuDevice::ParentValidate(void)
+{
 }

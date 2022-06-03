@@ -1,5 +1,27 @@
 The relative speed differnce between CPU and GPU is for an i7-8850H and NVIDIA Quadro P3200.
 
+2.3.2 - June 3, 2022
+   Switched to llvm-mingw compiler in Windows.  I have tried three other compilers, I cannot
+   use gdb with the latest msys2 or mingw64 compilers.  gdb gives an error when I start the
+   programs, but only if they are built with -g.  The latest cygwin compiler fails to
+   link the code.  Others have seen the same error I have seen with other sofwtware and
+   nobody has provided a solution.
+   
+   There were some spurious reports of bugs with the 2.3.0/2.3.1 release.  This bugs
+   seem to have gone away now that I switched to llvm-mingw.
+   
+   framework:
+      All remaining SSE code has been removed due to a bug resetting the rounding mode.
+      kbbsieve was the only program using it and is now faster without it.
+
+      Created abstract Device and Kernel classes and extend OpenCL and Metal classes
+      from those.  This means that none of the GpuWorker classes need to include 
+      or need to rely on logic specific to OpenCL or Metal as the implementation is
+      hidden from those workers.
+   
+   kbbsieve: version 1.1
+      Switched to Montgomery logic.  This is about 20% faster than the SSE logic.
+
 2.3.1 - May 10, 2022
    Removed the embedded ASM logic for NVIDIA from all GPU kernels.  The OpenCL compiler
    generates code that is about 10% faster.  This is likely due to hard-coded register

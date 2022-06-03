@@ -13,13 +13,7 @@
 #include "AbstractSequenceHelper.h"
 #include "AbstractWorker.h"
 
-#ifdef USE_OPENCL
-#include "../gpu_opencl/Kernel.h"
-#else
-#include "../gpu_metal/Kernel.h"
-#endif
-
-using namespace std;
+#include "../core/GpuKernel.h"
 
 class GenericGpuWorker : public AbstractWorker
 {
@@ -37,7 +31,7 @@ public:
 protected:
    void              CreateKernels(uint32_t sequencesPerKernel);
    void              PopulateKernelArguments(uint32_t sequencesPerKernel);
-   Kernel           *CreateKernel(uint32_t kIdx, uint32_t sequences, uint32_t subsequences);
+   GpuKernel        *CreateKernel(uint32_t kIdx, uint32_t sequences, uint32_t subsequences);
    
    bool              ib_CanUseCIsOneLogic;
    uint64_t          il_MaxK;
@@ -49,7 +43,7 @@ protected:
    uint32_t          ii_MaxGpuFactors;
    uint32_t         *ii_SubseqIdx;
    
-   Kernel          **ip_Kernel;
+   GpuKernel       **ip_Kernel;
    
    uint64_t        **il_Primes;
    uint64_t        **il_Ks;

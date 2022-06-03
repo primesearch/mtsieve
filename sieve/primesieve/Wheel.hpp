@@ -3,7 +3,7 @@
 /// @brief  Wheel factorization is used to skip multiles of
 ///         small primes in the sieve of Eratosthenes.
 ///
-/// Copyright (C) 2020 Kim Walisch, <kim.walisch@gmail.com>
+/// Copyright (C) 2022 Kim Walisch, <kim.walisch@gmail.com>
 ///
 /// This file is distributed under the BSD License. See the COPYING
 /// file in the top level directory.
@@ -19,7 +19,7 @@
 namespace primesieve {
 
 /// The WheelInit data structure is used to calculate the
-/// first multiple >= start of each sieving prime
+/// first multiple >= start of each sieving prime.
 ///
 struct WheelInit
 {
@@ -30,33 +30,14 @@ struct WheelInit
 extern const WheelInit wheel30Init[30];
 extern const WheelInit wheel210Init[210];
 
-/// The WheelElement data structure is used to skip multiples
-/// of small primes using wheel factorization
-///
-struct WheelElement
-{
-  /// Bitmask used to unset the bit corresponding to the current
-  /// multiple of a SievingPrime object
-  uint8_t unsetBit;
-  /// Factor used to calculate the next multiple of a sieving prime
-  /// that is not divisible by any of the wheel factors
-  uint8_t nextMultipleFactor;
-  /// Overflow needed to correct the next multiple index
-  /// (due to sievingPrime = prime / 30)
-  uint8_t correct;
-  /// Used to calculate the next wheel index:
-  /// wheelIndex += next;
-  int8_t next;
-};
-
-extern const WheelElement wheel30[8*8];
-extern const WheelElement wheel210[48*8];
-
 /// The abstract Wheel class is used skip multiples of small
 /// primes in the sieve of Eratosthenes. The EratSmall,
 /// EratMedium and EratBig classes are derived from Wheel.
 ///
-template <int MODULO, int SIZE, const WheelElement* WHEEL, const WheelInit* INIT>
+template <int MODULO,
+          int SIZE,
+          int MAXMULTIPLEFACTOR,
+          const WheelInit* INIT>
 class Wheel
 {
 public:
@@ -104,30 +85,19 @@ protected:
 
   static uint64_t getMaxFactor()
   {
-    return WHEEL[0].nextMultipleFactor;
-  }
-
-  /// Cross-off the current multiple of sievingPrime
-  /// and calculate its next multiple
-  ///
-  static void unsetBit(uint8_t* sieve,
-                       uint64_t sievingPrime,
-                       uint64_t* multipleIndex,
-                       uint64_t* wheelIndex)
-  {
-    sieve[*multipleIndex] &= WHEEL[*wheelIndex].unsetBit;
-    *multipleIndex        += WHEEL[*wheelIndex].nextMultipleFactor * sievingPrime;
-    *multipleIndex        += WHEEL[*wheelIndex].correct;
-    *wheelIndex           += WHEEL[*wheelIndex].next;
+    return MAXMULTIPLEFACTOR;
   }
 
 private:
   static const uint64_t wheelOffsets_[30];
 };
 
-template <int MODULO, int SIZE, const WheelElement* WHEEL, const WheelInit* INIT>
+template <int MODULO,
+          int SIZE,
+          int MAXMULTIPLEFACTOR,
+          const WheelInit* INIT>
 const uint64_t
-Wheel<MODULO, SIZE, WHEEL, INIT>::wheelOffsets_[30] =
+Wheel<MODULO, SIZE, MAXMULTIPLEFACTOR, INIT>::wheelOffsets_[30] =
 {
   0, SIZE * 7, 0, 0, 0, 0,
   0, SIZE * 0, 0, 0, 0, SIZE * 1,
@@ -137,10 +107,10 @@ Wheel<MODULO, SIZE, WHEEL, INIT>::wheelOffsets_[30] =
 };
 
 /// 3rd wheel, skips multiples of 2, 3 and 5
-using Wheel30_t = Wheel<30, 8, wheel30, wheel30Init>;
+using Wheel30_t = Wheel<30, 8, 6, wheel30Init>;
 
 /// 4th wheel, skips multiples of 2, 3, 5 and 7
-using Wheel210_t = Wheel<210, 48, wheel210, wheel210Init>;
+using Wheel210_t = Wheel<210, 48, 10, wheel210Init>;
 
 } // namespace
 

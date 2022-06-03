@@ -12,13 +12,7 @@
 #include "CullenWoodallApp.h"
 #include "../core/Worker.h"
 
-#ifdef USE_OPENCL
-#include "../gpu_opencl/Kernel.h"
-#else
-#include "../gpu_metal/Kernel.h"
-#endif
-
-using namespace std;
+#include "../core/GpuKernel.h"
 
 class CullenWoodallGpuWorker : public Worker
 {
@@ -49,7 +43,7 @@ protected:
 
    CullenWoodallApp *ip_CullenWoodallApp;
    
-   Kernel           *ip_Kernel;
+   GpuKernel        *ip_Kernel;
 };
 
 #endif

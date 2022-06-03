@@ -46,7 +46,7 @@ CullenWoodallGpuWorker::CullenWoodallGpuWorker(uint32_t myId, App *theApp) : Wor
    
    preKernelSources[idx] = 0;
 
-   ip_Kernel = new Kernel(ip_CullenWoodallApp->GetDevice(), "cw_kernel", cw_kernel, preKernelSources);
+   ip_Kernel = (GpuKernel *) ip_App->GetGpuDevice()->CreateKernel("cw_kernel", cw_kernel, preKernelSources);
 
    ip_CullenWoodallApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
    

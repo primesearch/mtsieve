@@ -44,7 +44,7 @@ PrimesInXGpuWorker::PrimesInXGpuWorker(uint32_t myId, App *theApp) : Worker(myId
    
    preKernelSources[idx] = 0;
  
-   ip_Kernel = new Kernel(ip_PrimesInXApp->GetDevice(), "pix_kernel", pix_kernel, preKernelSources);
+   ip_Kernel = (GpuKernel *) ip_App->GetGpuDevice()->CreateKernel("pix_kernel", pix_kernel, preKernelSources);
 
    ip_PrimesInXApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
    

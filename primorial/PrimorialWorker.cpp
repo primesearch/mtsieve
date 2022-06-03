@@ -104,7 +104,7 @@ if (ps[3] == 1000121) printf("%llu %llu\n", ri[3], rf[3]);
          ri = mp.add(ri, ip_ResGaps[primeGap]);
          rf = mp.mul(rf, ri);
 
-         if (MpArithVec::at_least_one_is_equal(rf, pOne) | MpArithVec::at_least_one_is_equal(rf, mOne))
+         if (MpArithVec::at_least_one_is_equal(rf, pOne) || MpArithVec::at_least_one_is_equal(rf, mOne))
          {
             for (size_t k = 0; k < VECTOR_SIZE; ++k)
             {

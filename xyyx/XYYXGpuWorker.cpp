@@ -46,7 +46,7 @@ XYYXGpuWorker::XYYXGpuWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
    
    preKernelSources[idx] = 0;
    
-   ip_Kernel = new Kernel(ip_XYYXApp->GetDevice(), "xyyx_kernel", xyyx_kernel, preKernelSources);
+   ip_Kernel = (GpuKernel *) ip_App->GetGpuDevice()->CreateKernel("xyyx_kernel", xyyx_kernel, preKernelSources);
 
    ip_XYYXApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
    

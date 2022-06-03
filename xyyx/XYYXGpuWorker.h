@@ -12,13 +12,7 @@
 #include "XYYXApp.h"
 #include "../core/Worker.h"
 
-#ifdef USE_OPENCL
-#include "../gpu_opencl/Kernel.h"
-#else
-#include "../gpu_metal/Kernel.h"
-#endif
-
-using namespace std;
+#include "../core/GpuKernel.h"
 
 class XYYXGpuWorker : public Worker
 {
@@ -46,7 +40,7 @@ protected:
 
    XYYXApp          *ip_XYYXApp;
 
-   Kernel           *ip_Kernel;
+   GpuKernel        *ip_Kernel;
 };
 
 #endif

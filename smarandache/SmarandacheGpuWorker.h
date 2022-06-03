@@ -12,13 +12,7 @@
 #include "SmarandacheApp.h"
 #include "../core/Worker.h"
 
-#ifdef USE_OPENCL
-#include "../gpu_opencl/Kernel.h"
-#else
-#include "../gpu_metal/Kernel.h"
-#endif
-
-using namespace std;
+#include "../core/GpuKernel.h"
 
 class SmarandacheGpuWorker : public Worker
 {
@@ -47,7 +41,7 @@ protected:
    uint32_t         *ii_FactorCount;
    uint64_t         *il_FactorList;
 
-   Kernel           *ip_Kernel;
+   GpuKernel        *ip_Kernel;
 };
 
 #endif

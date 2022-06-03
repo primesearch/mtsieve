@@ -40,7 +40,7 @@ PrimorialGpuWorker::PrimorialGpuWorker(uint32_t myId, App *theApp) : Worker(myId
    
    preKernelSources[idx] = 0;
 
-   ip_Kernel = new Kernel(ip_PrimorialApp->GetDevice(), "primorial_kernel", primorial_kernel, preKernelSources);
+   ip_Kernel = (GpuKernel *) ip_App->GetGpuDevice()->CreateKernel("primorial_kernel", primorial_kernel, preKernelSources);
 
    ip_PrimorialApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
    

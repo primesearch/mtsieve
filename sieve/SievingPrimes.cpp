@@ -2,7 +2,7 @@
 /// @file  SievingPrimes.cpp
 ///        Generates the sieving primes up n^(1/2).
 ///
-/// Copyright (C) 2019 Kim Walisch, <kim.walisch@gmail.com>
+/// Copyright (C) 2022 Kim Walisch, <kim.walisch@gmail.com>
 ///
 /// This file is distributed under the BSD License. See the COPYING
 /// file in the top level directory.
@@ -20,19 +20,29 @@
 
 namespace primesieve {
 
-SievingPrimes::SievingPrimes(Erat* erat, PreSieve& preSieve)
+SievingPrimes::SievingPrimes(Erat* erat,
+                             PreSieve& preSieve,
+                             MemoryPool& memoryPool)
 {
-  init(erat, preSieve);
+  init(erat, preSieve, memoryPool);
 }
 
-void SievingPrimes::init(Erat* erat, PreSieve& preSieve)
+void SievingPrimes::init(Erat* erat,
+                         PreSieve& preSieve,
+                         MemoryPool& memoryPool)
 {
-  Erat::init(preSieve.getMaxPrime() + 1,
-             isqrt(erat->getStop()),
-             erat->getSieveSize(),
-             preSieve);
+  assert(preSieve.getMaxPrime() >= 7);
+  uint64_t start = preSieve.getMaxPrime() + 2;
+  uint64_t stop = isqrt(erat->getStop());
+  uint64_t sieveSize = erat->getSieveSize();
+  Erat::init(start, stop, sieveSize, preSieve, memoryPool);
 
-  tinySieve();
+  assert(start % 2 == 1);
+  tinyIdx_ = start;
+  low_ = segmentLow_;
+
+  if (start * start <= stop)
+    tinySieve();
 }
 
 /// Sieve up to n^(1/4)
@@ -45,9 +55,6 @@ void SievingPrimes::tinySieve()
     if (tinySieve_[i])
       for (uint64_t j = i * i; j <= n; j += i * 2)
         tinySieve_[j] = false;
-
-  tinyIdx_ = start_;
-  tinyIdx_ += ~tinyIdx_ & 1;
 }
 
 void SievingPrimes::fill()
@@ -56,27 +63,38 @@ void SievingPrimes::fill()
     if (!sieveSegment())
       return;
 
-  uint64_t num = 0;
-  uint64_t maxSize = primes_.size();
-  assert(maxSize >= 64);
+  size_t num = 0;
+  uint64_t low = low_;
+  assert(primes_.size() >= 64);
 
-  // Fill the buffer with at least (maxSize - 64) primes.
+  // Fill the buffer with at least (primes_.size() - 64) primes.
   // Each loop iteration can generate up to 64 primes
   // so we have to stop generating primes once there is
   // not enough space for 64 more primes.
   do
   {
-    uint64_t bits = littleendian_cast<uint64_t>(&sieve_[sieveIdx_]);
+      uint64_t bits = littleendian_cast<uint64_t>(&sieve_[sieveIdx_]);
+      size_t j = num;
+      num += popcnt64(bits);
 
-    for (; bits != 0; bits &= bits - 1)
-      primes_[num++] = nextPrime(bits, low_);
+      do
+      {
+        assert(j + 4 < primes_.size());
+        primes_[j+0] = nextPrime(bits, low); bits &= bits - 1;
+        primes_[j+1] = nextPrime(bits, low); bits &= bits - 1;
+        primes_[j+2] = nextPrime(bits, low); bits &= bits - 1;
+        primes_[j+3] = nextPrime(bits, low); bits &= bits - 1;
+        j += 4;
+      }
+      while (j < num);
 
-    low_ += 8 * 30;
-    sieveIdx_ += 8;
+      low += 8 * 30;
+      sieveIdx_ += 8;
   }
-  while (num <= maxSize - 64 &&
+  while (num <= primes_.size() - 64 &&
          sieveIdx_ < sieveSize_);
 
+  low_ = low;
   i_ = 0;
   size_ = num;
 }

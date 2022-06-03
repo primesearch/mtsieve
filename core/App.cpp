@@ -13,9 +13,16 @@
 #include "App.h"
 #include "Clock.h"
 
+#if defined(USE_OPENCL)
+#include "../gpu_opencl/OpenCLDevice.h"
+#endif
+
+#if defined(USE_METAL)
+#include "../gpu_metal/MetalDevice.h"
+#endif
+
 #ifdef USE_X86
 #include "../x86_asm/fpu-asm-x86.h"
-#include "../x86_asm/sse-asm-x86.h"
 #endif
 
 // Do not change this as some parts of the framework assume that this is set to 60 seconds
@@ -27,7 +34,6 @@ App::App(void)
 {   
 #ifdef USE_X86
    ii_SavedFpuMode = fpu_mod_init();
-   ii_SavedSseMode = sse_mod_init();
 #endif
    
    il_TotalClockTime = 0;
@@ -65,8 +71,13 @@ App::App(void)
 
    ip_Workers = (Worker **) xmalloc((MAX_WORKERS + 1) * sizeof(Worker *));
    
-#if defined(USE_OPENCL) || defined(USE_METAL)
-   ip_Device = new Device();
+#if defined(USE_OPENCL)
+   ip_GpuDevice = new OpenCLDevice();
+   ii_GpuWorkGroups = 8;
+#endif
+
+#if  defined(USE_METAL)
+   ip_GpuDevice = new MetalDevice();
    ii_GpuWorkGroups = 8;
 #endif
 }
@@ -79,8 +90,12 @@ App::~App(void)
    
    delete ip_Console;
 
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   ip_GpuDevice->CleanUp();
+   delete ip_GpuDevice;
+#endif
+
 #ifdef USE_X86
-   sse_mod_fini(ii_SavedSseMode);
    fpu_mod_fini(ii_SavedFpuMode);
 #endif
 }
@@ -105,7 +120,7 @@ void App::ParentHelp(void)
    printf("-g --gpuworkgroups=g  work groups per call to GPU (default %u)\n", ii_GpuWorkGroups);
    printf("-G --gpuworkers=G     start G GPU workers (default %u)\n", ii_GpuWorkerCount);
    
-   ip_Device->Help();
+   ip_GpuDevice->Help();
 #endif
 }
 
@@ -124,7 +139,7 @@ void  App::ParentAddCommandLineOptions(std::string &shortOpts, struct option *lo
    AppendLongOpt(longOpts, "gpuworkgroups", required_argument, 0, 'g');
    AppendLongOpt(longOpts, "gpuworkers",    required_argument, 0, 'G');
    
-   ip_Device->AddCommandLineOptions(shortOpts, longOpts);
+   ip_GpuDevice->AddCommandLineOptions(shortOpts, longOpts);
 #endif
 }
 
@@ -139,7 +154,7 @@ parse_t App::ParentParseOption(int opt, char *arg, const char *source)
    uint64_t     minPrime;
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
-   status = ip_Device->ParseOption(opt, arg, source);
+   status = ip_GpuDevice->ParseOption(opt, arg, source);
    
    if (status != P_UNSUPPORTED)
       return status;
@@ -209,7 +224,7 @@ void App::ParentValidateOptions(void)
    ii_TotalWorkerCount = ii_CpuWorkerCount + ii_GpuWorkerCount;
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
-   ip_Device->Validate();
+   ip_GpuDevice->ValidateOptions();
 #endif
 }
 
@@ -387,7 +402,6 @@ void  App::Run(void)
 
 #ifdef USE_X86
    ii_SavedFpuMode = fpu_mod_init();
-   ii_SavedSseMode = sse_mod_init();
 #endif
 
    do
@@ -650,7 +664,7 @@ void  App::Finish(void)
    cpuUtilization = ((double) processCpuUS) / ((double) elapsedTimeUS);
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
-   uint64_t    processGpuUS = ip_Device->GetGpuMicroseconds();
+   uint64_t    processGpuUS = ip_GpuDevice->GetGpuMicroseconds();
    
    // This outputs statistics regarding CPU time, i.e. time the CPU (or cores) spent
    // on this program, thus not including time spent working on other processes
@@ -702,7 +716,7 @@ void  App::ReportStatus(void)
    //        (for now) that this is a problem on other OSes so I will exclude the GPU utilization until
    //        this is fully investigated.  This could be a problem with how this program executed the
    //        kernel.  It could be a problem specific to Windows.  I just don't know at this time.
-   cpuUtilization = ((double) processCpuUS + ip_Device->GetGpuMicroseconds()) / ((double) elapsedTimeUS);
+   cpuUtilization = ((double) processCpuUS + ip_GpuDevice->GetGpuMicroseconds()) / ((double) elapsedTimeUS);
 #else
    cpuUtilization = ((double) processCpuUS) / ((double) elapsedTimeUS);
 #endif
@@ -826,7 +840,7 @@ void  App::GetWorkerStats(uint64_t &workerCpuUS, uint64_t &largestPrimeTestedNoG
          
 #if defined(USE_OPENCL) || defined(USE_METAL)
    // Treat time spent in GPU as if spent in CPU
-   workerCpuUS += ip_Device->GetGpuMicroseconds();
+   workerCpuUS += ip_GpuDevice->GetGpuMicroseconds();
 #endif
 
    for (uint32_t ii=0; ii<=ii_TotalWorkerCount; ii++)
