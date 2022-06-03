@@ -11,6 +11,8 @@ The relative speed differnce between CPU and GPU is for an i7-8850H and NVIDIA Q
    seem to have gone away now that I switched to llvm-mingw.
    
    framework:
+      Updated primesieve to 7.8.
+      
       All remaining SSE code has been removed due to a bug resetting the rounding mode.
       kbbsieve was the only program using it and is now faster without it.
 
