@@ -14,7 +14,7 @@
 #include <primesieve/pod_vector.hpp>
 
 #include <stdint.h>
-#include <cassert>
+#include <limits>
 
 namespace {
 
@@ -117,8 +117,8 @@ iterator::~iterator()
 }
 
 /// Frees most memory, but keeps some smaller data structures
-/// (e.g. primes vector & PreSieve object) that are useful
-/// if the primesieve::iterator is reused. The remaining memory
+/// (e.g. the PreSieve object) that are useful if the
+/// primesieve::iterator is reused. The remaining memory
 /// uses at most 200 kilobytes.
 ///
 void iterator::clear() noexcept
@@ -127,13 +127,7 @@ void iterator::clear() noexcept
   {
     auto* memory = (IteratorMemory*) memory_;
     memory->deletePrimeGenerator();
-
-    // Delete the primes vector if > 100 KiB.
-    // next_prime() uses primes vector of 4 KiB, but
-    // prev_prime() uses primes vector of up to 1 GiB.
-    std::size_t maxSize = ((1 << 10) * 100) / sizeof(uint64_t);
-    if (memory->primes.size() > maxSize)
-      memory->deletePrimes();
+    memory->deletePrimes();
   }
 }
 
@@ -157,7 +151,7 @@ void iterator::generate_next_primes()
     memory.primeGenerator->fillNextPrimes(primes, &size);
 
     // There are 3 different cases here:
-    // 1) The primes array contains a few primes (<= 512).
+    // 1) The primes array contains a few primes (<= 1024).
     //    In this case we return the primes to the user.
     // 2) The primes array is empty because the next
     //    prime > stop. In this case we reset the
@@ -187,10 +181,16 @@ void iterator::generate_prev_primes()
   // been used before generate_prev_primes().
   if_unlikely(memory.primeGenerator)
   {
-    assert(!primes.empty());
     start_ = primes.front();
     memory.deletePrimeGenerator();
   }
+
+  // When sieving backwards the sieving distance is subdivided
+  // into smaller chunks. If we can prove that the total
+  // sieving distance is large we enable pre-sieving.
+  if (memory.dist == 0 &&
+      stop_hint_ < start_)
+    memory.preSieve.init(stop_hint_, start_);
 
   std::size_t size = 0;
 

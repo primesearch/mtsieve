@@ -12,32 +12,33 @@
 #include <primesieve/Erat.hpp>
 #include <primesieve/PreSieve.hpp>
 #include <primesieve/littleendian_cast.hpp>
+#include <primesieve/macros.hpp>
 #include <primesieve/pmath.hpp>
 
 #include <stdint.h>
-#include <cassert>
-#include <vector>
+#include <algorithm>
 
 namespace primesieve {
 
 SievingPrimes::SievingPrimes(Erat* erat,
+                             uint64_t sieveSize,
                              PreSieve& preSieve,
                              MemoryPool& memoryPool)
 {
-  init(erat, preSieve, memoryPool);
+  init(erat, sieveSize, preSieve, memoryPool);
 }
 
 void SievingPrimes::init(Erat* erat,
+                         uint64_t sieveSize,
                          PreSieve& preSieve,
                          MemoryPool& memoryPool)
 {
-  assert(preSieve.getMaxPrime() >= 7);
+  ASSERT(preSieve.getMaxPrime() >= 7);
   uint64_t start = preSieve.getMaxPrime() + 2;
   uint64_t stop = isqrt(erat->getStop());
-  uint64_t sieveSize = erat->getSieveSize();
   Erat::init(start, stop, sieveSize, preSieve, memoryPool);
 
-  assert(start % 2 == 1);
+  ASSERT(start % 2 == 1);
   tinyIdx_ = start;
   low_ = segmentLow_;
 
@@ -49,7 +50,8 @@ void SievingPrimes::init(Erat* erat,
 void SievingPrimes::tinySieve()
 {
   uint64_t n = isqrt(stop_);
-  tinySieve_.resize(n + 1, true);
+  tinySieve_.resize(n + 1);
+  std::fill(tinySieve_.begin(), tinySieve_.end(), true);
 
   for (uint64_t i = 3; i * i <= n; i += 2)
     if (tinySieve_[i])
@@ -59,13 +61,14 @@ void SievingPrimes::tinySieve()
 
 void SievingPrimes::fill()
 {
-  if (sieveIdx_ >= sieveSize_)
+  if (sieveIdx_ >= sieve_.size())
     if (!sieveSegment())
       return;
 
   size_t num = 0;
   uint64_t low = low_;
-  assert(primes_.size() >= 64);
+  uint64_t sieveSize = sieve_.size();
+  ASSERT(primes_.size() >= 64);
 
   // Fill the buffer with at least (primes_.size() - 64) primes.
   // Each loop iteration can generate up to 64 primes
@@ -79,7 +82,6 @@ void SievingPrimes::fill()
 
       do
       {
-        assert(j + 4 < primes_.size());
         primes_[j+0] = nextPrime(bits, low); bits &= bits - 1;
         primes_[j+1] = nextPrime(bits, low); bits &= bits - 1;
         primes_[j+2] = nextPrime(bits, low); bits &= bits - 1;
@@ -92,7 +94,7 @@ void SievingPrimes::fill()
       sieveIdx_ += 8;
   }
   while (num <= primes_.size() - 64 &&
-         sieveIdx_ < sieveSize_);
+         sieveIdx_ < sieveSize);
 
   low_ = low;
   i_ = 0;

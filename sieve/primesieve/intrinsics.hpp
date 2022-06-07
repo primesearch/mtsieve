@@ -11,15 +11,21 @@
 #ifndef INTRINSICS_HPP
 #define INTRINSICS_HPP
 
+#include "macros.hpp"
 #include <stdint.h>
-#include <cassert>
-
-#if !defined(__has_builtin)
-  #define __has_builtin(x) 0
-#endif
 
 #if !defined(__has_include)
   #define __has_include(x) 0
+#endif
+
+#if __cplusplus >= 202002L && \
+    __has_include(<bit>)
+  #include <bit>
+  #define HAS_CPP20_BIT_HEADER
+#endif
+
+#if !defined(__has_builtin)
+  #define __has_builtin(x) 0
 #endif
 
 // GCC & Clang
@@ -44,11 +50,16 @@ inline int popcnt64(uint64_t x)
 
 } // namespace
 
-#elif __cplusplus >= 202002L && \
-      __has_include(<bit>)
+#elif defined(HAS_CPP20_BIT_HEADER)
 
-#include <bit>
-#define popcnt64(x) std::popcount(x)
+namespace {
+
+inline int popcnt64(uint64_t x)
+{
+  return std::popcount(x);
+}
+
+} // namespace
 
 #else
 
@@ -77,29 +88,39 @@ inline int popcnt64(uint64_t x)
 
 #endif
 
-#if (defined(__GNUC__) || \
-     defined(__clang__)) && \
-     defined(__x86_64__) && \
-    (defined(__BMI__) || (defined(_MSC_VER) && defined(__AVX2__)))
+// On x64 CPUs:
+// GCC & Clang enable TZCNT with -mbmi.
+// MSVC enables TZCNT with /arch:AVX2 or /arch:AVX512.
+#if defined(__BMI__) || \
+   (defined(_MSC_VER) && (defined(__AVX2__) || defined(__AVX512__)))
+  #define HAS_TZCNT
+#endif
+
+// In 2022 std::countr_zero(x) generates good assembly for
+// most compilers & CPU architectures, except for:
+// 1) GCC & Clang on x64 without __BMI__.
+// 2) MSVC on x64 without __AVX2__.
+// Hence we avoid using std::countr_zero(x) in those 2 cases.
+#if defined(HAS_CPP20_BIT_HEADER) && \
+ ((!defined(__x86_64__) && !defined(_M_X64)) || \
+    defined(HAS_TZCNT))
 
 #define HAS_CTZ64
 #define CTZ64_SUPPORTS_ZERO
 
 namespace {
 
-inline uint64_t ctz64(uint64_t x)
+inline int ctz64(uint64_t x)
 {
-  // No undefined behavior, tzcnt(0) = 64
-  __asm__("tzcnt %1, %0" : "=r"(x) : "r"(x));
-  return x;
+  // No undefined behavior, std::countr_zero(0) = 64
+  return std::countr_zero(x);
 }
 
 } // namespace
 
 #elif (defined(__GNUC__) || \
        defined(__clang__)) && \
-       defined(__x86_64__) && \
-      !defined(__BMI__)
+       defined(__x86_64__)
 
 #define HAS_CTZ64
 #define CTZ64_SUPPORTS_ZERO
@@ -108,6 +129,11 @@ namespace {
 
 inline uint64_t ctz64(uint64_t x)
 {
+#if defined(HAS_TZCNT)
+  // No undefined behavior, TZCNT(0) = 64
+  __asm__("tzcnt %1, %0" : "=r"(x) : "r"(x));
+  return x;
+#else
   // REP BSF uses the TZCNT instruction on x64 CPUs with the BMI1
   // instruction set (>= 2013) and the BSF instruction on older x64
   // CPUs. BSF(0) is undefined behavior, it leaves the destination
@@ -124,22 +150,12 @@ inline uint64_t ctz64(uint64_t x)
   // BSF(0) = 0, hence there is no undefined behavior. However, you
   // cannot rely on ctz64(0) = 0 since TZCNT(0) = 64.
   __asm__("rep bsf %1, %0" : "=r"(x) : "0"(x));
-  assert(x <= 64);
+  ASSERT(x <= 64);
   return x;
+#endif
 }
 
 } // namespace
-
-#elif defined(_MSC_VER) && \
-      defined(_M_X64) && \
-      defined(__AVX2__) && \
-      __has_include(<immintrin.h>)
-
-#define HAS_CTZ64
-#define CTZ64_SUPPORTS_ZERO
-
-// No undefined behavior, _tzcnt_u64(0) = 64
-#define ctz64(x) _tzcnt_u64(x)
 
 #elif (defined(__GNUC__) || \
        defined(__clang__)) && \
@@ -152,32 +168,30 @@ namespace {
 
 inline uint64_t ctz64(uint64_t x)
 {
-  // No undefined behavior, clz(0) = 64.
+  // No undefined behavior, CTZ(0) = 64.
   // ARM64 has no CTZ instruction, we have to emulate it.
   __asm__("rbit %0, %1 \n\t"
           "clz %0, %0  \n\t"
           : "=r" (x)
           : "r" (x));
 
-    return x;
+  return x;
 }
 
 } // namespace
 
-// In 2022 std::countr_zero() causes performance issues in many
-// cases, especially on x64 CPUs. Therefore we try to use alternative
-// compiler intrinsics or inline assembly whenever possible.
-#elif __cplusplus >= 202002L && \
-      __has_include(<bit>) && \
-      !(defined(_MSC_VER) && defined(_M_X64))
+#elif defined(_MSC_VER) && \
+      defined(HAS_TZCNT) && \
+      __has_include(<immintrin.h>)
 
-#include <bit>
-
+#include <immintrin.h>
 #define HAS_CTZ64
 #define CTZ64_SUPPORTS_ZERO
 
-// No undefined behavior, std::countr_zero(0) = 64
-#define ctz64(x) std::countr_zero(x)
+// This allows us to generate the TZCNT instruction for MSVC
+// without C++20 support, hence without std::countr_zero(x).
+// No undefined behavior, _tzcnt_u64(0) = 64.
+#define ctz64(x) _tzcnt_u64(x)
 
 #elif defined(__GNUC__) || \
       __has_builtin(__builtin_ctzl)
@@ -190,7 +204,7 @@ inline int ctz64(uint64_t x)
 {
   // __builtin_ctz(0) is undefined behavior,
   // we don't define CTZ64_SUPPORTS_ZERO.
-  assert(x != 0);
+  ASSERT(x != 0);
 
 #if __cplusplus >= 201703L
   if constexpr(sizeof(int) >= sizeof(uint64_t))

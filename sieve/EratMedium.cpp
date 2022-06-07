@@ -24,7 +24,6 @@
 #include <primesieve/MemoryPool.hpp>
 
 #include <stdint.h>
-#include <cassert>
 
 /// This macro sorts the current sieving prime by its
 /// wheelIndex after sieving has finished. When we then
@@ -51,14 +50,13 @@ void EratMedium::init(uint64_t stop,
                       uint64_t maxPrime,
                       MemoryPool& memoryPool)
 {
-  assert((maxPrime / 30) * getMaxFactor() + getMaxFactor() <= SievingPrime::MAX_MULTIPLEINDEX);
+  ASSERT((maxPrime / 30) * getMaxFactor() + getMaxFactor() <= SievingPrime::MAX_MULTIPLEINDEX);
   static_assert(config::FACTOR_ERATMEDIUM <= 4.5,
                "config::FACTOR_ERATMEDIUM > 4.5 causes multipleIndex overflow 23-bits!");
 
   stop_ = stop;
   maxPrime_ = maxPrime;
   memoryPool_ = &memoryPool;
-  buckets_.fill(nullptr);
 }
 
 /// Add a new sieving prime to EratMedium
@@ -66,22 +64,26 @@ void EratMedium::storeSievingPrime(uint64_t prime,
                                    uint64_t multipleIndex,
                                    uint64_t wheelIndex)
 {
-  assert(prime <= maxPrime_);
+  ASSERT(prime <= maxPrime_);
   uint64_t sievingPrime = prime / 30;
+
+  if_unlikely(buckets_.empty())
+  {
+    buckets_.resize(64);
+    currentBuckets_.resize(64);
+    std::fill_n(buckets_.begin(), 64, nullptr);
+    std::fill_n(currentBuckets_.begin(), 64, nullptr);
+  }
 
   if (Bucket::isFull(buckets_[wheelIndex]))
     memoryPool_->addBucket(buckets_[wheelIndex]);
 
-  hasSievingPrimes_ = true;
   buckets_[wheelIndex]++->set(sievingPrime, multipleIndex, wheelIndex);
 }
 
-void EratMedium::crossOff(uint8_t* sieve, uint64_t sieveSize)
+void EratMedium::crossOff(pod_vector<uint8_t>& sieve)
 {
-  // Make a copy of buckets, then reset it
-  auto buckets = buckets_;
-  buckets_.fill(nullptr);
-  uint8_t* sieveEnd = sieve + sieveSize;
+  currentBuckets_.swap(buckets_);
 
   // Iterate over the 64 bucket lists.
   // The 1st list contains sieving primes with wheelIndex = 0.
@@ -90,34 +92,35 @@ void EratMedium::crossOff(uint8_t* sieve, uint64_t sieveSize)
   // ...
   for (uint64_t i = 0; i < 64; i++)
   {
-    if (!buckets[i])
-      continue;
-
-    Bucket* bucket = Bucket::get(buckets[i]);
-    bucket->setEnd(buckets[i]);
-    uint64_t wheelIndex = i;
-
-    // Iterate over the current bucket list.
-    // For each bucket cross off the
-    // multiples of its sieving primes.
-    while (bucket)
+    if (currentBuckets_[i])
     {
-      switch (wheelIndex / 8)
-      {
-        case 0: crossOff_7 (sieve, sieveEnd, bucket); break;
-        case 1: crossOff_11(sieve, sieveEnd, bucket); break;
-        case 2: crossOff_13(sieve, sieveEnd, bucket); break;
-        case 3: crossOff_17(sieve, sieveEnd, bucket); break;
-        case 4: crossOff_19(sieve, sieveEnd, bucket); break;
-        case 5: crossOff_23(sieve, sieveEnd, bucket); break;
-        case 6: crossOff_29(sieve, sieveEnd, bucket); break;
-        case 7: crossOff_31(sieve, sieveEnd, bucket); break;
-        default: UNREACHABLE;
-      }
+      Bucket* bucket = Bucket::get(currentBuckets_[i]);
+      bucket->setEnd(currentBuckets_[i]);
+      currentBuckets_[i] = nullptr;
+      uint64_t wheelIndex = i;
 
-      Bucket* processed = bucket;
-      bucket = bucket->next();
-      memoryPool_->freeBucket(processed);
+      // Iterate over the current bucket list.
+      // For each bucket cross off the
+      // multiples of its sieving primes.
+      while (bucket)
+      {
+        switch (wheelIndex / 8)
+        {
+          case 0: crossOff_7 (sieve.begin(), sieve.end(), bucket); break;
+          case 1: crossOff_11(sieve.begin(), sieve.end(), bucket); break;
+          case 2: crossOff_13(sieve.begin(), sieve.end(), bucket); break;
+          case 3: crossOff_17(sieve.begin(), sieve.end(), bucket); break;
+          case 4: crossOff_19(sieve.begin(), sieve.end(), bucket); break;
+          case 5: crossOff_23(sieve.begin(), sieve.end(), bucket); break;
+          case 6: crossOff_29(sieve.begin(), sieve.end(), bucket); break;
+          case 7: crossOff_31(sieve.begin(), sieve.end(), bucket); break;
+          default: UNREACHABLE;
+        }
+
+        Bucket* processed = bucket;
+        bucket = bucket->next();
+        memoryPool_->freeBucket(processed);
+      }
     }
   }
 }

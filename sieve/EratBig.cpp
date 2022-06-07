@@ -28,13 +28,11 @@
 #include <primesieve/bits.hpp>
 #include <primesieve/Bucket.hpp>
 #include <primesieve/MemoryPool.hpp>
+#include <primesieve/macros.hpp>
 #include <primesieve/pmath.hpp>
 
 #include <stdint.h>
-#include <cassert>
 #include <algorithm>
-#include <array>
-#include <vector>
 
 namespace {
 
@@ -66,7 +64,7 @@ static_assert(isPow2(sizeof(WheelElement)),
               "sizeof(WheelElement) must be a power of 2!");
 
 /// Used to skip multiples of 2, 3, 5 and 7
-const std::array<WheelElement, 8*48> wheel210 =
+const primesieve::pod_array<WheelElement, 8*48> wheel210 =
 {{
   { BIT0, 10, 2, 1 }, { BIT3, 2, 0, 2 }, { BIT7, 4, 1, 3 }, { BIT6, 2, 1, 4 }, { BIT2, 4, 1, 5 }, { BIT1, 6, 1, 6 }, { BIT5, 2, 1, 7 }, { BIT0, 6, 1, 8 }, 
   { BIT4, 4, 1, 9 }, { BIT3, 2, 0, 10 }, { BIT7, 4, 1, 11 }, { BIT6, 6, 2, 12 }, { BIT1, 6, 1, 13 }, { BIT5, 2, 1, 14 }, { BIT0, 6, 1, 15 }, { BIT4, 4, 1, 16 }, 
@@ -132,8 +130,8 @@ void EratBig::init(uint64_t stop,
                    MemoryPool& memoryPool)
 {
   // '>> log2SieveSize' requires power of 2 sieveSize
-  assert(isPow2(sieveSize));
-  assert(sieveSize <= SievingPrime::MAX_MULTIPLEINDEX + 1);
+  ASSERT(isPow2(sieveSize));
+  ASSERT(sieveSize <= SievingPrime::MAX_MULTIPLEINDEX + 1);
 
   stop_ = stop;
   maxPrime_ = maxPrime;
@@ -159,27 +157,25 @@ void EratBig::storeSievingPrime(uint64_t prime,
   uint64_t maxNextMultiple = sievingPrime * getMaxFactor() + getMaxFactor();
   uint64_t maxMultipleIndex = sieveSize - 1 + maxNextMultiple;
   uint64_t maxSegmentIndex = maxMultipleIndex >> log2SieveSize_;
-  uint64_t maxSize = maxSegmentIndex + 1;
+  uint64_t newSize = maxSegmentIndex + 1;
   uint64_t segment = multipleIndex >> log2SieveSize_;
   multipleIndex &= moduloSieveSize_;
 
-  if (maxSize > buckets_.size())
+  while (buckets_.size() < newSize)
   {
-    std::size_t size = buckets_.size();
-    buckets_.resize(maxSize);
-    for (std::size_t i = size; i < buckets_.size(); i++)
-      memoryPool_->addBucket(buckets_[i]);
+    buckets_.push_back(nullptr);
+    memoryPool_->addBucket(buckets_.back());
   }
 
-  assert(prime <= maxPrime_);
-  assert(segment < buckets_.size());
+  ASSERT(prime <= maxPrime_);
+  ASSERT(segment < buckets_.size());
 
   buckets_[segment]++->set(sievingPrime, multipleIndex, wheelIndex);
   if (Bucket::isFull(buckets_[segment]))
     memoryPool_->addBucket(buckets_[segment]);
 }
 
-void EratBig::crossOff(uint8_t* sieve)
+void EratBig::crossOff(pod_vector<uint8_t>& sieve)
 {
   while (true)
   {
@@ -202,7 +198,7 @@ void EratBig::crossOff(uint8_t* sieve)
     // to the current segment.
     while (bucket)
     {
-      crossOff(sieve, bucket);
+      crossOff(sieve.data(), bucket);
       Bucket* processed = bucket;
       bucket = bucket->next();
       memoryPool_->freeBucket(processed);

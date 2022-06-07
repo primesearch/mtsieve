@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include <cerrno>
 #include <exception>
+#include <limits>
 #include <iostream>
 
 namespace {
@@ -73,8 +74,8 @@ void primesieve_free_iterator(primesieve_iterator* it)
 }
 
 /// Frees most memory, but keeps some smaller data structures
-/// (e.g. primes vector & PreSieve object) that are useful
-/// if the primesieve_iterator is reused. The remaining memory
+/// (e.g. the PreSieve object) that are useful if the
+/// primesieve_iterator is reused. The remaining memory
 /// uses at most 200 kilobytes.
 ///
 void primesieve_clear(primesieve_iterator* it)
@@ -83,13 +84,7 @@ void primesieve_clear(primesieve_iterator* it)
   {
     auto* memory = (IteratorMemory*) it->memory;
     memory->deletePrimeGenerator();
-
-    // Delete the primes vector if > 100 KiB.
-    // next_prime() uses primes vector of 4 KiB, but
-    // prev_prime() uses primes vector of up to 1 GiB.
-    std::size_t maxSize = ((1 << 10) * 100) / sizeof(uint64_t);
-    if (memory->primes.size() > maxSize)
-      memory->deletePrimes();
+    memory->deletePrimes();
   }
 }
 
@@ -116,7 +111,7 @@ void primesieve_generate_next_primes(primesieve_iterator* it)
       memory.primeGenerator->fillNextPrimes(primes, &size);
 
       // There are 3 different cases here:
-      // 1) The primes array contains a few primes (<= 512).
+      // 1) The primes array contains a few primes (<= 1024).
       //    In this case we return the primes to the user.
       // 2) The primes array is empty because the next
       //    prime > stop. In this case we reset the
@@ -163,10 +158,16 @@ void primesieve_generate_prev_primes(primesieve_iterator* it)
     // been used before generate_prev_primes().
     if_unlikely(memory.primeGenerator)
     {
-      assert(!primes.empty());
       it->start = primes.front();
       memory.deletePrimeGenerator();
     }
+
+    // When sieving backwards the sieving distance is subdivided
+    // into smaller chunks. If we can prove that the total
+    // sieving distance is large we enable pre-sieving.
+    if (memory.dist == 0 &&
+        it->stop_hint < it->start)
+      memory.preSieve.init(it->stop_hint, it->start);
 
     while (!size)
     {

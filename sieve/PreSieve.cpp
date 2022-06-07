@@ -28,21 +28,20 @@
 
 #include <primesieve/PreSieve.hpp>
 #include <primesieve/EratSmall.hpp>
-#include <primesieve/pmath.hpp>
+#include <primesieve/macros.hpp>
 
 #include <stdint.h>
 #include <algorithm>
-#include <array>
-#include <cassert>
+#include <cmath>
 #include <vector>
 
 using std::copy_n;
-using std::size_t;
+using primesieve::pod_array;
 
 namespace {
 
 /// Pre-sieve with the primes <= 13
-const std::array<uint8_t, 7*11*13> buffer_7_11_13 =
+const pod_array<uint8_t, 7*11*13> buffer_7_11_13 =
 {
   0xf8, 0xef, 0x77, 0x3f, 0xdb, 0xed, 0x9e, 0xfc, 0xea, 0x37,
   0xaf, 0xf9, 0xf5, 0xd3, 0x7e, 0x4f, 0x77, 0x9e, 0xeb, 0xf9,
@@ -148,7 +147,7 @@ const std::array<uint8_t, 7*11*13> buffer_7_11_13 =
 };
 
 /// Pre-sieve with the primes < 100
-const std::array<std::vector<uint64_t>, 8> bufferPrimes =
+const pod_array<std::vector<uint64_t>, 8> bufferPrimes =
 {{
   {  7, 67, 71 },  // 32 KiB
   { 11, 41, 73 },  // 32 KiB
@@ -180,10 +179,10 @@ void andBuffers(const uint8_t* __restrict buf1,
                 const uint8_t* __restrict buf7,
                 const uint8_t* __restrict buf8,
                 uint8_t* __restrict output,
-                size_t bytes)
+                std::size_t bytes)
 {
   // This loop should be auto-vectorized
-  for (size_t i = 0; i < bytes; i++)
+  for (std::size_t i = 0; i < bytes; i++)
     output[i] = buf1[i] & buf2[i] & buf3[i] & buf4[i]
               & buf5[i] & buf6[i] & buf7[i] & buf8[i];
 }
@@ -199,16 +198,24 @@ void PreSieve::init(uint64_t start,
   if (!buffers_[0].empty())
     return;
 
-  // The pre-sieve buffers should be at least 20
-  // times smaller than the sieving distance
-  // in order to reduce initialization overhead.
-  uint64_t dist = stop - start;
-  uint64_t threshold = std::max(dist, isqrt(stop));
+  // To reduce the initialization overhead, we only enable
+  // pre-sieving if the sieving distance is at least 20x
+  // larger than the distance (size) of the pre-sieve buffers.
+  uint64_t dist = std::max(start, stop) - start;
+  uint64_t sqrtStop = (uint64_t) std::sqrt(stop);
+  dist = std::max(dist, sqrtStop);
+
+  // When sieving backwards using primesieve::iterator.prev_prime()
+  // the sieving distance is subdivided into smaller chunks. By
+  // keeping track of the total sieving distance here, we can
+  // figure out if the total sieving distance is large and if it
+  // is worth enabling pre-sieving.
+  totalDist_ += dist;
 
   // For small intervals we pre-sieve using the
   // static buffer_7_11_13 lookup table. In this
   // case no initialization is required.
-  if (threshold < buffersDist * 20)
+  if (totalDist_ < buffersDist * 20)
     return;
 
   initBuffers();
@@ -219,7 +226,7 @@ void PreSieve::init(uint64_t start,
 ///
 void PreSieve::initBuffers()
 {
-  for (size_t i = 0; i < buffers_.size(); i++)
+  for (std::size_t i = 0; i < buffers_.size(); i++)
   {
     uint64_t product = 30;
 
@@ -228,10 +235,11 @@ void PreSieve::initBuffers()
 
     uint64_t start = product;
     uint64_t stop = start + product;
-    buffers_[i].resize(product / 30, 0xff);
+    buffers_[i].resize(product / 30);
+    std::fill(buffers_[i].begin(), buffers_[i].end(), 0xff);
     uint64_t maxPrime = bufferPrimes[i].back();
-    assert(maxPrime == *std::max_element(bufferPrimes[i].begin(), bufferPrimes[i].end()));
-    assert(start >= maxPrime * maxPrime);
+    ASSERT(maxPrime == *std::max_element(bufferPrimes[i].begin(), bufferPrimes[i].end()));
+    ASSERT(start >= maxPrime * maxPrime);
     maxPrime_ = std::max(maxPrime_, maxPrime);
 
     EratSmall eratSmall;
@@ -240,43 +248,35 @@ void PreSieve::initBuffers()
     for (uint64_t prime : bufferPrimes[i])
       eratSmall.addSievingPrime(prime, start);
 
-    eratSmall.crossOff(buffers_[i].data(), buffers_[i].size());
+    eratSmall.crossOff(buffers_[i]);
   }
 }
 
-void PreSieve::preSieve(uint8_t* sieve,
-                        uint64_t sieveSize,
+void PreSieve::preSieve(pod_vector<uint8_t>& sieve,
                         uint64_t segmentLow) const
 {
   if (buffers_[0].empty())
-    preSieveSmall(sieve, sieveSize, segmentLow);
+    preSieveSmall(sieve, segmentLow);
   else
-    preSieveLarge(sieve, sieveSize, segmentLow);
+    preSieveLarge(sieve, segmentLow);
 
   // Pre-sieving removes the primes < 100. We
   // have to undo that work and reset these bits
   // to 1 (but 49 = 7 * 7 is not a prime).
-  uint8_t bit49 = 1 << 4;
-  uint8_t bit77 = 1 << 3;
-  uint8_t bit91 = 1 << 7;
-  uint8_t bit119 = 1 << 6;
-  uint8_t bit121 = 1 << 7;
-
-  size_t i = 0;
-
-  if (segmentLow < 30)
-    sieve[i++] = 0xff;
-  if (segmentLow < 60)
-    sieve[i++] = 0xff ^ bit49;
-  if (segmentLow < 90)
-    sieve[i++] = 0xff ^ bit77 ^ bit91;
   if (segmentLow < 120)
-    sieve[i++] = 0xff ^ bit119 ^ bit121;
+  {
+    uint64_t i = segmentLow / 30;
+    uint8_t* sieveArray = sieve.data();
+    pod_array<uint8_t, 8> primeBits = { 0xff, 0xef, 0x77, 0x3f, 0xdb, 0xed, 0x9e, 0xfc };
+
+    ASSERT(sieve.capacity() >= 4);
+    for (std::size_t j = 0; j < 4; j++)
+      sieveArray[j] = primeBits[i + j];
+  }
 }
 
 /// Pre-sieve with the primes <= 13
-void PreSieve::preSieveSmall(uint8_t* sieve,
-                             uint64_t sieveSize,
+void PreSieve::preSieveSmall(pod_vector<uint8_t>& sieve,
                              uint64_t segmentLow)
 {
   uint64_t size = buffer_7_11_13.size();
@@ -285,38 +285,37 @@ void PreSieve::preSieveSmall(uint8_t* sieve,
   uint64_t sizeLeft = size - i;
   auto buffer = buffer_7_11_13.data();
 
-  if (sieveSize <= sizeLeft)
-    copy_n(&buffer[i], sieveSize, sieve);
+  if (sieve.size() <= sizeLeft)
+    copy_n(&buffer[i], sieve.size(), sieve.begin());
   else
   {
     // Copy the last remaining bytes of buffer
     // to the beginning of the sieve array
-    copy_n(&buffer[i], sizeLeft, sieve);
+    copy_n(&buffer[i], sizeLeft, sieve.begin());
 
     // Restart copying at the beginning of buffer
-    for (i = sizeLeft; i + size < sieveSize; i += size)
+    for (i = sizeLeft; i + size < sieve.size(); i += size)
       copy_n(buffer, size, &sieve[i]);
 
     // Copy the last remaining bytes
-    copy_n(buffer, sieveSize - i, &sieve[i]);
+    copy_n(buffer, sieve.size() - i, &sieve[i]);
   }
 }
 
 /// Pre-sieve with the primes < 100
-void PreSieve::preSieveLarge(uint8_t* sieve,
-                             uint64_t sieveSize,
+void PreSieve::preSieveLarge(pod_vector<uint8_t>& sieve,
                              uint64_t segmentLow) const
 {
   uint64_t offset = 0;
-  std::array<uint64_t, 8> pos;
+  pod_array<uint64_t, 8> pos;
 
-  for (size_t i = 0; i < buffers_.size(); i++)
+  for (std::size_t i = 0; i < buffers_.size(); i++)
     pos[i] = (segmentLow % (buffers_[i].size() * 30)) / 30;
 
-  while (offset < sieveSize) {
-    uint64_t bytesToCopy = sieveSize - offset;
+  while (offset < sieve.size()) {
+    uint64_t bytesToCopy = sieve.size() - offset;
 
-    for (size_t i = 0; i < buffers_.size(); i++) {
+    for (std::size_t i = 0; i < buffers_.size(); i++) {
       uint64_t left = buffers_[i].size() - pos[i];
       bytesToCopy = std::min(left, bytesToCopy);
     }
@@ -334,7 +333,7 @@ void PreSieve::preSieveLarge(uint8_t* sieve,
 
     offset += bytesToCopy;
 
-    for (size_t i = 0; i < pos.size(); i++) {
+    for (std::size_t i = 0; i < pos.size(); i++) {
       pos[i] += bytesToCopy;
       if (pos[i] >= buffers_[i].size())
         pos[i] = 0;

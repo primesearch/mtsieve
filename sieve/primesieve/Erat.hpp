@@ -16,10 +16,9 @@
 #include "EratBig.hpp"
 #include "macros.hpp"
 #include "intrinsics.hpp"
+#include "pod_vector.hpp"
 
 #include <stdint.h>
-#include <array>
-#include <memory>
 
 namespace primesieve {
 
@@ -35,7 +34,6 @@ class MemoryPool;
 class Erat
 {
 public:
-  uint64_t getSieveSize() const;
   uint64_t getStop() const;
 
 protected:
@@ -43,14 +41,12 @@ protected:
   uint64_t start_ = 0;
   /// Sieve primes <= stop_
   uint64_t stop_ = 0;
-  /// Size of sieve_ in bytes (power of 2)
-  uint64_t sieveSize_ = 0;
   /// Lower bound of the current segment
   uint64_t segmentLow_ = ~0ull;
   /// Upper bound of the current segment
   uint64_t segmentHigh_ = 0;
   /// Sieve of Eratosthenes array
-  uint8_t* sieve_ = nullptr;
+  pod_vector<uint8_t> sieve_;
   Erat() = default;
   Erat(uint64_t, uint64_t);
   void init(uint64_t, uint64_t, uint64_t, PreSieve&, MemoryPool& memoryPool);
@@ -63,14 +59,13 @@ private:
   uint64_t maxPreSieve_ = 0;
   uint64_t maxEratSmall_ = 0;
   uint64_t maxEratMedium_ = 0;
-  std::unique_ptr<uint8_t[]> deleter_;
   PreSieve* preSieve_ = nullptr;
   EratSmall eratSmall_;
   EratBig eratBig_;
   EratMedium eratMedium_;
   static uint64_t byteRemainder(uint64_t);
-  uint64_t getL1CacheSize() const;
-  void initAlgorithms(MemoryPool& memoryPool);
+  static uint64_t getL1CacheSize();
+  void initAlgorithms(uint64_t maxSieveSize, MemoryPool&);
   void preSieve();
   void crossOff();
   void sieveLastSegment();
@@ -88,7 +83,6 @@ inline uint64_t Erat::nextPrime(uint64_t bits, uint64_t low)
 // in this case we use the optimal code path.
 #if defined(CTZ64_SUPPORTS_ZERO)
   auto bitIndex = ctz64(bits);
-  assert(bitIndex < bitValues.size());
   uint64_t bitValue = bitValues[bitIndex];
 #elif defined(HAS_CTZ64)
   // ctz64(0) is undefined behavior. To avoid undefined
@@ -116,12 +110,6 @@ inline void Erat::addSievingPrime(uint64_t prime)
 inline uint64_t Erat::getStop() const
 {
   return stop_;
-}
-
-/// Sieve size in KiB
-inline uint64_t Erat::getSieveSize() const
-{
-  return sieveSize_ >> 10;
 }
 
 } // namespace

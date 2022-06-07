@@ -23,8 +23,6 @@
 
 #include <stdint.h>
 #include <algorithm>
-#include <cassert>
-#include <vector>
 
 using std::size_t;
 
@@ -49,13 +47,13 @@ void EratSmall::init(uint64_t stop,
                      uint64_t l1CacheSize,
                      uint64_t maxPrime)
 {
-  assert((maxPrime / 30) * getMaxFactor() + getMaxFactor() <= SievingPrime::MAX_MULTIPLEINDEX);
+  ASSERT((maxPrime / 30) * getMaxFactor() + getMaxFactor() <= SievingPrime::MAX_MULTIPLEINDEX);
   static_assert(config::FACTOR_ERATSMALL <= 4.5,
                "config::FACTOR_ERATSMALL > 4.5 causes multipleIndex overflow 23-bits!");
 
   stop_ = stop;
   maxPrime_ = maxPrime;
-  l1CacheSize_ = l1CacheSize;
+  l1CacheSize_ = (std::size_t) l1CacheSize;
   size_t count = primeCountApprox(maxPrime);
   primes_.reserve(count);
 }
@@ -65,7 +63,7 @@ void EratSmall::storeSievingPrime(uint64_t prime,
                                   uint64_t multipleIndex,
                                   uint64_t wheelIndex)
 {
-  assert(prime <= maxPrime_);
+  ASSERT(prime <= maxPrime_);
   uint64_t sievingPrime = prime / 30;
   primes_.emplace_back(sievingPrime, multipleIndex, wheelIndex);
 }
@@ -78,13 +76,13 @@ void EratSmall::storeSievingPrime(uint64_t prime,
 /// @sieveSize:   EratBig & EratMedium sieve size
 /// @l1CacheSize: EratSmall sieve size
 ///
-void EratSmall::crossOff(uint8_t* sieve, uint64_t sieveSize)
+void EratSmall::crossOff(pod_vector<uint8_t>& sieve)
 {
-  for (uint64_t i = 0; i < sieveSize; i += l1CacheSize_)
+  for (std::size_t i = 0; i < sieve.size(); i += l1CacheSize_)
   {
-    uint64_t end = i + l1CacheSize_;
-    end = std::min(end, sieveSize);
-    crossOff(&sieve[i], &sieve[end]);
+    std::size_t end = i + l1CacheSize_;
+    end = std::min(end, sieve.size());
+    crossOff(sieve.data() + i, sieve.data() + end);
   }
 }
 
