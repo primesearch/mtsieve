@@ -1,4 +1,4 @@
-/* AFSieveApp.h -- (C) Mark Rodenkirch, July 2020
+/* SophieGermainApp.h -- (C) Mark Rodenkirch, July 2020
 
    This class inherits from App.h and has the implementation for this project
    
