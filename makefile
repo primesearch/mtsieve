@@ -25,6 +25,7 @@ CPP_FLAGS=-Isieve -m64 -Wall
 CPP_FLAGS_OPENCL=-DUSE_OPENCL
 CPP_FLAGS_METAL=-DUSE_METAL
 CPP_FLAGS_GMP=
+CPP_FLAGS_SIEVE=-DNDEBUG
 
 LD_FLAGS=
 LD_FLAGS_OPENCL=-lstdc++
@@ -124,7 +125,7 @@ endif
 
 PRIMESIEVE_OBJS=sieve/Erat.o sieve/EratBig.o sieve/EratMedium.o sieve/EratSmall.o sieve/PreSieve.o \
    sieve/CpuInfo.o sieve/MemoryPool.o sieve/PrimeGenerator.o sieve/PrimeSieve.o \
-   sieve/IteratorHelper.o sieve/LookupTables.o sieve/popcount.o sieve/nthPrime.o sieve/PrintPrimes.o \
+   sieve/IteratorHelper.o sieve/LookupTables.o sieve/popcount.o sieve/nthPrime.o sieve/CountPrintPrimes.o \
    sieve/ParallelSieve.o sieve/iterator.o sieve/api.o sieve/SievingPrimes.o
 
 AF_OBJS=alternating_factorial/AlternatingFactorialApp_cpu.o alternating_factorial/AlternatingFactorialWorker_cpu.o alternating_factorial/afsieve.o
@@ -215,6 +216,9 @@ endif
 %.o: %.cpp
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) -c -o $@ $< 
 
+sieve/%.o: sieve/%.cpp
+	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_SIEVE) -c -o $@ $< 
+   
 ifeq ($(OS),Windows_NT)
 xyyx/%_cpu.o: xyyx/%.cpp
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS_02) -c -o $@ $< 
