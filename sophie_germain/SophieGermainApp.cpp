@@ -1,6 +1,6 @@
 /* SophieGermainApp.cpp -- (C) Mark Rodenkirch, July 2020
 
-   Sieve for k*b^n+1 and k*b^n-1 for a range of k and a fixed b and n.
+   Sieve for k*b^n-1 and k*b^(n+1)-1 for a range of k and a fixed b and n.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,11 +11,12 @@
 #include <cinttypes>
 #include "../core/Parser.h"
 #include "../core/Clock.h"
+#include "../core/MpArith.h"
 #include "SophieGermainApp.h"
 #include "SophieGermainWorker.h"
 
 #define APP_NAME        "sgsieve"
-#define APP_VERSION     "1.2"
+#define APP_VERSION     "1.3"
 
 #define NMAX_MAX        (1 << 31)
 
@@ -30,13 +31,14 @@ App *get_app(void)
 
 SophieGermainApp::SophieGermainApp() : FactorApp()
 {
-   SetBanner(APP_NAME " v" APP_VERSION ", a program to eliminate terms for Sophie-Germain prime searches for base 2, fixed n and variable k");
+   SetBanner(APP_NAME " v" APP_VERSION ", a program to eliminate terms for Sophie-Germain prime searches for k*b^n-1 with variable k and fixed b and n");
    SetLogFileName("sgsieve.log");
    
    it_Format = FF_ABCD;
    
    il_MinK = 0;
    il_MaxK = 0;
+   ii_Base = 0;
    ii_N = 0;
  
    SetAppMinPrime(3);
@@ -50,6 +52,7 @@ void SophieGermainApp::Help(void)
 
    printf("-k --kmin=k           Minimum k to search\n");
    printf("-K --kmax=K           Maximum k to search\n");
+   printf("-b --base=b           Base to search\n");
    printf("-n --exp=n            Exponent to search\n");
    printf("-f --format=f         Format of output file (D=ABCD (default), N=NEWPGEN)\n");
 }
@@ -58,10 +61,11 @@ void  SophieGermainApp::AddCommandLineOptions(std::string &shortOpts, struct opt
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "k:K:n:f:";
+   shortOpts += "k:K:b:n:f:";
 
    AppendLongOpt(longOpts, "kmin",           required_argument, 0, 'k');
    AppendLongOpt(longOpts, "kmax",           required_argument, 0, 'K');
+   AppendLongOpt(longOpts, "base",           required_argument, 0, 'b');
    AppendLongOpt(longOpts, "exp",            required_argument, 0, 'n');
    AppendLongOpt(longOpts, "format",         required_argument, 0, 'f');
 }
@@ -83,6 +87,10 @@ parse_t SophieGermainApp::ParseOption(int opt, char *arg, const char *source)
          status = Parser::Parse(arg, 1, KMAX_MAX, il_MaxK);
          break;
 
+      case 'b':
+         status = Parser::Parse(arg, 2, NMAX_MAX, ii_Base);
+         break;
+         
       case 'n':
          status = Parser::Parse(arg, 1, NMAX_MAX, ii_N);
          break;
@@ -128,19 +136,39 @@ void SophieGermainApp::ValidateOptions(void)
       if (il_MaxK <= il_MinK)
          FatalError("kmax must be greater than kmin");
 
+      if (ii_Base == 0)
+         FatalError("base must be specified");
+
       if (ii_N == 0)
          FatalError("exponent must be specified");
 
-      if (!(il_MinK &1))
+      if (ii_Base & 1)
       {
-         WriteToConsole(COT_OTHER, "kmin incremented by 1 as it must be odd");
-         il_MinK++;
-      }
+         if (il_MinK &1)
+         {
+            WriteToConsole(COT_OTHER, "kmin incremented by 1 as it must be even");
+            il_MinK++;
+         }
 
-      if (!(il_MaxK &1))
+         if (il_MaxK &1)
+         {
+            WriteToConsole(COT_OTHER, "kmax decremented by 1 as it must be even");
+            il_MaxK--;
+         }
+      }
+      else
       {
-         WriteToConsole(COT_OTHER, "kmax decremented by 1 as it must be odd");
-         il_MaxK--;
+         if (!(il_MinK &1))
+         {
+            WriteToConsole(COT_OTHER, "kmin incremented by 1 as it must be odd");
+            il_MinK++;
+         }
+
+         if (!(il_MaxK &1))
+         {
+            WriteToConsole(COT_OTHER, "kmax decremented by 1 as it must be odd");
+            il_MaxK--;
+         }
       }
     
       il_TermCount = ((il_MaxK - il_MinK) >> 1) + 1;
@@ -151,7 +179,12 @@ void SophieGermainApp::ValidateOptions(void)
    }
          
    if (is_OutputTermsFileName.length() == 0)
-      is_OutputTermsFileName = "sg.abcd";
+   {
+      if (it_Format == FF_ABCD)
+         is_OutputTermsFileName = "sg.abcd";
+      else
+         is_OutputTermsFileName = "sg.npg";
+   }
 
    FactorApp::ParentValidateOptions();
 
@@ -180,7 +213,7 @@ void SophieGermainApp::ProcessInputTermsFile(bool haveBitMap)
 {
    FILE      *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
    char       buffer[1000];
-   uint32_t   n1, n2, n;
+   uint32_t   b1, b2, n1, n2, n;
    uint64_t   bit, k, diff, lastPrime;
    format_t   format = FF_UNKNOWN;
 
@@ -196,10 +229,14 @@ void SophieGermainApp::ProcessInputTermsFile(bool haveBitMap)
       il_MinK = il_MaxK = 0;
    }
    
-   if (sscanf(buffer, "ABCD $a*2^%u+1 & 2*($a*2^%u+1)-1 [%" SCNu64"] // Sieved to %" SCNu64"", &n1, &n2, &k, &lastPrime) == 4) {
+   if (sscanf(buffer, "ABCD $a*%u^%u-1 & 2*($a*%u^%u-1)+1 [%" SCNu64"] // Sieved to %" SCNu64"", &b1, &n1, &b2, &n2, &k, &lastPrime) == 6) {
+      if (b1 != b2)
+         FatalError("Line 1 bases in ABCD input file %s do not match", is_InputTermsFileName.c_str());
+      
       if (n1 != n2)
          FatalError("Line 1 exponents in ABCD input file %s do not match", is_InputTermsFileName.c_str());
    
+      ii_Base = b1;
       ii_N = n1;
       format = FF_ABCD;
 
@@ -213,7 +250,7 @@ void SophieGermainApp::ProcessInputTermsFile(bool haveBitMap)
       else 
          il_MinK = il_MaxK = k;
    }
-   else if (sscanf(buffer, "%" SCNu64":C:0:2:5", &lastPrime) == 1)
+   else if (sscanf(buffer, "%" SCNu64":S:0:%u:1024", &lastPrime, &ii_Base) == 2)
    {
       format = FF_NEWPGEN;
    }
@@ -285,16 +322,19 @@ void SophieGermainApp::ProcessInputTermsFile(bool haveBitMap)
 bool SophieGermainApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
    uint64_t k;
-   uint32_t n;
+   uint32_t b, n;
       
-   if (sscanf(term, "%" SCNu64"*2^%u+1", &k, &n) != 2)
+   if (sscanf(term, "%" SCNu64"*%u^%u-1", &k, &b, &n) != 2)
    {
-      if (sscanf(term, "2*(%" SCNu64"*2^%u+1)-1", &k, &n) != 2)
+      if (sscanf(term, "2*(%" SCNu64"*%u^%u-1)+1", &k, &b, &n) != 2)
          FatalError("Could not parse term %s", term);
    }
    
+   if (b != ii_Base)
+      FatalError("Expected base %u in factor but found %u", ii_Base, b);
+   
    if (n != ii_N && n != ii_N+1)
-      FatalError("Expected n %u in factor but found %d", ii_N, n);
+      FatalError("Expected n %u in factor but found %u", ii_N, n);
         
    if (k < il_MinK || k > il_MaxK)
       return false;
@@ -354,7 +394,7 @@ uint64_t SophieGermainApp::WriteABCDTermsFile(uint64_t largestPrime, FILE *terms
    if (k > il_MaxK)
       FatalError("No remaining terms");
    
-   fprintf(termsFile, "ABCD $a*2^%d+1 & 2*($a*2^%d+1)-1 [%" SCNu64"] // Sieved to %" SCNu64"\n", ii_N, ii_N, k, largestPrime);
+   fprintf(termsFile, "ABCD $a*%u^%u-1 & 2*($a*%u^%u-1)+1 [%" SCNu64"] // Sieved to %" SCNu64"\n", ii_Base, ii_N, ii_Base, ii_N, k, largestPrime);
    
    previousK = k;
    kCount = 1;
@@ -380,7 +420,7 @@ uint64_t SophieGermainApp::WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsF
    uint64_t k, kCount = 0;
    uint64_t bit;
 
-   fprintf(termsFile, "%" PRIu64":C:0:2:5\n", maxPrime);
+   fprintf(termsFile, "%" PRIu64":S:0:%u:1024\n", maxPrime, ii_Base);
       
    k = il_MinK;
    
@@ -400,27 +440,30 @@ uint64_t SophieGermainApp::WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsF
 
 void  SophieGermainApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
 {
-   sprintf(extraTtext, "%" PRIu64 " < k < %" PRIu64", k*2^%u+1 and 2*(k*2^%u+1)-1", il_MinK, il_MaxK, ii_N, ii_N);
+   sprintf(extraTtext, "%" PRIu64 " < k < %" PRIu64", k*%u^%u-1 and 2*(k*%u^%u-1)+1", il_MinK, il_MaxK, ii_Base, ii_N, ii_Base, ii_N);
 }
 
-bool  SophieGermainApp::ReportFactor(uint64_t theFactor, uint64_t k, bool firstOfPair)
+void  SophieGermainApp::ReportFactor(uint64_t theFactor, uint64_t k, bool firstOfPair, bool verifyFactor)
 {
-   bool     removedTerm = false;
+   if (ii_Base % theFactor == 0)
+      return;
+   
+   if (verifyFactor)
+      VerifyFactor(theFactor, k, firstOfPair);
    
    if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
-
+      
    uint64_t bit = BIT(k);
 
    if (iv_Terms[bit])
    {
       iv_Terms[bit] = false;
-      removedTerm = true;
       
       if (firstOfPair)
-         LogFactor(theFactor, "%" PRIu64"*2^%u+1", k, ii_N);
+         LogFactor(theFactor, "%" PRIu64"*%u^%u-1", k, ii_Base, ii_N);
       else
-         LogFactor(theFactor, "2*(%" PRIu64"*2^%u+1)-1", k, ii_N);
+         LogFactor(theFactor, "2*(%" PRIu64"*%u^%u-1)+1", k, ii_Base, ii_N);
       
       il_FactorCount++;
       il_TermCount--;
@@ -428,6 +471,30 @@ bool  SophieGermainApp::ReportFactor(uint64_t theFactor, uint64_t k, bool firstO
    
    if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
+}
+
+void  SophieGermainApp::VerifyFactor(uint64_t theFactor, uint64_t k, bool firstOfPair)
+{
+   MpArith  mp(theFactor);
+   MpRes    pOne = mp.one();
    
-   return removedTerm;
+   MpRes    resRem = mp.pow(mp.nToRes(ii_Base), ii_N);
+   
+   resRem = mp.mul(resRem, mp.nToRes(k));
+   resRem = mp.sub(resRem, pOne);
+   
+   if (firstOfPair) 
+   {
+      if (resRem != mp.zero())
+         FatalError("Invalid factor: %" PRIu64" is not a factor of not a factor of %" PRIu64"*%u^%u-1", theFactor, k, ii_Base, ii_N);
+      
+      return;
+   }
+   
+   resRem = mp.mul(resRem, mp.nToRes(2));
+   resRem = mp.add(resRem, pOne);
+      
+   if (resRem != mp.zero())
+      FatalError("Invalid factor: %" PRIu64" is not a factor of not a factor of 2*(%" PRIu64"*%u^%u-1)+1", theFactor, k, ii_Base, ii_N);
+   
 }

@@ -24,20 +24,20 @@ public:
    void              TestMegaPrimeChunk(void);
    void              TestMiniPrimeChunk(uint64_t *miniPrimeChunk);
    void              CleanUp(void);
-   void              VerifyExternalFactor(uint64_t prime, uint64_t k, uint32_t n, bool firstOfPair);
-   void              VerifyFactor(uint64_t prime, uint64_t k, bool firstOfPair);
 
 protected:
 
 private:
-   void              RemoveTermsSmallPrime(uint64_t prime, uint64_t k, bool firstOfPair);
-   void              RemoveTermsLargePrime(uint64_t prime, uint64_t k, bool firstOfPair);
+   void              TestMegaPrimeChunkSmall(void);
+   void              TestMegaPrimeChunkLarge(void);
+   void              RemoveTermsSmallPrime(uint64_t prime, bool firstOfPair, uint64_t k);
+   void              RemoveTermsLargePrime(uint64_t prime, bool firstOfPair, uint64_t k);
    
    SophieGermainApp *ip_SophieGermainApp;
-      
-   uint64_t          il_BpowN;
+
    uint64_t          il_MinK;
    uint64_t          il_MaxK;
+   uint32_t          ii_Base;
    uint32_t          ii_N;
 };
 

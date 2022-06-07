@@ -9,8 +9,9 @@
 #include <cinttypes>
 #include <stdint.h>
 
+#include "../core/MpArithVector.h"
+
 #include "SophieGermainWorker.h"
-#include "../x86_asm/fpu-asm-x86.h"
 
 SophieGermainWorker::SophieGermainWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
 {
@@ -18,6 +19,7 @@ SophieGermainWorker::SophieGermainWorker(uint32_t myId, App *theApp) : Worker(my
    
    il_MinK = ip_SophieGermainApp->GetMinK();
    il_MaxK = ip_SophieGermainApp->GetMaxK();
+   ii_Base = ip_SophieGermainApp->GetBase();
    ii_N = ip_SophieGermainApp->GetN();
      
    // The thread can't start until initialization is done
@@ -30,90 +32,167 @@ void  SophieGermainWorker::CleanUp(void)
 
 void  SophieGermainWorker::TestMegaPrimeChunk(void)
 {
-   uint64_t k1, k2, k3, k4, ks[4];
-   uint64_t p1, p2, p3, p4 = 0, ps[4];
-   uint64_t p0, maxPrime = ip_App->GetMaxPrime();
+   vector<uint64_t>::iterator it = iv_Primes.begin();
+   uint64_t p0 = *it;
+
+   if (p0 < il_MaxK || p0 < 50)
+      TestMegaPrimeChunkSmall();
+   else
+      TestMegaPrimeChunkLarge();
+}
+
+void  SophieGermainWorker::TestMegaPrimeChunkSmall(void)
+{
+   uint64_t invs[4];
+   uint64_t ps[4];
+   uint64_t maxPrime = ip_App->GetMaxPrime();
    
    vector<uint64_t>::iterator it = iv_Primes.begin();
-
-   p0 = *it;
          
    while (it != iv_Primes.end())
    {
-      ps[0] = p1 = *it;
-      ks[0] = k1 = (1+p1) >> 1;
+      ps[0] = *it;
       it++;
       
-      ps[1] = p2 = *it;
-      ks[1] = k2 = (1+p2) >> 1;
+      ps[1] = *it;
       it++;
       
-      ps[2] = p3 = *it;
-      ks[2] = k3 = (1+p3) >> 1;
+      ps[2] = *it;
       it++;
       
-      ps[3] = p4 = *it;
-      ks[3] = k4 = (1+p4) >> 1;
-      it++;      
-      
-      // Starting with k*2^n = 1 (mod p) 
-      //           --> k = (1/2)^n (mod p)
-      //           --> k = inverse^n (mod p)
-      fpu_powmod_4b_1n_4p(ks, ii_N, ps);
-      
-      k1 = p1 - ks[0];
-      k2 = p2 - ks[1];
-      k3 = p3 - ks[2];
-      k4 = p4 - ks[3];
+      ps[3] = *it;
+      it++;
 
-      if (p0 <= il_MaxK)
+      if (ii_Base == 2)
       {
-         if (k1 <= il_MaxK) RemoveTermsSmallPrime(p1, k1, true);
-         if (k2 <= il_MaxK) RemoveTermsSmallPrime(p2, k2, true);
-         if (k3 <= il_MaxK) RemoveTermsSmallPrime(p3, k3, true);
-         if (k4 <= il_MaxK) RemoveTermsSmallPrime(p4, k4, true);
+         invs[0] = (1+ps[0]) >> 1;
+         invs[1] = (1+ps[1]) >> 1;
+         invs[2] = (1+ps[2]) >> 1;
+         invs[3] = (1+ps[3]) >> 1;
       }
       else
       {
-         if (k1 <= il_MaxK) RemoveTermsLargePrime(p1, k1, true);
-         if (k2 <= il_MaxK) RemoveTermsLargePrime(p2, k2, true);
-         if (k3 <= il_MaxK) RemoveTermsLargePrime(p3, k3, true);
-         if (k4 <= il_MaxK) RemoveTermsLargePrime(p4, k4, true);
+         invs[0] = InvMod32(ii_Base, ps[0]);
+         invs[1] = InvMod32(ii_Base, ps[1]);
+         invs[2] = InvMod32(ii_Base, ps[2]);
+         invs[3] = InvMod32(ii_Base, ps[3]);
       }
-
-      // For the next n, divide k by 2
-      // Note that k*2^n+1 = (k/2)*2^(n+1)+1
       
-      // Make sure k is even first
-      if (k1 & 1) k1 += p1;
-      if (k2 & 1) k2 += p2;
-      if (k3 & 1) k3 += p3;
-      if (k4 & 1) k4 += p4;
-         
-      k1 >>= 1;
-      k2 >>= 1;
-      k3 >>= 1;
-      k4 >>= 1;
+      // Starting with k*b^n = 1 (mod p) 
+      //           --> k = (1/b)^n (mod p)
+      //           --> k = inv(b)^n (mod p)
+      MpArithVec mp(ps);
       
-      if (p0 <= il_MaxK)
-      {
-         if (k1 <= il_MaxK) RemoveTermsSmallPrime(p1, k1, false);
-         if (k2 <= il_MaxK) RemoveTermsSmallPrime(p2, k2, false);
-         if (k3 <= il_MaxK) RemoveTermsSmallPrime(p3, k3, false);
-         if (k4 <= il_MaxK) RemoveTermsSmallPrime(p4, k4, false);
-      }
-      else
-      {
-         if (k1 <= il_MaxK) RemoveTermsLargePrime(p1, k1, false);
-         if (k2 <= il_MaxK) RemoveTermsLargePrime(p2, k2, false);
-         if (k3 <= il_MaxK) RemoveTermsLargePrime(p3, k3, false);
-         if (k4 <= il_MaxK) RemoveTermsLargePrime(p4, k4, false);
-      }
+      MpResVec resInvs = mp.nToRes(invs);
+      MpResVec res = mp.pow(resInvs, ii_N);
+      MpResVec resKs = mp.resToN(res);
 
+      if (resKs[0] <= il_MaxK) RemoveTermsSmallPrime(resKs[0], true, ps[0]);
+      if (resKs[1] <= il_MaxK) RemoveTermsSmallPrime(resKs[1], true, ps[1]);
+      if (resKs[2] <= il_MaxK) RemoveTermsSmallPrime(resKs[2], true, ps[2]);
+      if (resKs[3] <= il_MaxK) RemoveTermsSmallPrime(resKs[3], true, ps[3]);
 
-      SetLargestPrimeTested(p4, 4);
+      if (ii_Base == 2)
+      {
+         res = mp.mul(res, resInvs);
+      }
+      else 
+      {
+         invs[0] = (1+ps[0]) >> 1;
+         invs[1] = (1+ps[1]) >> 1;
+         invs[2] = (1+ps[2]) >> 1;
+         invs[3] = (1+ps[3]) >> 1;
+         res = mp.mul(res, mp.nToRes(invs));
+      }
+      
+      resKs = mp.resToN(res);
+      
+      if (resKs[0] <= il_MaxK) RemoveTermsSmallPrime(resKs[0], false, ps[0]);
+      if (resKs[1] <= il_MaxK) RemoveTermsSmallPrime(resKs[1], false, ps[1]);
+      if (resKs[2] <= il_MaxK) RemoveTermsSmallPrime(resKs[2], false, ps[2]);
+      if (resKs[3] <= il_MaxK) RemoveTermsSmallPrime(resKs[3], false, ps[3]);
+      
+      SetLargestPrimeTested(ps[3], 4);
    
-      if (p4 >= maxPrime)
+      if (ps[3] >= maxPrime)
+         break;
+   }
+}
+
+void  SophieGermainWorker::TestMegaPrimeChunkLarge(void)
+{
+   uint64_t invs[4];
+   uint64_t ps[4];
+   uint64_t maxPrime = ip_App->GetMaxPrime();
+   
+   vector<uint64_t>::iterator it = iv_Primes.begin();
+         
+   while (it != iv_Primes.end())
+   {
+      ps[0] = *it;
+      it++;
+      
+      ps[1] = *it;
+      it++;
+      
+      ps[2] = *it;
+      it++;
+      
+      ps[3] = *it;
+      it++;
+
+      if (ii_Base == 2)
+      {
+         invs[0] = (1+ps[0]) >> 1;
+         invs[1] = (1+ps[1]) >> 1;
+         invs[2] = (1+ps[2]) >> 1;
+         invs[3] = (1+ps[3]) >> 1;
+      }
+      else
+      {
+         invs[0] = InvMod32(ii_Base, ps[0]);
+         invs[1] = InvMod32(ii_Base, ps[1]);
+         invs[2] = InvMod32(ii_Base, ps[2]);
+         invs[3] = InvMod32(ii_Base, ps[3]);
+      }
+
+      // Starting with k*b^n = 1 (mod p) 
+      //           --> k = (1/b)^n (mod p)
+      //           --> k = inv(b)^n (mod p)
+      MpArithVec mp(ps);
+
+      MpResVec resInvs = mp.nToRes(invs);
+      MpResVec res = mp.pow(resInvs, ii_N);
+      MpResVec resKs = mp.resToN(res);
+
+      if (resKs[0] >= il_MinK && resKs[0] <= il_MaxK) RemoveTermsLargePrime(resKs[0], true, ps[0]);
+      if (resKs[1] >= il_MinK && resKs[1] <= il_MaxK) RemoveTermsLargePrime(resKs[1], true, ps[1]);
+      if (resKs[2] >= il_MinK && resKs[2] <= il_MaxK) RemoveTermsLargePrime(resKs[2], true, ps[2]);
+      if (resKs[3] >= il_MinK && resKs[3] <= il_MaxK) RemoveTermsLargePrime(resKs[3], true, ps[3]);
+      
+      if (ii_Base == 2)
+      {
+         res = mp.mul(res, resInvs);
+      }
+      else 
+      {
+         invs[0] = (1+ps[0]) >> 1;
+         invs[1] = (1+ps[1]) >> 1;
+         invs[2] = (1+ps[2]) >> 1;
+         invs[3] = (1+ps[3]) >> 1;
+         res = mp.mul(res, mp.nToRes(invs));
+      }
+      
+      resKs = mp.resToN(res);
+      
+      RemoveTermsLargePrime(resKs[0], false, ps[0]);
+      RemoveTermsLargePrime(resKs[1], false, ps[1]);
+      RemoveTermsLargePrime(resKs[2], false, ps[2]);
+      RemoveTermsLargePrime(resKs[3], false, ps[3]);
+
+      SetLargestPrimeTested(ps[3], 4);
+   
+      if (ps[3] >= maxPrime)
          break;
    }
 }
@@ -124,7 +203,7 @@ void  SophieGermainWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 }
 
 // This must be used when prime <= il_MaxK.
-void    SophieGermainWorker::RemoveTermsSmallPrime(uint64_t prime, uint64_t k, bool firstOfPair)
+void    SophieGermainWorker::RemoveTermsSmallPrime(uint64_t k, bool firstOfPair, uint64_t prime)
 {
    // Make sure that k >= il_MinK
    if (k < il_MinK)
@@ -138,72 +217,117 @@ void    SophieGermainWorker::RemoveTermsSmallPrime(uint64_t prime, uint64_t k, b
       }
    }
 
-   // Make sure that k is odd
-   if (!(k & 1))
-      k += prime;
+   if (ii_Base & 1)
+   {
+      // Make sure that k is even
+      if (k & 1)
+         k += prime;
+   }
+   else
+   {
+      // Make sure that k is odd
+      if (!(k & 1))
+         k += prime;
+   }
 
    if (k > il_MaxK)
       return;
-      
-   fpu_push_1divp(prime);
-   il_BpowN = fpu_powmod(2, ii_N, prime);
+
+   uint32_t verifiedCount = 0;
    
    do
 	{
-      if (ip_SophieGermainApp->ReportFactor(prime, k, firstOfPair))
-         VerifyFactor(prime, k, firstOfPair);
+      verifiedCount++;
+      
+      // If the first few are valid, then assume that the rest are valid.  This will
+      // speed up testing of small primes.
+      ip_SophieGermainApp->ReportFactor(prime, k, firstOfPair, (verifiedCount < 5));
 
 		k += (prime << 1); 
 	} while (k <= il_MaxK);
-   
-   fpu_pop();
 }
+
 
 // Using this bypasses a number of if checks that can be done when prime > il_MaxK.
-void    SophieGermainWorker::RemoveTermsLargePrime(uint64_t prime, uint64_t k, bool firstOfPair)
-{
-   // Make sure that k >= il_MinK
-   if (k < il_MinK)
-      return;
+// Do not report k/n combinations if the k*2^n+1 is divisible by any p < 50
+void    SophieGermainWorker::RemoveTermsLargePrime(uint64_t k, bool firstOfPair, uint64_t prime)
+{   
+   uint32_t smallN;
+   uint64_t smallK;
 
-   // Make sure that k is odd
-   if (!(k & 1))
-      return;
-
-   if (ip_SophieGermainApp->ReportFactor(prime, k, firstOfPair))
-      VerifyExternalFactor(prime, k, ii_N, firstOfPair);
-}
-
-void  SophieGermainWorker::VerifyExternalFactor(uint64_t prime, uint64_t k, uint32_t n, bool firstOfPair)
-{
-   fpu_push_1divp(prime);
-   
-   il_BpowN = fpu_powmod(2, ii_N, prime);
-   
-   VerifyFactor(prime, k, firstOfPair);
-   
-   fpu_pop();
-}
-
-void  SophieGermainWorker::VerifyFactor(uint64_t prime, uint64_t k, bool firstOfPair)
-{
-   uint64_t rem;
-
-   rem = fpu_mulmod(il_BpowN, k, prime);
-
-   if (!firstOfPair)
+   if (ii_Base == 2)
    {
-      rem <<= 1;
+      smallN = ii_N % (2);
+      smallK = k % (3);
+      if ((smallK << smallN) % (3) == 2) return;
+        
+      smallN = ii_N % (4);
+      smallK = k % (5);
+      if ((smallK << smallN) % (5) == 4) return;
+      
+      smallN = ii_N % (6);
+      smallK = k % (7);
+      if ((smallK << smallN) % (7) == 6) return;
+      
+      smallN = ii_N % (10);
+      smallK = k % (11);
+      if ((smallK << smallN) % (11) == 10) return;
+      
+      smallN = ii_N % (12);
+      smallK = k % (13);
+      if ((smallK << smallN) % (13) == 12) return;
+      
+      smallN = ii_N % (16);
+      smallK = k % (17);
+      if ((smallK << smallN) % (17) == 16) return;
+      
+      smallN = ii_N % (18);
+      smallK = k % (19);
+      if ((smallK << smallN) % (19) == 18) return;
+      
+      smallN = ii_N % (22);
+      smallK = k % (23);
+      if ((smallK << smallN) % (23) == 22) return;
+      
+      smallN = ii_N % (28);
+      smallK = k % (29);
+      if ((smallK << smallN) % (29) == 28) return;
+      
+      smallN = ii_N % (30);
+      smallK = k % (31);
+      if ((smallK << smallN) % (31) == 30) return;
 
-      if (rem >= prime)
-         rem -= prime;
+      smallN = ii_N % (36);
+      smallK = k % (37);
+      if ((smallK << smallN) % (37) == 36) return;
+      
+      smallN = ii_N % (40);
+      smallK = k % (41);
+      if ((smallK << smallN) % (41) == 40) return;
+      
+      smallN = ii_N % (42);
+      smallK = k % (43);
+      if ((smallK << smallN) % (43) == 42) return;
+      
+      smallN = ii_N % (46);
+      smallK = k % (47);
+      if ((smallK << smallN) % (47) == 46) return;
    }
-   
-   if (rem != prime - 1)
+
+   if (ii_Base & 1)
    {
-      if (firstOfPair)
-         FatalError("%" PRIu64"*2^%u+1 mod %" PRIu64" = %" PRIu64"", k, ii_N, prime, rem + 1);
-      else
-         FatalError("2*(%" PRIu64"*2^%u+1)-1 mod %" PRIu64" = %" PRIu64"", k, ii_N+1, prime, rem + 1);
+      // Make sure that k is even
+      if (k & 1)
+         k += prime;
    }
+   else
+   {
+      // Make sure that k is odd
+      if (!(k & 1))
+         k += prime;
+   }
+
+   if (k < il_MinK || k > il_MaxK) return;
+
+   ip_SophieGermainApp->ReportFactor(prime, k, firstOfPair, true);
 }

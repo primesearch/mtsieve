@@ -34,9 +34,10 @@ public:
    
    uint64_t          GetMinK(void) { return il_MinK; };
    uint64_t          GetMaxK(void) { return il_MaxK; };
+   uint32_t          GetBase(void) { return ii_Base; };
    uint32_t          GetN(void) { return ii_N; };
    
-   bool              ReportFactor(uint64_t theFactor, uint64_t k, bool firstOfPair);
+   void              ReportFactor(uint64_t theFactor, uint64_t k, bool firstOfPair, bool verifyFactor);
 
 protected:
    void              PreSieveHook(void) {};
@@ -54,6 +55,8 @@ private:
    uint64_t          WriteABCDTermsFile(uint64_t maxPrime, FILE *termsFile);
    uint64_t          WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsFile);
    
+   void              VerifyFactor(uint64_t theFactor, uint64_t k, bool firstOfPair);
+   
    std::vector<bool> iv_Terms;
    
    format_t          it_Format;
@@ -63,6 +66,7 @@ private:
 
    uint64_t          il_MinK;
    uint64_t          il_MaxK;
+   uint32_t          ii_Base;
    uint32_t          ii_N;
 };
 
