@@ -486,7 +486,7 @@ void  App::Sieve(void)
    // of the workers busy.
    while (il_LargestPrimeSieved < il_MaxPrime && IsRunning())
    {
-      boolean gotNewWork = false;
+      bool gotNewWork = false;
             
       CheckReportStatus();
       
