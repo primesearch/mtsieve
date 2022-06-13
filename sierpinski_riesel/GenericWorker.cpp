@@ -194,7 +194,7 @@ uint64_t  GenericWorker::ProcessSmallPrimes(void)
       
    for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx++)
    {
-      lastPrime = thePrime = il_PrimeList[0];
+      lastPrime = thePrime = il_PrimeList[pIdx];
       
       if (ii_Base % thePrime  == 0)
          continue;
