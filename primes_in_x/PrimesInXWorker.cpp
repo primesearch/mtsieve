@@ -35,31 +35,22 @@ void  PrimesInXWorker::CleanUp(void)
 
 void  PrimesInXWorker::TestMegaPrimeChunk(void)
 {
-   uint64_t  p[4];
+   uint64_t  ps[4];
    uint32_t  saveTerm;
    int32_t   gotFactor, index = 0, power;
    uint32_t  lminRemaining = ip_PrimesInXApp->GetMinLengthRemaining();
    uint32_t *n1, *n2 = ip_PrimesInXApp->Get1DigitTerms();
    uint32_t  multiplier;
    uint64_t  maxPrime = ip_PrimesInXApp->GetMaxPrime();
-   
-   vector<uint64_t>::iterator it = iv_Primes.begin();
 
-   while (it != iv_Primes.end())
+   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
    {
-      p[0] = *it;
-      it++;
-      
-      p[1] = *it;
-      it++;
-      
-      p[2] = *it;
-      it++;
-      
-      p[3] = *it;
-      it++;
-      
-      if (lminRemaining > 9 && p[0] > 1000000000)
+      ps[0] = il_PrimeList[pIdx+0];
+      ps[1] = il_PrimeList[pIdx+1];
+      ps[2] = il_PrimeList[pIdx+2];
+      ps[3] = il_PrimeList[pIdx+3];
+            
+      if (lminRemaining > 9 && ps[0] > 1000000000)
       {
          power = 9;
          
@@ -68,7 +59,7 @@ void  PrimesInXWorker::TestMegaPrimeChunk(void)
          n1 = ii_e9Terms;
          multiplier = 1000000000;
       }
-      else if (lminRemaining > 6 && p[0] > 1000000)
+      else if (lminRemaining > 6 && ps[0] > 1000000)
       {
          power = 6;
          
@@ -77,7 +68,7 @@ void  PrimesInXWorker::TestMegaPrimeChunk(void)
          n1 = ii_e6Terms;
          multiplier = 1000000;
       }
-      else if (lminRemaining > 3 && p[0] > 1000)
+      else if (lminRemaining > 3 && ps[0] > 1000)
       {
          power = 3;
          
@@ -93,25 +84,25 @@ void  PrimesInXWorker::TestMegaPrimeChunk(void)
          saveTerm = n1[index];
          n1[index] = multiplier;
       
-         gotFactor = pixsieve(n1, &n2[index*power], p, multiplier);
+         gotFactor = pixsieve(n1, &n2[index*power], ps, multiplier);
       
          // Restore the "end of list"
          n1[index] = saveTerm;
       }
       else
-         gotFactor = pixsieve(n2, 0, p, 10);
+         gotFactor = pixsieve(n2, 0, ps, 10);
    
       if (gotFactor)
       {
-         ExtractFactors(p[0]);
-         ExtractFactors(p[1]);
-         ExtractFactors(p[2]);
-         ExtractFactors(p[3]);
+         ExtractFactors(ps[0]);
+         ExtractFactors(ps[1]);
+         ExtractFactors(ps[2]);
+         ExtractFactors(ps[3]);
       }
       
-      SetLargestPrimeTested(p[3], 4);
+      SetLargestPrimeTested(ps[3], 4);
 
-      if (p[0] > maxPrime)
+      if (ps[0] > maxPrime)
          break;
    }
 }

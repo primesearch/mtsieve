@@ -27,37 +27,29 @@ void  AlternatingFactorialWorker::CleanUp(void)
 
 void  AlternatingFactorialWorker::TestMegaPrimeChunk(void)
 {
-   uint64_t  p[4], maxPrime = ip_App->GetMaxPrime();
+   uint64_t  ps[4], maxPrime = ip_App->GetMaxPrime();
    uint32_t  gotFactor, maxN = ip_AlternatingFactorialApp->GetMaxN();
-   vector<uint64_t>::iterator it = iv_Primes.begin();
       
-   while (it != iv_Primes.end())
+   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
    {
-      p[0] = *it;
-      it++;
-      
-      p[1] = *it;
-      it++;
-      
-      p[2] = *it;
-      it++;
-      
-      p[3] = *it;
-      it++;
-      
-      gotFactor = afsieve(maxN, p);
+      ps[0] = il_PrimeList[pIdx+0];
+      ps[1] = il_PrimeList[pIdx+1];
+      ps[2] = il_PrimeList[pIdx+2];
+      ps[3] = il_PrimeList[pIdx+3];
+            
+      gotFactor = afsieve(maxN, ps);
 
       if (gotFactor)
       {
-         ExtractFactors(p[0]);
-         ExtractFactors(p[1]);
-         ExtractFactors(p[2]);
-         ExtractFactors(p[3]);
+         ExtractFactors(ps[0]);
+         ExtractFactors(ps[1]);
+         ExtractFactors(ps[2]);
+         ExtractFactors(ps[3]);
       }
       
-      SetLargestPrimeTested(p[3], 4);
+      SetLargestPrimeTested(ps[3], 4);
       
-      if (p[3] >= maxPrime)
+      if (ps[3] >= maxPrime)
          break;
    }
 }

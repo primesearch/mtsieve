@@ -39,25 +39,18 @@ void  MultiFactorialWorker::TestMegaPrimeChunk(void)
 void  MultiFactorialWorker::TestFactorial(void)
 {
    uint64_t  ps[4], maxPrime = ip_App->GetMaxPrime();
-   vector<uint64_t>::iterator it = iv_Primes.begin();
    uint32_t  n;
+   
    // if i <= n_pair then (i - 1) * i < p. Compute n! = (2 * 3) * (4 * 5) * ... * ((n - 1) * n)
-   uint32_t n_pair = std::max(2u, std::min(ii_MinN, uint32_t(sqrt(double(*it)))) & ~1u);
+   uint32_t  n_pair = std::max(2u, std::min(ii_MinN, uint32_t(sqrt(double(il_PrimeList[0])))) & ~1u);
 
-   while (it != iv_Primes.end())
+   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
    {
-      ps[0] = *it;
-      it++;
+      ps[0] = il_PrimeList[pIdx+0];
+      ps[1] = il_PrimeList[pIdx+1];
+      ps[2] = il_PrimeList[pIdx+2];
+      ps[3] = il_PrimeList[pIdx+3];
       
-      ps[1] = *it;
-      it++;
-      
-      ps[2] = *it;
-      it++;
-      
-      ps[3] = *it;
-      it++;
-
       MpArithVec mp(ps);
 
       const MpResVec pOne = mp.one();
@@ -119,21 +112,16 @@ void  MultiFactorialWorker::TestMultiFactorial(void)
    uint32_t  maxNFirstLoop = ii_MinN - ii_MultiFactorial;
    uint32_t  n, startN;
    
-   vector<uint64_t>::iterator it = iv_Primes.begin();
-      
-   while (it != iv_Primes.end())
+   uint32_t  pIdx = 0;
+   
+   while (pIdx < ii_WorkSize)
    {
-      ps[0] = *it;
-      it++;
-      
-      ps[1] = *it;
-      it++;
-      
-      ps[2] = *it;
-      it++;
-      
-      ps[3] = *it;
-      it++;
+      ps[0] = il_PrimeList[pIdx+0];
+      ps[1] = il_PrimeList[pIdx+1];
+      ps[2] = il_PrimeList[pIdx+2];
+      ps[3] = il_PrimeList[pIdx+3];
+
+      pIdx += 4;
 
       MpArithVec mp(ps);
 

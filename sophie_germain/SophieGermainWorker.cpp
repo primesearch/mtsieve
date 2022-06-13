@@ -21,6 +21,7 @@ SophieGermainWorker::SophieGermainWorker(uint32_t myId, App *theApp) : Worker(my
    il_MaxK = ip_SophieGermainApp->GetMaxK();
    ii_Base = ip_SophieGermainApp->GetBase();
    ii_N = ip_SophieGermainApp->GetN();
+   ib_GeneralizedSearch = ip_SophieGermainApp->IsGeneralizedSearch();
      
    // The thread can't start until initialization is done
    ib_Initialized = true;
@@ -32,10 +33,7 @@ void  SophieGermainWorker::CleanUp(void)
 
 void  SophieGermainWorker::TestMegaPrimeChunk(void)
 {
-   vector<uint64_t>::iterator it = iv_Primes.begin();
-   uint64_t p0 = *it;
-
-   if (p0 < il_MaxK || p0 < 50)
+   if (il_PrimeList[0] < il_MaxK || il_PrimeList[0] < 50)
       TestMegaPrimeChunkSmall();
    else
       TestMegaPrimeChunkLarge();
@@ -46,22 +44,13 @@ void  SophieGermainWorker::TestMegaPrimeChunkSmall(void)
    uint64_t invs[4];
    uint64_t ps[4];
    uint64_t maxPrime = ip_App->GetMaxPrime();
-   
-   vector<uint64_t>::iterator it = iv_Primes.begin();
-         
-   while (it != iv_Primes.end())
+
+   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
    {
-      ps[0] = *it;
-      it++;
-      
-      ps[1] = *it;
-      it++;
-      
-      ps[2] = *it;
-      it++;
-      
-      ps[3] = *it;
-      it++;
+      ps[0] = il_PrimeList[pIdx+0];
+      ps[1] = il_PrimeList[pIdx+1];
+      ps[2] = il_PrimeList[pIdx+2];
+      ps[3] = il_PrimeList[pIdx+3];
 
       if (ii_Base == 2)
       {
@@ -96,13 +85,23 @@ void  SophieGermainWorker::TestMegaPrimeChunkSmall(void)
       {
          res = mp.mul(res, resInvs);
       }
-      else 
+      else
       {
-         invs[0] = (1+ps[0]) >> 1;
-         invs[1] = (1+ps[1]) >> 1;
-         invs[2] = (1+ps[2]) >> 1;
-         invs[3] = (1+ps[3]) >> 1;
-         res = mp.mul(res, mp.nToRes(invs));
+         if (ib_GeneralizedSearch)
+         {
+            // Multipley by inv(ii_Base)
+            res = mp.mul(res, resInvs);
+         }
+         else
+         {
+            // Multipley by inv(2)
+            invs[0] = (1+ps[0]) >> 1;
+            invs[1] = (1+ps[1]) >> 1;
+            invs[2] = (1+ps[2]) >> 1;
+            invs[3] = (1+ps[3]) >> 1;
+            
+            res = mp.mul(res, mp.nToRes(invs));
+         }
       }
       
       resKs = mp.resToN(res);
@@ -124,22 +123,16 @@ void  SophieGermainWorker::TestMegaPrimeChunkLarge(void)
    uint64_t invs[4];
    uint64_t ps[4];
    uint64_t maxPrime = ip_App->GetMaxPrime();
-   
-   vector<uint64_t>::iterator it = iv_Primes.begin();
-         
-   while (it != iv_Primes.end())
+   uint32_t pIdx = 0;
+
+   while (pIdx < ii_WorkSize)
    {
-      ps[0] = *it;
-      it++;
+      ps[0] = il_PrimeList[pIdx+0];
+      ps[1] = il_PrimeList[pIdx+1];
+      ps[2] = il_PrimeList[pIdx+2];
+      ps[3] = il_PrimeList[pIdx+3];
       
-      ps[1] = *it;
-      it++;
-      
-      ps[2] = *it;
-      it++;
-      
-      ps[3] = *it;
-      it++;
+      pIdx += 4;
 
       if (ii_Base == 2)
       {

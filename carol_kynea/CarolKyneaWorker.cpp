@@ -58,12 +58,10 @@ void  CarolKyneaWorker::TestMegaPrimeChunk(void)
 {
    uint64_t  maxPrime = ip_App->GetMaxPrime();
    uint64_t  thePrime = 0, root1, root2;
-   vector<uint64_t>::iterator it = iv_Primes.begin();
 
-   while (it != iv_Primes.end())
+   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx++)
    {
-      thePrime = *it;
-      it++;
+      thePrime = il_PrimeList[pIdx+0];
       
       if (ii_Base % thePrime == 0)
          continue;

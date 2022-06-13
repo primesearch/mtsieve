@@ -47,15 +47,13 @@ void  FixedBNCWorker::TestMegaPrimeChunk(void)
    int32_t  svb = 0;
    int32_t  pmb, count, idx;
    
-   vector<uint64_t>::iterator it = iv_Primes.begin();
-
    // Evaluate primes in the vector to determine if can yield a factor.  Only
    // put primes that can yield a factor into an array for the second loop.
    count = 0;
-   while (it != iv_Primes.end())
+   
+   for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx++)
    {
-      p1 = *it;
-      it++;
+      p1 = il_PrimeList[pIdx];
       
       pmb = (p1 % ii_Base);
       

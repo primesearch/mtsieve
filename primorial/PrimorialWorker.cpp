@@ -52,21 +52,13 @@ void  PrimorialWorker::CleanUp(void)
 void  PrimorialWorker::TestMegaPrimeChunk(void)
 {
    uint64_t  ps[4], maxPrime = ip_App->GetMaxPrime();
-   std::vector<uint64_t>::iterator it = iv_Primes.begin();
-   
-   while (it != iv_Primes.end())
+
+   for (uint32_t plIdx=0; plIdx<ii_WorkSize; plIdx+=4)
    {
-      ps[0] = *it;
-      it++;
-      
-      ps[1] = *it;
-      it++;
-      
-      ps[2] = *it;
-      it++;
-      
-      ps[3] = *it;
-      it++;
+      ps[0] = il_PrimeList[plIdx+0];
+      ps[1] = il_PrimeList[plIdx+1];
+      ps[2] = il_PrimeList[plIdx+2];
+      ps[3] = il_PrimeList[plIdx+3];
 
       MpArithVec mp(ps);
 

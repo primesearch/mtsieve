@@ -34,22 +34,13 @@ void  DMDivisorWorker::TestMegaPrimeChunk(void)
    uint64_t bs[4], ps[4];
    uint64_t maxPrime = ip_App->GetMaxPrime();
    
-   vector<uint64_t>::iterator it = iv_Primes.begin();
-   
-   while (it != iv_Primes.end())
+   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
    {
-      ps[0] = *it;
-      it++;
-      
-      ps[1] = *it;
-      it++;
-      
-      ps[2] = *it;
-      it++;
-      
-      ps[3] = *it;
-      it++;
-      
+      ps[0] = il_PrimeList[pIdx+0];
+      ps[1] = il_PrimeList[pIdx+1];
+      ps[2] = il_PrimeList[pIdx+2];
+      ps[3] = il_PrimeList[pIdx+3];
+            
       bs[0] = bs[1] = bs[2] = bs[3] = 2;
       
       fpu_powmod_4b_1n_4p(bs, ii_N, ps);

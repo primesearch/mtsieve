@@ -88,12 +88,9 @@ void  CisOneWithOneSequenceWorker::TestMegaPrimeChunk(void)
    }
 #endif
 
-   vector<uint64_t>::iterator it = iv_Primes.begin();
-   
-   while (it != iv_Primes.end())
+   for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx++)
    {
-      p = *it;
-      it++;
+      p = il_PrimeList[pIdx];
 
       parity = GetParity(p);
       

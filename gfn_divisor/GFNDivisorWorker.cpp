@@ -34,8 +34,7 @@ void  GFNDivisorWorker::CleanUp(void)
 
 void  GFNDivisorWorker::TestMegaPrimeChunk(void)
 {
-   vector<uint64_t>::iterator it = iv_Primes.begin();
-   uint64_t p0 = *it;
+   uint64_t p0 = il_PrimeList[0];
    
    if (p0 < il_MaxK || p0 < 50)
       TestMegaPrimeChunkSmall();
@@ -50,25 +49,17 @@ void  GFNDivisorWorker::TestMegaPrimeChunkSmall(void)
    uint64_t maxPrime = ip_App->GetMaxPrime();
    uint32_t n;
    
-   vector<uint64_t>::iterator it = iv_Primes.begin();
-         
-   while (it != iv_Primes.end())
+   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
    {
-      ps[0] = p1 = *it;
+      p1 = ps[0] = il_PrimeList[pIdx+0];
+      p2 = ps[1] = il_PrimeList[pIdx+1];
+      p3 = ps[2] = il_PrimeList[pIdx+2];
+      p4 = ps[3] = il_PrimeList[pIdx+3];
+      
       ks[0] = k1 = (1+p1) >> 1;
-      it++;
-      
-      ps[1] = p2 = *it;
       ks[1] = k2 = (1+p2) >> 1;
-      it++;
-      
-      ps[2] = p3 = *it;
       ks[2] = k3 = (1+p3) >> 1;
-      it++;
-      
-      ps[3] = p4 = *it;
       ks[3] = k4 = (1+p4) >> 1;
-      it++;      
       
       // Starting with k*2^n = 1 (mod p) 
       //           --> k = (1/2)^n (mod p)
@@ -117,25 +108,17 @@ void  GFNDivisorWorker::TestMegaPrimeChunkLarge(void)
    uint32_t n1, n2, n3, n4;
    uint32_t bits1, bits2, bits3, bits4;
    
-   vector<uint64_t>::iterator it = iv_Primes.begin();
-   
-   while (it != iv_Primes.end())
+   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
    {
-      ps[0] = p1 = *it;
+      p1 = ps[0] = il_PrimeList[pIdx+0];
+      p2 = ps[1] = il_PrimeList[pIdx+1];
+      p3 = ps[2] = il_PrimeList[pIdx+2];
+      p4 = ps[3] = il_PrimeList[pIdx+3];
+      
       ks[0] = k1 = (1+p1) >> 1;
-      it++;
-      
-      ps[1] = p2 = *it;
       ks[1] = k2 = (1+p2) >> 1;
-      it++;
-      
-      ps[2] = p3 = *it;
       ks[2] = k3 = (1+p3) >> 1;
-      it++;
-      
-      ps[3] = p4 = *it;
       ks[3] = k4 = (1+p4) >> 1;
-      it++;      
       
       // Starting with k*2^n = 1 (mod p) 
       //           --> k = (1/2)^n (mod p)

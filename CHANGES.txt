@@ -1,5 +1,28 @@
 The relative speed differnce between CPU and GPU is for an i7-8850H and NVIDIA Quadro P3200.
 
+2.3.3 - June 10, 2022
+   framework:
+      Updated primesieve to 7.9.  This addresses an issue in primesieve that can crash
+      the mtsieve applications.
+      
+      Changed usage of primesieve (thanks to hints from Kim Wallisch, its creator) to
+      improve sieving peformance.  As a result the worker threads now use an array instead
+      of a vector.
+      
+      Broke the main sieving loop into two loops, one for when limited to a single thread
+      or for sieving prior to switching to the GPU.  The second loop handles multiple worker
+      threads much better.
+      
+      Reduced the initial CPU worksize from 1e6 to 96e3.  When the largest prime tested
+      reaches 1e6, the worker thread can automatically adjust the worksize in an effort
+      to have each chunk take between 1 and 5 seconds to process.  This has two affects.
+      First, it will allow the CPU workers to stop more quickly when the user hits ^C.
+      Second, it will do a better job at keeping CPU workers busy when using mulitple workers.
+      
+   sgsieve: version 1.3
+      Changed to support p/2p+1 where p is of the form k*b^n-1.  This makes it compatible
+      with newpgen.  As of 1.2 p was of the form k*b^n+1.
+
 2.3.2 - June 3, 2022
    Switched to llvm-mingw compiler in Windows.  I have tried three other compilers, I cannot
    use gdb with the latest msys2 or mingw64 compilers.  gdb gives an error when I start the

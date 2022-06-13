@@ -40,6 +40,7 @@ SophieGermainApp::SophieGermainApp() : FactorApp()
    il_MaxK = 0;
    ii_Base = 0;
    ii_N = 0;
+   ib_GeneralizedSearch = false;
  
    SetAppMinPrime(3);
    
@@ -54,6 +55,7 @@ void SophieGermainApp::Help(void)
    printf("-K --kmax=K           Maximum k to search\n");
    printf("-b --base=b           Base to search\n");
    printf("-n --exp=n            Exponent to search\n");
+   printf("-g --generalized      Multiply second term by b instead of by 2\n");
    printf("-f --format=f         Format of output file (D=ABCD (default), N=NEWPGEN)\n");
 }
 
@@ -61,12 +63,13 @@ void  SophieGermainApp::AddCommandLineOptions(std::string &shortOpts, struct opt
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "k:K:b:n:f:";
+   shortOpts += "k:K:b:n:gf:";
 
    AppendLongOpt(longOpts, "kmin",           required_argument, 0, 'k');
    AppendLongOpt(longOpts, "kmax",           required_argument, 0, 'K');
    AppendLongOpt(longOpts, "base",           required_argument, 0, 'b');
    AppendLongOpt(longOpts, "exp",            required_argument, 0, 'n');
+   AppendLongOpt(longOpts, "generalized",    no_argument,       0, 'g');
    AppendLongOpt(longOpts, "format",         required_argument, 0, 'f');
 }
 
@@ -94,6 +97,10 @@ parse_t SophieGermainApp::ParseOption(int opt, char *arg, const char *source)
       case 'n':
          status = Parser::Parse(arg, 1, NMAX_MAX, ii_N);
          break;
+      
+      case 'g':
+         ib_GeneralizedSearch = true;
+         break;
          
       case 'f':
          char value;
@@ -118,6 +125,11 @@ void SophieGermainApp::ValidateOptions(void)
    
    if (is_InputTermsFileName.length() > 0)
    {
+      if (ib_GeneralizedSearch)
+         WriteToConsole(COT_OTHER, "will not override -g, will be determined by input");
+         
+      ib_GeneralizedSearch = false;
+      
       ProcessInputTermsFile(false);
 
       iv_Terms.resize(((il_MaxK - il_MinK) >> 1) + 1);
@@ -183,7 +195,12 @@ void SophieGermainApp::ValidateOptions(void)
       if (it_Format == FF_ABCD)
          is_OutputTermsFileName = "sg.abcd";
       else
+      {
+         if (!ib_GeneralizedSearch && ii_Base != 2)
+            FatalError("newpgen format is not supported for this search");
+         
          is_OutputTermsFileName = "sg.npg";
+      }
    }
 
    FactorApp::ParentValidateOptions();
@@ -213,7 +230,7 @@ void SophieGermainApp::ProcessInputTermsFile(bool haveBitMap)
 {
    FILE      *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
    char       buffer[1000];
-   uint32_t   b1, b2, n1, n2, n;
+   uint32_t   b1, b2, n1, n2, n, m;
    uint64_t   bit, k, diff, lastPrime;
    format_t   format = FF_UNKNOWN;
 
@@ -229,7 +246,7 @@ void SophieGermainApp::ProcessInputTermsFile(bool haveBitMap)
       il_MinK = il_MaxK = 0;
    }
    
-   if (sscanf(buffer, "ABCD $a*%u^%u-1 & 2*($a*%u^%u-1)+1 [%" SCNu64"] // Sieved to %" SCNu64"", &b1, &n1, &b2, &n2, &k, &lastPrime) == 6) {
+   if (sscanf(buffer, "ABCD $a*%u^%u-1 & %u*($a*%u^%u-1)+1 [%" SCNu64"] // Sieved to %" SCNu64"", &b1, &n1, &m, &b2, &n2, &k, &lastPrime) == 7) {
       if (b1 != b2)
          FatalError("Line 1 bases in ABCD input file %s do not match", is_InputTermsFileName.c_str());
       
@@ -239,6 +256,15 @@ void SophieGermainApp::ProcessInputTermsFile(bool haveBitMap)
       ii_Base = b1;
       ii_N = n1;
       format = FF_ABCD;
+      if (m == 2)
+         ib_GeneralizedSearch = false;
+      else
+      {
+         if (m != b1)
+            FatalError("Line 1 multiplier for the second term in ABCD input file %s is not supported", is_InputTermsFileName.c_str());
+
+         ib_GeneralizedSearch = true;
+      }
 
       if (haveBitMap)
       {
@@ -250,7 +276,7 @@ void SophieGermainApp::ProcessInputTermsFile(bool haveBitMap)
       else 
          il_MinK = il_MaxK = k;
    }
-   else if (sscanf(buffer, "%" SCNu64":S:0:%u:1024", &lastPrime, &ii_Base) == 2)
+   else if (sscanf(buffer, "%" SCNu64":S:0:%u:1034", &lastPrime, &ii_Base) == 2)
    {
       format = FF_NEWPGEN;
    }
@@ -322,12 +348,18 @@ void SophieGermainApp::ProcessInputTermsFile(bool haveBitMap)
 bool SophieGermainApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
    uint64_t k;
-   uint32_t b, n;
+   uint32_t b, n, m;
       
    if (sscanf(term, "%" SCNu64"*%u^%u-1", &k, &b, &n) != 2)
    {
-      if (sscanf(term, "2*(%" SCNu64"*%u^%u-1)+1", &k, &b, &n) != 2)
+      if (sscanf(term, "%u*(%" SCNu64"*%u^%u-1)+1", &m, &k, &b, &n) != 3)
          FatalError("Could not parse term %s", term);
+      
+      if (!ib_GeneralizedSearch && m != 2)
+         FatalError("Expected multiplier of 2 in factor but found %u", b);
+      
+      if (ib_GeneralizedSearch && m != b)
+         FatalError("Expected multiplier of %u in factor but found %u", ii_Base, b);
    }
    
    if (b != ii_Base)
@@ -394,7 +426,7 @@ uint64_t SophieGermainApp::WriteABCDTermsFile(uint64_t largestPrime, FILE *terms
    if (k > il_MaxK)
       FatalError("No remaining terms");
    
-   fprintf(termsFile, "ABCD $a*%u^%u-1 & 2*($a*%u^%u-1)+1 [%" SCNu64"] // Sieved to %" SCNu64"\n", ii_Base, ii_N, ii_Base, ii_N, k, largestPrime);
+   fprintf(termsFile, "ABCD $a*%u^%u-1 & %u*($a*%u^%u-1)+1 [%" SCNu64"] // Sieved to %" SCNu64"\n", ii_Base, ii_N, (ib_GeneralizedSearch ? ii_Base : 2), ii_Base, ii_N, k, largestPrime);
    
    previousK = k;
    kCount = 1;
@@ -420,7 +452,9 @@ uint64_t SophieGermainApp::WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsF
    uint64_t k, kCount = 0;
    uint64_t bit;
 
-   fprintf(termsFile, "%" PRIu64":S:0:%u:1024\n", maxPrime, ii_Base);
+   //   10 = k*2^n-1 & k*2^(n-1)+1 (per pfgw file newpgenformats.txt)
+   // 1034 = k*2^n-1 & k*b^(n-1)+1 (per pfgw file newpgenformats.txt)
+   fprintf(termsFile, "%" PRIu64":S:0:%u:%u\n", maxPrime, ii_Base, (ii_Base == 2 ? 10 : 1034));
       
    k = il_MinK;
    
@@ -440,7 +474,7 @@ uint64_t SophieGermainApp::WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsF
 
 void  SophieGermainApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
 {
-   sprintf(extraTtext, "%" PRIu64 " < k < %" PRIu64", k*%u^%u-1 and 2*(k*%u^%u-1)+1", il_MinK, il_MaxK, ii_Base, ii_N, ii_Base, ii_N);
+   sprintf(extraTtext, "%" PRIu64 " < k < %" PRIu64", first term t = k*%u^%u-1, next term is %u*t+1", il_MinK, il_MaxK, ii_Base, ii_N, (ib_GeneralizedSearch ? ii_Base : 2));
 }
 
 void  SophieGermainApp::ReportFactor(uint64_t theFactor, uint64_t k, bool firstOfPair, bool verifyFactor)
@@ -463,7 +497,7 @@ void  SophieGermainApp::ReportFactor(uint64_t theFactor, uint64_t k, bool firstO
       if (firstOfPair)
          LogFactor(theFactor, "%" PRIu64"*%u^%u-1", k, ii_Base, ii_N);
       else
-         LogFactor(theFactor, "2*(%" PRIu64"*%u^%u-1)+1", k, ii_Base, ii_N);
+         LogFactor(theFactor, "%u*(%" PRIu64"*%u^%u-1)+1", (ib_GeneralizedSearch ? ii_Base : 2), k, ii_Base, ii_N);
       
       il_FactorCount++;
       il_TermCount--;
@@ -491,10 +525,14 @@ void  SophieGermainApp::VerifyFactor(uint64_t theFactor, uint64_t k, bool firstO
       return;
    }
    
-   resRem = mp.mul(resRem, mp.nToRes(2));
+   if (ib_GeneralizedSearch)
+      resRem = mp.mul(resRem, mp.nToRes(ii_Base));
+   else
+      resRem = mp.mul(resRem, mp.nToRes(2));
+      
    resRem = mp.add(resRem, pOne);
       
    if (resRem != mp.zero())
-      FatalError("Invalid factor: %" PRIu64" is not a factor of not a factor of 2*(%" PRIu64"*%u^%u-1)+1", theFactor, k, ii_Base, ii_N);
+      FatalError("Invalid factor: %" PRIu64" is not a factor of not a factor of %u*(%" PRIu64"*%u^%u-1)+1", theFactor, (ib_GeneralizedSearch ? ii_Base : 2), k, ii_Base, ii_N);
    
 }

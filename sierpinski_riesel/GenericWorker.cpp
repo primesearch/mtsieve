@@ -113,12 +113,10 @@ void  GenericWorker::TestMegaPrimeChunk(void)
 {
    uint64_t maxPrime = ip_App->GetMaxPrime();
    uint64_t lastPrime = 0;
-   uint64_t p[4];
-   uint32_t b[4];
-
-   vector<uint64_t>::iterator it = iv_Primes.begin();
+   uint64_t ps[4];
+   uint32_t bs[4];
    
-   if (il_SmallPrimeSieveLimit > 0 && il_SmallPrimeSieveLimit > *it)
+   if (il_SmallPrimeSieveLimit > 0 && il_SmallPrimeSieveLimit > il_PrimeList[0])
    {
       lastPrime = ProcessSmallPrimes();
 
@@ -150,27 +148,20 @@ void  GenericWorker::TestMegaPrimeChunk(void)
    }
 #endif
 
-   b[0] = b[1] = b[2] = b[3] = ii_Base;
+   bs[0] = bs[1] = bs[2] = bs[3] = ii_Base;
 
-   while (it != iv_Primes.end())
+   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
    {
-      p[0] = *it;
-      it++;
-      
-      p[1] = *it;
-      it++;
-      
-      p[2] = *it;
-      it++;
-      
-      p[3] = *it;
-      it++;
+      ps[0] = il_PrimeList[pIdx+0];
+      ps[1] = il_PrimeList[pIdx+1];
+      ps[2] = il_PrimeList[pIdx+2];
+      ps[3] = il_PrimeList[pIdx+3];
          
-      DiscreteLogLargePrimes(b, p);
+      DiscreteLogLargePrimes(bs, ps);
       
-      SetLargestPrimeTested(p[3], 4);
+      SetLargestPrimeTested(ps[3], 4);
       
-      if (p[3] >= maxPrime)
+      if (ps[3] >= maxPrime)
       {
 #if defined(USE_OPENCL) || defined(USE_METAL)
          // This can only be true if we can switch to only running GPU workers.  Since this
@@ -188,43 +179,40 @@ void  GenericWorker::TestMegaPrimeChunk(void)
 
    // Determine if we can switch to the CisOne workers.  Note that if il_MaxK < il_MinGpuPrime
    // that the CPU workers will be used instead of the GPU workers
-   if (ib_CanUseCIsOneLogic && p[3] > il_MaxK && ii_SequenceCount == 1)
+   if (ib_CanUseCIsOneLogic && ps[3] > il_MaxK && ii_SequenceCount == 1)
       ip_SierpinskiRieselApp->SetRebuildNeeded();
 }
 
 uint64_t  GenericWorker::ProcessSmallPrimes(void)
 {
    uint64_t maxPrime = ip_App->GetMaxPrime();
-   uint64_t p[4];
-   uint32_t b[4];
+   uint64_t ps[4];
+   uint32_t bs[4];
    uint64_t thePrime, lastPrime = 0;
    uint32_t primeCount = 0;
    uint32_t actualCount = 0;
-   
-   vector<uint64_t>::iterator it = iv_Primes.begin();
-   
-   while (it != iv_Primes.end())
+      
+   for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx++)
    {
-      lastPrime = thePrime = *it;
-      it++;
+      lastPrime = thePrime = il_PrimeList[0];
       
       if (ii_Base % thePrime  == 0)
          continue;
 
-      p[primeCount] = thePrime;
-      b[primeCount] = (ii_Base % thePrime);
+      ps[primeCount] = thePrime;
+      bs[primeCount] = (ii_Base % thePrime);
       
       primeCount++;
       
       if (primeCount == 4)
       {   
-         DiscreteLogSmallPrimes(b, p);
+         DiscreteLogSmallPrimes(bs, ps);
          
-         SetLargestPrimeTested(p[3], 4);
+         SetLargestPrimeTested(ps[3], 4);
          
          primeCount = 0;
          
-         if (p[3] >= maxPrime)
+         if (ps[3] >= maxPrime)
             return lastPrime;
       }
    }
@@ -236,15 +224,15 @@ uint64_t  GenericWorker::ProcessSmallPrimes(void)
    
    while (primeCount < 4)
    {
-      p[primeCount] = p[primeCount-1];
-      b[primeCount] = b[primeCount-1];
+      ps[primeCount] = ps[primeCount-1];
+      bs[primeCount] = bs[primeCount-1];
 
       primeCount++;
    }
       
-   DiscreteLogSmallPrimes(b, p);
+   DiscreteLogSmallPrimes(bs, ps);
    
-   SetLargestPrimeTested(p[3], actualCount);
+   SetLargestPrimeTested(ps[3], actualCount);
    
    return lastPrime;
 }

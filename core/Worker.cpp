@@ -42,20 +42,15 @@ Worker::Worker(uint32_t myId, App *theApp)
    ip_App = theApp;
    ii_MyId = myId;
 
+   il_PrimesTested = 0;
    il_LargestPrimeTested = 0;
    il_WorkerCpuUS = 0;
-   ii_WorkSize = 0;
-
-   il_PrimesTested = 0;
 
    ib_GpuWorker = false;
 
    ii_WorkSize = ip_App->GetCpuWorkSize();
    
-#if defined(USE_OPENCL) || defined(USE_METAL)
-   // This is only used by GPU workers.
-   il_PrimeList = 0;
-#endif
+   il_PrimeList = NULL;
 
    ii_MiniChunkSize = 0;
    il_MinPrimeForMiniChunkMode = PMAX_MAX_62BIT;
@@ -80,6 +75,9 @@ Worker::~Worker()
 {
    delete ip_StatsLocker;
    delete ip_WorkerStatus;
+   
+   if (il_PrimeList != NULL)
+      xfree(il_PrimeList);
 }
 
 #ifdef WIN32
@@ -95,7 +93,7 @@ static void *ThreadEntryPoint(void *threadInfo)
    while (!worker->IsInitialized())
       Sleep(10);
 
-   worker->WaitForHandOff();
+   worker->StartProcessing();
 
 #ifdef WIN32
    return 0;
@@ -104,80 +102,31 @@ static void *ThreadEntryPoint(void *threadInfo)
 #endif
 }
 
-// This is called by the main thread to determine if this worker
-// is waiting for work.
-bool  Worker::IsWaitingForWork(bool lockWorkerStatus)
+void  Worker::AllocatePrimeList(void)
 {
-   workerstatus_t status;
+   if (il_PrimeList != NULL)
+      return;
    
-   ip_WorkerStatus->Lock();
-   
-   status = (workerstatus_t) ip_WorkerStatus->GetValueHaveLock();
-
-   // If not waiting for work, then release the lock and return
-   if (status != WS_WAITING_FOR_WORK)
-   {
-      ip_WorkerStatus->Release();
-      return false;
-   }
-
-   // Only release the lock if we don't want to keep it.
-   if (!lockWorkerStatus)
-      ip_WorkerStatus->Release();
-
-   return true;   
-}
-
-// This is called by the main thread when the thread is waiting for work.
-uint64_t  Worker::ProcessNextPrimeChunk(uint64_t startFrom, uint64_t maxPrimeForChunk)
-{
-   uint64_t largestPrime;
-   uint32_t primeCount;
-   
-   iv_Primes.clear();
-
-   // Generate primes for this worker
-   if (maxPrimeForChunk > 0 && maxPrimeForChunk > startFrom)
-   {
-      primeCount = primesieve::count_primes(startFrom+1, maxPrimeForChunk);
-     
-      // This assumes that worker threads need a count of primes that is a multiple of 4
-      while (primeCount & 0x03)
-         primeCount++;
-
-      primesieve::generate_n_primes(primeCount, startFrom+1, &iv_Primes);
-      
-      largestPrime = maxPrimeForChunk;
-   }
-   else
-   {
-      primesieve::generate_n_primes(ii_WorkSize, startFrom+1, &iv_Primes);
-   
-      largestPrime = iv_Primes.back();
-   }
-   
-   SetHasWorkToDo();
-   
-   ip_WorkerStatus->Release();
-   
-   // This could exceed maxPrime, but the TestPrimes() function will exit early if maxPrime is reached.
-   return largestPrime;
+   // Get a little extra space because we want to use 0 to end the list.
+   il_PrimeList = (uint64_t *) xmalloc((ii_WorkSize + 10) * sizeof(uint64_t));
 }
 
 // This is executed in a thread that is not the main thread
-void  Worker::WaitForHandOff(void)
+void  Worker::StartProcessing(void)
 {
-   uint64_t startTime;
+   uint64_t startTime, endTime;
 
 #ifdef USE_X86
    uint16_t savedFpuMode;
 #endif
    
-   SetWaitingForWork();
+   AllocatePrimeList();
+   
+   SetStatusWaitingForWork();
    
    while (true)
    {
-      if (IsWaitingForWork(false))
+      if (IsStatusWaitingForWork())
       {
          if (ip_App->IsSievingDone())
             break;
@@ -186,7 +135,7 @@ void  Worker::WaitForHandOff(void)
          continue;
       }
                   
-      ip_WorkerStatus->SetValueNoLock(WS_WORKING);
+      SetStatusWorking();
       
       startTime = Clock::GetThreadMicroseconds();
 
@@ -195,25 +144,9 @@ void  Worker::WaitForHandOff(void)
       savedFpuMode = fpu_mod_init();
 #endif
 
-#if defined(USE_OPENCL) || defined(USE_METAL)
-      if (ib_GpuWorker)
-      {
-         std::vector<uint64_t>::iterator it = iv_Primes.begin();
-         uint32_t idx = 0;
-         
-         while (it != iv_Primes.end())
-         {
-            il_PrimeList[idx] = *it;
-            
-            it++;
-            idx++;
-         }
-      }
-#endif
-
       if (ii_MiniChunkSize > 0 && 
-         iv_Primes.front() > il_MinPrimeForMiniChunkMode &&
-         iv_Primes.back() < il_MaxPrimeForMiniChunkMode)      
+         il_PrimeList[0] > il_MinPrimeForMiniChunkMode &&
+         il_PrimeList[ii_PrimesInList-1] < il_MaxPrimeForMiniChunkMode)      
          TestWithMiniChunks();
       else
          TestMegaPrimeChunk();
@@ -224,8 +157,10 @@ void  Worker::WaitForHandOff(void)
       
       // We need to lock while updating these variables as the main thread can read them.
       ip_StatsLocker->Lock();
+      
+      endTime = Clock::GetThreadMicroseconds();
 
-      il_WorkerCpuUS += (Clock::GetThreadMicroseconds() - startTime);
+      il_WorkerCpuUS += (endTime - startTime);
       
       ip_StatsLocker->Release();
 
@@ -236,10 +171,53 @@ void  Worker::WaitForHandOff(void)
          break;
 #endif
 
-      ip_WorkerStatus->SetValueNoLock(WS_WAITING_FOR_WORK);
+      if (!ib_GpuWorker && il_LargestPrimeTested > 100000)
+      {
+         double seconds = (double) ((endTime - startTime)) / 1000000.0;
+         
+         if (seconds < 1.0)
+         {            
+            while (seconds < 1.0)
+            {
+               seconds *= 2;
+               ii_WorkSize *= 2;
+            }
+            
+            if (ii_MyId == 0)
+               ip_App->WriteToConsole(COT_OTHER, "Increasing worksize to %u since each chunk is tested in less than a second", ii_WorkSize);
+            
+            xfree(il_PrimeList);
+            il_PrimeList = NULL;
+            
+            AllocatePrimeList();
+         }
+         
+         if (seconds > 5.0)
+         {
+            while (seconds > 5.0)
+            {
+               seconds /= 2;
+               ii_WorkSize /= 2;
+            }
+            
+            while (ii_WorkSize % 16)
+               ii_WorkSize++;
+                        
+            if (ii_MyId == 0)
+               ip_App->WriteToConsole(COT_OTHER, "Decreasing worksize to %u since each chunk needs more than 5 seconds to test", ii_WorkSize);
+            
+            xfree(il_PrimeList);
+            il_PrimeList = NULL;
+            
+            AllocatePrimeList();
+         }
+         
+      }
+
+      SetStatusWaitingForWork();
    }
 
-   ip_WorkerStatus->SetValueNoLock(WS_STOPPED);
+   SetStatusStopped();
 }
 
 void   Worker::SetMiniChunkRange(uint64_t minPrimeForMiniChunkMode, uint64_t maxPrimeForMiniChunkMode, uint32_t chunkSize)
@@ -254,20 +232,20 @@ void   Worker::SetMiniChunkRange(uint64_t minPrimeForMiniChunkMode, uint64_t max
 
 void    Worker::TestWithMiniChunks(void)
 {
-   std::vector<uint64_t>::iterator it = iv_Primes.begin();
    uint64_t maxPrime = ip_App->GetMaxPrime();
    uint32_t countInChunk = 0;
    uint64_t miniPrimeChunk[128];
+   uint32_t pIdx = 0;
    
-   while (it != iv_Primes.end() && *it < maxPrime)
+   while (pIdx < ii_PrimesInList && il_PrimeList[pIdx] < maxPrime)
    {
       countInChunk = 0;
       
-      while (it != iv_Primes.end() && countInChunk < ii_MiniChunkSize)
+      while (pIdx < ii_PrimesInList && countInChunk < ii_MiniChunkSize)
       {
-         miniPrimeChunk[countInChunk] = *it;
+         miniPrimeChunk[countInChunk] = il_PrimeList[pIdx];
          
-         it++;
+         pIdx++;
          
          countInChunk++;
       }

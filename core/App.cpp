@@ -62,7 +62,10 @@ App::App(void)
    il_MaxPrimeForSingleWorker = 0;
    il_LargestPrimeSieved = 0;
    
-   ii_CpuWorkSize = 1000000;
+   // We want this to be a multiple of 16 as any AVX code requires this (see AVX_ARRAY_SIZE).
+   // Not many sieves  use AVX, but since the Worker thread will change the number of primes
+   // per thread dynamically, this should be okay.
+   ii_CpuWorkSize = 16000;
    
    // We won't know this until we create a kernel in the GPU
    il_MinGpuPrime = 0;
@@ -113,7 +116,7 @@ void App::ParentHelp(void)
    
    printf("-p --pmin=P0          sieve start: P0 < p (default %" PRIu64")\n", il_AppMinPrime);
    printf("-P --pmax=P1          sieve end: p < P1 (default %s)\n", maxPrime);
-   printf("-w --worksize=w       primes per chunk of work (default %u)\n", ii_CpuWorkSize);
+   printf("-w --worksize=w       initial primes per chunk of work (default %u)\n", ii_CpuWorkSize);
    printf("-W --workers=W        start W workers (default %u)\n", ii_CpuWorkerCount);
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
@@ -356,7 +359,7 @@ void  App::StopWorkers(void)
          if (ii == 0 && ip_Workers[0] == NULL)
             continue;
          
-         if (!ip_Workers[ii]->IsStopped())
+         if (!ip_Workers[ii]->IsStatusStopped())
             count++;
       }
 
@@ -428,7 +431,6 @@ void  App::Run(void)
 void  App::Sieve(void)
 {
    uint32_t th;
-   uint64_t sieveStartUS;
    bool     useSingleThread;
    
    ResetFactorStats();
@@ -450,7 +452,10 @@ void  App::Sieve(void)
    
    useSingleThread = (il_LargestPrimeSieved < il_MaxPrimeForSingleWorker);
    
-   while (il_LargestPrimeSieved < il_MaxPrime && IsRunning())
+   ip_PrimeIterator.skipto(il_LargestPrimeSieved, il_MaxPrime);
+   
+   // In the first loop, run until we no longer need to use a single worker or until we can switch to the GPU.
+   while ((useSingleThread || il_LargestPrimeSieved < il_MinGpuPrime) && il_LargestPrimeSieved < il_MaxPrime && IsRunning())
    {
       th = GetNextAvailableWorker(useSingleThread, il_LargestPrimeSieved);
 
@@ -459,18 +464,14 @@ void  App::Sieve(void)
       if (th == NO_WORKER)
          break;
 
-      sieveStartUS = Clock::GetThreadMicroseconds();
-
-      il_LargestPrimeSieved = ip_Workers[th]->ProcessNextPrimeChunk(il_LargestPrimeSieved, il_MaxPrimeForSingleWorker);
-
-      il_TotalSieveUS += (Clock::GetThreadMicroseconds() - sieveStartUS);
+      il_LargestPrimeSieved = GetPrimesForWorker(th);
 
       // If we are using a single thread, then this will effectively block other Workers
       // from getting work until both this Worker is done and the largest prime tested for
       // this workr exceeds the max prime for a single CPU thread.
       if (th == 0 || useSingleThread)
       {
-         while (!ip_Workers[th]->IsWaitingForWork(false) && !ip_Workers[th]->IsStopped())
+         while (!ip_Workers[th]->IsStatusWaitingForWork() && !ip_Workers[th]->IsStatusStopped())
          {
             CheckReportStatus();
             
@@ -481,18 +482,53 @@ void  App::Sieve(void)
       }
    }
    
+   // In the second loop, run until we are done.  Hopefully this will do a better job at keeping
+   // of the workers busy.
+   while (il_LargestPrimeSieved < il_MaxPrime && IsRunning())
+   {
+      boolean gotNewWork = false;
+            
+      CheckReportStatus();
+      
+      // If rebuilding, then the largest prime tested might be smaller
+      // than the largest prime sieved so we have to update it.
+      if (IsRebuildNeeded())
+      {
+         il_LargestPrimeSieved = PauseSievingAndRebuild();
+         
+         ip_PrimeIterator.skipto(il_LargestPrimeSieved, il_MaxPrime);
+      }
+      
+      for (th=0; th<=ii_TotalWorkerCount; th++)
+      {
+         // ip_Worker[0] is the special CPU worker (if we need one)
+         if (th == 0 && ip_Workers[0] == NULL)
+            continue;
+
+         if (ip_Workers[th]->IsStatusStopped())
+            continue;
+            
+         if (ip_Workers[th]->IsStatusWaitingForWork())
+         {
+            il_LargestPrimeSieved = GetPrimesForWorker(th);
+            gotNewWork = true;
+         }
+      }
+      
+      // If we didn't get any new work, sleep
+      if (!gotNewWork)
+         Sleep(1);
+   }
+   
    Finish();
 }
 
 uint32_t  App::GetNextAvailableWorker(bool useSingleThread, uint64_t &largestPrimeSieved)
 {
    uint32_t  th;
-   uint32_t  attempts = 0;
 
    while (true)
-   {
-      attempts++;
-      
+   {      
       // Return NO_WORKER to indicate that we are returning without selecting
       // a worker as we want to stop processing.
       if (!IsRunning())
@@ -503,8 +539,6 @@ uint32_t  App::GetNextAvailableWorker(bool useSingleThread, uint64_t &largestPri
       if (IsRebuildNeeded())
          largestPrimeSieved = PauseSievingAndRebuild();
       
-      CheckReportStatus();
-      
       for (th=0; th<=ii_TotalWorkerCount; th++)
       {
          // ip_Worker[0] is the special CPU worker (if we need one).
@@ -514,10 +548,10 @@ uint32_t  App::GetNextAvailableWorker(bool useSingleThread, uint64_t &largestPri
             if (ip_Workers[0] == NULL)
                continue;
 
-            if (ip_Workers[0]->IsStopped())
+            if (ip_Workers[0]->IsStatusStopped())
                continue;
          
-            if (ip_Workers[0]->IsWaitingForWork(true))
+            if (ip_Workers[0]->IsStatusWaitingForWork())
                return th;
                
             continue;
@@ -532,13 +566,59 @@ uint32_t  App::GetNextAvailableWorker(bool useSingleThread, uint64_t &largestPri
                continue;
          }
             
-         if (ip_Workers[th]->IsWaitingForWork(true))
+         if (ip_Workers[th]->IsStatusWaitingForWork())
             return th;
       }
       
       // If we didn't find one, sleep
       Sleep(1);
    }
+}
+
+uint64_t  App::GetPrimesForWorker(uint32_t th)
+{
+   uint64_t  sieveStartUS = Clock::GetThreadMicroseconds();
+      
+   uint32_t  maxPrimesInList = ip_Workers[th]->GetMaxWorkSize();
+   uint64_t *primeList = ip_Workers[th]->GetPrimeList();
+   uint32_t  pIdx = 0;
+     
+   if (il_MaxPrimeForSingleWorker > 0 && il_MaxPrimeForSingleWorker > il_LargestPrimeSieved)
+   {
+      while (pIdx < maxPrimesInList && il_LargestPrimeSieved < il_MaxPrimeForSingleWorker)
+      {
+         il_LargestPrimeSieved = ip_PrimeIterator.next_prime();
+         primeList[pIdx] = il_LargestPrimeSieved;
+         pIdx++;
+      };
+      
+      // For AVX we want multiples of 16, so gurantee that in case AVX is used by the worker for this chunk
+      while (pIdx % 16 > 0)
+      {
+         il_LargestPrimeSieved = ip_PrimeIterator.next_prime();
+         primeList[pIdx] = il_LargestPrimeSieved;
+         pIdx++;
+      }
+      
+   }
+   else
+   {
+      while (pIdx < maxPrimesInList)
+      {
+         il_LargestPrimeSieved = ip_PrimeIterator.next_prime();
+         primeList[pIdx] = il_LargestPrimeSieved;
+         pIdx++;
+      }
+   }
+   
+   primeList[pIdx] = 0;
+   ip_Workers[th]->SetPrimesInList(pIdx);
+   
+   ip_Workers[th]->SetStatusHasWorkToDo();
+   
+   il_TotalSieveUS += (Clock::GetThreadMicroseconds() - sieveStartUS);
+      
+   return il_LargestPrimeSieved;
 }
 
 uint64_t  App::PauseSievingAndRebuild(void)
@@ -634,7 +714,7 @@ void  App::CreateWorkers(uint64_t largestPrimeTested)
          if (th == 0 && ip_Workers[0] == NULL)
             continue;
             
-         if (!ip_Workers[th]->IsWaitingForWork(false))
+         if (!ip_Workers[th]->IsStatusWaitingForWork())
             allWaiting = false;
       }
    }
@@ -681,8 +761,6 @@ void  App::Finish(void)
             il_TotalSieveUS/1000000.0,
             cpuUtilization);
 #endif
-   
-
 
    Finish(finishMethod, elapsedTimeUS, largestPrimeTested, primesTested);
 
@@ -858,7 +936,7 @@ void  App::GetWorkerStats(uint64_t &workerCpuUS, uint64_t &largestPrimeTestedNoG
       {
          // If this worker is waiting for work, then aasume that at least one worker
          // will be working on the next chunk, so use its stats instead.
-         if (!ip_Workers[ii]->IsWaitingForWork(false))
+         if (!ip_Workers[ii]->IsStatusWaitingForWork())
          {
             // If there are multiple workers, this will be the largest prime tested
             // where we know that all primes less than this prime have been tested.

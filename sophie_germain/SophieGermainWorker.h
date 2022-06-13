@@ -39,6 +39,7 @@ private:
    uint64_t          il_MaxK;
    uint32_t          ii_Base;
    uint32_t          ii_N;
+   bool              ib_GeneralizedSearch;
 };
 
 #endif

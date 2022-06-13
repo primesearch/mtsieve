@@ -31,31 +31,22 @@ void  K1B2Worker::CleanUp(void)
 
 void  K1B2Worker::TestMegaPrimeChunk(void)
 {
-   uint64_t p1, p2, p3, p4, ps[4];
+   uint64_t ps[4];
    uint64_t twoExpN[4];
    uint64_t maxPrime = ip_App->GetMaxPrime();
    uint32_t n;
    bool     useSmallPLogic = true;
    
-   vector<uint64_t>::iterator it = iv_Primes.begin(); 
-   
-   while (it != iv_Primes.end())
+   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
    {
-      p1 = ps[0] = *it;
-      it++;
+      ps[0] = il_PrimeList[pIdx+0];
+      ps[1] = il_PrimeList[pIdx+1];
+      ps[2] = il_PrimeList[pIdx+2];
+      ps[3] = il_PrimeList[pIdx+3];
       
-      p2 = ps[1] = *it;
-      it++;
-      
-      p3 = ps[2] = *it;
-      it++;
-      
-      p4 = ps[3] = *it;
-      it++;
-
       if (useSmallPLogic)
       {
-         if ((int64_t) p1 > (il_MaxC - il_MinC + 1))
+         if ((int64_t) ps[0] > (il_MaxC - il_MinC + 1))
             useSmallPLogic = false;
       }
 
@@ -69,17 +60,17 @@ void  K1B2Worker::TestMegaPrimeChunk(void)
       {
          if (useSmallPLogic)
          {
-            RemoveTermsSmallP(p1, n, twoExpN[0]);
-            RemoveTermsSmallP(p2, n, twoExpN[1]);
-            RemoveTermsSmallP(p3, n, twoExpN[2]);
-            RemoveTermsSmallP(p4, n, twoExpN[3]);
+            RemoveTermsSmallP(ps[0], n, twoExpN[0]);
+            RemoveTermsSmallP(ps[1], n, twoExpN[1]);
+            RemoveTermsSmallP(ps[2], n, twoExpN[2]);
+            RemoveTermsSmallP(ps[3], n, twoExpN[3]);
          }
          else
          {
-            RemoveTermsLargeP(p1, n, twoExpN[0]);
-            RemoveTermsLargeP(p2, n, twoExpN[1]);
-            RemoveTermsLargeP(p3, n, twoExpN[2]);
-            RemoveTermsLargeP(p4, n, twoExpN[3]);
+            RemoveTermsLargeP(ps[0], n, twoExpN[0]);
+            RemoveTermsLargeP(ps[1], n, twoExpN[1]);
+            RemoveTermsLargeP(ps[2], n, twoExpN[2]);
+            RemoveTermsLargeP(ps[3], n, twoExpN[3]);
          }
          
          // Multiple each term by 2.
@@ -97,9 +88,9 @@ void  K1B2Worker::TestMegaPrimeChunk(void)
          n++;
       }
 
-      SetLargestPrimeTested(p4, 4);
+      SetLargestPrimeTested(ps[3], 4);
       
-      if (p4 > maxPrime)
+      if (ps[3] > maxPrime)
          break;
    }
 }

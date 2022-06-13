@@ -32,38 +32,29 @@ void  FixedKBNWorker::CleanUp(void)
 
 void  FixedKBNWorker::TestMegaPrimeChunk(void)
 {
-   uint64_t p1, p2, p3, p4, ps[4];
+   uint64_t ps[4];
    uint64_t bs[4];
-   uint64_t maxPrime = ip_App->GetMaxPrime();
+   uint64_t maxPrime = ip_App->GetMaxPrime();   
    
-   vector<uint64_t>::iterator it = iv_Primes.begin(); 
-   
-   while (it != iv_Primes.end())
+   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
    {
-      p1 = ps[0] = *it;
-      it++;
-      
-      p2 = ps[1] = *it;
-      it++;
-      
-      p3 = ps[2] = *it;
-      it++;
-      
-      p4 = ps[3] = *it;
-      it++;
+      ps[0] = il_PrimeList[pIdx+0];
+      ps[1] = il_PrimeList[pIdx+1];
+      ps[2] = il_PrimeList[pIdx+2];
+      ps[3] = il_PrimeList[pIdx+3];
       
       bs[0] = bs[1] = bs[2] = bs[3] = ii_Base;
       
       fpu_powmod_4b_1n_4p(bs, ii_N, ps);
    
-      RemoveTerms(p1, bs[0]);
-      RemoveTerms(p2, bs[1]);
-      RemoveTerms(p3, bs[2]);
-      RemoveTerms(p4, bs[3]);
+      RemoveTerms(ps[0], bs[0]);
+      RemoveTerms(ps[1], bs[1]);
+      RemoveTerms(ps[2], bs[2]);
+      RemoveTerms(ps[3], bs[3]);
 
-      SetLargestPrimeTested(p4, 4);
+      SetLargestPrimeTested(ps[3], 4);
       
-      if (p4 > maxPrime)
+      if (ps[3] > maxPrime)
          break;
 
       // If no terms left, then we are done

@@ -35,6 +35,8 @@ class App;
 #include "Worker.h"
 #include "SharedMemoryItem.h"
 
+#include "../sieve/primesieve.hpp"
+
 // Console output types
 typedef enum { COT_OTHER = 1, COT_SIEVE } cotype_t;
 typedef enum { AS_INITIALIZING, AS_RUNNING, AS_INTERRUPTED, AS_FINISHED } appstatus_t;
@@ -167,12 +169,15 @@ protected:
    cotype_t          icot_LastConsoleOutputType;
                     
 private:
+   primesieve::iterator  ip_PrimeIterator;
+   
    void              DeleteWorkers(void);
    void              CreateWorkers(uint64_t largestPrimeTested);
    
    uint64_t          PauseSievingAndRebuild(void);
    void              ReportStatus(void);
    uint32_t          GetNextAvailableWorker(bool useSingleThread, uint64_t &largestPrimeSieved);
+   uint64_t          GetPrimesForWorker(uint32_t th);
    void              SetRebuildCompleted(void) { ip_NeedToRebuild->SetValueNoLock(0); };
    
    void              CheckReportStatus(void);

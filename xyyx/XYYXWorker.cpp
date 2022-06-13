@@ -107,21 +107,12 @@ void  XYYXWorker::TestMegaPrimeChunk(void)
    uint64_t ps[4];
    uint64_t maxPrime = ip_App->GetMaxPrime();
    
-   vector<uint64_t>::iterator it = iv_Primes.begin();
-   
-   while (it != iv_Primes.end())
+   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
    {
-      ps[0] = *it;
-      it++;
-      
-      ps[1] = *it;
-      it++;
-      
-      ps[2] = *it;
-      it++;
-      
-      ps[3] = *it;
-      it++;
+      ps[0] = il_PrimeList[pIdx+0];
+      ps[1] = il_PrimeList[pIdx+1];
+      ps[2] = il_PrimeList[pIdx+2];
+      ps[3] = il_PrimeList[pIdx+3];
       
       // Every once in a while rebuild the term lists as it will have fewer entries
       // which will speed up testing for the next range of p.

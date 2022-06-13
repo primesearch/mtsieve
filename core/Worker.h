@@ -51,25 +51,33 @@ public:
    virtual void      CleanUp(void) = 0;
    
    // These are only to be used if calling multiple getters in succession
-   void              LockStats(void)    { ip_StatsLocker->Lock(); }
-   void              ReleaseStats(void) { ip_StatsLocker->Release(); }
+   void              LockStats(void)    { ip_StatsLocker->Lock(); };
+   void              ReleaseStats(void) { ip_StatsLocker->Release(); };
+   
+   void              AllocatePrimeList(void);
 
+   uint32_t          GetMaxWorkSize(void) { return ii_WorkSize; };
+   uint64_t         *GetPrimeList(void) { return il_PrimeList; };
+   
    uint64_t          GetWorkerCpuUS(void)  { return il_WorkerCpuUS; }
    uint64_t          GetPrimesTested(void)    { return il_PrimesTested; }
    uint64_t          GetLargestPrimeTested(void)  { return il_LargestPrimeTested; }
  
    bool              IsInitialized(void) { return ib_Initialized; };
-   bool              HasWorkToDo(void) { return (((workerstatus_t) ip_WorkerStatus->GetValueNoLock()) == WS_HAS_WORK_TO_DO); };
-   bool              IsWaitingForWork(bool lockWorkerStatus);
-   bool              IsWorking(void) { return (((workerstatus_t) ip_WorkerStatus->GetValueNoLock()) == WS_WORKING); };
-   bool              IsStopped(void) { return (((workerstatus_t) ip_WorkerStatus->GetValueNoLock()) == WS_STOPPED); };
+   
+   bool              IsStatusHasWorkToDo(void) { return (((workerstatus_t) ip_WorkerStatus->GetValueNoLock()) == WS_HAS_WORK_TO_DO); };
+   bool              IsStatusWaitingForWork(void) { return (((workerstatus_t) ip_WorkerStatus->GetValueNoLock()) == WS_WAITING_FOR_WORK); };
+   bool              IsStatusWorking(void) { return (((workerstatus_t) ip_WorkerStatus->GetValueNoLock()) == WS_WORKING); };
+   bool              IsStatusStopped(void) { return (((workerstatus_t) ip_WorkerStatus->GetValueNoLock()) == WS_STOPPED); };
+   
+   void              SetPrimesInList(uint32_t primesInList) { ii_PrimesInList = primesInList; };
+   
+   void              SetStatusHasWorkToDo(void) { ip_WorkerStatus->SetValueNoLock(WS_HAS_WORK_TO_DO); };
+
+   void              StartProcessing(void);
+
    bool              IsGpuWorker(void) { return ib_GpuWorker; };
    
-   uint64_t          GetWorkerStatus(void) { return ip_WorkerStatus->GetValueNoLock(); };
-   void              WaitForHandOff(void);
-   
-   uint64_t          ProcessNextPrimeChunk(uint64_t startFrom, uint64_t maxPrimeForChunk);
-
 protected:
    bool              IsQuadraticResidue(uint64_t n, uint64_t p);
    uint64_t          InvMod32(uint32_t a, uint64_t p);
@@ -85,40 +93,38 @@ protected:
    
    void              SetMiniChunkRange(uint64_t minPrimeForMiniChunkMode, uint64_t maxPrimeForMiniChunkMode, uint32_t chunkSize);
 
-   void              SetLargestPrimeTested(uint64_t largestPrimeTested, uint64_t primesTested)  { il_LargestPrimeTested = largestPrimeTested; il_PrimesTested += primesTested; }
+   void              SetLargestPrimeTested(uint64_t largestPrimeTested, uint64_t primesTested) { il_LargestPrimeTested = largestPrimeTested; il_PrimesTested += primesTested; };
 
    uint32_t          ii_MyId;
    bool              ib_Initialized;
    bool              ib_GpuWorker;
    
-   std::vector<uint64_t>  iv_Primes;
+   // The maximum number of primes per chunk
+   uint32_t          ii_WorkSize;
    
-#if defined(USE_OPENCL) || defined(USE_METAL)
+   // The actual number of primes in the chunk
+   uint32_t          ii_PrimesInList;
    uint64_t         *il_PrimeList;
-#endif
 
    App              *ip_App;
 
    SharedMemoryItem *ip_StatsLocker;
    SharedMemoryItem *ip_WorkerStatus;
 
-   uint32_t          ii_WorkSize;
 #ifndef WIN32
    pthread_t         ih_Thread;
 #endif
 
 private:
-   void              SetHasWorkToDo(void) { ip_WorkerStatus->SetValueHaveLock(WS_HAS_WORK_TO_DO); };
-   void              SetWorking(void) { ip_WorkerStatus->SetValueNoLock(WS_WORKING); };
-   void              SetWaitingForWork(void) { ip_WorkerStatus->SetValueNoLock(WS_WAITING_FOR_WORK); };
+   void              SetStatusWorking(void) { ip_WorkerStatus->SetValueNoLock(WS_WORKING); };
+   void              SetStatusWaitingForWork(void) { ip_WorkerStatus->SetValueNoLock(WS_WAITING_FOR_WORK); };
+   void              SetStatusStopped(void) { ip_WorkerStatus->SetValueNoLock(WS_STOPPED); };
    
    void              TestWithMiniChunks(void);
    
    uint32_t          ii_MiniChunkSize;
    uint64_t          il_MinPrimeForMiniChunkMode;
    uint64_t          il_MaxPrimeForMiniChunkMode;
-   
-   std::vector<uint64_t>::iterator it_PrimeIterator;
    
    // Total number of milliseconds spent in the thread.
    uint64_t          il_WorkerCpuUS;

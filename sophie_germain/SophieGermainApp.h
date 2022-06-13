@@ -36,7 +36,8 @@ public:
    uint64_t          GetMaxK(void) { return il_MaxK; };
    uint32_t          GetBase(void) { return ii_Base; };
    uint32_t          GetN(void) { return ii_N; };
-   
+   bool              IsGeneralizedSearch(void) { return ib_GeneralizedSearch; };
+
    void              ReportFactor(uint64_t theFactor, uint64_t k, bool firstOfPair, bool verifyFactor);
 
 protected:
@@ -59,6 +60,7 @@ private:
    
    std::vector<bool> iv_Terms;
    
+   bool              ib_GeneralizedSearch;
    format_t          it_Format;
    
    std::string       is_InputFileName;

@@ -51,7 +51,6 @@ void  SmarandacheWorker::TestMegaPrimeChunk(void)
 bool  SmarandacheWorker::TestSixDigitN(void)
 {
    uint64_t  ps[4], maxPrime = ip_App->GetMaxPrime();
-   vector<uint64_t>::iterator it = iv_Primes.begin();
    uint32_t *terms = ip_Terms->termList;
    uint32_t  termCount = ip_Terms->termCount;
    uint64_t  invmod2[4];
@@ -61,21 +60,14 @@ bool  SmarandacheWorker::TestSixDigitN(void)
    
    uint64_t  m = ((uint64_t) terms[0] * 999999) + 1000000;
    uint32_t  exp = 6*terms[0] - 599989;
-
-   while (it != iv_Primes.end())
+   
+   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
    {
-      ps[0] = *it;
-      it++;
+      ps[0] = il_PrimeList[pIdx+0];
+      ps[1] = il_PrimeList[pIdx+1];
+      ps[2] = il_PrimeList[pIdx+2];
+      ps[3] = il_PrimeList[pIdx+3];
       
-      ps[1] = *it;
-      it++;
-      
-      ps[2] = *it;
-      it++;
-      
-      ps[3] = *it;
-      it++;
-
       if (ps[0] < 12321)
       {
          invmod2[0] = InvMod64(12321 % ps[0], ps[0]);
@@ -266,7 +258,6 @@ bool  SmarandacheWorker::TestSixDigitN(void)
 bool  SmarandacheWorker::TestSevenDigitN(void)
 {
    uint64_t  ps[4], maxPrime = ip_App->GetMaxPrime();
-   vector<uint64_t>::iterator it = iv_Primes.begin();
    uint32_t *terms = ip_Terms->termList;
    uint32_t  termCount = ip_Terms->termCount;
    uint64_t  invmod2[4], invmod3[4], invmod4[4], invmod5[4], invmod6[4];
@@ -292,19 +283,12 @@ bool  SmarandacheWorker::TestSevenDigitN(void)
    MpResVec resT[7];
    MpResVec resInvmod;
       
-   while (it != iv_Primes.end())
+   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
    {
-      ps[0] = *it;
-      it++;
-      
-      ps[1] = *it;
-      it++;
-      
-      ps[2] = *it;
-      it++;
-      
-      ps[3] = *it;
-      it++;
+      ps[0] = il_PrimeList[pIdx+0];
+      ps[1] = il_PrimeList[pIdx+1];
+      ps[2] = il_PrimeList[pIdx+2];
+      ps[3] = il_PrimeList[pIdx+3];
       
       invmod2[0] = InvMod64(two9sq, ps[0]);
       invmod2[1] = InvMod64(two9sq, ps[1]);
