@@ -56,7 +56,7 @@ public:
    
    void              AllocatePrimeList(void);
 
-   uint32_t          GetMaxWorkSize(void) { return ii_WorkSize; };
+   uint32_t          GetMaxWorkSize(void) { return ii_MaxWorkSize; };
    uint64_t         *GetPrimeList(void) { return il_PrimeList; };
    
    uint64_t          GetWorkerCpuUS(void)  { return il_WorkerCpuUS; }
@@ -98,10 +98,7 @@ protected:
    uint32_t          ii_MyId;
    bool              ib_Initialized;
    bool              ib_GpuWorker;
-   
-   // The maximum number of primes per chunk
-   uint32_t          ii_WorkSize;
-   
+      
    // The actual number of primes in the chunk
    uint32_t          ii_PrimesInList;
    uint64_t         *il_PrimeList;
@@ -121,6 +118,11 @@ private:
    void              SetStatusStopped(void) { ip_WorkerStatus->SetValueNoLock(WS_STOPPED); };
    
    void              TestWithMiniChunks(void);
+   
+   uint64_t          ComputeOptimalWorkSize(uint64_t startTime, uint64_t endTime);
+   
+   // The maximum number of primes per chunk
+   uint32_t          ii_MaxWorkSize;
    
    uint32_t          ii_MiniChunkSize;
    uint64_t          il_MinPrimeForMiniChunkMode;

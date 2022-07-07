@@ -49,7 +49,7 @@ void  GFNDivisorWorker::TestMegaPrimeChunkSmall(void)
    uint64_t maxPrime = ip_App->GetMaxPrime();
    uint32_t n;
    
-   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
+   for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx+=4)
    {
       p1 = ps[0] = il_PrimeList[pIdx+0];
       p2 = ps[1] = il_PrimeList[pIdx+1];
@@ -108,7 +108,7 @@ void  GFNDivisorWorker::TestMegaPrimeChunkLarge(void)
    uint32_t n1, n2, n3, n4;
    uint32_t bits1, bits2, bits3, bits4;
    
-   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
+   for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx+=4)
    {
       p1 = ps[0] = il_PrimeList[pIdx+0];
       p2 = ps[1] = il_PrimeList[pIdx+1];

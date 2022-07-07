@@ -48,7 +48,7 @@ Worker::Worker(uint32_t myId, App *theApp)
 
    ib_GpuWorker = false;
 
-   ii_WorkSize = ip_App->GetCpuWorkSize();
+   ii_MaxWorkSize = ip_App->GetCpuWorkSize();
    
    il_PrimeList = NULL;
 
@@ -108,7 +108,7 @@ void  Worker::AllocatePrimeList(void)
       return;
    
    // Get a little extra space because we want to use 0 to end the list.
-   il_PrimeList = (uint64_t *) xmalloc((ii_WorkSize + 10) * sizeof(uint64_t));
+   il_PrimeList = (uint64_t *) xmalloc((ii_MaxWorkSize + 10) * sizeof(uint64_t));
 }
 
 // This is executed in a thread that is not the main thread
@@ -164,54 +164,29 @@ void  Worker::StartProcessing(void)
       
       ip_StatsLocker->Release();
 
-#if defined(USE_OPENCL) || defined(USE_METAL)      
-      // If this is the special CPU worker and we no longer need it,
-      // then we can break out of this loop and stop this thread.
-      if (ii_MyId == 0 && il_LargestPrimeTested > ip_App->GetMinGpuPrime())
-         break;
-#endif
-
       if (!ib_GpuWorker && il_LargestPrimeTested > 100000)
       {
-         double seconds = (double) ((endTime - startTime)) / 1000000.0;
+         uint64_t newWorkSize = ComputeOptimalWorkSize(startTime, endTime);
+
+         // This is the hard-coded limit in App.cpp
+         if (newWorkSize > 1000000000)
+            newWorkSize = 1000000000;
+            
+         if (ii_MyId == 1 && newWorkSize > ii_MaxWorkSize)
+            ip_App->WriteToConsole(COT_OTHER, "Increasing worksize to %llu since each chunk is testsed in less than a second", newWorkSize);
+            
+         if (ii_MyId == 1 && newWorkSize < ii_MaxWorkSize)
+            ip_App->WriteToConsole(COT_OTHER, "Decreasing worksize to %llu since each chunk needs more than 5 seconds to test", newWorkSize);
          
-         if (seconds < 1.0)
-         {            
-            while (seconds < 1.0)
-            {
-               seconds *= 2;
-               ii_WorkSize *= 2;
-            }
-            
-            if (ii_MyId == 0)
-               ip_App->WriteToConsole(COT_OTHER, "Increasing worksize to %u since each chunk is tested in less than a second", ii_WorkSize);
-            
-            xfree(il_PrimeList);
-            il_PrimeList = NULL;
-            
-            AllocatePrimeList();
-         }
-         
-         if (seconds > 5.0)
+         if (newWorkSize != ii_MaxWorkSize)
          {
-            while (seconds > 5.0)
-            {
-               seconds /= 2;
-               ii_WorkSize /= 2;
-            }
-            
-            while (ii_WorkSize % 16)
-               ii_WorkSize++;
-                        
-            if (ii_MyId == 0)
-               ip_App->WriteToConsole(COT_OTHER, "Decreasing worksize to %u since each chunk needs more than 5 seconds to test", ii_WorkSize);
-            
+            ii_MaxWorkSize = (uint32_t) newWorkSize;
+         
             xfree(il_PrimeList);
             il_PrimeList = NULL;
             
             AllocatePrimeList();
          }
-         
       }
 
       SetStatusWaitingForWork();
@@ -265,6 +240,43 @@ void    Worker::TestWithMiniChunks(void)
       il_PrimesTested += countInChunk;
       il_LargestPrimeTested = miniPrimeChunk[countInChunk-1];
    }
+}
+
+uint64_t Worker::ComputeOptimalWorkSize(uint64_t startTime, uint64_t endTime)
+{
+   uint64_t optimalWorkSize = ii_MaxWorkSize;
+   
+   if (endTime - startTime == 0)
+      return optimalWorkSize * 10;
+   
+   double seconds = (double) ((endTime - startTime)) / 1000000.0;
+   
+   if (seconds < 1.0)
+   {
+      while (seconds < 1.0)
+      {
+         seconds *= 4.0;
+         optimalWorkSize *= 4;
+      }
+      
+      return optimalWorkSize;
+   }
+   
+   if (seconds > 5.0)
+   {
+      while (seconds > 5.0)
+      {
+         seconds /= 2;
+         optimalWorkSize /= 2;
+      }
+      
+      while (optimalWorkSize % 32)
+         optimalWorkSize++;
+
+      return optimalWorkSize;
+   }
+   
+   return optimalWorkSize;
 }
 
 // Determine if there is a value x such that x^2 = 2 (mod p).

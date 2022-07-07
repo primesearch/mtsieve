@@ -48,9 +48,9 @@ SmarandacheGpuWorker::SmarandacheGpuWorker(uint32_t myId, App *theApp) : Worker(
 
    ip_SmarandacheApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
    
-   ii_WorkSize = ip_SmarandacheApp->GetGpuPrimesPerWorker();
+   ii_PrimesInList = ip_SmarandacheApp->GetGpuPrimesPerWorker();
    
-   il_PrimeList = (uint64_t *) ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_WorkSize);
+   il_PrimeList = (uint64_t *) ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_PrimesInList);
    ii_KernelTerms = (uint32_t *) ip_Kernel->AddCpuArgument("factorCount", sizeof(uint32_t), ii_MaxGpuSteps+1);
    ii_FactorCount = (uint32_t *) ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 1);
    il_FactorList = (uint64_t *) ip_Kernel->AddGpuArgument("factorList", sizeof(uint64_t), 2*ii_MaxGpuFactors);
@@ -93,7 +93,7 @@ void  SmarandacheGpuWorker::TestMegaPrimeChunk(void)
 
       ii_FactorCount[0] = 0;
   
-      ip_Kernel->Execute(ii_WorkSize);
+      ip_Kernel->Execute(ii_PrimesInList);
 
       for (ii=0; ii<ii_FactorCount[0]; ii++)
       {  
@@ -120,7 +120,7 @@ void  SmarandacheGpuWorker::TestMegaPrimeChunk(void)
       }
    }
    
-   SetLargestPrimeTested(il_PrimeList[ii_WorkSize-1], ii_WorkSize);
+   SetLargestPrimeTested(il_PrimeList[ii_PrimesInList-1], ii_PrimesInList);
 }
 
 void  SmarandacheGpuWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)

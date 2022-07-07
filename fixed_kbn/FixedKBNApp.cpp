@@ -13,9 +13,10 @@
 #include "../core/Clock.h"
 #include "FixedKBNApp.h"
 #include "FixedKBNWorker.h"
+#include "../x86_asm/fpu-asm-x86.h"
 
 #define APP_NAME        "fkbnsieve"
-#define APP_VERSION     "1.4"
+#define APP_VERSION     "1.5"
 
 // This is declared in App.h, but implemented here.  This means that App.h
 // can remain unchanged if using the mtsieve framework for other applications.
@@ -310,12 +311,15 @@ void  FixedKBNApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
    sprintf(extraTtext, "%" PRId64" <= c <= %" PRId64", %" PRIu64 "*%u^%u+c", il_MinC, il_MaxC, il_K, ii_Base, ii_N);
 }
 
-bool  FixedKBNApp::ReportFactor(uint64_t theFactor, int64_t c)
+bool  FixedKBNApp::ReportFactor(uint64_t theFactor, int64_t c, bool verifyFactor)
 {   
    bool     removedTerm = false;
    
    if (c < il_MinC || c > il_MaxC)
       return false;
+   
+   if (verifyFactor)
+      
    
    if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
@@ -337,4 +341,27 @@ bool  FixedKBNApp::ReportFactor(uint64_t theFactor, int64_t c)
       ip_FactorAppLock->Release();
    
    return removedTerm;
+}
+
+void  FixedKBNApp::VerifyFactor(uint64_t prime, int64_t c)
+{
+   int64_t  rem;
+   
+   fpu_push_1divp(prime);
+      
+   rem = fpu_powmod(ii_Base, ii_N, prime);
+   rem = fpu_mulmod(il_K, rem, prime);
+   
+   fpu_pop();
+   
+   rem += c;
+         
+   while (rem < 0)
+      rem += (int64_t) prime;
+   
+   while (rem >= (int64_t) prime)
+      rem -= (int64_t) prime;
+   
+   if (rem != 0)
+      FatalError("%" PRIu64"*%u^%u%+" PRId64" mod %" PRIu64" = %" PRIu64"", il_K, ii_Base, ii_N, c, prime, rem);
 }

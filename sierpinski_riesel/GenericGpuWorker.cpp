@@ -194,11 +194,11 @@ GpuKernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uin
 
    ip_SierpinskiRieselApp->SetGpuWorkGroupSize(kernel->GetWorkGroupSize());
    
-   ii_WorkSize = ip_SierpinskiRieselApp->GetGpuPrimesPerWorker() * ii_ChunksPerGpuWorker;
-   ii_KernelWorkSize = ii_WorkSize / ii_ChunksPerGpuWorker;
+   ii_PrimesInList = ip_SierpinskiRieselApp->GetGpuPrimesPerWorker() * ii_ChunksPerGpuWorker;
+   ii_KernelWorkSize = ii_PrimesInList / ii_ChunksPerGpuWorker;
 
    if (il_PrimeList == NULL)
-      il_PrimeList      = (uint64_t *) xmalloc(sizeof(uint64_t) * ii_WorkSize);
+      il_PrimeList      = (uint64_t *) xmalloc(sizeof(uint64_t) * ii_PrimesInList);
 
    il_Primes[kIdx]      = (uint64_t *) kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_KernelWorkSize);
    il_Ks[kIdx]          = (uint64_t *) kernel->AddCpuArgument("k", sizeof(uint64_t), sequences);
@@ -269,11 +269,11 @@ void  GenericGpuWorker::TestMegaPrimeChunk(void)
       }
    }
 
-   SetLargestPrimeTested(il_PrimeList[ii_WorkSize-1], ii_WorkSize);
+   SetLargestPrimeTested(il_PrimeList[ii_PrimesInList-1], ii_PrimesInList);
    
    // Determine if we can switch to the CisOne workers.  This will automatically switch
    // to the CisOne GPU workers.
-   if (ib_CanUseCIsOneLogic && il_PrimeList[ii_WorkSize-1] > il_MaxK && ii_SequenceCount == 1)
+   if (ib_CanUseCIsOneLogic && il_PrimeList[ii_PrimesInList-1] > il_MaxK && ii_SequenceCount == 1)
       ip_SierpinskiRieselApp->SetRebuildNeeded();
 }
 

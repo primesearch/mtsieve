@@ -43,10 +43,10 @@ MultiFactorialGpuWorker::MultiFactorialGpuWorker(uint32_t myId, App *theApp) : W
 
    ip_MultiFactorialApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
    
-   ii_WorkSize = ip_MultiFactorialApp->GetGpuPrimesPerWorker();
+   ii_PrimesInList = ip_MultiFactorialApp->GetGpuPrimesPerWorker();
    
-   il_PrimeList = (uint64_t *) ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_WorkSize);
-   il_RemainderList = (uint64_t *) ip_Kernel->AddGpuArgument("remainders", sizeof(uint64_t), 2*ii_WorkSize);
+   il_PrimeList = (uint64_t *) ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_PrimesInList);
+   il_RemainderList = (uint64_t *) ip_Kernel->AddGpuArgument("remainders", sizeof(uint64_t), 2*ii_PrimesInList);
    ii_Parameters = (uint32_t *) ip_Kernel->AddCpuArgument("parameters", sizeof(uint32_t), 5);
    ii_FactorCount = (uint32_t *) ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 1);
    il_FactorList = (int64_t *) ip_Kernel->AddGpuArgument("factorList", sizeof(uint64_t), 4*ii_MaxGpuFactors);
@@ -102,7 +102,7 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
          iteration++;
          ii_FactorCount[0] = 0;
      
-         ip_Kernel->Execute(ii_WorkSize);
+         ip_Kernel->Execute(ii_PrimesInList);
 
          for (ii=0; ii<ii_FactorCount[0]; ii++)
          {  
@@ -132,7 +132,7 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
       } while (ii_Parameters[1] <= ii_MaxN);
    }
    
-   SetLargestPrimeTested(il_PrimeList[ii_WorkSize-1], ii_WorkSize);
+   SetLargestPrimeTested(il_PrimeList[ii_PrimesInList-1], ii_PrimesInList);
 }
 
 void  MultiFactorialGpuWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)

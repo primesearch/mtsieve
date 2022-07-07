@@ -21,7 +21,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.6.2"
+#define APP_VERSION     "1.6.3"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
@@ -61,6 +61,7 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    is_LegendreDirectoryName = "";
    is_SequencesToRemove = "";
    il_LegendreTableBytes = PMAX_MAX_62BIT;
+   ib_SetLegengreBytes = false;
 
    ii_BaseMultipleMultiplier = 0;
    ii_PowerResidueLcmMulitplier = 0;
@@ -152,6 +153,7 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
          break;
 
       case 'l':
+         ib_SetLegengreBytes = true;
          status = Parser::Parse(arg, 0, PMAX_MAX_62BIT, il_LegendreTableBytes);
          break;
          
@@ -1221,6 +1223,13 @@ void  SierpinskiRieselApp::CheckForLegendreSupport(void)
    if (il_LegendreTableBytes == 0)
    {
       WriteToConsole(COT_OTHER, "Must use generic sieving logic because no memory is allocated for Legendre tables");     
+      ib_CanUseCIsOneLogic = false;
+      return;
+   }
+
+   if (!ib_SetLegengreBytes && ii_SequenceCount > 1)
+   {
+      WriteToConsole(COT_OTHER, "Will use generic sieving logic because no memory is allocated for Legendre tables");     
       ib_CanUseCIsOneLogic = false;
       return;
    }

@@ -84,6 +84,7 @@ private:
    seq_t            *ip_FirstSequence;
    AbstractSequenceHelper   *ip_AppHelper; 
    
+   bool              ib_SetLegengreBytes;
    uint64_t          il_LegendreTableBytes;
    std::string       is_LegendreDirectoryName;
    std::string       is_SequencesToRemove;

@@ -39,7 +39,7 @@ public:
    int64_t           GetMaxC(void) { return il_MaxC; };
    uint64_t          GetTermCount(void) { return il_TermCount; };
    
-   bool              ReportFactor(uint64_t theFactor, int64_t c);
+   bool              ReportFactor(uint64_t theFactor, int64_t c, bool verifyFactor);
 
 protected:
    void              PreSieveHook(void) {};
@@ -52,6 +52,8 @@ protected:
    void              WriteOutputTermsFile(uint64_t largestPrime);
    
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
+   
+   void              VerifyFactor(uint64_t prime, int64_t c);
 
 private:   
    std::vector<bool> iv_Terms;

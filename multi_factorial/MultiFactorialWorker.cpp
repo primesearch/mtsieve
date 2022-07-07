@@ -44,7 +44,7 @@ void  MultiFactorialWorker::TestFactorial(void)
    // if i <= n_pair then (i - 1) * i < p. Compute n! = (2 * 3) * (4 * 5) * ... * ((n - 1) * n)
    uint32_t  n_pair = std::max(2u, std::min(ii_MinN, uint32_t(sqrt(double(il_PrimeList[0])))) & ~1u);
 
-   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
+   for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx+=4)
    {
       ps[0] = il_PrimeList[pIdx+0];
       ps[1] = il_PrimeList[pIdx+1];
@@ -114,7 +114,7 @@ void  MultiFactorialWorker::TestMultiFactorial(void)
    
    uint32_t  pIdx = 0;
    
-   while (pIdx < ii_WorkSize)
+   while (pIdx < ii_PrimesInList)
    {
       ps[0] = il_PrimeList[pIdx+0];
       ps[1] = il_PrimeList[pIdx+1];

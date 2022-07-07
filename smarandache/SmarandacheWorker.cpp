@@ -61,7 +61,7 @@ bool  SmarandacheWorker::TestSixDigitN(void)
    uint64_t  m = ((uint64_t) terms[0] * 999999) + 1000000;
    uint32_t  exp = 6*terms[0] - 599989;
    
-   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
+   for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx+=4)
    {
       ps[0] = il_PrimeList[pIdx+0];
       ps[1] = il_PrimeList[pIdx+1];
@@ -283,7 +283,7 @@ bool  SmarandacheWorker::TestSevenDigitN(void)
    MpResVec resT[7];
    MpResVec resInvmod;
       
-   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
+   for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx+=4)
    {
       ps[0] = il_PrimeList[pIdx+0];
       ps[1] = il_PrimeList[pIdx+1];

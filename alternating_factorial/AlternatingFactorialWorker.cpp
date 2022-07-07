@@ -30,7 +30,7 @@ void  AlternatingFactorialWorker::TestMegaPrimeChunk(void)
    uint64_t  ps[4], maxPrime = ip_App->GetMaxPrime();
    uint32_t  gotFactor, maxN = ip_AlternatingFactorialApp->GetMaxN();
       
-   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
+   for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx+=4)
    {
       ps[0] = il_PrimeList[pIdx+0];
       ps[1] = il_PrimeList[pIdx+1];

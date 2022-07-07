@@ -29,7 +29,6 @@ protected:
 
 private:
    void              RemoveTerms(uint64_t prime, uint64_t bExpN);
-   void              VerifyFactor(uint64_t prime, int64_t c);
 
    FixedKBNApp      *ip_FixedKBNApp;
 

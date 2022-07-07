@@ -44,10 +44,10 @@ PrimorialGpuWorker::PrimorialGpuWorker(uint32_t myId, App *theApp) : Worker(myId
 
    ip_PrimorialApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
    
-   ii_WorkSize = ip_PrimorialApp->GetGpuPrimesPerWorker();
+   ii_PrimesInList = ip_PrimorialApp->GetGpuPrimesPerWorker();
    
-   il_PrimeList = (uint64_t *) ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_WorkSize);
-   il_Residues = (uint64_t *) ip_Kernel->AddSharedArgument("residues", sizeof(uint64_t), 2*ii_WorkSize);
+   il_PrimeList = (uint64_t *) ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_PrimesInList);
+   il_Residues = (uint64_t *) ip_Kernel->AddSharedArgument("residues", sizeof(uint64_t), 2*ii_PrimesInList);
    ii_Parameters = (uint32_t *) ip_Kernel->AddCpuArgument("parameters", sizeof(uint32_t), 2);
    ii_PrimeGaps = (uint16_t *) ip_Kernel->AddCpuArgument("primeGaps", sizeof(uint16_t), ii_MaxGpuSteps+1);
    ii_FactorCount = (uint32_t *) ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 1);
@@ -89,7 +89,7 @@ void  PrimorialGpuWorker::TestMegaPrimeChunk(void)
       
       ii_FactorCount[0] = 0;
 
-      ip_Kernel->Execute(ii_WorkSize);
+      ip_Kernel->Execute(ii_PrimesInList);
       
       for (ii=0; ii<ii_FactorCount[0]; ii++)
       {  
@@ -109,7 +109,7 @@ void  PrimorialGpuWorker::TestMegaPrimeChunk(void)
          FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factor density", ii_FactorCount[0], ii_MaxGpuFactors);
    }
 
-   SetLargestPrimeTested(il_PrimeList[ii_WorkSize-1], ii_WorkSize);
+   SetLargestPrimeTested(il_PrimeList[ii_PrimesInList-1], ii_PrimesInList);
 }
 
 void  PrimorialGpuWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)

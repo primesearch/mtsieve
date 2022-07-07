@@ -59,7 +59,7 @@ void  CarolKyneaWorker::TestMegaPrimeChunk(void)
    uint64_t  maxPrime = ip_App->GetMaxPrime();
    uint64_t  thePrime = 0, root1, root2;
 
-   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx++)
+   for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx++)
    {
       thePrime = il_PrimeList[pIdx+0];
       

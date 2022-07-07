@@ -53,7 +53,7 @@ void  PrimorialWorker::TestMegaPrimeChunk(void)
 {
    uint64_t  ps[4], maxPrime = ip_App->GetMaxPrime();
 
-   for (uint32_t plIdx=0; plIdx<ii_WorkSize; plIdx+=4)
+   for (uint32_t plIdx=0; plIdx<ii_PrimesInList; plIdx+=4)
    {
       ps[0] = il_PrimeList[plIdx+0];
       ps[1] = il_PrimeList[plIdx+1];

@@ -48,10 +48,10 @@ PrimesInXGpuWorker::PrimesInXGpuWorker(uint32_t myId, App *theApp) : Worker(myId
 
    ip_PrimesInXApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
    
-   ii_WorkSize = ip_PrimesInXApp->GetGpuPrimesPerWorker();
+   ii_PrimesInList = ip_PrimesInXApp->GetGpuPrimesPerWorker();
    
-   il_PrimeList = (uint64_t *) ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_WorkSize);
-   il_Residuals = (uint64_t *) ip_Kernel->AddSharedArgument("residuals", sizeof(uint64_t), ii_WorkSize);
+   il_PrimeList = (uint64_t *) ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_PrimesInList);
+   il_Residuals = (uint64_t *) ip_Kernel->AddSharedArgument("residuals", sizeof(uint64_t), ii_PrimesInList);
    ii_DigitList = (uint32_t *) ip_Kernel->AddCpuArgument("digitList", sizeof(uint32_t), ii_GroupSize);
    ii_FactorCount = (uint32_t *) ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 1);
    il_FactorList = (uint64_t *) ip_Kernel->AddGpuArgument("factorList", sizeof(uint64_t), 2*ii_MaxGpuFactors);
@@ -100,7 +100,7 @@ void  PrimesInXGpuWorker::TestMegaPrimeChunk(void)
       // The second entry is a multiplier for each term in the list.
       memcpy(ii_DigitList, &digitList[dlIdx], ii_GroupSize*sizeof(uint32_t));
 
-      ip_Kernel->Execute(ii_WorkSize);
+      ip_Kernel->Execute(ii_PrimesInList);
 
       for (uint32_t ii=0; ii<ii_FactorCount[0]; ii++)
       {
@@ -126,7 +126,7 @@ void  PrimesInXGpuWorker::TestMegaPrimeChunk(void)
       dlIdx += ii_GroupSize;
    }
    
-   SetLargestPrimeTested(il_PrimeList[ii_WorkSize-1], ii_WorkSize);
+   SetLargestPrimeTested(il_PrimeList[ii_PrimesInList-1], ii_PrimesInList);
 }
 
 void  PrimesInXGpuWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)

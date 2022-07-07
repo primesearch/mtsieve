@@ -35,14 +35,14 @@ void  FixedKBNWorker::TestMegaPrimeChunk(void)
    uint64_t ps[4];
    uint64_t bs[4];
    uint64_t maxPrime = ip_App->GetMaxPrime();   
-   
-   for (uint32_t pIdx=0; pIdx<ii_WorkSize; pIdx+=4)
+      
+   for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx+=4)
    {
       ps[0] = il_PrimeList[pIdx+0];
       ps[1] = il_PrimeList[pIdx+1];
       ps[2] = il_PrimeList[pIdx+2];
       ps[3] = il_PrimeList[pIdx+3];
-      
+
       bs[0] = bs[1] = bs[2] = bs[3] = ii_Base;
       
       fpu_powmod_4b_1n_4p(bs, ii_N, ps);
@@ -60,7 +60,7 @@ void  FixedKBNWorker::TestMegaPrimeChunk(void)
       // If no terms left, then we are done
       if (ip_FixedKBNApp->GetTermCount() == 0) {
          SetLargestPrimeTested(maxPrime, 0);
-         return;
+         break;
       }
    }
 }
@@ -78,6 +78,8 @@ void    FixedKBNWorker::RemoveTerms(uint64_t prime, uint64_t bExpN)
    fpu_push_1divp(prime);
    
    kbExpN = fpu_mulmod(il_K, bExpN, prime);
+   
+   fpu_pop();
       
    // k*b^n (mod p) = kbExpN
    // k*b^n - kbExpN (mod p) = 0
@@ -88,46 +90,24 @@ void    FixedKBNWorker::RemoveTerms(uint64_t prime, uint64_t bExpN)
    // k*b^n + c (mod p) = 0
    c = (int64_t) (prime - kbExpN);
 
+   int countVerified = 0;
+
    do 
    {
       // k*b^n + c (mod p) = 0
-      if (ip_FixedKBNApp->ReportFactor(prime, c))
-         VerifyFactor(prime, c);
-      
+      ip_FixedKBNApp->ReportFactor(prime, c, (++countVerified < 5));
+
       c += (int64_t) prime;
    } while (c <= il_MaxC);
    
    c = (int64_t) (prime - kbExpN);
-      
+
+   countVerified = 0;
    do 
    {
       // k*b^n + c (mod p) = 0
-      if (ip_FixedKBNApp->ReportFactor(prime, c))
-         VerifyFactor(prime, c);
+      ip_FixedKBNApp->ReportFactor(prime, c, (++countVerified < 5));
       
       c -= (int64_t) prime;
    } while (c >= il_MinC);
-   
-   
-   fpu_pop();
-}
-
-
-void  FixedKBNWorker::VerifyFactor(uint64_t prime, int64_t c)
-{
-   int64_t  rem;
-   
-   rem = fpu_powmod(ii_Base, ii_N, prime);
-   rem = fpu_mulmod(il_K, rem, prime);
-   
-   rem += c;
-         
-   while (rem < 0)
-      rem += (int64_t) prime;
-   
-   while (rem >= (int64_t) prime)
-      rem -= (int64_t) prime;
-   
-   if (rem != 0)
-      FatalError("%" PRIu64"*%u^%u%+" PRId64" mod %" PRIu64" = %" PRIu64"", il_K, ii_Base, ii_N, c, prime, rem);
 }

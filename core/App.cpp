@@ -468,23 +468,25 @@ void  App::Sieve(void)
 
       // If we are using a single thread, then this will effectively block other Workers
       // from getting work until both this Worker is done and the largest prime tested for
-      // this workr exceeds the max prime for a single CPU thread.
+      // this worker exceeds the max prime for a single CPU thread.
       if (th == 0 || useSingleThread)
       {
          while (!ip_Workers[th]->IsStatusWaitingForWork() && !ip_Workers[th]->IsStatusStopped())
          {
             CheckReportStatus();
             
-            Sleep(1);
+            Sleep(1000);
          }
 
          useSingleThread = (ip_Workers[th]->GetLargestPrimeTested() < il_MaxPrimeForSingleWorker);
       }
    }
    
+   uint32_t stoppedCount = 0;
+   
    // In the second loop, run until we are done.  Hopefully this will do a better job at keeping
    // of the workers busy.
-   while (il_LargestPrimeSieved < il_MaxPrime && IsRunning())
+   while (il_LargestPrimeSieved < il_MaxPrime && IsRunning() && stoppedCount < ii_TotalWorkerCount)
    {
       bool gotNewWork = false;
             
@@ -499,6 +501,8 @@ void  App::Sieve(void)
          ip_PrimeIterator.skipto(il_LargestPrimeSieved, il_MaxPrime);
       }
       
+      stoppedCount = 0;
+
       for (th=0; th<=ii_TotalWorkerCount; th++)
       {
          // ip_Worker[0] is the special CPU worker (if we need one)
@@ -506,7 +510,10 @@ void  App::Sieve(void)
             continue;
 
          if (ip_Workers[th]->IsStatusStopped())
+         {
+            stoppedCount++;
             continue;
+         }
             
          if (ip_Workers[th]->IsStatusWaitingForWork())
          {
@@ -612,10 +619,10 @@ uint64_t  App::GetPrimesForWorker(uint32_t th)
    }
    
    primeList[pIdx] = 0;
+   
    ip_Workers[th]->SetPrimesInList(pIdx);
-   
    ip_Workers[th]->SetStatusHasWorkToDo();
-   
+      
    il_TotalSieveUS += (Clock::GetThreadMicroseconds() - sieveStartUS);
       
    return il_LargestPrimeSieved;
