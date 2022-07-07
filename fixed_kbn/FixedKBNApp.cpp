@@ -321,7 +321,7 @@ bool  FixedKBNApp::ReportFactor(uint64_t theFactor, int64_t c, bool verifyFactor
       return false;
    
    if (verifyFactor)
-      VerifyFactor(prime, c);
+      VerifyFactor(theFactor, c);
    
    if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
