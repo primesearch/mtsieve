@@ -173,7 +173,7 @@ void  Worker::StartProcessing(void)
             newWorkSize = 1000000000;
             
          if (ii_MyId == 1 && newWorkSize > ii_MaxWorkSize)
-            ip_App->WriteToConsole(COT_OTHER, "Increasing worksize to %llu since each chunk is testsed in less than a second", newWorkSize);
+            ip_App->WriteToConsole(COT_OTHER, "Increasing worksize to %llu since each chunk is tested in less than a second", newWorkSize);
             
          if (ii_MyId == 1 && newWorkSize < ii_MaxWorkSize)
             ip_App->WriteToConsole(COT_OTHER, "Decreasing worksize to %llu since each chunk needs more than 5 seconds to test", newWorkSize);

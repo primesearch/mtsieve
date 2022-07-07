@@ -235,6 +235,8 @@ bool FixedKBNApp::ApplyFactor(uint64_t theFactor, const char *term)
    if (c < il_MinC || c > il_MaxC)
       return false;
 
+   VerifyFactor(theFactor, c);
+
    uint64_t bit = c - il_MinC;
    
    // No locking is needed because the Workers aren't running yet
@@ -319,7 +321,7 @@ bool  FixedKBNApp::ReportFactor(uint64_t theFactor, int64_t c, bool verifyFactor
       return false;
    
    if (verifyFactor)
-      
+      VerifyFactor(prime, c);
    
    if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
