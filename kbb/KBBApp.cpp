@@ -181,14 +181,14 @@ void KBBApp::EliminateGfnAndMersenneTerms(void)
    {
       bit = BIT(b);
             
-      if (IsGfnOrMersenneForm(il_K, b, +1))
+      if (iv_PlusTerms[bit] && IsGfnOrMersenneForm(il_K, b, +1))
       {
          il_TermCount--;
          iv_PlusTerms[bit] = false;
          removedCount++;
       }
       
-      if (IsGfnOrMersenneForm(il_K, b, -1))
+      if (iv_MinusTerms[bit] && IsGfnOrMersenneForm(il_K, b, -1))
       {
          il_TermCount--;
          iv_MinusTerms[bit] = false;
