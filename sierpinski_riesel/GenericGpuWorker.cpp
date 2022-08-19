@@ -42,8 +42,6 @@ GenericGpuWorker::GenericGpuWorker(uint32_t myId, App *theApp, AbstractSequenceH
    ii_MaxGpuFactors = ip_SierpinskiRieselApp->GetMaxGpuFactors();
    ii_KernelCount = ip_SierpinskiRieselApp->GetKernelCount();
    ii_ChunksPerGpuWorker = ip_SierpinskiRieselApp->GetChunksPerGpuWorker();
-   
-   il_PrimeList = NULL;
 }
 
 void  GenericGpuWorker::Prepare(uint64_t largestPrimeTested, uint32_t bestQ)
@@ -197,9 +195,6 @@ GpuKernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uin
    ii_PrimesInList = ip_SierpinskiRieselApp->GetGpuPrimesPerWorker() * ii_ChunksPerGpuWorker;
    ii_KernelWorkSize = ii_PrimesInList / ii_ChunksPerGpuWorker;
 
-   if (il_PrimeList == NULL)
-      il_PrimeList      = (uint64_t *) xmalloc(sizeof(uint64_t) * ii_PrimesInList);
-
    il_Primes[kIdx]      = (uint64_t *) kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_KernelWorkSize);
    il_Ks[kIdx]          = (uint64_t *) kernel->AddCpuArgument("k", sizeof(uint64_t), sequences);
    il_Cs[kIdx]          = ( int64_t *) kernel->AddCpuArgument("c", sizeof(int64_t), sequences);
@@ -220,6 +215,7 @@ void  GenericGpuWorker::CleanUp(void)
       delete ip_Kernel[kIdx];
    
    xfree(ip_Kernel);
+   xfree(il_Primes);
    xfree(il_Ks);
    xfree(il_Cs);  
    xfree(ii_SeqIdxs);  
@@ -228,7 +224,6 @@ void  GenericGpuWorker::CleanUp(void)
    xfree(il_FactorList);
    
    xfree(ii_SubseqIdx);
-   xfree(il_PrimeList);
 }
 
 void  GenericGpuWorker::TestMegaPrimeChunk(void)
