@@ -83,7 +83,6 @@ OpenCLKernel::OpenCLKernel(GpuDevice *device, const char *kernelName, const char
       OpenCLErrorChecker::ExitIfError("clBuildProgram", status, "%s", buffer);
    }
 
-
    status = clGetDeviceInfo(ip_OpenCLDevice->GetDeviceId(), CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(deviceGlobalMemorySize), &deviceGlobalMemorySize, NULL);
    OpenCLErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get CL_DEVICE_GLOBAL_MEM_SIZE of device");
    
@@ -133,7 +132,9 @@ OpenCLKernel::~OpenCLKernel(void)
    for (aa=0; aa<ii_ArgumentCount; aa++)
    {
       ka = &ip_KernelArguments[aa];
-      clReleaseMemObject(ka->gpuBuffer);
+      
+      if (ka->mustFreeGpuBuffer)
+         clReleaseMemObject(ka->gpuBuffer);
       
       if (ka->mustFreeCpuBuffer)
          xfree(ka->cpuBuffer);
@@ -162,6 +163,47 @@ void  *OpenCLKernel::AddSharedArgument(const char *name, uint32_t size, uint32_t
    return AddArgument(name, size, count, NULL, CL_MEM_READ_WRITE);
 }
 
+void  *OpenCLKernel::AddArgument(const char *name, GpuKernel *other)
+{
+   OpenCLKernel *kernel = (OpenCLKernel *) other;
+   
+   ka_t      *ka = &ip_KernelArguments[ii_ArgumentCount];
+   ka_t      *otherKa = kernel->GetKernelArgument(name);
+   
+   ii_ArgumentCount++;
+   
+   strcpy(ka->name, otherKa->name);
+   
+   ka->size = otherKa->size;
+   ka->count = otherKa->count;
+   ka->bytes = otherKa->bytes;
+   ka->memFlags = otherKa->memFlags;
+   
+   memcpy(&ka->gpuBuffer, &otherKa->gpuBuffer, sizeof(otherKa->gpuBuffer));
+   ka->cpuBuffer = otherKa->cpuBuffer;
+   
+   ka->mustFreeGpuBuffer = false;
+   ka->mustFreeCpuBuffer = false;
+  
+   return ka->cpuBuffer;
+}
+
+ka_t  *OpenCLKernel::GetKernelArgument(const char *name)
+{
+   ka_t      *ka;
+   
+   for (uint32_t idx=0; idx<ii_ArgumentCount; idx++)
+   {
+      ka = &ip_KernelArguments[idx];
+      
+      if (!strcmp(ka->name, name))
+         return ka;
+   }
+   
+   FatalError("Could not find KernelArgument with the name %s", name);
+   return NULL;
+}
+
 void  *OpenCLKernel::AddArgument(const char *name, uint32_t size, uint32_t count, void *cpuMemory, cl_mem_flags memFlags)
 {
    ka_t      *ka = &ip_KernelArguments[ii_ArgumentCount];
@@ -173,6 +215,8 @@ void  *OpenCLKernel::AddArgument(const char *name, uint32_t size, uint32_t count
    ka->size = size;
    ka->count = count;
    ka->memFlags = memFlags;
+   ka->mustFreeGpuBuffer = true;
+   
    if (cpuMemory == NULL)
    {
       ka->cpuBuffer = xmalloc(size * (count + 1));
@@ -184,11 +228,11 @@ void  *OpenCLKernel::AddArgument(const char *name, uint32_t size, uint32_t count
       ka->mustFreeCpuBuffer = false;
    }
    
-   ka->cpuBuffer = (cpuMemory == NULL ? xmalloc(size * (count + 1)) : cpuMemory);
    ka->bytes = size * count;
 
-   // Don't know why I get "out of resources" if I don't make this slightly larger
    ka->gpuBuffer = clCreateBuffer(ip_OpenCLDevice->GetContext(), memFlags, ka->bytes, NULL, &status);
+   
+   ip_OpenCLDevice->IncrementGpuBytes(ka->bytes);
    
    if (status != CL_SUCCESS)
       OpenCLErrorChecker::ExitIfError("clCreateBuffer", status, "bytes: %d", ka->bytes);
@@ -234,14 +278,14 @@ void OpenCLKernel::Execute(uint32_t workSize)
    status = clEnqueueNDRangeKernel(im_CommandQueue, im_OpenCLKernel, 1, NULL, globalWorkGroupSize, NULL, 0, NULL, NULL);
 
    OpenCLErrorChecker::ExitIfError("clEnqueueNDRangeOpenCLKernel", status, "kernelName: %s  globalworksize %u  localworksize %u", 
-                             is_OpenCLKernelName.c_str(), (uint32_t) globalWorkGroupSize[0], (uint32_t) ii_KernelWorkGroupSize);
+                             is_KernelName.c_str(), (uint32_t) globalWorkGroupSize[0], (uint32_t) ii_KernelWorkGroupSize);
 
-   OpenCLErrorChecker::ExitIfError("clFinish", status, "kernelName: %s",  is_OpenCLKernelName.c_str());
-                             
    GetGPUOutput();
    
    status =  clFinish(im_CommandQueue);
 
+   OpenCLErrorChecker::ExitIfError("clFinish", status, "kernelName: %s",  is_KernelName.c_str());
+   
    ip_OpenCLDevice->AddGpuMicroseconds(Clock::GetCurrentMicrosecond() - startTime);
 }
 
@@ -257,7 +301,7 @@ void OpenCLKernel::SetGPUInput(void)
       status = clSetKernelArg(im_OpenCLKernel, aa, sizeof(cl_mem), &ka->gpuBuffer);
       
       OpenCLErrorChecker::ExitIfError("clSetOpenCLKernelArg", status, "kernelName: %s  index %d  argument: %s  size: %d",
-                                is_OpenCLKernelName.c_str(), aa, ka->name, ka->bytes);
+                                is_KernelName.c_str(), aa, ka->name, ka->bytes);
 
       if (ka->memFlags == CL_MEM_WRITE_ONLY)
          continue;

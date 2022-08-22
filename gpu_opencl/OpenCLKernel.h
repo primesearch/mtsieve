@@ -23,6 +23,7 @@ typedef struct {
    uint32_t          size;
    uint32_t          count;
    uint32_t          bytes;
+   bool              mustFreeGpuBuffer;
    bool              mustFreeCpuBuffer;
    cl_mem_flags      memFlags;
    void             *cpuBuffer;
@@ -57,13 +58,16 @@ public:
    // can read and write.
    void      *AddSharedArgument(const char *name, uint32_t size, uint32_t count);
 
+   // This allows sharing of arguments between kernels.
+   void      *AddArgument(const char *name, GpuKernel *other);
+
+   ka_t      *GetKernelArgument(const char *name);
+   
 private:
    void      *AddArgument(const char *name, uint32_t size, uint32_t count, void *cpuMemory, cl_mem_flags memFlags);
 
    void       SetGPUInput(void);
    void       GetGPUOutput(void);
-   
-   std::string       is_OpenCLKernelName;
 
    OpenCLDevice     *ip_OpenCLDevice;
 

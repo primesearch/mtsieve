@@ -43,6 +43,9 @@ public:
    // can read and write.
    virtual void      *AddSharedArgument(const char *name, uint32_t size, uint32_t count) = 0;
 
+   // This allows sharing of arguments between kernels.
+   virtual void      *AddArgument(const char *name, GpuKernel *other) = 0;
+   
    uint32_t   GetWorkGroupSize(void) { return ii_WorkGroupSize; };
 
 protected:
