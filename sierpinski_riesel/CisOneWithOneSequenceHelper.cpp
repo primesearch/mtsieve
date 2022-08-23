@@ -332,7 +332,7 @@ void   CisOneWithOneSequenceHelper::MakeLadder(uint16_t *qList, uint32_t qListLe
       }
    }
 
-   a = 1;
+   a = 0;
    for (i=3; i<=ii_BestQ; i++)
       if (tempQs[i] == 2)
          a++;
