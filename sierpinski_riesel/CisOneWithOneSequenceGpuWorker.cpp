@@ -81,8 +81,6 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
    ip_SierpinskiRieselApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
    
    ii_PrimesInList = ip_SierpinskiRieselApp->GetGpuPrimesPerWorker() * ii_ChunksPerGpuWorker;
-
-   il_PrimeList = (uint64_t *) xmalloc(sizeof(uint64_t) * ii_PrimesInList);
    
    ii_KernelWorkSize = ii_PrimesInList / ii_ChunksPerGpuWorker;
    
@@ -129,9 +127,7 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
 }
 
 void  CisOneWithOneSequenceGpuWorker::CleanUp(void)
-{
-   xfree(il_PrimeList);
-   
+{   
    delete ip_Kernel;
 }
 
