@@ -76,8 +76,11 @@ Worker::~Worker()
    delete ip_StatsLocker;
    delete ip_WorkerStatus;
    
-   if (il_PrimeList != NULL)
+   // GPU worker memory is freed in the Kernel destructor
+   if (!ib_GpuWorker && il_PrimeList != NULL)
       xfree(il_PrimeList);
+
+   il_PrimeList = NULL;
 }
 
 #ifdef WIN32
