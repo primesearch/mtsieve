@@ -25,6 +25,14 @@
 #include "../x86_asm/fpu-asm-x86.h"
 #endif
 
+#if defined(USE_OPENCL)
+#include "../gpu_opencl/OpenCLDevice.h"
+#endif
+
+#if defined(USE_METAL)
+#include "../gpu_metal/MetalDevice.h"
+#endif
+
 // Do not change this as some parts of the framework assume that this is set to 60 seconds
 #define REPORT_SECONDS        60
 #define REPORT_STRFTIME_FORMAT "ETC %Y-%m-%d %H:%M"

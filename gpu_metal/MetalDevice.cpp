@@ -8,6 +8,12 @@
    (at your option) any later version.
  */
 
+#define NS_PRIVATE_IMPLEMENTATION
+#define CA_PRIVATE_IMPLEMENTATION
+#define MTL_PRIVATE_IMPLEMENTATION
+#include <Foundation/Foundation.hpp>
+#include <Metal/Metal.hpp>
+
 #define __STDC_LIMIT_MACROS
 #include <stdint.h>
 #include <stdio.h>
@@ -20,17 +26,17 @@
 MetalDevice::MetalDevice(void)
 {
    ip_Pool = NS::AutoreleasePool::alloc()->init();
-   ip_Device = MTL::CreateSystemDefaultDevice();
+   ip_MetalDevice = MTL::CreateSystemDefaultDevice();
 }
 
 MetalDevice::~MetalDevice(void)
 {
-   ip_Pool->release();
+   ((NS::AutoreleasePool *) ip_Pool)->release();
 }
 
-GpuKernel  *MetalDevice::CreateKernel(const char *kernelName, const char *kernelSource, const char *preKernelSources[])
+void *MetalDevice::CreateKernel(const char *kernelName, const char *kernelSource, const char *preKernelSources[])
 {
-   return new Kernel(this, kernelName, kernelSource, preKernelSources);
+   return new MetalKernel(this, kernelName, kernelSource, preKernelSources);
 }
 
 void  MetalDevice::Help(void)
@@ -55,5 +61,4 @@ parse_t MetalDevice::ParseOption(int opt, char *arg, const char *source)
 
 void  MetalDevice::ValidateOptions(void)
 {
-   GpuDevice::ValidateOptions();
 }

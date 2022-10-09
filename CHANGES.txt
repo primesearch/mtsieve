@@ -1,5 +1,23 @@
 The relative speed differnce between CPU and GPU is for an i7-8850H and NVIDIA Quadro P3200.
 
+2.3.4 - October 10, 2022
+   srsieve2/srsieve2cl: verison 1.6.4
+      Added -b.  This parameter is used to calculate the number of baby steps and giant steps
+      for the discrete log.  The default is 1.0.  As this value increases, so does the number
+      of baby steps while decreasing the number of giant steps.  
+
+      The parameter has an impact on CL_KERNEL_PRIVATE_MEM_SIZE in GPU kernels (output when
+      using -H).  If that value is too high, then srsieve2cl will terminate.  The reasons
+      for termination vary depending on CPU.  
+
+      An example of usage would be when you are sieving thousands of sequences and have to use -K. 
+      In one test I had to use -K5 (the GPU has about 4 GB of memory).  When using -K3 -b0.2 there
+      is a nearly 40% performance boost.  I am unaware (at this time) of how to detect the maximum 
+      amount of memory available to a kernel so there is no way to auto-set -K and -b to the
+      optimial values at runtime.  It will require trial and error for the end user.
+
+      The impact of changing from the default value has not been determined for CPU workers.
+
 2.3.3 - July 7, 2022
    framework:
       Updated primesieve to 7.9.  This addresses an issue in primesieve that can crash

@@ -12,6 +12,8 @@
 #ifndef _MpArithVector_H
 #define _MpArithVector_H
 
+#include <cstdlib>
+
 #define		VECTOR_SIZE		4		// must be a power of two
 
 // Arithmetic on vectors: hide the latency of the MUL instruction.

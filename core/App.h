@@ -17,8 +17,10 @@
 #define PMAX_MAX_52BIT        (1ULL<<52)
 #define PMAX_MAX_62BIT        (1ULL<<62)
 
+#ifndef MIN
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
+#endif
 
 #include <stdio.h>
 #include "main.h"

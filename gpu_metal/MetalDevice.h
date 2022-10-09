@@ -1,4 +1,4 @@
- /* Device.h -- (C) Mark Rodenkirch, May 2022
+/* Device.h -- (C) Mark Rodenkirch, May 2022
 
    This class provides the interface for Metal devices.
 
@@ -11,12 +11,6 @@
 #ifndef _DEVICE_H
 #define _DEVICE_H
 
-#define NS_PRIVATE_IMPLEMENTATION
-#define CA_PRIVATE_IMPLEMENTATION
-#define MTL_PRIVATE_IMPLEMENTATION
-#include <Foundation/Foundation.hpp>
-#include <Metal/Metal.hpp>
-
 #include "../core/main.h"
 #include "../core/GpuDevice.h"
 #include "../core/GpuKernel.h"
@@ -28,16 +22,18 @@ public:
 
    ~MetalDevice(void);
 
-   GpuKernel     *CreateKernel(GpuDevice *gpuDevice, const char *kernelName, const char *kernelSource, const char *preKernelSources[]);
+   void          *CreateKernel(const char *kernelName, const char *kernelSource, const char *preKernelSources[]);
 
    void           Help(void);
    void           AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
    parse_t        ParseOption(int opt, char *arg, const char *source);
    void           ValidateOptions(void);
 
+   void          *GetMetalDevice(void) { return ip_MetalDevice; };
+
 private: 
-   NS::AutoreleasePool *ip_Pool;
-   MTL::Device         *ip_MetalDevice;
+   void          *ip_Pool;
+   void          *ip_MetalDevice;
 };
 
 #endif

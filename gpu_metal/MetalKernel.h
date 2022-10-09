@@ -55,6 +55,7 @@ private:
    MTL::CommandBuffer         *ip_CommandBuffer;
    MTL::ComputeCommandEncoder *ip_ComputeEncoder;
    
+   uint32_t             ii_ThreadsPerGroup;
    uint32_t             ii_BufferCount;
    MTL::Buffer         *ip_Buffer[MAX_BUFFERS];
    MTL::Device         *ip_MetalDevice;

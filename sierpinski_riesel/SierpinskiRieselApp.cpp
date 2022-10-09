@@ -21,7 +21,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.6.3"
+#define APP_VERSION     "1.6.4"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
@@ -66,6 +66,7 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    ii_BaseMultipleMultiplier = 0;
    ii_PowerResidueLcmMulitplier = 0;
    ii_LimitBaseMultiplier = 0;
+   id_BabyStepFactor = 1.0;
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
    ib_UseGPUWorkersUponRebuild = false;
@@ -93,17 +94,20 @@ void SierpinskiRieselApp::Help(void)
    printf("-C --chunksperworker=C    the number of chunks of primes per GPU worker (default %u)\n", ii_ChunksPerGpuWorker);
 #endif
    
-   printf("-U --bmmulitplier=U   muliplied by 2 to compute BASE_MULTIPLE (default %u for single %u for multi\n", 
+   printf("-b --babystepfactor=b used when calculating number of baby steps and giant steps.\n");
+   printf("                      As b increases, so do the number of baby steps.  default %lf\n", id_BabyStepFactor);
+
+   printf("-U --bmmulitplier=U   multiplied by 2 to compute BASE_MULTIPLE (default %u for single %u for multi\n", 
             DEFAULT_BM_MULTIPLIER_SINGLE, DEFAULT_BM_MULTIPLIER_MULTI);
    printf("                      default BASE_MULTIPLE=%u, BASE_MULTIPLE=%u for multi)\n", 
             DEFAULT_BM_MULTIPLIER_SINGLE * 2, DEFAULT_BM_MULTIPLIER_MULTI * 2);
 
-   printf("-V --prmmultiplier=V  muliplied by BASE_MULTIPLE to compute POWER_RESIDUE_LCM (default %u for single %u for multi\n",
+   printf("-V --prmmultiplier=V  multiplied by BASE_MULTIPLE to compute POWER_RESIDUE_LCM (default %u for single %u for multi\n",
             DEFAULT_PRL_MULTIPLIER_SINGLE, DEFAULT_PRL_MULTIPLIER_MULTI);
    printf("                      default POWER_RESIDUE_LCM=%u, POWER_RESIDUE_LCM=%u for multi)\n", 
             DEFAULT_PRL_MULTIPLIER_SINGLE * DEFAULT_BM_MULTIPLIER_SINGLE, DEFAULT_PRL_MULTIPLIER_MULTI * DEFAULT_BM_MULTIPLIER_MULTI);
             
-   printf("-X --lbmultipler=X    muliplied by POWER_RESIDUE_LCM to compute LIMIT_BASE  (default %u for single %u for multi\n",
+   printf("-X --lbmultipler=X    multiplied by POWER_RESIDUE_LCM to compute LIMIT_BASE  (default %u for single %u for multi\n",
             DEFAULT_LB_MULTIPLIER_SINGLE, DEFAULT_LB_MULTIPLIER_MULTI);
    printf("                      default LIMIT_BASE=%u, LIMIT_BASE=%u for multi)\n", 
             DEFAULT_LB_MULTIPLIER_SINGLE * DEFAULT_PRL_MULTIPLIER_SINGLE, DEFAULT_LB_MULTIPLIER_MULTI * DEFAULT_PRL_MULTIPLIER_MULTI);
@@ -113,7 +117,7 @@ void  SierpinskiRieselApp::AddCommandLineOptions(std::string &shortOpts, struct 
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "n:N:s:f:l:L:R:U:V:X:";
+   shortOpts += "n:N:s:f:l:L:R:U:V:X:b:";
 
    AppendLongOpt(longOpts, "nmin",           required_argument, 0, 'n');
    AppendLongOpt(longOpts, "nmax",           required_argument, 0, 'N');
@@ -122,6 +126,7 @@ void  SierpinskiRieselApp::AddCommandLineOptions(std::string &shortOpts, struct 
    AppendLongOpt(longOpts, "legendrebytes",  required_argument, 0, 'l');
    AppendLongOpt(longOpts, "legendrefile",   required_argument, 0, 'L');
    AppendLongOpt(longOpts, "remove",         required_argument, 0, 'R');
+   AppendLongOpt(longOpts, "babystepfactor", required_argument, 0, 'b');
    AppendLongOpt(longOpts, "basemultiple",   required_argument, 0, 'U');
    AppendLongOpt(longOpts, "limitbase",      required_argument, 0, 'V');
    AppendLongOpt(longOpts, "powerresidue",   required_argument, 0, 'X');
@@ -187,6 +192,11 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
 
       case 'R':
          is_SequencesToRemove = arg;
+         status = P_SUCCESS;
+         break;
+
+      case 'b':
+         sscanf(arg, "%lf", &id_BabyStepFactor);
          status = P_SUCCESS;
          break;
 

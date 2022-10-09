@@ -112,7 +112,7 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
    ii_Ladders       = (uint16_t *) ip_Kernel->AddCpuArgument("divisorShifts", sizeof(uint16_t), ip_CisOneHelper->GetUsedLadderEntries(), ip_CisOneHelper->GetAllLadders());
 
    ii_FactorCount = (uint32_t *) ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 1);
-   il_FactorList  = (uint64_t *) ip_Kernel->AddGpuArgument("factorList", sizeof(uint64_t), 4*ii_MaxGpuFactors);
+   il_FactorList  = (uint64_t *) ip_Kernel->AddGpuArgument("factorList", sizeof(uint64_t), 2*ii_MaxGpuFactors);
    
    for (uint32_t ssIdx=0; ssIdx<ii_SubsequenceCount; ssIdx++)
    {

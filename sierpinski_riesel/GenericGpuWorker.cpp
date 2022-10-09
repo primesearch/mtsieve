@@ -142,10 +142,12 @@ void    GenericGpuWorker::PopulateKernelArguments(uint32_t sequencesPerKernel)
 GpuKernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uint32_t subsequences)
 { 
    uint32_t r = ii_MaxN/ii_BestQ - ii_MinN/ii_BestQ + 1;
-   double babyStepFactor = 1.0; // DEFAULT_BABY_STEP_FACTOR from srsieve
+   double babyStepFactor = ip_SierpinskiRieselApp->GetBabyStepFactor();
 
    uint32_t giantSteps = MAX(1, sqrt((double) r/subsequences/babyStepFactor));
    uint32_t babySteps = MIN(r, ceil((double) r/giantSteps));
+
+   //printf("1 q=%u r=%u gs=%u bs=%u\n", ii_BestQ, r, giantSteps, babySteps);
 
    if (babySteps > HASH_MAX_ELTS)
    {
@@ -153,6 +155,8 @@ GpuKernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uin
       babySteps = ceil((double)r/giantSteps);
    }
    
+   //printf("2 gs=%u bs=%u max=%u\n", giantSteps, babySteps, HASH_MAX_ELTS);
+
    uint32_t sieveLow = ii_MinN / ii_BestQ;
    uint32_t sieveRange = babySteps * giantSteps;
    uint32_t elements = babySteps;
@@ -163,6 +167,8 @@ GpuKernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uin
       
    for (hsize = 1<<HASH_MINIMUM_SHIFT; hsize < elements/DEFAULT_HASH_MAX_DENSITY; )
       hsize <<= 1;
+
+   //printf("3 %u %lf %u\n", elements, elements/DEFAULT_HASH_MAX_DENSITY, hsize);
 
    char        defines[20][50];
    const char *preKernelSources[20];

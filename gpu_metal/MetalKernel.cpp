@@ -9,17 +9,16 @@
 */
 
 #include "MetalKernel.h"
-#include "ErrorChecker.h"
 #include "../core/App.h"
 #include "../core/Clock.h"
 
-MetalKernel::MetalKernel(GpuDevice *gpuDevice, const char *kernelName, const char *kernelSource, const char *preKernelSources[])
+MetalKernel::MetalKernel(GpuDevice *gpuDevice, const char *kernelName, const char *kernelSource, const char *preMetalKernelSources[])
+   : GpuKernel(gpuDevice, kernelName, kernelSource, preMetalKernelSources)
 {
    NS::Error   *error;
    NS::String  *theSource = NS::String::string("#define USE_METAL", NS::UTF8StringEncoding);
 
-   ip_GpuDevice = gpuDevice;
-   ip_MetalDevice = ip_GpuDevice->GetMetalDevice();
+   ip_MetalDevice = ((MetalDevice *) gpuDevice)->GetMetalDevice();
 
    if (preMetalKernelSources != NULL)
    {
@@ -32,20 +31,20 @@ MetalKernel::MetalKernel(GpuDevice *gpuDevice, const char *kernelName, const cha
       }
    }
 
-   theSource = theSource->stringByAppendingString(NS::String::string(MetalKernelSource, NS::UTF8StringEncoding));
+   theSource = theSource->stringByAppendingString(NS::String::string(kernelSource, NS::UTF8StringEncoding));
 
    auto theLibrary = ip_MetalDevice->newLibrary(theSource, nullptr, &error);
 
    if (theLibrary == nullptr) {
-      std::cerr << "Failed to create library with function " << MetalKernelName << std::endl;
+      std::cerr << "Failed to create library with function " << kernelName << std::endl;
       std::exit(-1);
    }
 
-   auto strFunctionName = NS::String::string(MetalKernelName, NS::ASCIIStringEncoding);
+   auto strFunctionName = NS::String::string(kernelName, NS::ASCIIStringEncoding);
    auto theFunction = theLibrary->newFunction(strFunctionName);
 
    if (theFunction == nullptr) {
-      std::cerr << "Failed to find the function " << MetalKernelName << std::endl;
+      std::cerr << "Failed to find the function " << kernelName << std::endl;
       std::exit(-1);
    }
 
@@ -66,8 +65,31 @@ void MetalKernel::PrintStatistics(uint64_t bytesPerWorkGroup)
 {
 }
 
+void    *MetalKernel::AddCpuArgument(const char *name, uint32_t size, uint32_t count)
+{
+   return AddArgument(name, size, count, NULL);
+}
+
+void    *MetalKernel::AddCpuArgument(const char *name, uint32_t size, uint32_t count, void *cpuMemory)
+{
+   return AddArgument(name, size, count, cpuMemory);
+}
+
+void    *MetalKernel::AddGpuArgument(const char *name, uint32_t size, uint32_t count)
+{
+   return AddArgument(name, size, count, NULL);
+}
+
+void    *MetalKernel::AddSharedArgument(const char *name, uint32_t size, uint32_t count)
+{
+   return AddArgument(name, size, count, NULL);
+}
+
 void  *MetalKernel::AddArgument(const char *name, uint32_t size, uint32_t count, void *cpuMemory)
 {
+   if (cpuMemory == NULL)
+      cpuMemory = xmalloc(size * count + 1);
+
    ip_GpuDevice->IncrementGpuBytes(size * count);
    
    ip_Buffer[ii_BufferCount] = ip_MetalDevice->newBuffer(count * size, MTL::ResourceStorageModeShared);

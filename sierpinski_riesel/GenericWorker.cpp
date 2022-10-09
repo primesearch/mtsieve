@@ -73,7 +73,7 @@ void  GenericWorker::InitializeWorker(void)
 {
    uint32_t idx;   
    uint32_t r = ii_MaxN/ii_BestQ - ii_MinN/ii_BestQ + 1;
-   double babyStepFactor = 1.0; // DEFAULT_BABY_STEP_FACTOR from srsieve
+   double babyStepFactor = ip_SierpinskiRieselApp->GetBabyStepFactor();
 
    // In the worst case we will do do one table insertion and one mulmod for ii_BabySteps
    // baby steps, then s table lookups and s mulmods for ii_GiantSteps giant steps. The
