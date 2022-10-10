@@ -17,7 +17,7 @@
 #include "GFNDivisorWorker.h"
 #include "../x86_asm/fpu-asm-x86.h"
 
-#define APP_VERSION     "2.1"
+#define APP_VERSION     "2.2"
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
 #include "GFNDivisorGpuWorker.h"
@@ -776,7 +776,7 @@ bool  GFNDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, uint32_t n, bo
       return true;
    }
       
-   if (theFactor > GetMaxPrimeForSingleWorker() && GetTotalWorkers() > 1)
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
 
    uint64_t bit = BIT(k);
@@ -806,7 +806,7 @@ bool  GFNDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, uint32_t n, bo
          VerifyFactor(theFactor, k, n);
    }
    
-   if (theFactor > GetMaxPrimeForSingleWorker() && GetTotalWorkers() > 1)
+   if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
 
    return removedTerm;
