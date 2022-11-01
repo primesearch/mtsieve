@@ -62,6 +62,7 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    is_SequencesToRemove = "";
    il_LegendreTableBytes = PMAX_MAX_62BIT;
    ib_SetLegengreBytes = false;
+   ib_CanUseCIsOneLogic = true;
 
    ii_BaseMultipleMultiplier = 0;
    ii_PowerResidueLcmMulitplier = 0;
@@ -233,7 +234,6 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
 void SierpinskiRieselApp::ValidateOptions(void)
 {
    seq_t     *seqPtr;
-   ib_CanUseCIsOneLogic = true;
 
    if (it_Format == FF_UNKNOWN)
       FatalError("the specified file format in not valid, use A (ABC), D (ABCD), P (ABC with number_primes), or B (BOINC)");
