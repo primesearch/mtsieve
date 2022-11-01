@@ -1,6 +1,10 @@
 The relative speed differnce between CPU and GPU is for an i7-8850H and NVIDIA Quadro P3200.
 
 2.3.4 - October 10, 2022
+   gfndsieve/gfndsievecl: version 2.2
+      Always lock when reading/writing terms counter so that new factors cannot be applied
+      while the terms file is being written.
+
    srsieve2/srsieve2cl: verison 1.6.4
       Added -b.  This parameter is used to calculate the number of baby steps and giant steps
       for the discrete log.  The default is 1.0.  As this value increases, so does the number
