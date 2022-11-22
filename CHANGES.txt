@@ -1,5 +1,13 @@
 The relative speed differnce between CPU and GPU is for an i7-8850H and NVIDIA Quadro P3200.
 
+2.3.5 - November 22, 2022
+   framework:
+      Added code to destuctors to free allocated memory.
+      Performance updates to HashTable.
+      
+   srsieve2/srieve2cl: version 1.6.5
+      Fixed HashTable usage to get up to 10% better performance.
+
 2.3.4 - October 10, 2022
    gfndsieve/gfndsievecl: version 2.2
       Always lock when reading/writing terms counter so that new factors cannot be applied
