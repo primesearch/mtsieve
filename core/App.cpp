@@ -100,7 +100,10 @@ App::~App(void)
    xfree(ip_Workers);
    
    delete ip_Console;
-
+   delete ip_AppStatus;
+   delete ip_SievingStatus;
+   delete ip_NeedToRebuild;
+   
 #if defined(USE_OPENCL) || defined(USE_METAL)
    ip_GpuDevice->CleanUp();
    delete ip_GpuDevice;

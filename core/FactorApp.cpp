@@ -40,6 +40,8 @@ FactorApp::~FactorApp(void)
 {
    if (if_FactorFile)
       fclose(if_FactorFile);
+
+   delete ip_FactorAppLock;
 }
 
 void FactorApp::ParentHelp(void)
