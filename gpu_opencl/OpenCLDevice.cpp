@@ -54,7 +54,12 @@ OpenCLDevice::~OpenCLDevice(void)
       clReleaseContext(ip_Platforms[pp].context);
    
    for (ii=0; ii<ii_PlatformCount; ii++)
-      xfree(ip_Platforms[ii].devices);
+   {
+      if (ip_Platforms[ii].devices != NULL)
+         xfree(ip_Platforms[ii].devices);
+   
+      ip_Platforms[ii].devices = NULL;
+   }
 
    xfree(ip_Platforms);
 }
