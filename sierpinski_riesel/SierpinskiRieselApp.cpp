@@ -77,6 +77,12 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
 #endif
 }
 
+SierpinskiRieselApp::~SierpinskiRieselApp(void)
+{
+    if (ip_AppHelper != NULL)
+      delete ip_AppHelper;
+}
+
 void SierpinskiRieselApp::Help(void)
 {
    FactorApp::ParentHelp();

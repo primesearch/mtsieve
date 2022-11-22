@@ -12,9 +12,9 @@
 #include "CisOneWithOneSequenceGpuWorker.h"
 #include "cisonesingle_kernel.gpu.h"
 
-#define DEFAULT_HASH_MAX_DENSITY 0.65
-#define HASH_MINIMUM_ELTS  8
-#define HASH_MINIMUM_SHIFT 10
+#define GPU_DEFAULT_HASH_MAX_DENSITY 0.65
+#define GPU_HASH_MINIMUM_ELTS  8
+#define GPU_HASH_MINIMUM_SHIFT 11
 
 CisOneWithOneSequenceGpuWorker::CisOneWithOneSequenceGpuWorker(uint32_t myId, App *theApp, AbstractSequenceHelper *appHelper) : AbstractWorker(myId, theApp, appHelper)
 {
@@ -41,10 +41,10 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
    uint32_t elements = ip_CisOneHelper->GetMaxBabySteps();
    uint32_t hsize;
    
-   if (HASH_MINIMUM_ELTS > elements)
-      elements = HASH_MINIMUM_ELTS;
+   if (GPU_HASH_MINIMUM_ELTS > elements)
+      elements = GPU_HASH_MINIMUM_ELTS;
       
-   for (hsize = 1<<HASH_MINIMUM_SHIFT; hsize < elements/DEFAULT_HASH_MAX_DENSITY; )
+   for (hsize = 1<<GPU_HASH_MINIMUM_SHIFT; hsize < elements/GPU_DEFAULT_HASH_MAX_DENSITY; )
       hsize <<= 1;
 
    sprintf(defines[defineCount++], "#define BASE %u\n", ii_Base);

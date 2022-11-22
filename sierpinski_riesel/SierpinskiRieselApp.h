@@ -23,7 +23,7 @@ class SierpinskiRieselApp : public FactorApp
 public:
    SierpinskiRieselApp(void);
 
-   ~SierpinskiRieselApp(void) {};
+   ~SierpinskiRieselApp(void);
 
    void              Help(void);
    void              AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);

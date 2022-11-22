@@ -231,7 +231,7 @@ kernel void cisonesingle_kernel(device const ulong  *primes,
    
 
    for (idx=0; idx<HASH_SIZE; idx++)
-      h_table[idx] = 0;  
+      h_table[idx] = HASH_ELEMENTS;  
       
    for (idx=0; idx<HASH_ELEMENTS; idx++)
       h_BJ64[idx] = 0;  
