@@ -1,12 +1,16 @@
-The relative speed differnce between CPU and GPU is for an i7-8850H and NVIDIA Quadro P3200.
-
+2.3.6 - November xx, 2022
+   cksieve/cksievecl: version 1.4
+      Initial release of cksievecl.
+      cksieve will now run on non-x86 CPUs.  It is 25% faster than the previous version.
+      cksievecl is about 5x faster than cksieve when comparing i9-11950H vs NVIDIA RTX A5000
+      
 2.3.5 - November 22, 2022
    framework:
       Added code to destuctors to free allocated memory.
-      Performance updates to HashTable.
+      Performance updates from Seth Troisi for the HashTable class
       
    srsieve2/srieve2cl: version 1.6.5
-      Fixed HashTable usage to get up to 10% better performance.
+      Fixed HashTable usage (thanks to Seth Troisi) to get up to 10% better performance.
 
 2.3.4 - October 10, 2022
    gfndsieve/gfndsievecl: version 2.2

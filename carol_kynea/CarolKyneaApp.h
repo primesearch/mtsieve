@@ -30,8 +30,11 @@ public:
    uint32_t          GetMinN(void) { return ii_MinN; };
    uint32_t          GetMaxN(void) { return ii_MaxN; };
 
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
+#endif
+
    bool              ReportFactor(uint64_t theFactor, uint32_t n, int32_t c);
-   void              ReportPrime(uint64_t thePrime, uint32_t n, int32_t c);
 
 protected:
    void              PreSieveHook(void) {};
@@ -46,12 +49,19 @@ protected:
    void              WriteOutputTermsFile(uint64_t largestPrime);
    
 private:
+   bool              IsPrime(uint64_t theFactor, uint32_t n, int32_t c);
+   void              VerifyFactor(uint64_t theFactor, uint32_t n, int32_t c);
+   
    std::vector<bool> iv_PlusTerms;
    std::vector<bool> iv_MinusTerms;
    
    uint32_t          ii_Base;
    uint32_t          ii_MinN;
    uint32_t          ii_MaxN;
+   
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   uint32_t          ii_MaxGpuFactors;
+#endif
 };
 
 #endif

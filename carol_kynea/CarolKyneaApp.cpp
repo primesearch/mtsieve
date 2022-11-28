@@ -12,11 +12,18 @@
 #include <cinttypes>
 #include "../core/Parser.h"
 #include "../core/Clock.h"
+#include "../core/MpArith.h"
 #include "CarolKyneaApp.h"
 #include "CarolKyneaWorker.h"
 
+#if defined(USE_OPENCL) || defined(USE_METAL)
+#include "CarolKyneaGpuWorker.h"
+#define APP_NAME        "cksievecl"
+#else
 #define APP_NAME        "cksieve"
-#define APP_VERSION     "1.3"
+#endif
+
+#define APP_VERSION     "1.4"
 
 #define BIT(n)          ((n) - ii_MinN)
 
@@ -35,6 +42,10 @@ CarolKyneaApp::CarolKyneaApp() : FactorApp()
    ii_Base = 0;
    ii_MinN = 1;
    ii_MaxN = 0;
+   
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   ii_MaxGpuFactors = GetGpuWorkGroups() * 100;
+#endif
 }
 
 void CarolKyneaApp::Help(void)
@@ -44,6 +55,9 @@ void CarolKyneaApp::Help(void)
    printf("-b --base=b           base to search\n");
    printf("-n --minn=n           minimum n to search\n");
    printf("-N --maxn=M           maximum n to search\n");
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   printf("-M --maxfactors=M     max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
+#endif
 }
 
 void  CarolKyneaApp::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
@@ -55,6 +69,12 @@ void  CarolKyneaApp::AddCommandLineOptions(std::string &shortOpts, struct option
    AppendLongOpt(longOpts, "minb",           required_argument, 0, 'b');
    AppendLongOpt(longOpts, "minn",           required_argument, 0, 'n');
    AppendLongOpt(longOpts, "maxn",           required_argument, 0, 'N');
+
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   shortOpts += "M:";
+   
+   AppendLongOpt(longOpts, "maxfactors",     required_argument, 0, 'M');
+#endif
 }
 
 parse_t CarolKyneaApp::ParseOption(int opt, char *arg, const char *source)
@@ -77,6 +97,12 @@ parse_t CarolKyneaApp::ParseOption(int opt, char *arg, const char *source)
       case 'N':
          status = Parser::Parse(arg, 2, 1000000000, ii_MaxN);
          break;
+         
+#if defined(USE_OPENCL) || defined(USE_METAL)
+      case 'M':
+         status = Parser::Parse(arg, 10, 1000000, ii_MaxGpuFactors);
+         break;
+#endif
    }
 
    return status;
@@ -140,15 +166,23 @@ void CarolKyneaApp::ValidateOptions(void)
    }
 
    FactorApp::ParentValidateOptions();
+
+   SetMaxPrimeForSingleWorker(100000);
+   
+   // The GPU code for this sieve will not support primes lower than this.
+   SetMinGpuPrime(10000);
 }
 
 Worker *CarolKyneaApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested)
 {
    Worker *theWorker;
 
-   // Note that CarolKyneaWorker inherits from Worker.  This will not
-   // only create the thread, but also start it.
-   theWorker = new CarolKyneaWorker(id, this);
+#if defined(USE_OPENCL) || defined(USE_METAL)  
+   if (gpuWorker)
+      theWorker = new CarolKyneaGpuWorker(id, this);
+   else
+#endif
+      theWorker = new CarolKyneaWorker(id, this);
 
    return theWorker;
 }
@@ -314,7 +348,16 @@ bool CarolKyneaApp::ReportFactor(uint64_t theFactor, uint32_t n, int32_t c)
       il_TermCount--;
       il_FactorCount++;
       
-      LogFactor(theFactor, "(%u^%u-1)^2-2", ii_Base, n);
+      if (IsPrime(theFactor, n, c))
+      {
+         WriteToConsole(COT_OTHER, "(%u^%u-1)^2-2 is prime! (%" PRIu64")", ii_Base, n, theFactor);
+
+         WriteToLog("(%u^%u-1)^2-2 is prime! (%" PRIu64")", ii_Base, n, theFactor);
+      }
+      else
+         LogFactor(theFactor, "(%u^%u-1)^2-2", ii_Base, n);
+      
+      VerifyFactor(theFactor, n, c);
    }
 
    if (c == +1 && iv_PlusTerms[bit])
@@ -325,7 +368,17 @@ bool CarolKyneaApp::ReportFactor(uint64_t theFactor, uint32_t n, int32_t c)
       il_TermCount--;
       il_FactorCount++;
       
-      LogFactor(theFactor, "(%u^%u+1)^2-2", ii_Base, n);
+      
+      if (IsPrime(theFactor, n, c))
+      {
+         WriteToConsole(COT_OTHER, "(%u^%u+1)^2-2 is prime! (%" PRIu64")", ii_Base, n, theFactor);
+
+         WriteToLog("(%u^%u+1)^2-2 is prime! (%" PRIu64")", ii_Base, n, theFactor);
+      }
+      else
+         LogFactor(theFactor, "(%u^%u+1)^2-2", ii_Base, n);
+      
+      VerifyFactor(theFactor, n, c);
    }
    
    ip_FactorAppLock->Release();
@@ -333,39 +386,50 @@ bool CarolKyneaApp::ReportFactor(uint64_t theFactor, uint32_t n, int32_t c)
    return removedTerm;   
 }
 
+bool CarolKyneaApp::IsPrime(uint64_t theFactor, uint32_t n, int32_t c)
+{
+   if (n >= 62)
+      return false;
+   
+   uint64_t term = 1;
+   uint64_t maxBeforeOverflow = (1 << 31);
+   uint32_t i = 0;
+   bool isFactor = false;
+   
+   do
+   {
+      term *= ii_Base;
+      i++;
+      
+      if (term + c > maxBeforeOverflow)
+         isFactor = true;
+      
+      if (((term + c) * (term + c)) > theFactor + 2)
+         isFactor = true;
+   } while (i < n && !isFactor);
 
-void CarolKyneaApp::ReportPrime(uint64_t thePrime, uint32_t n, int32_t c)
+   return !isFactor;
+}
+
+void CarolKyneaApp::VerifyFactor(uint64_t theFactor, uint32_t n, int32_t c)
 {   
    if (n < ii_MinN || n > ii_MaxN)
       return;
-
-   ip_FactorAppLock->Lock();
    
-   uint32_t bit = BIT(n);
+   MpArith  mp(theFactor);
+   MpRes    res = mp.pow(mp.nToRes(ii_Base), n);
+
+   if (c == 1)
+      res = mp.add(res, mp.one());
+   else
+      res = mp.sub(res, mp.one());
    
-   if (c == -1 && iv_MinusTerms[bit])
-   {	
-      iv_MinusTerms[bit] = false;
-      
-      il_TermCount--;
-      il_FactorCount++;
-      
-      WriteToConsole(COT_OTHER, "(%u^%u-1)^2-2 is prime! (%" PRIu64")", ii_Base, n, thePrime);
-
-      WriteToLog("(%u^%u-1)^2-2 is prime! (%" PRIu64")", ii_Base, n, thePrime);
-   }
-
-   if (c == +1 && iv_PlusTerms[bit])
-   {	
-      iv_PlusTerms[bit] = false;
-      
-      il_TermCount--;
-      il_FactorCount++;
-      
-      WriteToConsole(COT_OTHER, "(%u^%u+1)^2-2 is prime! (%" PRIu64")", ii_Base, n, thePrime);
-
-      WriteToLog("(%u^%u+1)^2-2 is prime! (%" PRIu64")", ii_Base, n, thePrime);
-   }
+   res = mp.mul(res, res);
    
-   ip_FactorAppLock->Release();
+   uint64_t rem = mp.resToN(res);
+   
+   if (rem == 2)
+      return;
+      
+   FatalError("%" PRIu64" is not a factor of (%u^%u%+d)^2-2", theFactor, ii_Base, n, c);
 }

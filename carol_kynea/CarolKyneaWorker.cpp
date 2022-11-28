@@ -9,7 +9,6 @@
 #include <cinttypes>
 #include <assert.h>
 #include "CarolKyneaWorker.h"
-#include "../x86_asm/fpu-asm-x86.h"
 
 CarolKyneaWorker::CarolKyneaWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
 {
@@ -44,7 +43,7 @@ CarolKyneaWorker::CarolKyneaWorker(uint32_t myId, App *theApp) : Worker(myId, th
    assert(ip_CarolKyneaApp->GetMaxN() < ii_SieveLow+ii_SieveRange);
    
    ip_HashTable = new HashTable(ii_BabySteps);
-   
+      
    // The thread can't start until initialization is done
    ib_Initialized = true;
 }
@@ -57,7 +56,8 @@ void  CarolKyneaWorker::CleanUp(void)
 void  CarolKyneaWorker::TestMegaPrimeChunk(void)
 {
    uint64_t  maxPrime = ip_App->GetMaxPrime();
-   uint64_t  thePrime = 0, root1, root2;
+   uint64_t  thePrime = 0;
+   uint64_t  inv_pb;
 
    for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx++)
    {
@@ -70,33 +70,29 @@ void  CarolKyneaWorker::TestMegaPrimeChunk(void)
       if (!IsQuadraticResidue(2, thePrime))
          continue;
    
-      fpu_push_1divp(thePrime);
-
+      // Precompute 1/b^d (mod p) for 0 <= d <= Q.
+      inv_pb = InvMod32(ii_Base % thePrime, thePrime);
+      
+      if (inv_pb == 0)
+         return;
+      
+      MpArith mp(thePrime);
+      MpRes   res2 = mp.nToRes(2);
+   
       // Find root of x^2 = 2 (mod p)
-      root1 = FindRoot(thePrime);
+      ir_Root1 = FindRoot(thePrime, mp);
 
-      root2 = thePrime - root1;
+      ir_Root2 = mp.sub(mp.nToRes(thePrime), ir_Root1); 
 
       // It is possible that findRoot returns where x^2 = -2 (mod p)
-      if (fpu_mulmod(root1, root1, thePrime) != 2)         
-         ip_CarolKyneaApp->WriteToConsole(COT_SIEVE, "%" PRIu64" is not a root (mod %" PRIu64")", root1, thePrime);
+      if (mp.mul(ir_Root1, ir_Root1) != res2)
+         ip_CarolKyneaApp->WriteToConsole(COT_SIEVE, "%" PRIu64" is not a root (mod %" PRIu64")", mp.resToN(ir_Root1), thePrime);
       
-      if (fpu_mulmod(root2, root2, thePrime) != 2) 
-         ip_CarolKyneaApp->WriteToConsole(COT_SIEVE, "%" PRIu64" is not a root (mod %" PRIu64")", root2, thePrime);
-    
-      io_Sequence[0].root = root1 - 1;
-      io_Sequence[0].c    = +1;
-      io_Sequence[1].root = root2 - 1;
-      io_Sequence[1].c    = +1;
-      io_Sequence[2].root = root1 + 1;
-      io_Sequence[2].c    = -1;
-      io_Sequence[3].root = root2 + 1;
-      io_Sequence[3].c    = -1;
-         
-      DiscreteLog(thePrime);
-      
-      fpu_pop();
+      if (mp.mul(ir_Root2, ir_Root2) != res2)
+         ip_CarolKyneaApp->WriteToConsole(COT_SIEVE, "%" PRIu64" is not a root (mod %" PRIu64")", mp.resToN(ir_Root2), thePrime);
 
+      DiscreteLog(thePrime, mp, inv_pb);
+      
       SetLargestPrimeTested(thePrime, 1);
       
       if (thePrime >= maxPrime)
@@ -109,104 +105,18 @@ void  CarolKyneaWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
    FatalError("CarolKyneaWorker::TestMiniPrimeChunk not implemented");
 }
 
-void  CarolKyneaWorker::DiscreteLog(uint64_t p)
-{
-   uint64_t  b, bj0;
-   uint32_t  i, j, k;
-   uint64_t  inv_pb;
-
-   b = ii_Base % p;
-   
-   ip_HashTable->Clear();
-   
-   // Precompute 1/b^d (mod p) for 0 <= d <= Q.
-   inv_pb = InvMod32(b, p);
-   
-   if (inv_pb == 0)
-      return;
-
-   for (i = 0; i < ROOT_COUNT; i++)
-      il_A[i] = io_Sequence[i].root % p;
-
-   b = ii_Base;
-   bj0 = fpu_powmod(b, ii_MinN, p);
-   
-   i = BabySteps(b, bj0, p);
-   
-   if (i > 0)
-   {
-      // i is the order of b (mod p). This is all the information we need to
-      // determine every solution for this p, no giant steps are needed.
-      for (k = 0; k < ROOT_COUNT; k++)
-         for (j = ip_HashTable->Lookup(il_A[k]); j < ii_SieveRange; j += i)
-            CheckFactor(p, ii_SieveLow+j, io_Sequence[k].c);
-         
-      return;
-   }
-   
-   // First giant step
-   for (k = 0; k < ROOT_COUNT; k++)
-      if ((j = ip_HashTable->Lookup(il_A[k])) != HASH_NOT_FOUND)
-        CheckFactor(p, ii_SieveLow+j, io_Sequence[k].c);
-
-   // Remaining giant steps
-   b = fpu_powmod(inv_pb, ii_BabySteps, p); /* b <- 1/b^m (mod p) */
-
-   fpu_push_adivb(b, p);
-         
-   for (i = 1; i < ii_GiantSteps; i++)
-   {
-      fpu_mulmod_iter_4a(il_A, b, p);
-
-      if ((j = ip_HashTable->Lookup(il_A[0])) != HASH_NOT_FOUND)
-         CheckFactor(p, ii_SieveLow+i*ii_BabySteps+j, io_Sequence[0].c);
-         
-      if ((j = ip_HashTable->Lookup(il_A[1])) != HASH_NOT_FOUND)
-         CheckFactor(p, ii_SieveLow+i*ii_BabySteps+j, io_Sequence[1].c);
-      
-      if ((j = ip_HashTable->Lookup(il_A[2])) != HASH_NOT_FOUND)
-         CheckFactor(p, ii_SieveLow+i*ii_BabySteps+j, io_Sequence[2].c);
-      
-      if ((j = ip_HashTable->Lookup(il_A[3])) != HASH_NOT_FOUND)
-         CheckFactor(p, ii_SieveLow+i*ii_BabySteps+j, io_Sequence[3].c);
-   }
-
-   fpu_pop();
-}
-
-uint32_t  CarolKyneaWorker::BabySteps(uint64_t b, uint64_t bj0, uint64_t p)
-{
-   uint64_t bj;
-   uint32_t j;
-   
-   fpu_push_adivb(b, p);
-  
-   for (j = 0, bj = bj0; j < ii_BabySteps; j++)
-   {
-      ip_HashTable->Insert(bj, j);
-      
-      bj = fpu_mulmod_iter(bj, b, p);
-            
-      if (bj == bj0)
-      {
-         fpu_pop();
-         return j+1;
-      }
-   }
-
-   fpu_pop();
-   return 0;
-}
-
 // Find x such that x^2 = 2 mod p
 // This is solved using Hensel's Lemma
-uint64_t	CarolKyneaWorker::FindRoot(uint64_t p)
+uint64_t	CarolKyneaWorker::FindRoot(uint64_t p, MpArith mp)
 {
-	uint64_t	   i, s, t, d, m, rem, A, D;
-
+	uint64_t	   i, s, t, d, m;
+   MpRes       res, resA, resD;
+   MpRes       res2 = mp.nToRes(2);
+   MpRes       resPM1 = mp.nToRes(p-1);
+   
 	if ((p & 7) == 7)
-		return fpu_powmod(2, (p+1) >> 2, p);
-
+      return mp.pow(res2, (p+1) >> 2);
+   
 	t = p - 1;
 	s = 0;
 	while (!(t & 1))
@@ -215,84 +125,152 @@ uint64_t	CarolKyneaWorker::FindRoot(uint64_t p)
 		t >>= 1;
 	}
 
-	A = fpu_powmod(2, t, p);
+   resA = mp.pow(res2, t);
 
 	// Find value d where Lengendre Symbol is -1
 	for (d=3; d<p; d++)
 		if (!IsQuadraticResidue(d, p))
 			break;
 
-	D = fpu_powmod(d, t, p);
+   resD = mp.nToRes(d);
+   
+   resD = mp.pow(resD, t);
 
 	m = 0;
 	for (i=0; i<s; i++)
 	{
 		if (m == 0)
-			rem = 1;
+			res = mp.one();
 		else
-			rem = fpu_powmod(D, m, p);
+			res = mp.pow(resD, m);
 
-		rem = fpu_mulmod(rem, A, p);
-		rem = fpu_powmod(rem, 1 << (s - 1 - i), p);
+      res = mp.mul(res, resA);
+      res = mp.pow(res, 1 << (s - 1 - i));
 		
-		if (rem == p - 1)
+		if (res == resPM1)
 			m += (1 << i);
 	}
 
 	if (m == 0)
-		rem = 1;
+		res = mp.one();
 	else
-		rem = fpu_powmod(D, m >> 1, p);
-
-	i = fpu_powmod(2, (t+1) >> 1, p);
+		res = mp.pow(resD, m >> 1);
    
-	return fpu_mulmod(rem, i, p);
+   resA = mp.pow(res2, (t+1) >> 1);
+   
+   return mp.mul(res, resA);
 }
 
-void CarolKyneaWorker::CheckFactor(uint64_t p, uint32_t n, int32_t c)
+void  CarolKyneaWorker::DiscreteLog(uint64_t p, MpArith mp, uint64_t inv_pb)
 {
-   if (n < 62)
-   {
-      uint64_t term = 1;
-      uint64_t maxBeforeOverflow = (1 << 31);
-      uint32_t i = 0;
-      bool isFactor = false;
+   uint32_t  orderOfB;
+   MpRes     resBase = mp.nToRes(ii_Base);
+   MpRes     resA[ROOT_COUNT];
+   uint32_t  jHash[ROOT_COUNT];
+   
+   ip_HashTable->Clear();
       
-      do
-      {
-         term *= ii_Base;
-         i++;
-         
-         if (term + c > maxBeforeOverflow)
-            isFactor = true;
-         
-         if (((term + c) * (term + c)) > p + 2)
-            isFactor = true;
-      } while (i < n && !isFactor);
+   if (inv_pb == 0)
+      return;
 
-      if (!isFactor)
-      {
-         ip_CarolKyneaApp->ReportPrime(p, n, c);
-         return;
-      }
+   resA[0] = mp.sub(ir_Root1, mp.one());
+   resA[1] = mp.sub(ir_Root2, mp.one());
+   resA[2] = mp.add(ir_Root1, mp.one());
+   resA[3] = mp.add(ir_Root2, mp.one());
+
+   orderOfB = BabySteps(p, mp, resBase);
+
+   jHash[0] = ip_HashTable->Lookup(resA[0]);
+   jHash[1] = ip_HashTable->Lookup(resA[1]);
+   jHash[2] = ip_HashTable->Lookup(resA[2]);
+   jHash[3] = ip_HashTable->Lookup(resA[3]);
+   
+   if (orderOfB > 0)
+   {
+      uint32_t j;
+      
+      // orderOfB is the order of b (mod p). This is all the information we need to
+      // determine every solution for this p, no giant steps are needed.
+      
+      for (j = jHash[0]; j < ii_SieveRange; j += orderOfB)
+         ip_CarolKyneaApp->ReportFactor(p, ii_SieveLow+j, +1);
+      
+      for (j = jHash[1]; j < ii_SieveRange; j += orderOfB)
+         ip_CarolKyneaApp->ReportFactor(p, ii_SieveLow+j, +1);
+
+      for (j = jHash[2]; j < ii_SieveRange; j += orderOfB)
+         ip_CarolKyneaApp->ReportFactor(p, ii_SieveLow+j, -1);
+      
+      for (j = jHash[3]; j < ii_SieveRange; j += orderOfB)
+         ip_CarolKyneaApp->ReportFactor(p, ii_SieveLow+j, -1);
+         
+      return;
    }
    
-   if (ip_CarolKyneaApp->ReportFactor(p, n, c))
-      VerifyFactor(p, n, c);
+   // First giant step
+   if (jHash[0] != HASH_NOT_FOUND)
+      ip_CarolKyneaApp->ReportFactor(p, ii_SieveLow+jHash[0], +1);
+      
+   if (jHash[1] != HASH_NOT_FOUND)
+      ip_CarolKyneaApp->ReportFactor(p, ii_SieveLow+jHash[1], +1);
+   
+   if (jHash[2] != HASH_NOT_FOUND)
+      ip_CarolKyneaApp->ReportFactor(p, ii_SieveLow+jHash[2], -1);
+   
+   if (jHash[3] != HASH_NOT_FOUND)
+      ip_CarolKyneaApp->ReportFactor(p, ii_SieveLow+jHash[3], -1);
+
+   // Remaining giant steps
+   // b <- 1/b^m (mod p)
+   MpRes resB = mp.pow(mp.nToRes(inv_pb), ii_BabySteps);
+
+   uint32_t nBase = ii_SieveLow;
+   
+   for (uint32_t step = 1; step < ii_GiantSteps; step++)
+   {
+      resA[0] = mp.mul(resA[0], resB);
+      resA[1] = mp.mul(resA[1], resB);
+      resA[2] = mp.mul(resA[2], resB);
+      resA[3] = mp.mul(resA[3], resB);
+
+      jHash[0] = ip_HashTable->Lookup(resA[0]);
+      jHash[1] = ip_HashTable->Lookup(resA[1]);
+      jHash[2] = ip_HashTable->Lookup(resA[2]);
+      jHash[3] = ip_HashTable->Lookup(resA[3]);
+   
+      nBase += ii_BabySteps;
+   
+      if (jHash[0] != HASH_NOT_FOUND)
+         ip_CarolKyneaApp->ReportFactor(p, nBase+jHash[0], +1);
+         
+      if (jHash[1] != HASH_NOT_FOUND)
+         ip_CarolKyneaApp->ReportFactor(p, nBase+jHash[1], +1);
+      
+      if (jHash[2] != HASH_NOT_FOUND)
+         ip_CarolKyneaApp->ReportFactor(p, nBase+jHash[2], -1);
+      
+      if (jHash[3] != HASH_NOT_FOUND)
+         ip_CarolKyneaApp->ReportFactor(p, nBase+jHash[3], -1);
+   }
+  }
+
+uint32_t  CarolKyneaWorker::BabySteps(uint64_t p, MpArith mp, MpRes resBase)
+{
+   MpRes    resBJ, resBJ0;
+   uint32_t j;
+   
+   resBJ = resBJ0 = mp.pow(resBase, ii_MinN);
+  
+   for (j = 0; j < ii_BabySteps; j++)
+   {
+      ip_HashTable->Insert(resBJ, j);
+      
+      resBJ = mp.mul(resBJ, resBase);
+            
+      if (resBJ == resBJ0)
+         return j+1;
+   }
+
+   return 0;
 }
 
-void CarolKyneaWorker::VerifyFactor(uint64_t p, uint32_t n, int32_t c)
-{
-   uint64_t rem;
-   
-   fpu_push_1divp(p);
-   
-   rem = fpu_powmod(ii_Base, n, p);
-   
-   rem = fpu_mulmod(rem + c, rem + c, p);
-   
-   fpu_pop();
-   
-   if (rem != 2)
-      FatalError("(%u^%u%+d)-2 mod %" PRIu64" = %" PRIu64"", ii_Base, n, c, p, rem-2);
-}

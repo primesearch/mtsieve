@@ -12,17 +12,13 @@
 #include "CarolKyneaApp.h"
 #include "../core/Worker.h"
 #include "../core/HashTable.h"
+#include "../core/MpArith.h"
 
 // There are 4 sequences.  2 for the Carol form, 2 for the Kynea form
 // All of them will be sieved concurrently.
 #define ROOT_COUNT	4
 
 using namespace std;
-
-typedef struct {
-   uint64_t root;
-   int32_t  c;
-} seq_t;
 
 class CarolKyneaWorker : public Worker
 {
@@ -34,19 +30,16 @@ public:
    void              CleanUp(void);
    void              TestMegaPrimeChunk(void);
    void              TestMiniPrimeChunk(uint64_t *miniPrimeChunk);
-   
-   void              VerifyFactor(uint64_t p, uint32_t n, int32_t c);
-   
+      
 protected:
 
 private:
    CarolKyneaApp    *ip_CarolKyneaApp;
    HashTable        *ip_HashTable;
    
-   void              DiscreteLog(uint64_t p);
-   uint32_t          BabySteps(uint64_t b, uint64_t bj0, uint64_t p);
-   uint64_t          FindRoot(uint64_t p);
-   void              CheckFactor(uint64_t p, uint32_t n, int32_t c);
+   MpRes             FindRoot(uint64_t p, MpArith mp);
+   void              DiscreteLog(uint64_t p, MpArith mp, uint64_t inv_pb);
+   uint32_t          BabySteps(uint64_t p, MpArith mp, MpRes resBase);
 
    uint32_t          ii_Base;
    uint32_t          ii_MinN;
@@ -58,9 +51,7 @@ private:
    uint32_t          ii_SieveLow;
    uint32_t          ii_SieveRange;
 
-   seq_t             io_Sequence[ROOT_COUNT];
-      
-   uint64_t          il_A[ROOT_COUNT];
+   MpRes             ir_Root1, ir_Root2;
 };    
 
 #endif
