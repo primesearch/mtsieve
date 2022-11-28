@@ -1,4 +1,4 @@
-2.3.6 - November xx, 2022
+2.3.6 - November 28, 2022
    cksieve/cksievecl: version 1.4
       Initial release of cksievecl.
       cksieve will now run on non-x86 CPUs.  It is 25% faster than the previous version.

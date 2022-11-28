@@ -85,8 +85,9 @@ ifeq ($(strip $(HAS_X86)),yes)
 CPU_PROGS=afsieve cksieve dmdsieve gcwsieve gfndsieve fbncsieve fkbnsieve k1b2sieve kbbsieve mfsieve \
    pixsieve psieve sgsieve smsieve srsieve2 twinsieve xyyxsieve
 else
+# no non-x86 builds for afsieve, gcwsieve, pixsieve, and xyyxsieve
 CPU_PROGS=cksieve dmdsieve gfndsieve fbncsieve fkbnsieve k1b2sieve kbbsieve mfsieve \
-   sgsieve smsieve srsieve2 twinsieve psieve
+   psieve sgsieve smsieve srsieve2 twinsieve 
 endif
 
 ifeq ($(strip $(HAS_X86)),yes)
@@ -95,7 +96,7 @@ else
 OPENCL_PROGS=cksievecl cwsievecl mfsievecl gfndsievecl smsievecl srsieve2cl psievecl
 endif
 
-METAL_PROGS=cksievecl cwsievemtl gfndsievemtl mfsievemtl psievemtl smsievemtl srsieve2mtl
+METAL_PROGS=cksievemtl cwsievemtl gfndsievemtl mfsievemtl psievemtl smsievemtl srsieve2mtl
 
 CPU_CORE_OBJS=core/App_cpu.o core/FactorApp_cpu.o core/AlgebraicFactorApp_cpu.o \
    core/Clock_cpu.o core/Parser_cpu.o core/Worker_cpu.o core/HashTable_cpu.o core/main_cpu.o core/SharedMemoryItem_cpu.o
