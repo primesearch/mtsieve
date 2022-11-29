@@ -23,7 +23,7 @@
 #define APP_NAME        "gcwsieve"
 #endif
 
-#define APP_VERSION     "1.4"
+#define APP_VERSION     "1.5"
 
 #define BIT(n)        ((n) - ii_MinN)
 
@@ -42,6 +42,7 @@ CullenWoodallApp::CullenWoodallApp(void) : AlgebraicFactorApp()
    ii_Base = 0;
    ii_MinN = 0;
    ii_MaxN = 0;
+   ib_UseAvx = false;
    ib_Cullen = false;
    ib_Woodall = false;
    it_Format = FF_ABC;
@@ -61,6 +62,7 @@ void CullenWoodallApp::Help(void)
    printf("-b --base=b           Base to search\n");
    printf("-n --min_n=n          Minimum n to search\n");
    printf("-N --max_n=N          Maximum N to search\n");
+   printf("-a --useavx           Use AVX routines (if availble)\n");
    printf("-s --sign=+/-/b       Sign to sieve for (+ = Cullen, - = Woodall)\n");
    printf("-f --format=f         Format of output file (A=ABC (default), L=LLR\n");
 #if defined(USE_OPENCL) || defined(USE_METAL)
@@ -73,11 +75,12 @@ void  CullenWoodallApp::AddCommandLineOptions(std::string &shortOpts, struct opt
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "b:n:N:s:";
+   shortOpts += "Db:n:N:s:";
 
    AppendLongOpt(longOpts, "base",           required_argument, 0, 'b');
    AppendLongOpt(longOpts, "min_n",          required_argument, 0, 'n');
    AppendLongOpt(longOpts, "max_n",          required_argument, 0, 'N');
+   AppendLongOpt(longOpts, "useavx",         no_argument,       0, 'a');
    AppendLongOpt(longOpts, "sign",           required_argument, 0, 's');
    AppendLongOpt(longOpts, "format",         required_argument, 0, 'f');
    
@@ -112,6 +115,11 @@ parse_t CullenWoodallApp::ParseOption(int opt, char *arg, const char *source)
          status = Parser::Parse(arg, 2, 1000000000, ii_MaxN);
          break;
 		 
+      case 'a':
+         ib_UseAvx = true;
+         status = P_SUCCESS;
+         break;
+         
       case 'f':
          status = Parser::Parse(arg, "AL", value);
          

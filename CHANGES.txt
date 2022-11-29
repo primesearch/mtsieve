@@ -1,3 +1,10 @@
+2.3.7 - November 29, 2022
+   gcwsieve/gcwsievecl: version 1.5
+      Added support for non-x86 CPUs.  FPU or AVX is still used on x86 CPUs.
+      Added -A to enable AVX on x86 CPUs.  AVX code can be faster than the FPU,
+      but you will have to test ranges (for p > max n) to see which is faster.
+      Updated invmod method in the GPU and FPU code to gain about 2%.
+
 2.3.6 - November 28, 2022
    cksieve/cksievecl: version 1.4
       Initial release of cksievecl.

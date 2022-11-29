@@ -35,11 +35,8 @@ CullenWoodallWorker::CullenWoodallWorker(uint32_t myId, App *theApp) : Worker(my
    // Allocate enough memory to hold all of the terms.
    ii_Terms = (uint32_t *) xmalloc(ii_MaxTermCount*sizeof(int32_t));
 
-   il_NextTermsBuild = 0;
-   ib_Initialized = true;
-
 #ifdef USE_X86
-   if (CpuSupportsAvx())
+   if (ip_CullenWoodallApp->UseAvxIfAvailable() && CpuSupportsAvx())
    {
       if (ii_Base < ii_MaxN)
          SetMiniChunkRange(ii_MaxN + 1, PMAX_MAX_52BIT, AVX_ARRAY_SIZE);
@@ -47,6 +44,9 @@ CullenWoodallWorker::CullenWoodallWorker(uint32_t myId, App *theApp) : Worker(my
          SetMiniChunkRange(ii_Base + 1, PMAX_MAX_52BIT, AVX_ARRAY_SIZE);
    }
 #endif
+
+   il_NextTermsBuild = 0;
+   ib_Initialized = true;
 }
 
 void  CullenWoodallWorker::CleanUp(void)
@@ -78,9 +78,16 @@ void  CullenWoodallWorker::TestMegaPrimeChunk(void)
       }
       
       if (ps[0] < maxPForSmallPrimeLogic)
-         TestSmallPrimesFPU(ps);
+         TestSmallPrimes(ps);
       else
+      {
+#ifdef USE_X86
          TestLargePrimesFPU(ps);
+#else
+         MpArithVec mp(ps);
+         TestLargePrimes(ps, mp);
+#endif
+      }
       
       SetLargestPrimeTested(ps[3], 4);
       
@@ -89,9 +96,9 @@ void  CullenWoodallWorker::TestMegaPrimeChunk(void)
    }
 }
 
-#ifdef USE_X86
 void  CullenWoodallWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 {
+#ifdef USE_X86
    // Every once in a while rebuild the term lists as it will have fewer entries
    // which will speed up testing for the next range of p.
    // Unlike the GPU, we will put all terms into one group.
@@ -103,19 +110,23 @@ void  CullenWoodallWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
    }
 
    TestPrimesAVX(miniPrimeChunk);
-}
+#else
+   FatalError("CullenWoodallWorker::TestMiniPrimeChunk not implemented");
 #endif
+}
 
 // For small p, we need to iterate from minn to maxn as the large prime algorithm
 // does not work correctly when p < maxN.
-void  CullenWoodallWorker::TestSmallPrimesFPU(uint64_t *ps)
+void  CullenWoodallWorker::TestSmallPrimes(uint64_t *ps)
 {
    uint32_t theN, prevN;
    int32_t  termIndex, maxIndex;
    uint32_t power;
    uint64_t thePrime;
-   uint64_t powrem, cwrem, powers[MAX_POWERS+1];
-
+   
+   MpRes    powers[MAX_POWERS+1];
+   MpRes    res, resCW;
+   
    maxIndex = 0;
    while (ii_Terms[maxIndex] > 0)
       maxIndex++;
@@ -127,16 +138,19 @@ void  CullenWoodallWorker::TestSmallPrimesFPU(uint64_t *ps)
       if (ii_Base % thePrime == 0)
          continue;
       
-      fpu_push_1divp(thePrime);
+      MpArith mp(thePrime);
+      const MpRes resBase = mp.nToRes(ii_Base);
+      const MpRes pOne = mp.one();
+      const MpRes mOne = mp.sub(mp.zero(), pOne);
       
       termIndex = maxIndex - 1;
 
       prevN = theN = ii_Terms[termIndex];
          
-      BuildListOfPowers(ii_Base, thePrime, MAX_POWERS+1, powers);
-   
+      BuildListOfPowers(resBase, thePrime, mp, MAX_POWERS+1, powers);
+      
       // Compute our starting term
-      powrem = fpu_powmod(ii_Base, theN, thePrime);
+      res = mp.pow(resBase, theN);
 
       termIndex--;
       
@@ -152,25 +166,23 @@ void  CullenWoodallWorker::TestSmallPrimesFPU(uint64_t *ps)
          // chunks.  At worst this might cause an extra mulmod or two every once in a while.
          while (power > MAX_POWERS)
          {
-            powrem = fpu_mulmod(powrem, powers[MAX_POWERS], thePrime);
+            res = mp.mul(res, powers[MAX_POWERS]);
             power -= MAX_POWERS;
          }
 
-         powrem = fpu_mulmod(powrem, powers[power], thePrime);
+         res = mp.mul(res, powers[power]);
 
-         cwrem = fpu_mulmod(powrem, theN, thePrime);
+         resCW = mp.mul(res, mp.nToRes(theN));
          
-         if (cwrem == +1)
+         if (resCW == pOne)
             ip_CullenWoodallApp->ReportFactor(thePrime, theN, -1);
 
-         if (cwrem == thePrime - 1)
+         if (resCW == mOne)
             ip_CullenWoodallApp->ReportFactor(thePrime, theN, +1);
 
          prevN = theN;
          termIndex--;
       };
-      
-      fpu_pop();
    }
 }
 
@@ -199,6 +211,133 @@ void  CullenWoodallWorker::TestSmallPrimesFPU(uint64_t *ps)
 // exponent and that allows us to put b^(n-N) into a table so that we
 // can use mulmods instead of expmods as we iterate through n.
 //    -> +n/-n (mod p) = B^n * b^n (mod p)
+void  CullenWoodallWorker::TestLargePrimes(uint64_t *ps, MpArithVec mp)
+{
+   uint32_t theN, prevN;
+   uint32_t termIndex;
+   uint64_t powInv[4], temp[4];
+   uint32_t power;
+   
+   MpResVec powers[MAX_POWERS+1];
+   MpResVec resC[MAX_POWERS+1];
+   MpResVec resW[MAX_POWERS+1];
+   MpResVec res, cullen, woodall;
+   
+   // compute the inverse of b (mod p)
+   powInv[0] = InvMod32(ii_Base, ps[0]);
+   powInv[1] = InvMod32(ii_Base, ps[1]);
+   powInv[2] = InvMod32(ii_Base, ps[2]);
+   powInv[3] = InvMod32(ii_Base, ps[3]);
+   
+   res = mp.pow(mp.nToRes(powInv), ii_Terms[0]);
+   
+   theN = ii_Terms[0];
+
+   // res = b^minN % p
+
+   temp[0] = ps[0] - theN;
+   temp[1] = ps[1] - theN;
+   temp[2] = ps[2] - theN;
+   temp[3] = ps[3] - theN;
+   
+   cullen = mp.nToRes(temp);
+
+   temp[0] = theN;
+   temp[1] = theN;
+   temp[2] = theN;
+   temp[3] = theN;
+   
+   woodall = mp.nToRes(temp);
+   
+   for (size_t k = 0; k < VECTOR_SIZE; ++k)
+   {
+      // If res = p - miN, then we have a factor
+      if (res[k] == cullen[k])
+         ip_CullenWoodallApp->ReportFactor(ps[k], theN, +1);
+
+      // If res = miN, then we have a factor
+      if (res[k] == woodall[k])
+         ip_CullenWoodallApp->ReportFactor(ps[k], theN, -1);
+   }
+   
+   powers[1] = mp.nToRes(ii_Base);   
+   powers[2] = mp.mul(powers[1], powers[1]);
+   
+   resC[1] = mp.sub(mp.nToRes(ps), mp.one());
+   resW[1] = mp.one();
+   
+   resC[2] = mp.add(resC[1], resC[1]);
+   resW[2] = mp.add(resW[1], resW[1]);
+   
+   if (ii_Base & 1)
+   {
+      // If the base is odd, then all n must be even and thus the difference
+      // between any two remaining n for the base must also be even.
+      for (size_t idx=4; idx<MAX_POWERS+1; idx+=2)
+      {
+         powers[idx] = mp.mul(powers[idx-2], powers[2]);
+         
+         resC[idx] = mp.add(resC[idx-2], resC[2]);
+         resW[idx] = mp.add(resW[idx-2], resW[2]);
+      }
+   }
+   else
+   {
+      for (size_t idx=3; idx<MAX_POWERS+1; idx+=2)
+      {
+         powers[idx] = mp.mul(powers[idx-1], powers[1]);
+         
+         resC[idx] = mp.add(resC[idx-1], resC[1]);
+         resW[idx] = mp.add(resW[idx-1], resW[1]);
+      }
+   }
+   
+   prevN = ii_Terms[0];
+   
+   // Note that the terms start at max N and decrease
+   termIndex = 1;
+   while (ii_Terms[termIndex] > 0)
+   {
+      theN = ii_Terms[termIndex];
+
+      power = prevN - theN;
+
+      // Our table isn't infinite in size, so we'll break down the power into smaller
+      // chunks.  At worst this might cause an extra mulmod or two every once in a while.
+      while (power > MAX_POWERS)
+      {
+         res = mp.mul(res, powers[MAX_POWERS]);
+         
+         cullen = mp.sub(cullen, resC[MAX_POWERS]);
+         woodall = mp.sub(woodall, resW[MAX_POWERS]);
+         
+         power -= MAX_POWERS;
+      }
+
+      res = mp.mul(res, powers[power]);
+
+      cullen = mp.sub(cullen, resC[power]);
+      woodall = mp.sub(woodall, resW[power]);
+
+      // At this point we have computed (1/b)^n (mod p).
+      // If (1/b)^n (mod p) == n then we have a Woodall factor.
+      // If (1/b)^n (mod p) == thePrime - n then we have a Cullen factor.
+
+      for (size_t k = 0; k < VECTOR_SIZE; ++k)
+      {
+         if (res[k] == cullen[k])
+            ip_CullenWoodallApp->ReportFactor(ps[k], theN, +1);
+            
+         if (res[k] == woodall[k]) 
+            ip_CullenWoodallApp->ReportFactor(ps[k], theN, -1);
+      }
+                  
+      prevN = theN;
+      termIndex++;
+   };
+}
+
+#ifdef USE_X86
 void  CullenWoodallWorker::TestLargePrimesFPU(uint64_t *ps)
 {
    uint32_t theN, prevN;
@@ -210,10 +349,10 @@ void  CullenWoodallWorker::TestLargePrimesFPU(uint64_t *ps)
    uint32_t power;
    
    // compute the inverse of b (mod p)
-   powinvs[0] = ComputeMultiplicativeInverse(ii_Base, ps[0]);
-   powinvs[1] = ComputeMultiplicativeInverse(ii_Base, ps[1]);
-   powinvs[2] = ComputeMultiplicativeInverse(ii_Base, ps[2]);
-   powinvs[3] = ComputeMultiplicativeInverse(ii_Base, ps[3]);
+   powinvs[0] = InvMod32(ii_Base, ps[0]);
+   powinvs[1] = InvMod32(ii_Base, ps[1]);
+   powinvs[2] = InvMod32(ii_Base, ps[2]);
+   powinvs[3] = InvMod32(ii_Base, ps[3]);
 
    fpu_powmod_4b_1n_4p(powinvs, ii_Terms[0], ps);
    
@@ -331,8 +470,7 @@ void  CullenWoodallWorker::TestLargePrimesFPU(uint64_t *ps)
    fpu_pop();
 }
 
-#ifdef USE_X86
-// Same as TestLargePrimesFPU, but using AVX
+// Same as TestLargePrimes, but using AVX
 void  CullenWoodallWorker::TestPrimesAVX(uint64_t *ps)
 {
    uint32_t theN, prevN;
@@ -347,7 +485,7 @@ void  CullenWoodallWorker::TestPrimesAVX(uint64_t *ps)
    for (int i=0; i<AVX_ARRAY_SIZE; i++)
    {      
       dps[i] = (double) ps[i];
-      multinvs[i] = (double) ComputeMultiplicativeInverse(ii_Base, ps[i]);
+      multinvs[i] = (double) InvMod32(ii_Base, ps[i]);
       powers[1][i] = (double) ii_Base;
    }
    
@@ -443,51 +581,17 @@ void  CullenWoodallWorker::CheckAVXResult(uint32_t theN, uint64_t *ps, double *d
             ip_CullenWoodallApp->ReportFactor(ps[idx], theN, +1);
    }
 }
+#endif
 
 // Build a list of powers for a from a^0 thru a^n for all even n up to count.
-void  CullenWoodallWorker::BuildListOfPowers(uint64_t a, uint64_t p, uint32_t count, uint64_t *powers)
+void  CullenWoodallWorker::BuildListOfPowers(MpRes a, uint64_t p, MpArith mp, uint32_t count, MpRes *powers)
 {
    uint32_t index;
-   
-   fpu_push_adivb(a, p);
-   
-   powers[0] = 1;
+
+   powers[0] = mp.one();
    powers[1] = a;
    
    // Multiply successive terms by a (mod p)
    for (index=2; index<count; index++)
-       powers[index] = fpu_mulmod_iter(powers[index-1], a, p);
-
-   fpu_pop();
-}
-#endif
-   
-uint64_t CullenWoodallWorker::ComputeMultiplicativeInverse(uint64_t a, uint64_t p)
-{
-   uint64_t m = p;
-   int64_t  y = 0, x = 1;
-   uint64_t q, t;
-
-   while (a > 1)
-   {
-      // q is quotient
-      q = a / m;
-      t = m;
-
-      // m is remainder now, process same as
-      // Euclid's algo
-      m = a % m;
-      a = t;
-      t = y;
-
-      // Update y and x
-      y = x - q * y;
-      x = t;
-   }
-
-   // Make x positive
-   if (x < 0)
-      x += p;
-
-   return x;
+       powers[index] = mp.mul(powers[index-1], a);
 }

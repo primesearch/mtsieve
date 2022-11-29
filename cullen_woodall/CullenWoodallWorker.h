@@ -10,6 +10,8 @@
 
 #include "CullenWoodallApp.h"
 #include "../core/Worker.h"
+#include "../core/MpArith.h"
+#include "../core/MpArithVector.h"
 
 using namespace std;
 
@@ -25,16 +27,16 @@ public:
    void              CleanUp(void);
 
 private:   
-   void              TestSmallPrimesFPU(uint64_t *ps);
-   void              TestLargePrimesFPU(uint64_t *ps);
+   void              TestSmallPrimes(uint64_t *ps);
+   void              TestLargePrimes(uint64_t *ps, MpArithVec mp);
 
 #ifdef USE_X86
+   void              TestLargePrimesFPU(uint64_t *ps);
    void              TestPrimesAVX(uint64_t *ps);
    void              CheckAVXResult(uint32_t theN, uint64_t *ps, double *dps);
 #endif
 
-   void              BuildListOfPowers(uint64_t a, uint64_t p, uint32_t count, uint64_t *powers);
-   uint64_t          ComputeMultiplicativeInverse(uint64_t a, uint64_t p);
+   void              BuildListOfPowers(MpRes a, uint64_t p, MpArith mp, uint32_t count, MpRes *powers);
 
    CullenWoodallApp *ip_CullenWoodallApp;
    

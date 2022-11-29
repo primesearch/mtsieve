@@ -39,7 +39,8 @@ public:
    int32_t           GetBase(void) { return ii_Base; };
    int32_t           GetMinN(void) { return ii_MinN; };
    int32_t           GetMaxN(void) { return ii_MaxN; };
-
+   bool              UseAvxIfAvailable(void) { return ib_UseAvx; };
+   
 #if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          GetMaxGpuSteps(void) { return ii_MaxGpuSteps; };
    uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
@@ -82,6 +83,7 @@ private:
    uint32_t          ii_Base;
    uint32_t          ii_MinN;
    uint32_t          ii_MaxN;
+   bool              ib_UseAvx;
    bool              ib_Woodall;
    bool              ib_Cullen;
    

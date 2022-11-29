@@ -47,7 +47,7 @@ void collectFactor(uint        n,
             device long4      *factors);
 #endif
 
-long computeInverse(long a, long p);
+ulong invmod(ulong a, ulong p);
 
 ulong mmmInvert(ulong _p);
 ulong mmmOne(ulong _p);
@@ -113,7 +113,7 @@ kernel void cw_kernel(device const  ulong *primes,
    ulong _r2 = mmmR2(thePrime, _q, _one);
 
    // compute the inverse of b (mod p)
-   ulong inverse = computeInverse(BASE, thePrime);
+   ulong inverse = invmod(BASE, thePrime);
 
    uint theN = terms[0];
 
@@ -335,32 +335,55 @@ void collectFactor(uint        n,
    factors[old].z = p;
 }
 
-long computeInverse(long a, long p)
+ulong  invmod(ulong a, ulong p)
 {
-   long     m = p;
-   long     y = 0, x = 1;
-   long     q, t;
+   ulong ps1, ps2, q, r, t, dividend, divisor;
+   uint parity;
 
-   while (a > 1)
+   if (a < 3)
+      return (a < 2) ? a : (p+1)/2;
+
+   q = p / a;
+   r = p % a;
+
+   dividend = a;
+   divisor = r;
+   ps1 = q;
+   ps2 = 1;
+   parity = 0;
+
+   while (divisor > 1)
    {
-      // q is quotient
-      q = a / m;
-      t = m;
-
-      // m is remainder now, process same as
-      // Euclid's algo
-      m = a % m;
-      a = t;
-      t = y;
-
-      // Update y and x
-      y = x - q * y;
-      x = t;
+      r = dividend - divisor;
+      t = r - divisor;
+      if (r >= divisor) {
+         q += ps1; r = t; t -= divisor;
+         if (r >= divisor) {
+            q += ps1; r = t; t -= divisor;
+            if (r >= divisor) {
+               q += ps1; r = t; t -= divisor;
+               if (r >= divisor) {
+                  q += ps1; r = t; t -= divisor;
+                  if (r >= divisor) {
+                     q += ps1; r = t; t -= divisor;
+                     if (r >= divisor) {
+                        q += ps1; r = t; t -= divisor;
+                        if (r >= divisor) {
+                           q += ps1; r = t; t -= divisor;
+                           if (r >= divisor) {
+                              q += ps1; r = t;
+                              if (r >= divisor) {
+                                 q = dividend / divisor;
+                                 r = dividend % divisor;
+                                 q *= ps1;
+                              } } } } } } } } }
+      q += ps2;
+      parity = ~parity;
+      dividend = divisor;
+      divisor = r;
+      ps2 = ps1;
+      ps1 = q;
    }
 
-   // Make x positive
-   if (x < 0)
-      x += p;
-
-   return x;
+   return (parity) ? ps1 : p - ps1;
 }
