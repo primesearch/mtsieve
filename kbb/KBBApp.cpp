@@ -44,7 +44,7 @@ void KBBApp::Help(void)
 {
    FactorApp::ParentHelp();
 
-   printf("-k ---k=k             k to search\n");
+   printf("-k --k=k              k to search\n");
    printf("-b --bmin=b           Minimum b to search\n");
    printf("-B --bmax=B           Maximum B to search\n");
 }
