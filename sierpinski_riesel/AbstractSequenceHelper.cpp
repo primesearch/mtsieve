@@ -260,7 +260,7 @@ void  AbstractSequenceHelper::ChooseSteps(uint32_t Q, uint32_t s, uint32_t &baby
    fesetround(roundingMode);
    
    if (m > HASH_MAX_ELTS)
-   {
+   {   
      // There are three ways to handle this undesirable case:
      //   1. Allow m > HASH_MAX_ELTS (undersize hash table).
      //   2. Restrict m <= HASH_MAX_ELTS (suboptimal baby/giant-step ratio).
@@ -269,7 +269,11 @@ void  AbstractSequenceHelper::ChooseSteps(uint32_t Q, uint32_t s, uint32_t &baby
      m = ceil((double)r/M);
    }
    
-   assert(m <= HASH_MAX_ELTS);
+   while (m > HASH_MAX_ELTS)
+   {
+      M++;
+      m = ceil((double)r/M);
+   }
    
    babySteps = m;
    giantSteps = M;
