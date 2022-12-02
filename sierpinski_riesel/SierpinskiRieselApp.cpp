@@ -1229,24 +1229,26 @@ void  SierpinskiRieselApp::CheckForLegendreSupport(void)
    if (ii_SquareFreeB > 0)
       return;
 
-   if (!ib_CanUseCIsOneLogic)
-   {
-      WriteToConsole(COT_OTHER, "Must use generic sieving logic because abs(c) != 1 for at least one sequence");     
-      ii_SquareFreeB = 1;
-      return;
-   }
-
    if (il_LegendreTableBytes == 0)
    {
       WriteToConsole(COT_OTHER, "Must use generic sieving logic because no memory is allocated for Legendre tables");     
       ib_CanUseCIsOneLogic = false;
+      ii_SquareFreeB = 1;
       return;
    }
 
    if (!ib_SetLegengreBytes && ii_SequenceCount > 1)
    {
-      WriteToConsole(COT_OTHER, "Will use generic sieving logic because no memory is allocated for Legendre tables");     
+      WriteToConsole(COT_OTHER, "Must use generic sieving logic because -l was not specified for mutiple sequences");     
       ib_CanUseCIsOneLogic = false;
+      ii_SquareFreeB = 1;
+      return;
+   }
+
+   if (!ib_CanUseCIsOneLogic)
+   {
+      WriteToConsole(COT_OTHER, "Must use generic sieving logic because abs(c) != 1 for at least one sequence");
+      ii_SquareFreeB = 1;
       return;
    }
 
