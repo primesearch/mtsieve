@@ -12,7 +12,7 @@
       
       To use -Q, first sieve your sequence(s) to at least 1e6.  This will ensure that
       subsequent runs are using the correct sieving subroutines.  Starting with the
-      output file, run that output file with the -q flag then stop immediately after
+      output file, run that output file with the -Q flag then stop immediately after
       it outputs a group of lines looking like this:
       
       q =   45 with    162 subseq yields bs =   445, gs =     2, work =    793
@@ -21,7 +21,7 @@
       
       To use -q, take each of the q values output from -Q and run a range of at least
       1e9 to determine the actual amount of time it takes for that q.  Using the
-      Run a range of at least 1e9 using -Q to specific which q to run with selecting
+      Run a range of at least 1e9 using -q to specific which q to run with selecting
       the q output from using the -q flag.  Although you can run all q, you can limit
       to those q withing 20% of the lowest cost.  For each run observe the total time
       for that run to determine which q required the least amount of time.  You should
