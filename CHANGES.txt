@@ -21,11 +21,11 @@
       
       To use -q, take each of the q values output from -Q and run a range of at least
       1e9 to determine the actual amount of time it takes for that q.  Using the
-      Run a range of at least 1e9 using -q to specific which q to run with selecting
-      the q output from using the -q flag.  Although you can run all q, you can limit
+      Run a range of at least 1e9 using -q to specify which q to run by selecting
+      the q output from using the -Q flag.  Although you can run all q, you can limit
       to those q withing 20% of the lowest cost.  For each run observe the total time
       for that run to determine which q required the least amount of time.  You should
-      then run the entire range with that q.  This will not necessrily be the q with
+      then run the entire range with that q.  This will not necessarily be the q with
       the lowest cost.
       
 2.3.7 - November 29, 2022
