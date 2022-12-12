@@ -1,3 +1,32 @@
+2.3.8 - December 12, 2022
+   mfsieve/mfsievecl: version 2.1
+      Build a list of terms with powers prior to sieving so that computing minn! is faster.
+      On a CPU this can yield a 40% boost in speed when sieving from n to 2n.
+      On a GPU this can yield a 80% boost in speed when sieving from n to 2n.
+      
+   srsieve2/srsieve2cl: version 1.6.6   
+      Added -Q which will output estimated work for each possible q.
+      Added -q which can be used to specify the q to use (if that q is possible),
+      overriding the computed best q.
+      
+      To use -Q, first sieve your sequence(s) to at least 1e6.  This will ensure that
+      subsequent runs are using the correct sieving subroutines.  Starting with the
+      output file, run that output file with the -q flag then stop immediately after
+      it outputs a group of lines looking like this:
+      
+      q =   45 with    162 subseq yields bs =   445, gs =     2, work =    793
+      
+      work is an estimated cost for that q with lower costs implying higher throughput.
+      
+      To use -q, take each of the q values output from -Q and run a range of at least
+      1e9 to determine the actual amount of time it takes for that q.  Using the
+      Run a range of at least 1e9 using -Q to specific which q to run with selecting
+      the q output from using the -q flag.  Although you can run all q, you can limit
+      to those q withing 20% of the lowest cost.  For each run observe the total time
+      for that run to determine which q required the least amount of time.  You should
+      then run the entire range with that q.  This will not necessrily be the q with
+      the lowest cost.
+      
 2.3.7 - November 29, 2022
    gcwsieve/gcwsievecl: version 1.5
       Added support for non-x86 CPUs.  FPU or AVX is still used on x86 CPUs.
