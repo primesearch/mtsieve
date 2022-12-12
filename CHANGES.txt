@@ -1,8 +1,9 @@
 2.3.8 - December 12, 2022
    mfsieve/mfsievecl: version 2.1
       Build a list of terms with powers prior to sieving so that computing minn! is faster.
-      On a CPU this can yield a 40% boost in speed when sieving from n to 2n.
-      On a GPU this can yield a 80% boost in speed when sieving from n to 2n.
+      For factorial, this improves the calculation of minn! by 30% with minn=1e6 when using
+      the GPU and by 40% when using the CPU.
+      Multi-factorials where minn < 1e6 will see less of a boost in performance.
       
    srsieve2/srsieve2cl: version 1.6.6   
       Added -Q which will output estimated work for each possible q.
