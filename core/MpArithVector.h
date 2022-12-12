@@ -86,11 +86,27 @@ public:
 	MpResVector<N> one() const { return _one; }	// Montgomery form of 1
 
 	uint64_t p(size_t k) const { return _p[k]; }
-   
+
 	static bool at_least_one_is_equal(const MpResVector<N> & a, const MpResVector<N> & b)
 	{
 		bool is_equal = false;
-		for (size_t k = 0; k < N; ++k) is_equal |= (a[k] == b[k]);
+      
+		for (size_t k = 0; k < N; ++k)
+         is_equal |= (a[k] == b[k]);
+      
+		return is_equal;
+	}
+   
+	static bool at_least_one_is_equal(const MpResVector<N> & a, const MpResVector<N> & b1, const MpResVector<N> & b2)
+	{
+		bool is_equal = false;
+      
+		for (size_t k = 0; k < N; ++k)
+      {
+         is_equal |= (a[k] == b1[k]);
+         is_equal |= (a[k] == b2[k]);
+      }
+      
 		return is_equal;
 	}
 
