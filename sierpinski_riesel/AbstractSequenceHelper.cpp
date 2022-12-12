@@ -21,7 +21,7 @@ AbstractSequenceHelper::AbstractSequenceHelper(App *theApp, uint64_t largestPrim
 {
    SierpinskiRieselApp *srApp = (SierpinskiRieselApp *) theApp;
    
-   ip_App = theApp;
+   ip_App = (SierpinskiRieselApp *) theApp;
    
    ii_Base = srApp->GetBase();
    ii_MinN = srApp->GetMinN();

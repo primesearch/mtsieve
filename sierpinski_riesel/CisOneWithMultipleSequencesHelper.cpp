@@ -59,7 +59,10 @@ Worker  *CisOneWithMultipleSequencesHelper::CreateWorker(uint32_t id, bool gpuWo
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    if (gpuWorker)
-      theWorker = new CisOneWithOneSequenceGpuWorker(id, ip_App, this);
+   {
+      theWorker = NULL;
+      FatalError("Must use generic worker if using GPU with multiple sequences by specifying -l0");
+   }
    else
 #endif
       theWorker = new CisOneWithMultipleSequencesWorker(id, ip_App, this);
@@ -131,6 +134,11 @@ double    CisOneWithMultipleSequencesHelper::EstimateWork(uint32_t Q, uint32_t s
    
    if (r > 2)
       work += x * PRT_WORK;
+   
+   SierpinskiRieselApp *srApp = (SierpinskiRieselApp *) ip_App;
+   
+   if (srApp->ShowQEffort())
+      srApp->WriteToConsole(COT_OTHER, "Q = %4u with %6u subseq yields bs = %5u, gs = %5u, work = %6.0lf", Q, s, babySteps, giantSteps, work);
    
    return work;
 }

@@ -99,7 +99,7 @@ void   CisOneSequenceHelper::CleanUp(void)
 uint32_t    CisOneSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
 {
    uint32_t          i = 0, j, n;
-   uint32_t          bit;
+   uint32_t          bit, thisQ, bestQ, userBestQ;
    vector<uint32_t>  S;
    vector<double>    W;
    vector<bool>      R;
@@ -110,7 +110,10 @@ uint32_t    CisOneSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
    W.resize(nDivisors);
 
    R.resize(ii_LimitBase);
-      
+
+   SierpinskiRieselApp *srApp = (SierpinskiRieselApp *) ip_App;
+   userBestQ = srApp->GetUserBestQ();
+
    seqPtr = ip_FirstSequence;
    do
    {
@@ -139,15 +142,32 @@ uint32_t    CisOneSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
    for (i=0, j=0; j<nDivisors; j++)
       if (nDivisors % (j+1) == 0)
       {
-         W[j] = RateQ((j+1)*ii_BaseMultiple, S[j]);
+         thisQ = (j+1)*ii_BaseMultiple;
+
+         W[j] = RateQ(thisQ, S[j]);
 
          if (W[j] < W[i])
+         {
             i = j;
+            bestQ = thisQ;
+         }
+      }
+
+   for (i=0, j=0; j<nDivisors; j++)
+      if (nDivisors % (j+1) == 0)
+      {
+         thisQ = (j+1)*ii_BaseMultiple;
+         
+         if (userBestQ == thisQ)
+         {
+            i = j;
+            bestQ = thisQ;
+         }
       }
 
    expectedSubsequences = S[i];
 
-   return (i+1)*ii_BaseMultiple;
+   return bestQ;
 }
 
 // Return true iff subsequence h of k*b^n+c has any terms with n%a==b.

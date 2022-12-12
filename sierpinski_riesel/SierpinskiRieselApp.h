@@ -58,6 +58,8 @@ public:
    uint32_t          GetBaseMultipleMulitplier(void) { return ii_BaseMultipleMultiplier; };
    uint32_t          GetPowerResidueLcmMultiplier(void) { return ii_PowerResidueLcmMulitplier; };
    uint32_t          GetLimitBaseMultiplier(void) { return ii_LimitBaseMultiplier; };
+   bool              ShowQEffort(void) { return ib_ShowQEffort; };
+   uint32_t          GetUserBestQ(void) { return ii_UserBestQ; };
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
@@ -133,6 +135,8 @@ private:
    uint64_t          il_MaxK;
    uint64_t          il_MaxAbsC;
 
+   bool              ib_ShowQEffort;
+   uint32_t          ii_UserBestQ;
    uint32_t          ii_SequenceCount;
    
 #if defined(USE_OPENCL) || defined(USE_METAL)

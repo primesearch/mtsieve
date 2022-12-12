@@ -45,10 +45,14 @@ Worker   *GenericSequenceHelper::CreateWorker(uint32_t id, bool gpuWorker, uint6
 uint32_t    GenericSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
 {
    uint32_t      bit, i, j, k, n;
+   uint32_t      userBestQ;
    uint32_t      bestQ, Q = 2880;  // DEFAULT_LIMIT_BASE from the old code
    std::vector<bool>  R;
    choice_bc_t  *S = 0;
    seq_t        *seqPtr;
+
+   SierpinskiRieselApp *srApp = (SierpinskiRieselApp *) ip_App;
+   userBestQ = srApp->GetUserBestQ();
 
    k = ForEachDivisor(Q, R, S, true);
    
@@ -78,18 +82,27 @@ uint32_t    GenericSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
       
       seqPtr = (seq_t *) seqPtr->next;
    } while (seqPtr != NULL);
-   
+      
    j = 0;
    for (i = 0; i < k; i++)
-   {
+   {      
       S[i].work = EstimateWork(S[i].div, S[i].subseqs);
-      
+            
       if (S[i].work < S[j].work)
+         j = i;
+   }
+   
+   for (i = 0; i < k; i++)
+   {
+      if (userBestQ == S[i].div)
          j = i;
    }
 
    bestQ = S[j].div;
    expectedSubsequences = S[j].subseqs;
+   
+   if (userBestQ > 0 && bestQ != userBestQ)
+      srApp->WriteToConsole(COT_OTHER, "Q of %u is not possible.  Using Q = %u", userBestQ, bestQ);
 
    xfree(S);
  
@@ -159,6 +172,11 @@ double    GenericSequenceHelper::EstimateWork(uint32_t Q, uint32_t s)
    ChooseSteps(Q, s, babySteps, giantSteps);
 
    work = babySteps*BABY_WORK + s*(giantSteps-1)*GIANT_WORK + Q*EXP_WORK + s*SUBSEQ_WORK;
-      
+
+   SierpinskiRieselApp *srApp = (SierpinskiRieselApp *) ip_App;
+   
+   if (srApp->ShowQEffort())
+      srApp->WriteToConsole(COT_OTHER, "Q = %4u with %6u subseq yields bs = %5u, gs = %5u, work = %6.0lf", Q, s, babySteps, giantSteps, work);
+   
    return work;
 }
