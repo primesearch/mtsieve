@@ -20,6 +20,7 @@ MultiFactorialWorker::MultiFactorialWorker(uint32_t myId, App *theApp) : Worker(
    ii_MinN = ip_MultiFactorialApp->GetMinN();
    ii_MaxN = ip_MultiFactorialApp->GetMaxN();
    ii_MultiFactorial = ip_MultiFactorialApp->GetMultiFactorial();
+   ip_Terms = ip_MultiFactorialApp->GetTerms();
 
    ib_Initialized = true;
 }
@@ -41,9 +42,6 @@ void  MultiFactorialWorker::TestFactorial(void)
    uint64_t  ps[4], maxPrime = ip_App->GetMaxPrime();
    uint32_t  n;
    
-   // if i <= n_pair then (i - 1) * i < p. Compute n! = (2 * 3) * (4 * 5) * ... * ((n - 1) * n)
-   uint32_t  n_pair = std::max(2u, std::min(ii_MinN, uint32_t(sqrt(double(il_PrimeList[0])))) & ~1u);
-
    for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx+=4)
    {
       ps[0] = il_PrimeList[pIdx+0];
@@ -55,45 +53,65 @@ void  MultiFactorialWorker::TestFactorial(void)
 
       const MpResVec pOne = mp.one();
       const MpResVec mOne = mp.sub(mp.zero(), pOne);
-      const MpResVec two = mp.add(pOne, pOne);
-      const MpResVec four = mp.add(two, two);
-      const MpResVec eight = mp.add(four, four);
 
-      // ri = residue of i, rf = residue of i!
-      MpResVec ri = pOne, rf = pOne;
-      // residue of i * (i + 1), the step is (i + 2) * (i + 3) - i * (i + 1) = 4 * i + 6
-      MpResVec r_ixip1 = mp.zero(), r_step = mp.add(four, two);
-
-      // Factorial with pairs of numbers: i! = ((i - 1) * i) * (i - 2)!
-      for (n = 2; n < n_pair; n += 2)
+      MpResVec resRem = pOne;
+      MpResVec resBase = pOne;
+      MpResVec resTemp = pOne;
+      uint32_t power = 0;
+      uint32_t tIdx = 0;
+      
+      while (ip_Terms[0].power[tIdx] > 0)
       {
-         r_ixip1 = mp.add(r_ixip1, r_step);
-         r_step = mp.add(r_step, eight);
-         rf = mp.mul(rf, r_ixip1);
+         resBase = mp.nToRes(ip_Terms[0].base[tIdx]);
+            
+         // If this base has the same power as the previous base, just muliply
+         // We will do exponentiation before we multiply by resRem
+         if (ip_Terms[0].power[tIdx] == power)
+         {
+            resTemp = mp.mul(resTemp, resBase);
+            tIdx++;
+            continue;
+         }
+
+         if (power != 0)
+         {
+            // resRem = resTemp^power * resRem
+            resTemp = mp.pow(resTemp, power);
+            resRem = mp.mul(resRem, resTemp);
+         }
+         
+         power = ip_Terms[0].power[tIdx];
+         resTemp = resBase;
+         tIdx++;
       }
 
-      // Factorial: i! = i * (i - 1)!
-      ri = mp.nToRes(n_pair - 1);
-      for (n = n_pair; n < ii_MinN; ++n)
+      if (power != 0)
       {
-         ri = mp.add(ri, pOne);
-         rf = mp.mul(rf, ri);
+         if (power > 1)
+            resTemp = mp.pow(resTemp, power);
+
+         resRem = mp.mul(resRem, resTemp);
       }
-
-      // Factorial and check if i! = +/-1
-      for (; n <= ii_MaxN; ++n)
+      
+      n = ii_MinN - 1;
+      MpResVec resN = mp.nToRes(n);
+      
+      // At this point resRem = (n-1)! and resN = (n-1)
+      while (n < ii_MaxN)
       {
-         ri = mp.add(ri, pOne);
-         rf = mp.mul(rf, ri);
+         n++;
+         
+         resN = mp.add(resN, pOne);
+         resRem = mp.mul(resRem, resN);
 
-         if (MpArithVec::at_least_one_is_equal(rf, pOne) || MpArithVec::at_least_one_is_equal(rf, mOne))
+         if (MpArithVec::at_least_one_is_equal(resRem, pOne, mOne))
          {
             for (size_t k = 0; k < VECTOR_SIZE; ++k)
             {
-               if (rf[k] == pOne[k])
+               if (resRem[k] == pOne[k])
                   ip_MultiFactorialApp->ReportFactor(ps[k], n, -1);
                   
-               if (rf[k] == mOne[k]) 
+               if (resRem[k] == mOne[k]) 
                   ip_MultiFactorialApp->ReportFactor(ps[k], n, +1);
             }
          }
@@ -109,8 +127,7 @@ void  MultiFactorialWorker::TestFactorial(void)
 void  MultiFactorialWorker::TestMultiFactorial(void)
 {
    uint64_t  ps[4], maxPrime = ip_App->GetMaxPrime();
-   uint32_t  maxNFirstLoop = ii_MinN - ii_MultiFactorial;
-   uint32_t  n, startN;
+   uint32_t  n;
    
    uint32_t  pIdx = 0;
    
@@ -127,46 +144,79 @@ void  MultiFactorialWorker::TestMultiFactorial(void)
 
       const MpResVec pOne = mp.one();
       const MpResVec mOne = mp.sub(mp.zero(), pOne);
-      const MpResVec resMf = mp.nToRes(ii_MultiFactorial);
+      const MpResVec resAdd = mp.nToRes(ii_MultiFactorial);
 
-      for (startN=1; startN<=ii_MultiFactorial; startN++)
+      // If ii_Multifactorial == 2 then mf=0 = 2*4*6*... and mf=1 = 1*3*5*...
+      // If ii_Multifactorial == 3 then mf=0 = 3*6*9*... and mf=1 = 4*7*10*... and mf=2 = 5*8*11*...
+      for (uint32_t mf=0; mf<ii_MultiFactorial; mf++)
       {
-         // If startN is odd and mf is even, then i!mf is always odd, thus
-         // startN!mf+1 and startN!mf-1 are always even.
-         if (!(ii_MultiFactorial & 1) && (startN & 1))
+         // If ii_Multifactorial is even and mf is odd then 
+         // n!ii_Multifactorial+1 and n!ii_Multifactorial-1 are always even
+         // when mf is odd, so we do not need to go any further.
+         if (!(ii_MultiFactorial & 1) && (mf & 1))
             continue;
 
-         MpResVec ri = mp.nToRes(startN);
-         MpResVec rf = ri;
+         MpResVec resRem = pOne;
+         MpResVec resBase = pOne;
+         MpResVec resTemp = pOne;
+         uint32_t power = 0;
+         uint32_t tIdx = 0;
          
-         // At this time we have:
-         //    ri = residual of startN (mod p)
-         //    rf = residual of startN!mf (mod p)
-         
-         n = startN + ii_MultiFactorial;
-         for (; n<maxNFirstLoop; n+=ii_MultiFactorial)
+         while (ip_Terms[mf].power[tIdx] > 0)
          {
-            ri = mp.add(ri, resMf);
-            rf = mp.mul(rf, ri);
+            resBase = mp.nToRes(ip_Terms[mf].base[tIdx]);
+               
+            // If this base has the same power as the previous base, just muliply
+            // We will do exponentiation before we multiply by resRem
+            if (ip_Terms[mf].power[tIdx] == power)
+            {
+               resTemp = mp.mul(resTemp, resBase);
+               tIdx++;
+               continue;
+            }
+
+            if (power != 0)
+            {
+               // resRem = resTemp^power * resRem
+               resTemp = mp.pow(resTemp, power);
+               resRem = mp.mul(resRem, resTemp);
+            }
+            
+            power = ip_Terms[mf].power[tIdx];
+            resTemp = resBase;
+            tIdx++;
+         }
+
+         if (power != 0)
+         {
+            if (power > 1)
+               resTemp = mp.pow(resTemp, power);
+
+            resRem = mp.mul(resRem, resTemp);
          }
          
-         // At this time we have:
-         //    ri = residual of mn (mod p)
-         //    rf = residual of mn!mf (mod p)
-         // where mn is the max n < ii_MinN for this starting n
-         for (; n <=ii_MaxN; n+=ii_MultiFactorial)
-         {
-            ri = mp.add(ri, resMf);
-            rf = mp.mul(rf, ri);
+         n = ii_MinN - 1;
+         while (n % ii_MultiFactorial != mf)
+            n--;
 
-            if (MpArithVec::at_least_one_is_equal(rf, pOne) || MpArithVec::at_least_one_is_equal(rf, mOne))
+         MpResVec resN = mp.nToRes(n);
+         
+         // At this point resRem = (n-1)! and resN = (n-1)
+         // where n is the largest n less than ii_MinN for this mf.
+         while (n < ii_MaxN)
+         {
+            n += ii_MultiFactorial;
+            resN = mp.add(resN, resAdd);
+            resRem = mp.mul(resRem, resN);
+
+            if (MpArithVec::at_least_one_is_equal(resRem, pOne, mOne))
             {
                for (size_t k = 0; k < VECTOR_SIZE; ++k)
                {
-                  if (rf[k] == pOne[k])
+                  if (resRem[k] == pOne[k])
                      ip_MultiFactorialApp->ReportFactor(ps[k], n, -1);
                      
-                  if (rf[k] == mOne[k]) 
+                  if (resRem[k] == mOne[k]) 
                      ip_MultiFactorialApp->ReportFactor(ps[k], n, +1);
                }
             }

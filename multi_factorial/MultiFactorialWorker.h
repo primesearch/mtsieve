@@ -32,6 +32,8 @@ protected:
    uint32_t          ii_MaxN;
    uint32_t          ii_MultiFactorial;
 
+   terms_t          *ip_Terms;
+   
 private:
    void              TestFactorial(void);
    void              TestMultiFactorial(void);

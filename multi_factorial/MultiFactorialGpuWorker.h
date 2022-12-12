@@ -36,9 +36,13 @@ protected:
    uint32_t          ii_MaxGpuSteps;
    uint32_t          ii_MultiFactorial;
    uint32_t          ii_MaxGpuFactors;
+   uint32_t          ii_BaseCount;
+   
    
    // Variables used by the kernel
    uint64_t         *il_RemainderList;
+   uint64_t         *ii_Bases;
+   uint32_t         *ii_Powers;
    uint32_t         *ii_Parameters;
    uint32_t         *ii_FactorCount;
    int64_t          *il_FactorList;

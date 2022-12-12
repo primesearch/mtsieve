@@ -16,10 +16,9 @@
 #include "../core/SharedMemoryItem.h"
 
 typedef struct {
-   uint32_t  mf;
-   uint64_t  maxNForTerm;
-   uint64_t  termCount;
-   uint64_t *termList;
+   uint64_t *base;
+   uint32_t *power;
+   uint32_t  count;
 } terms_t;
 
 class MultiFactorialApp : public FactorApp
@@ -27,7 +26,7 @@ class MultiFactorialApp : public FactorApp
 public:
    MultiFactorialApp();
 
-   ~MultiFactorialApp() {};
+   ~MultiFactorialApp();
 
    void              Help(void);
    void              AddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
@@ -48,7 +47,8 @@ public:
 
    bool              ReportFactor(uint64_t theFactor, uint32_t n, int32_t c);
 
-   terms_t          *GetTerms(void);
+   void              BuildTerms(void);
+   terms_t          *GetTerms(void) { return ip_Terms; };
    
 protected:
    void              PreSieveHook(void) {};
@@ -72,6 +72,8 @@ private:
    uint32_t          ii_MultiFactorial;
    uint32_t          ii_MinN;
    uint32_t          ii_MaxN;
+   
+   terms_t          *ip_Terms;
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          ii_MaxGpuSteps;

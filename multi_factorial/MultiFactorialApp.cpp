@@ -13,6 +13,7 @@
 #include "MultiFactorialWorker.h"
 #include "../core/Parser.h"
 #include "../core/MpArith.h"
+#include "../sieve/primesieve.hpp"
 
 #if defined(USE_OPENCL)
 #include "MultiFactorialGpuWorker.h"
@@ -48,12 +49,26 @@ MultiFactorialApp::MultiFactorialApp() : FactorApp()
    // We'll remove all even terms manually
    SetAppMinPrime(3);
 
-   SetAppMaxPrime(PMAX_MAX_52BIT);
+   SetAppMaxPrime(PMAX_MAX_62BIT);
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    ii_MaxGpuSteps = 100000;
-   ii_MaxGpuFactors = GetGpuWorkGroups() * 10;
+   ii_MaxGpuFactors = 10;
 #endif
+}
+
+MultiFactorialApp::~MultiFactorialApp()
+{
+   if (ip_Terms == NULL)
+      return;
+
+   for (uint32_t mf=0; mf<ii_MultiFactorial; mf++)
+   {
+      xfree(ip_Terms[mf].base);
+      xfree(ip_Terms[mf].power);
+   }
+   
+   xfree(ip_Terms);
 }
 
 void MultiFactorialApp::Help(void)
@@ -65,8 +80,8 @@ void MultiFactorialApp::Help(void)
    printf("-m --multifactorial=m multifactorial, e.g. x!m where m = 3 --> x!!! (default 1)\n");
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
-   printf("-S --step=S           max steps iterated per call to GPU (default %u)\n", ii_MaxGpuSteps);
-   printf("-M --maxfactors=M     max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
+   printf("-S --step=S              max steps iterated per call to GPU (default %u)\n", ii_MaxGpuSteps);
+   printf("-M --maxfactordensity=M  max number of factors to support per 1000 n per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
 #endif
 }
 
@@ -115,7 +130,7 @@ parse_t MultiFactorialApp::ParseOption(int opt, char *arg, const char *source)
          break;
          
       case 'M':
-         status = Parser::Parse(arg, 10, 1000000, ii_MaxGpuFactors);
+         status = Parser::Parse(arg, 1, 1000000, ii_MaxGpuFactors);
          break;
 #endif
    }
@@ -124,7 +139,7 @@ parse_t MultiFactorialApp::ParseOption(int opt, char *arg, const char *source)
 }
 
 void MultiFactorialApp::ValidateOptions(void)
-{ 
+{
    if (is_InputTermsFileName.length() > 0)
    {
       ProcessInputTermsFile(false);
@@ -184,14 +199,20 @@ void MultiFactorialApp::ValidateOptions(void)
       is_OutputTermsFileName = fileName;
    }
 
-   SetMinGpuPrime(ii_MaxN + 1);
+   if (GetMinPrime() < GetMinN() && ii_MultiFactorial == 1)
+   {
+      WriteToConsole(COT_OTHER, "Setting min prime to %u since no primes below that will yield a factor", GetMinN());
+      SetMinPrime(GetMinN());
+   }
  
 #if defined(USE_OPENCL) || defined(USE_METAL)
-   ii_MaxGpuFactors = GetGpuWorkGroups() * (ii_MaxN - ii_MinN) / 100;
+   ii_MaxGpuFactors = ii_MaxGpuFactors * GetGpuWorkGroups() * (ii_MaxN - ii_MinN) / 1000;
 #endif
 
    FactorApp::ParentValidateOptions();
 
+   BuildTerms();
+   
    // The testing routine is optimized to test 4 primes at a time.
    while (ii_CpuWorkSize % 4 > 0)
       ii_CpuWorkSize++;
@@ -207,49 +228,173 @@ Worker *MultiFactorialApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t la
    return new MultiFactorialWorker(id, this);
 }
 
-terms_t *MultiFactorialApp::GetTerms(void)
+void   MultiFactorialApp::BuildTerms(void)
 {
-   terms_t *terms = (terms_t *) xmalloc(ii_MultiFactorial * sizeof(terms_t));
-   double minPrime = (double) GetMinPrime();
-   uint64_t bigN, bigMinN = ii_MinN;
-
-   // Build an array by multiplying terms so that we can reduce the number of mulmods  in the main loop.
-   // For example if multiFactorial = 1, minPrime = 1e6 and minN = 25:
-   //   terms[0].termList[0] = 1 * 2 * 3 * 4 * 5 * 6 * 7 * 8 * 9
-   //   terms[0].termList[1] = 10 * 11 * 12 * 13 * 14
-   //   terms[0].termList[2] = 15 * 16 * 17 * 18
-   //   terms[0].termList[3] = 19 * 20 * 21 * 22
-   //   terms[0].termList[4] = 23 * 24
-   // Note that each term < 1e6 (minPrime).
-   // In short, instead of needing 24 mulmods to compute 25! (mod p) we will only need 5 mulmods.
-   for (uint32_t mf=1; mf<=ii_MultiFactorial; mf++)
+   uint64_t *primes, thePrime;
+   uint32_t  primeCount, mfIdx;
+   primesieve::iterator   primeIterator;
+   
+   primeIterator.skipto(1, ii_MinN);
+   
+   primeCount = primesieve::count_primes(1, ii_MinN);
+   primes = (uint64_t *) xmalloc(primeCount * sizeof(uint64_t));
+   primeCount = 0;
+   
+   do
    {
-      uint64_t idx = 0;
+      thePrime = primeIterator.next_prime();
       
-      terms[mf-1].mf = mf;
-      terms[mf-1].termList = (uint64_t *) xmalloc(ii_MinN * sizeof(uint64_t)/2);
+      primes[primeCount] = thePrime;
+      primeCount++;
+   } while (thePrime < ii_MinN);
+   
+   ip_Terms = (terms_t *) xmalloc(ii_MultiFactorial * sizeof(terms_t));
+   
+   for (uint32_t mf=0; mf<ii_MultiFactorial; mf++)
+   {
+      ip_Terms[mf].base = (uint64_t *) xmalloc((primeCount+1) * sizeof(uint64_t));
+      ip_Terms[mf].power = (uint32_t *) xmalloc((primeCount+1) * sizeof(uint32_t));
       
-      terms[mf-1].termList[idx] = 1;
-      for (uint32_t n=mf; n<ii_MinN; n+=mf)
-      {
-         if (terms[mf-1].termList[idx] * n > minPrime)
-         {
-            idx++;
-            terms[mf-1].maxNForTerm = n;
-            terms[mf-1].termList[idx] = n;
-            continue;
-         }
+      memcpy(ip_Terms[mf].base, primes, primeCount * sizeof(uint64_t));
+   }
 
-         terms[mf-1].maxNForTerm = n;
-         terms[mf-1].termList[idx] *= n;
+   uint64_t *allTerms = (uint64_t *) xmalloc(ii_MinN * sizeof(uint64_t));
+   
+   for (uint32_t f=1; f<ii_MinN; f++)
+      allTerms[f] = f;
+
+   uint64_t powers[32];
+   
+   for (uint32_t pIdx=0; pIdx<primeCount; pIdx++)
+   {
+      uint32_t idx;
+      
+      // Build a table of powers for each prime from p^1 to p^x until p^x > minn
+      powers[0] = 1;
+      powers[1] = primes[pIdx];
+      
+      for (idx=2; powers[idx-2] * powers[1] < ii_MinN; idx++)
+         powers[idx] = powers[idx-1] * powers[1];
+
+      idx--;
+            
+      while (idx > 0)
+      {
+         uint64_t pIdxFactor = powers[idx];
+         uint32_t tIdx = pIdxFactor;
+
+         // We can stop when tIdx >= minn
+         while (tIdx < ii_MinN)
+         {      
+            // If p^tIdx divides the term, then update the power by tIdx and divide the term by p^tIdx.
+            // In other words for the term 2^11, we will have a factor of 2^10, but not of 2^8 since
+            // we will have divided it by 2^10 already.
+            if (allTerms[tIdx] % pIdxFactor == 0)
+            {
+               mfIdx = (tIdx % ii_MultiFactorial);
+               
+               ip_Terms[mfIdx].power[pIdx] += idx;
+               allTerms[tIdx] /= pIdxFactor;
+            }
+            
+            // If pIdxFactor = 27, then we go from 27 to 54 to 81, etc.
+            // These are the only terms that could have 27 as a factor.
+            tIdx += pIdxFactor;
+         }
          
-         bigN = n;
-         if ((bigN * bigN) > bigMinN)
+         // Decrease the power
+         idx--;
+      }
+   }
+
+   // At this point base[0]^power[0] * base{1]^power[1] * ... * base{primeCount]^power[primeCount] can
+   // be used to compute (minn-1)!mf for each mf.  Now we can combine bases with the same power as long
+   // as the product of the two bases does not exceed PMAX_MAX_62BIT.  I think we can actually go up to
+   // 2^63 or even 2^64, but we'll choose to be safe because it won't have much of an impact on speed.
+   for (mfIdx=0; mfIdx<ii_MultiFactorial; mfIdx++)
+   {
+      //printf("mf=%u\n", mfIdx);
+      
+      for (uint32_t i=0; i<primeCount; i++)
+      {
+         if (ip_Terms[mfIdx].power[i] == 0)
+            continue;
+
+
+      //   printf("%llu^%u * ", ip_Terms[mfIdx].base[i], ip_Terms[mfIdx].power[i]);
+      }
+      
+      //printf("\n");
+         
+      for (uint32_t i=0; i<primeCount; i++)
+      {
+         if (ip_Terms[mfIdx].power[i] == 0)
+            continue;
+         
+         for (uint32_t j=i+1; j<primeCount; j++)
+         {
+            if (ip_Terms[mfIdx].power[j])
+               continue;
+            
+            if (ip_Terms[mfIdx].power[i] == ip_Terms[mfIdx].power[j])
+            {               
+               uint64_t mult = ip_Terms[mfIdx].base[i] * ip_Terms[mfIdx].base[j];
+               
+               // If we overflows then mult will be less than terms[mf].base[i]
+               if (mult > ip_Terms[mfIdx].base[i] && mult < PMAX_MAX_62BIT)
+               {
+                  ip_Terms[mfIdx].base[i] = mult;
+                  ip_Terms[mfIdx].power[j] = 0;
+               }
+            }
+         }         
+      }
+
+      // Now collapse the terms so that the last one has 
+      for (uint32_t i=0; i<primeCount; i++)
+      {
+         if (ip_Terms[mfIdx].power[i] != 0)
+            continue;
+
+         bool filled = false;
+         
+         for (uint32_t j=i+1; j<primeCount; j++)
+         {
+            if (ip_Terms[mfIdx].power[j] > 0)
+            {
+               ip_Terms[mfIdx].base[i] = ip_Terms[mfIdx].base[j];
+               ip_Terms[mfIdx].power[i] = ip_Terms[mfIdx].power[j];
+               ip_Terms[mfIdx].power[j] = 0;
+               filled = true;
+               break;
+            }
+         }
+         
+         if (!filled)
             break;
       }
    }
-   
-   return terms;
+
+   for (uint32_t mfIdx=0; mfIdx<ii_MultiFactorial; mfIdx++)
+   {
+      uint32_t count = 0;
+      //printf("mf=%u\n", mfIdx);
+      
+      for (count=0; count<primeCount; count++)
+      {
+         if (ip_Terms[mfIdx].power[count] == 0)
+            break;
+         
+         //printf("%llu^%u * ", ip_Terms[mfIdx].base[count], ip_Terms[mfIdx].power[count]);
+      }
+      
+      ip_Terms[mfIdx].count = count;
+      
+      //printf("\n");
+   }
+
+   xfree(primes);
+   xfree(allTerms);
 }
 
 void MultiFactorialApp::ProcessInputTermsFile(bool haveBitMap)

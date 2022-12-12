@@ -28,11 +28,21 @@ MultiFactorialGpuWorker::MultiFactorialGpuWorker(uint32_t myId, App *theApp) : W
    
    ii_MaxGpuFactors = ip_MultiFactorialApp->GetMaxGpuFactors();
 
-   sprintf(defines[defineCount++], "#define D_MIN_N %d", ii_MinN);
-   sprintf(defines[defineCount++], "#define D_MAX_N %d", ii_MaxN);
-   sprintf(defines[defineCount++], "#define D_MAX_STEPS %d", ii_MaxGpuSteps);
-   sprintf(defines[defineCount++], "#define D_MULTIFACTORIAL %d", ii_MultiFactorial);
-   sprintf(defines[defineCount++], "#define D_MAX_FACTORS %d", ii_MaxGpuFactors);
+   terms_t *terms = ip_MultiFactorialApp->GetTerms();
+   ii_BaseCount = 0;
+   
+   for (idx=0; idx<ii_MultiFactorial; idx++)
+      if (terms[idx].count > ii_BaseCount)
+         ii_BaseCount = terms[idx].count;
+   
+   ii_BaseCount += 2;
+   
+   sprintf(defines[defineCount++], "#define D_MIN_N %u", ii_MinN);
+   sprintf(defines[defineCount++], "#define D_MAX_N %u", ii_MaxN);
+   sprintf(defines[defineCount++], "#define D_MAX_STEPS %u", ii_MaxGpuSteps);
+   sprintf(defines[defineCount++], "#define D_MAX_FACTORS %u", ii_MaxGpuFactors);
+   sprintf(defines[defineCount++], "#define D_MULTIFACTORIAL %u", ii_MultiFactorial);
+   sprintf(defines[defineCount++], "#define D_BASES %u", ii_BaseCount);
    
    for (idx=0; idx<defineCount; idx++)
       preKernelSources[idx] = defines[idx];
@@ -46,12 +56,21 @@ MultiFactorialGpuWorker::MultiFactorialGpuWorker(uint32_t myId, App *theApp) : W
    ii_PrimesInList = ip_MultiFactorialApp->GetGpuPrimesPerWorker();
    
    il_PrimeList = (uint64_t *) ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_PrimesInList);
-   il_RemainderList = (uint64_t *) ip_Kernel->AddGpuArgument("remainders", sizeof(uint64_t), 2*ii_PrimesInList);
-   ii_Parameters = (uint32_t *) ip_Kernel->AddCpuArgument("parameters", sizeof(uint32_t), 5);
+   il_RemainderList = (uint64_t *) ip_Kernel->AddSharedArgument("remainders", sizeof(uint64_t), ii_PrimesInList);
+   ii_Bases = (uint64_t *) ip_Kernel->AddCpuArgument("bases", sizeof(uint64_t), ii_BaseCount * ii_MultiFactorial);
+   ii_Powers = (uint32_t *) ip_Kernel->AddCpuArgument("powers", sizeof(uint32_t), ii_BaseCount * ii_MultiFactorial);
+   ii_Parameters = (uint32_t *) ip_Kernel->AddSharedArgument("parameters", sizeof(uint32_t), 3);
    ii_FactorCount = (uint32_t *) ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 1);
    il_FactorList = (int64_t *) ip_Kernel->AddGpuArgument("factorList", sizeof(uint64_t), 4*ii_MaxGpuFactors);
    
    ip_Kernel->PrintStatistics(0);
+
+   for (idx=0; idx<ii_MultiFactorial; idx++)
+   {
+      // Copy this to the GPU buffer, with a fixed number of entries per idx
+      memcpy(&ii_Bases[idx * ii_BaseCount], terms[idx].base, ii_BaseCount * sizeof(uint64_t));
+      memcpy(&ii_Powers[idx * ii_BaseCount], terms[idx].power, ii_BaseCount * sizeof(uint32_t));
+   }
 
    // The thread can't start until initialization is done
    ib_Initialized = true;
@@ -64,36 +83,32 @@ void  MultiFactorialGpuWorker::CleanUp(void)
 
 void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
 {
-   uint32_t ii, idx;
-   uint32_t startN, n;
+   uint32_t ii, idx, n;
    int32_t  iteration = 0, maxIterations, c;
    uint64_t prime;
    time_t   reportTime;
 
-   // This is an approximation
-   maxIterations = ii_MultiFactorial * (1 + ii_MaxN) / ii_MaxGpuSteps;
+   // This is an approximation.  We do not include computation of (n-1)!.
+   maxIterations = ii_MultiFactorial * (ii_MaxN - ii_MinN) / ii_MaxGpuSteps;
 
-   // For normal factorials, this loop will be iterated one.
+   // For normal factorials, this loop will be iterated once.
    // For multi-factorials, it will be iterated for the value of the multi-factorial.  So
    // if this the multi-factorial is 3, i.e. n!3, then this is how it iterates:
    //    n_seed=1 will evaluate 1!3, 4!3, 7!3, etc.  (7!3 = 7*4*1)
    //    n_seed=2 will evaluate 2!3, 5!3, 8!3, etc.  (8!3 = 8*5*2)
    //    n_seed=3 will evaluate 3!3, 6!3, 9!3, etc.  (9!3 = 9*6*3)
-   // For inverse multi-factorials, it will be similar.  If the inverse multi-factorial
-   // is 3, i.e. n!/n!3, then this is how it iterates:
-   //    n_seed=1 will evaluate 1!/1!3, 4!/4!3, 7!/7!3, etc.  (7!/7!3 = 6*5*3*2, i.e not multiplying by 7, 4, and 1)
-   //    n_seed=2 will evaluate 2!/2!3, 5!/5!3, 8!/8!3, etc.  (8!/8!3 = 7*6*4*3*1, i.e. not multiplying by 8, 5, and 2)
-   //    n_seed=3 will evaluate 3!/3!3, 6!/6!3, 9!/9!3, etc.  (9!/9!3 = 8*7*5*4*2*1, i.e. not multiplying by 9, 6, and 3))
-   for (startN=1; startN<=ii_MultiFactorial; startN++)
+
+   for (uint32_t mf=0; mf<ii_MultiFactorial; mf++)
    {
-      // If startN is odd and mf is even, then i!mf is always odd, thus
-      // startN!mf+1 and startN!mf-1 are always even.
-      if (!(ii_MultiFactorial & 1) && (startN & 1))
+      // If ii_Multifactorial is even and mf is odd then 
+      // n!ii_Multifactorial+1 and n!ii_Multifactorial-1 are always even
+      // when mf is odd, so we do not need to go any further.
+      if (!(ii_MultiFactorial & 1) && (mf & 1))
          continue;
 
-      // The first parameter is the starting n for the calculation, i.e. n!
-      ii_Parameters[0] = startN;
-      ii_Parameters[1] = startN;
+      // This tells the kernel to start from the beginning
+      ii_Parameters[0] = 0;
+      ii_Parameters[1] = mf;
 
       reportTime = time(NULL) + 60;
       
@@ -126,10 +141,7 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
             ip_MultiFactorialApp->WriteToConsole(COT_SIEVE, "Thread %d has completed %d of %d iterations", ii_MyId, iteration, maxIterations);
             reportTime = time(NULL) + 60;
          }
-         
-         // Set where the next range is starting.
-         ii_Parameters[1] += (ii_MaxGpuSteps * ii_MultiFactorial);
-      } while (ii_Parameters[1] <= ii_MaxN);
+      } while (ii_Parameters[0] < ii_MaxN);
    }
    
    SetLargestPrimeTested(il_PrimeList[ii_PrimesInList-1], ii_PrimesInList);
