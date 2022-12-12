@@ -95,8 +95,8 @@ void SierpinskiRieselApp::Help(void)
    printf("-f --format=f         Format of output file (A=ABC, D=ABCD (default), B=BOINC, P=ABC with number_primes)\n");
    printf("-l --legendrebytes=l  Bytes to use for Legendre tables (only used if abs(c)=1 for all sequences)\n");
    printf("-L --legendrefile=L   Input/output diretory for Legendre tables (no files if -L not specified or -l0 is used)\n");
-   printf("-q --showQEffort      Output estimated effort for each Q\n");
-   printf("-Q --bestQ=Q          Q to use for discrete log\n");
+   printf("-Q --showqcost         Output estimated effort for each q\n");
+   printf("-q --useq=q           q to use for discrete log\n");
    printf("-R --remove=r         Remove sequence r\n");
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
@@ -128,7 +128,7 @@ void  SierpinskiRieselApp::AddCommandLineOptions(std::string &shortOpts, struct 
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "n:N:s:f:l:L:qQ:R:U:V:X:b:";
+   shortOpts += "n:N:s:f:l:L:Qq:R:U:V:X:b:";
 
    AppendLongOpt(longOpts, "nmin",           required_argument, 0, 'n');
    AppendLongOpt(longOpts, "nmax",           required_argument, 0, 'N');
@@ -136,8 +136,8 @@ void  SierpinskiRieselApp::AddCommandLineOptions(std::string &shortOpts, struct 
    AppendLongOpt(longOpts, "format",         required_argument, 0, 'f');
    AppendLongOpt(longOpts, "legendrebytes",  required_argument, 0, 'l');
    AppendLongOpt(longOpts, "legendrefile",   required_argument, 0, 'L');
-   AppendLongOpt(longOpts, "showQEffort",    required_argument, 0, 'q');
-   AppendLongOpt(longOpts, "bestQ",          required_argument, 0, 'Q');
+   AppendLongOpt(longOpts, "useq",           required_argument, 0, 'q');
+   AppendLongOpt(longOpts, "showqcost",      required_argument, 0, 'Q');
    AppendLongOpt(longOpts, "remove",         required_argument, 0, 'R');
    AppendLongOpt(longOpts, "babystepfactor", required_argument, 0, 'b');
    AppendLongOpt(longOpts, "basemultiple",   required_argument, 0, 'U');
@@ -203,12 +203,12 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
          status = P_SUCCESS;
          break;
 
-      case 'q':
+      case 'Q':
          ib_ShowQEffort = true;
          status = P_SUCCESS;
          break;
          
-      case 'Q':
+      case 'q':
          status = Parser::Parse(arg, 1, 1<<15, ii_UserBestQ);
          status = P_SUCCESS;
          break;

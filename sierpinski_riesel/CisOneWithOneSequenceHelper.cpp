@@ -127,7 +127,7 @@ double   CisOneWithOneSequenceHelper::EstimateWork(uint32_t Q, uint32_t s)
    SierpinskiRieselApp *srApp = (SierpinskiRieselApp *) ip_App;
 
    if (srApp->ShowQEffort())
-      srApp->WriteToConsole(COT_OTHER, "Q = %4u with %6u subseq yields bs = %5u, gs = %5u, work = %6.0lf", Q, s, babySteps, giantSteps, work);
+      srApp->WriteToConsole(COT_OTHER, "q = %4u with %6u subseq yields bs = %5u, gs = %5u, work = %6.0lf", Q, s, babySteps, giantSteps, work);
 
    return work;
 }
