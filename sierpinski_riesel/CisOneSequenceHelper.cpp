@@ -99,7 +99,7 @@ void   CisOneSequenceHelper::CleanUp(void)
 uint32_t    CisOneSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
 {
    uint32_t          i = 0, j, n;
-   uint32_t          bit, thisQ, bestQ, userBestQ;
+   uint32_t          bit, thisQ, userBestQ;
    vector<uint32_t>  S;
    vector<double>    W;
    vector<bool>      R;
@@ -139,7 +139,8 @@ uint32_t    CisOneSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
       seqPtr = (seq_t *) seqPtr->next;
    } while (seqPtr != NULL);
    
-   for (i=0, j=0; j<nDivisors; j++)
+   i = 0;
+   for (j=0; j<nDivisors; j++)
       if (nDivisors % (j+1) == 0)
       {
          thisQ = (j+1)*ii_BaseMultiple;
@@ -147,27 +148,21 @@ uint32_t    CisOneSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
          W[j] = RateQ(thisQ, S[j]);
 
          if (W[j] < W[i])
-         {
             i = j;
-            bestQ = thisQ;
-         }
       }
 
-   for (i=0, j=0; j<nDivisors; j++)
+   for (j=0; j<nDivisors; j++)
       if (nDivisors % (j+1) == 0)
       {
          thisQ = (j+1)*ii_BaseMultiple;
          
          if (userBestQ == thisQ)
-         {
             i = j;
-            bestQ = thisQ;
-         }
       }
 
    expectedSubsequences = S[i];
 
-   return bestQ;
+   return (i+1)*ii_BaseMultiple;
 }
 
 // Return true iff subsequence h of k*b^n+c has any terms with n%a==b.

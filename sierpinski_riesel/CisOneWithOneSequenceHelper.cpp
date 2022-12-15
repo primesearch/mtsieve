@@ -82,24 +82,19 @@ double   CisOneWithOneSequenceHelper::RateQ(uint32_t Q, uint32_t s)
    W.resize(ii_PowerResidueLcm+1);
 
    work = 0;
-   for (i = 2; i <= ii_PowerResidueLcm; i += 2)
+   for (i=2; i<=ii_PowerResidueLcm; i+=2)
    {
       if (ii_PowerResidueLcm % i == 0)
-      {
          W[i] = EstimateWork(Q, (s+i-1)/i);
-
-         // giantSteps are very expensive compared to other loops, so this might
-         // always be the best choice even if it means more memory is needed
-         //uint32_t r = 1 + ii_MaxN/Q - ii_MinN/Q;
-         
-         //ChooseSteps(r, s, babySteps, giantSteps);
-         
-         //W[i] = giantSteps;
-      }
 
       if (gcd32(i+1, ii_PowerResidueLcm) == 1)
          work += W[gcd32(i, ii_PowerResidueLcm)];
    }
+         
+   SierpinskiRieselApp *srApp = (SierpinskiRieselApp *) ip_App;
+
+   if (srApp->ShowQEffort())
+      srApp->WriteToConsole(COT_OTHER, "q = %4u with %7u subseq yields work = %8.0lf", Q, s, work);
    
    return work;
 }
@@ -123,11 +118,6 @@ double   CisOneWithOneSequenceHelper::EstimateWork(uint32_t Q, uint32_t s)
    ChooseSteps(Q, s, babySteps, giantSteps);
 
    work = babySteps*BABY_WORK + s*(giantSteps-1)*GIANT_WORK + Q*EXP_WORK + s*SUBSEQ_WORK;
-   
-   SierpinskiRieselApp *srApp = (SierpinskiRieselApp *) ip_App;
-
-   if (srApp->ShowQEffort())
-      srApp->WriteToConsole(COT_OTHER, "q = %4u with %7u subseq yields bs = %5u, gs = %5u, work = %8.0lf", Q, s, babySteps, giantSteps, work);
 
    return work;
 }

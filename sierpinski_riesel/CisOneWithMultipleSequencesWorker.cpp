@@ -227,6 +227,7 @@ uint32_t  CisOneWithMultipleSequencesWorker::ClimbLadder(MpArith mp, MpRes resBa
       
       resBD[i+idx] = mp.mul(resBD[i], resBD[idx]);
       
+      printf("%u %u %u %u\n", i, j, lLen, idx);
       i += idx;
    }
 
