@@ -1,3 +1,8 @@
+2.3.9 - December 17, 2022
+   srsieve2/srsieve2cl: version 1.6.7
+      Fix segfault with multiple c=1 sequences when using Legendre tables.
+      Fix logic behind -q and -Q for c=1 sequences.
+
 2.3.8 - December 12, 2022
    mfsieve/mfsievecl: version 2.1
       Build a list of terms with powers prior to sieving so that computing minn! is faster.
