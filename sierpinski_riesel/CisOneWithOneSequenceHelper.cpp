@@ -227,6 +227,8 @@ void  CisOneWithOneSequenceHelper::CopyQsAndMakeLadder(seq_t *seqPtr, sp_t parit
    if (qListLen == 0)
       return;
 
+   assert(qListLen < ii_BestQ);
+
    uint16_t rIdx = ip_PowerResidueIndices[r];
    uint32_t cqIdx = CQ_INDEX(parity, rIdx, h);
    
@@ -236,7 +238,7 @@ void  CisOneWithOneSequenceHelper::CopyQsAndMakeLadder(seq_t *seqPtr, sp_t parit
    // If the list of Qs isn't big enough, make it bigger
    if (ii_UsedQEntries + ii_BestQ + 10 >= ii_MaxQEntries)
    {
-      uint32_t newMaxQEntries = ii_MaxQEntries + 1000;
+      uint32_t newMaxQEntries = ii_MaxQEntries + (ii_BestQ * 10);
       uint16_t *temp = (uint16_t *) xmalloc(newMaxQEntries * sizeof(uint16_t));
 
       memcpy(temp, ip_AllQs, ii_MaxQEntries * sizeof(uint16_t));
@@ -249,7 +251,7 @@ void  CisOneWithOneSequenceHelper::CopyQsAndMakeLadder(seq_t *seqPtr, sp_t parit
    // If the list of ladders isn't big enough, make it bigger
    if (ii_UsedLadderEntries + ii_BestQ + 10 >= ii_MaxLadderEntries)
    {
-      uint32_t newMaxLadderEntries = ii_MaxLadderEntries + 1000;
+      uint32_t newMaxLadderEntries = ii_MaxLadderEntries + (ii_BestQ * 10);
       uint16_t *temp = (uint16_t *) xmalloc(newMaxLadderEntries * sizeof(uint16_t));
 
       memcpy(temp, ip_AllLadders, ii_MaxLadderEntries * sizeof(uint16_t));
@@ -263,6 +265,7 @@ void  CisOneWithOneSequenceHelper::CopyQsAndMakeLadder(seq_t *seqPtr, sp_t parit
    ii_UsedQEntries++;
    
    memcpy(&ip_AllQs[ii_UsedQEntries], qList, qListLen * sizeof(uint16_t));
+   ii_UsedQEntries += qListLen;
 
    MakeLadder(qList, qListLen);
 }
