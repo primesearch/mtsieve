@@ -96,7 +96,7 @@ uint  setupDiscreteLog(ulong thePrime, ulong _q, ulong _one,
                        __global const ushort *prlIndices);
 
 ulong buildLookupsAndClimbLadder(ulong thePrime, ulong _q, ulong _one,
-                                  ulong resBase, ulong resNegCK, ulong *resBD,
+                                  ulong resBase, ulong resNegCK, ulong *resBDCK,
                                   uint qIndex, uint ladderIndex,
                                   __global const ushort *qs,
                                   __global const ushort *ladders);
@@ -205,7 +205,7 @@ kernel void cisonesingle_kernel(device const ulong  *primes,
    ushort  h_table[HASH_SIZE];
    ushort  h_olist[HASH_ELEMENTS];
    ulong   h_BJ64[HASH_ELEMENTS+1];
-   ulong   resBD[SUBSEQUENCE_COUNT];
+   ulong   resBDCK[SUBSEQUENCE_COUNT];
    uint    i, j, k, ssCount;
    uint    idx, qIdx, ladderIdx, cqIndex;
 
@@ -227,7 +227,7 @@ kernel void cisonesingle_kernel(device const ulong  *primes,
    ladderIdx = ladderIndices[cqIndex];
       
    // -ckb^d is an r-th power residue for at least one term (k*b^d)*(b^Q)^(n/Q)+c of this subsequence
-   resBexpQ = buildLookupsAndClimbLadder(thePrime, _q, _one, resBase, resNegCK, resBD, qIdx, ladderIdx, qs, ladders);
+   resBexpQ = buildLookupsAndClimbLadder(thePrime, _q, _one, resBase, resNegCK, resBDCK, qIdx, ladderIdx, qs, ladders);
    
 
    for (idx=0; idx<HASH_SIZE; idx++)
@@ -249,7 +249,7 @@ kernel void cisonesingle_kernel(device const ulong  *primes,
       // determine every solution for this p, so no giant steps are neede
       for (k=0; k<ssCount; k++)
       {
-         j = hashLookup(resBD[k], h_table, h_olist, h_BJ64);
+         j = hashLookup(resBDCK[k], h_table, h_olist, h_BJ64);
 
          while (j < bSteps * gSteps)
          {
@@ -264,7 +264,7 @@ kernel void cisonesingle_kernel(device const ulong  *primes,
       // First giant step
       for (k=0; k<ssCount; k++)
       {
-         j = hashLookup(resBD[k], h_table, h_olist, h_BJ64);
+         j = hashLookup(resBDCK[k], h_table, h_olist, h_BJ64);
 
          if (j != HASH_NOT_FOUND)
             collectFactor(thePrime, N_TERM(qs[qIdx+1+k], 0, j), factorCount, factors);
@@ -279,9 +279,9 @@ kernel void cisonesingle_kernel(device const ulong  *primes,
          {
             for (k=0; k<ssCount; k++)
             {
-               resBD[k] = mmmMulmod(resBD[k], resBQM, thePrime, _q);
+               resBDCK[k] = mmmMulmod(resBDCK[k], resBQM, thePrime, _q);
                
-               j = hashLookup(resBD[k], h_table, h_olist, h_BJ64);
+               j = hashLookup(resBDCK[k], h_table, h_olist, h_BJ64);
 
                if (j != HASH_NOT_FOUND)
                   collectFactor(thePrime, N_TERM(qs[qIdx+1+k], i, j), factorCount, factors);
@@ -507,7 +507,7 @@ uint setupDiscreteLog(ulong thePrime, ulong _q, ulong _one,
 }
 
 ulong buildLookupsAndClimbLadder(ulong thePrime, ulong _q,  ulong _one,
-                                  ulong resBase, ulong resNegCK, ulong *resBD,
+                                  ulong resBase, ulong resNegCK, ulong *resBDCK,
                                   uint qIndex, uint ladderIndex,
                                   __global const ushort *qs,
                                   __global const ushort *ladders)
@@ -538,7 +538,7 @@ ulong buildLookupsAndClimbLadder(ulong thePrime, ulong _q,  ulong _one,
    {
       idx = qs[qIndex+j+1];
       
-      resBD[j] = mmmMulmod(resX[idx], resNegCK, thePrime, _q);
+      resBDCK[j] = mmmMulmod(resX[idx], resNegCK, thePrime, _q);
    }
 
    return resX[BESTQ];

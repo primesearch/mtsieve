@@ -34,7 +34,7 @@ void  CisOneWithOneSequenceWorker::CleanUp(void)
 {
    delete ip_HashTable;
    
-   xfree(resBD);
+   xfree(resBDCK);
    xfree(resBJ);
    xfree(resX);
 }
@@ -44,8 +44,8 @@ void  CisOneWithOneSequenceWorker::Prepare(uint64_t largestPrimeTested, uint32_t
    ii_BestQ = bestQ;   
    ii_SieveLow = ii_MinN / ii_BestQ;
 
-   resX = (MpRes *) xmalloc((ii_PowerResidueLcm+5) * sizeof(MpRes));
-   resBD = (MpRes *) xmalloc((ii_SubsequenceCount+4)*sizeof(MpRes));
+   resX = (MpRes *) xmalloc((ii_PowerResidueLcm+4) * sizeof(MpRes));
+   resBDCK = (MpRes *) xmalloc((ii_SubsequenceCount+4)*sizeof(MpRes));
    resBJ = (MpRes *) xmalloc((ii_SubsequenceCount+4)*sizeof(MpRes));
    
    ip_DivisorShifts = ip_CisOneHelper->GetDivisorShifts();
@@ -231,7 +231,7 @@ void  CisOneWithOneSequenceWorker::TestSinglePrime(uint64_t p, sp_t parity)
       // determine every solution for this p, so no giant steps are neede
       for (k=0; k<ssCount; k++)
       {
-          j = ip_HashTable->Lookup(resBD[k]);
+          j = ip_HashTable->Lookup(resBDCK[k]);
 
           while (j < babySteps * giantSteps)
           {
@@ -246,7 +246,7 @@ void  CisOneWithOneSequenceWorker::TestSinglePrime(uint64_t p, sp_t parity)
       // First giant step
       for (k=0; k<ssCount; k++)
       {
-         j = ip_HashTable->Lookup(resBD[k]);
+         j = ip_HashTable->Lookup(resBDCK[k]);
 
          if (j != HASH_NOT_FOUND)
             ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(seqQs[k], 0, j), true);
@@ -261,9 +261,9 @@ void  CisOneWithOneSequenceWorker::TestSinglePrime(uint64_t p, sp_t parity)
          {
             for (k=0; k<ssCount; k++)
             {
-               resBD[k] = mp.mul(resBD[k], resBQM);
+               resBDCK[k] = mp.mul(resBDCK[k], resBQM);
                
-               j = ip_HashTable->Lookup(resBD[k]);
+               j = ip_HashTable->Lookup(resBDCK[k]);
 
                if (j != HASH_NOT_FOUND)
                   ip_SierpinskiRieselApp->ReportFactor(p, ip_FirstSequence, N_TERM(seqQs[k], i, j), true);
@@ -366,7 +366,7 @@ void  CisOneWithOneSequenceWorker::BuildLookupsAndClimbLadder(MpArith mp, MpRes 
    resBexpQ = resX[ii_BestQ];
 
    for (j=0; j<ssCount; j++)
-      resBD[j] = mp.mul(resX[seqQs[j]], resNegCK);
+      resBDCK[j] = mp.mul(resX[seqQs[j]], resNegCK);
 }
 
 uint32_t  CisOneWithOneSequenceWorker::BabySteps(MpArith mp, MpRes resBase, MpRes resInvBase, uint32_t babySteps)

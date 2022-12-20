@@ -94,7 +94,7 @@ double   CisOneWithOneSequenceHelper::RateQ(uint32_t Q, uint32_t s)
    SierpinskiRieselApp *srApp = (SierpinskiRieselApp *) ip_App;
 
    if (srApp->ShowQEffort())
-      srApp->WriteToConsole(COT_OTHER, "q = %4u with %7u subseq yields work = %8.0lf", Q, s, work);
+      srApp->WriteToConsole(COT_OTHER, "q = %5u with %7u subseq yields work = %8.0lf", Q, s, work);
    
    return work;
 }
@@ -105,7 +105,7 @@ double   CisOneWithOneSequenceHelper::RateQ(uint32_t Q, uint32_t s)
 // giantSteps are expensive compared to other loops, so it should
 // have a height weight than the others
 #define BABY_WORK    1.0    // 1 mulmod, 1 insert
-#define GIANT_WORK   3.0    // 1 mulmod, 1 lookup
+#define GIANT_WORK   1.0    // 1 mulmod, 1 lookup
 #define EXP_WORK     0.3    // 1 mulmod
 #define SUBSEQ_WORK  1.4    // 1 mulmod, 1 lookup (giant step 0)
                                
@@ -263,8 +263,7 @@ void  CisOneWithOneSequenceHelper::CopyQsAndMakeLadder(seq_t *seqPtr, sp_t parit
    ii_UsedQEntries++;
    
    memcpy(&ip_AllQs[ii_UsedQEntries], qList, qListLen * sizeof(uint16_t));
-   ii_UsedQEntries += qListLen;
-      
+
    MakeLadder(qList, qListLen);
 }
 
@@ -273,7 +272,7 @@ void   CisOneWithOneSequenceHelper::MakeLadder(uint16_t *qList, uint32_t qListLe
 {
    uint32_t          i, j, k, a;
    vector<uint8_t>   tempQs;
-   
+      
    assert(qListLen+1 < ii_BestQ);
    
    tempQs.resize(ii_BestQ+1);

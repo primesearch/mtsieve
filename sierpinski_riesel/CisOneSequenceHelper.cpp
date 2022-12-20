@@ -264,7 +264,7 @@ void   CisOneSequenceHelper::BuildLegendreTables()
       return;
 
    bytes = (double) bytesNeeded;
-   bytesPrecision = "B";
+   bytesPrecision = "bytes";
 
    if (bytes >= 10.0 * 1024) { bytes /= 1024.0; bytesPrecision = "KB"; }
    if (bytes >= 10.0 * 1024) { bytes /= 1024.0; bytesPrecision = "MB"; }

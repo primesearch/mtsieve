@@ -46,7 +46,7 @@ void  CisOneWithMultipleSequencesWorker::Prepare(uint64_t largestPrimeTested, ui
    ii_BestQ = bestQ;   
    ii_SieveLow = ii_MinN / ii_BestQ;
 
-   resX = (MpRes *) xmalloc((ii_PowerResidueLcm+5) * sizeof(MpRes));
+   resX = (MpRes *) xmalloc((ii_PowerResidueLcm+4) * sizeof(MpRes));
    resBD = (MpRes *) xmalloc((ii_BestQ+4)*sizeof(MpRes));
    resBJ = (MpRes *) xmalloc((ii_SubsequenceCount+4)*sizeof(MpRes));
    
@@ -224,7 +224,7 @@ uint32_t  CisOneWithMultipleSequencesWorker::ClimbLadder(MpArith mp, MpRes resBa
    for (j=0; j<lLen; j++)
    {
       idx = ip_AllLadders[j+1];
-      
+
       resBD[i+idx] = mp.mul(resBD[i], resBD[idx]);
       
       i += idx;

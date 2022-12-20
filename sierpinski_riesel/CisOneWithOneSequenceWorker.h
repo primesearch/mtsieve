@@ -53,7 +53,7 @@ private:
    HashTable        *ip_HashTable;
    
    MpRes            *resBJ;         // there is one per Q
-   MpRes            *resBD;         // there is one per Q
+   MpRes            *resBDCK;       // there is one per subsequence
    MpRes            *resX;
    
    MpRes             resBexpQ;
