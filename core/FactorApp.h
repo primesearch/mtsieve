@@ -61,6 +61,8 @@ protected:
    
    SharedMemoryItem *ip_FactorAppLock;
    
+   FILE             *if_FactorFile;
+   
    // These are only updated by the child class, but any reads/writes of these
    // variables must use ip_FactorAppLock to lock them. 
    uint64_t          il_FactorCount;
@@ -76,7 +78,6 @@ private:
    bool              BuildFactorsPerSecondRateString(uint32_t currentStatusEntry, double cpuUtilization, char *factoringRate);
    bool              BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, double cpuUtilization, char *factoringRate);
    
-   FILE             *if_FactorFile;
    time_t            it_CheckpointTime;
    
    // I could use a vector, but I'm lazy
