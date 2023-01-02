@@ -25,7 +25,7 @@
 #define APP_NAME        "mfsieve"
 #endif
 
-#define APP_VERSION     "2.0"
+#define APP_VERSION     "2.1"
 
 #define BIT(n)          ((n) - ii_MinN)
 
@@ -341,7 +341,7 @@ void   MultiFactorialApp::BuildTerms(void)
                uint64_t mult = ip_Terms[mfIdx].base[i] * ip_Terms[mfIdx].base[j];
                
                // If we overflows then mult will be less than terms[mf].base[i]
-               if (mult > ip_Terms[mfIdx].base[i] && mult < PMAX_MAX_62BIT)
+               if ((double) ip_Terms[mfIdx].base[i] * (double) ip_Terms[mfIdx].base[j] < (double) PMAX_MAX_62BIT)
                {
                   ip_Terms[mfIdx].base[i] = mult;
                   ip_Terms[mfIdx].power[j] = 0;
