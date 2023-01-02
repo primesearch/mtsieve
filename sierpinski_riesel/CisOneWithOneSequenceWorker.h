@@ -37,7 +37,7 @@ private:
    
    uint32_t          SetupDiscreteLog(MpArith mp, MpRes resBase, MpRes resInvBase, MpRes resNegCK, sp_t parity);
    
-   void              BuildLookupsAndClimbLadder(MpArith mp, MpRes resBase, MpRes resNegCK, uint16_t cqIdx, uint16_t ssCount, uint16_t *seqQs);
+   void              BuildLookupsAndClimbLadder(MpArith mp, MpRes resBase, MpRes resNegCK, uint32_t cqIdx, uint16_t ssCount, uint16_t *seqQs);
    
    uint32_t          BabySteps(MpArith mp, MpRes resBase, MpRes resInvBase, uint32_t babySteps);
 

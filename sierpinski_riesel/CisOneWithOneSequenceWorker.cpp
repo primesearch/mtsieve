@@ -224,7 +224,7 @@ void  CisOneWithOneSequenceWorker::TestSinglePrime(uint64_t p, sp_t parity)
    giantSteps = ip_Subsequences[ssCount-1].giantSteps;
 
    orderOfB = BabySteps(mp, resBase, resInvBase, babySteps);
-   
+      
    if (orderOfB > 0)
    {
       // If orderOfB > 0, then this is all the information we need to
@@ -331,13 +331,13 @@ uint32_t  CisOneWithOneSequenceWorker::SetupDiscreteLog(MpArith mp, MpRes resBas
       return 0;
 
    rIdx = ip_PowerResidueIndices[r];
-   
+      
    return CQ_INDEX(parity, rIdx, h);
 }
 
 // Assign BJ64[i] = b^i (mod p) for each i in the ladder.
 // Return b^Q (mod p).
-void  CisOneWithOneSequenceWorker::BuildLookupsAndClimbLadder(MpArith mp, MpRes resBase, MpRes resNegCK, uint16_t cqIdx, uint16_t ssCount, uint16_t *seqQs)
+void  CisOneWithOneSequenceWorker::BuildLookupsAndClimbLadder(MpArith mp, MpRes resBase, MpRes resNegCK, uint32_t cqIdx, uint16_t ssCount, uint16_t *seqQs)
 {
    uint32_t  i, j, idx, lLen, ladderIdx;
    uint16_t *ladders;
@@ -347,7 +347,7 @@ void  CisOneWithOneSequenceWorker::BuildLookupsAndClimbLadder(MpArith mp, MpRes 
    
    lLen = ladders[0];
    ladders++;
-   
+     
    // Precompute b^d (mod p) for 0 <= d <= Q, as necessary
    resX[0] = mp.one();
    resX[1] = resBase;
@@ -359,7 +359,7 @@ void  CisOneWithOneSequenceWorker::BuildLookupsAndClimbLadder(MpArith mp, MpRes 
       idx = ladders[j];
       
       resX[i+idx] = mp.mul(resX[i], resX[idx]);
-      
+           
       i += idx;
    }
    
