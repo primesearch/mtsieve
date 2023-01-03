@@ -64,7 +64,7 @@ void XYYXApp::Help(void)
    printf("-X --maxx=X           maximum x to search\n");
    printf("-y --miny=y           minimum y to search\n");
    printf("-Y --maxy=Y           maximum y to search\n");
-   printf("-X --disableavx       disableavx\n");
+   printf("-V --disableavx       disableavx\n");
    printf("-s --sign=+/-/b       sign to sieve for\n");
 #if defined(USE_OPENCL) || defined(USE_METAL)
    printf("-S --step=S           max steps iterated per call to GPU (default %d)\n", ii_MaxGpuSteps);
@@ -76,13 +76,13 @@ void  XYYXApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "x:X:y:Y:s:S:z:Z:M:X";
+   shortOpts += "x:X:y:Y:s:S:z:Z:M:V";
 
    AppendLongOpt(longOpts, "minx",              required_argument, 0, 'x');
    AppendLongOpt(longOpts, "maxx",              required_argument, 0, 'X');
    AppendLongOpt(longOpts, "miny",              required_argument, 0, 'y');
    AppendLongOpt(longOpts, "sign",              required_argument, 0, 's');
-   AppendLongOpt(longOpts, "disableavx",        no_argument, 0, 'X');
+   AppendLongOpt(longOpts, "disableavx",        no_argument, 0, 'V');
    AppendLongOpt(longOpts, "sign",              required_argument, 0, 's');
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
@@ -125,7 +125,7 @@ parse_t XYYXApp::ParseOption(int opt, char *arg, const char *source)
          status = Parser::Parse(arg, 1, 1000000000, ii_SplitYValue);
          break;
          
-      case 'X':
+      case 'V':
          ib_UseAvx = false;
          status = P_SUCCESS;
          break;

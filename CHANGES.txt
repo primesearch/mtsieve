@@ -1,6 +1,6 @@
 2.4.0 - January 02, 2023
    xyyxsieve/xyysievecl: version 1.8.1
-      Changed -D to -X for disabling AVX as -D is already used.
+      Changed -D to -V for disabling AVX as -D is already used.
       
    srsieve2/srsieve2cl: version 1.6.8
       Fix issue where a single abs(c)=1 sequence finds an invalid factor.  This
