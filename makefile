@@ -82,11 +82,11 @@ endif
 # No changes should be needed below here.
 
 ifeq ($(strip $(HAS_X86)),yes)
-CPU_PROGS=afsieve cksieve dmdsieve gcwsieve gfndsieve fbncsieve fkbnsieve k1b2sieve kbbsieve mfsieve \
+CPU_PROGS=afsieve ccsieve cksieve dmdsieve gcwsieve gfndsieve fbncsieve fkbnsieve k1b2sieve kbbsieve mfsieve \
    pixsieve psieve sgsieve smsieve srsieve2 twinsieve xyyxsieve
 else
-# no non-x86 builds for afsieve, pixsieve, and xyyxsieve
-CPU_PROGS=cksieve dmdsieve gcwsieve gfndsieve fbncsieve fkbnsieve k1b2sieve kbbsieve mfsieve \
+# no non-x86 builds for afsieve, gfndsieve, pixsieve, and xyyxsieve
+CPU_PROGS=cksieve dmdsieve gcwsieve fbncsieve fkbnsieve k1b2sieve kbbsieve mfsieve \
    psieve sgsieve smsieve srsieve2 twinsieve 
 endif
 
@@ -130,6 +130,7 @@ PRIMESIEVE_OBJS=sieve/Erat.o sieve/EratBig.o sieve/EratMedium.o sieve/EratSmall.
    sieve/ParallelSieve.o sieve/iterator.o sieve/api.o sieve/SievingPrimes.o
 
 AF_OBJS=alternating_factorial/AlternatingFactorialApp_cpu.o alternating_factorial/AlternatingFactorialWorker_cpu.o alternating_factorial/afsieve.o
+CC_OBJS=cunningham_chain/CunninghamChainApp.o cunningham_chain/CunninghamChainWorker.o
 CK_OBJS=carol_kynea/CarolKyneaApp.o carol_kynea/CarolKyneaWorker.o
 DMD_OBJS=dm_divisor/DMDivisorApp.o dm_divisor/DMDivisorWorker.o
 FBNC_OBJS=fixed_bnc/FixedBNCApp.o fixed_bnc/FixedBNCWorker.o
@@ -196,7 +197,7 @@ GPU_HEADERS=alternating_factorial/af_kernel.gpu.h cullen_woodall/cw_kernel.gpu.h
 
 
 ALL_OBJS=$(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(CPU_CORE_OBJS) $(OPENCL_CORE_OBJS) $(METAL_CORE_OBJS) \
-   $(AF_OBJS) $(MF_OBJS) $(FBNC_OBJS) $(FKBN_OBJS) $(GFND_OBJS) $(CK_OBJS) \
+   $(AF_OBJS) $(MF_OBJS) $(FBNC_OBJS) $(FKBN_OBJS) $(GFND_OBJS) $(CC_OBJS) $(CK_OBJS) \
    $(PIX_OBJS) $(XYYX_OBJS) $(KBB_OBJS) $(GCW_OBJS) $(PRIM_OBJS) $(TWIN_OBJS) \
    $(DMD_OBJS) $(SR2_OBJS) $(K1B2_OBJS) $(SG_OBJS) $(PRIM_OPENCL_OBJS) \
    $(AF_OPENCL_OBJS) $(GCW_OPENCL_OBJS) $(GFND_OPENCL_OBJS) $(MF_OPENCL_OBJS) $(PIX_OPENCL_OBJS) \
@@ -292,7 +293,10 @@ afsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(AF_OBJS)
 
 afsievecl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(AF_OPENCL_OBJS)
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_OPENCL) $(LD_FLAGS_OPENCL) -o $@ $^ $(LD_FLAGS_OPENCL) $(LD_FLAGS)
-   
+
+ccsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(CC_OBJS)
+	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(LD_FLAGS_OPENCL) -o $@ $^ $(LD_FLAGS)
+
 cksieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(CK_OBJS)
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(LD_FLAGS_OPENCL) -o $@ $^ $(LD_FLAGS)
 

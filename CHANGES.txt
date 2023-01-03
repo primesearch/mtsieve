@@ -1,3 +1,45 @@
+2.4.0 - January 02, 2023
+   xyyxsieve/xyysievecl: version 1.8.1
+      Changed -D to -X for disabling AVX as -D is already used.
+      
+   srsieve2/srsieve2cl: version 1.6.8
+      Fix issue where a single abs(c)=1 sequence finds an invalid factor.  This
+      is caused by code that an unnecessary cast of a 32-bit value to a 16-bit value.
+      
+   ccsieve: version 1.0
+      Initial release.  This is sieve that can be used to assist in Cunningham Chain
+      searches.  There are some differences from newpgen including:
+          ccsieve is slower then newpgen for primorials (because it validates factors).
+          ccsieve supports larger files.
+          ccsieve supports factorial type Cunningham Chains.
+          ccsieve can generate the CC file format.  This is a new format supported
+          by pfgw which is used specifically for Cunningham Chains.  This format
+          is far easier to read than the newpgen format.
+
+      These are the parameters specific to ccsieve:
+         -c    1 = first kind (first term end with -1), 2 = second kind (first term end with +1)
+         -t    1 = b^n, 2 = primorial, 3 = factorial
+         -k    Minimum k to search
+         -K    Maximum k to search
+         -l    Cunningham Chain length
+         -b    Base for b^n type searches
+         -n    n of b^n, n# for primorial, n! for factorial
+         -f    Format of output file (C=CC (default), N=NEWPGEN)
+      
+      The maximum chain length supported by ccsieve is 30, although the longest chain 
+      you are likely to find with help from ccsieve is 10 as the first k in the chain
+      is limited to 62 bits and records for longer chains have much larger k.
+      
+      When using the CC format, pfgw can support longer Cunningham Chains up with up to 30
+      terms.  pfgw will not test past the fifth term when using the newpgen format.
+      
+      The newpgen output format support has not been tested.
+      
+      Cunningham Chain records can be found at:
+         https://primes.utm.edu/top20/page.php?id=19
+         https://primes.utm.edu/top20/page.php?id=20
+         https://www.pzktupel.de/JensKruseAndersen/cc.htm
+
 2.3.9 - December 17, 2022
    srsieve2/srsieve2cl: version 1.6.7
       Fix segfault with multiple c=1 sequences when using Legendre tables.
@@ -249,8 +291,8 @@
             
          It is recommend to play with these multipliers to find the optimal values as the provided
          defaults are from sr1sieve and sr2sieve and some values can provide faster sieving.
-         The recommendation is to sieve a range of 1e9 and see how long it takes (use sr2sieve.log
-         to see how long it actually takes).  Vary -U, -V, and-X evaluate the results.  With a
+         The recommendation is to sieve a range of 1e9 and see how long it takes (use srsieve2.log
+         to see how long it actually takes).  Vary -U, -V, and-X then evaluate the results.  With a
          script and multiple cores, this could done relatively quickly for most inputs.
             
 2.2.2 - October 22, 2021
