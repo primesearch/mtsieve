@@ -41,7 +41,6 @@ private:
    TwinApp          *ip_TwinApp;
    
    uint32_t         *ii_BaseInverses;
-   uint64_t         *il_PrimeList;
    uint32_t         *ii_InverseList;
    
    uint64_t          il_BpowN;

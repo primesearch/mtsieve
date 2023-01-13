@@ -52,7 +52,7 @@ void  TwinWorker::TestMegaPrimeChunk(void)
    for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx++)
    {
       p1 = il_PrimeList[pIdx];
-
+         
       pmb = (p1 % ii_Base);
       
       if (ii_BaseInverses[pmb] == 0)
