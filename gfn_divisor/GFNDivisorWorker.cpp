@@ -73,10 +73,10 @@ void  GFNDivisorWorker::TestMegaPrimeChunkSmall(void)
 
       for (n=ii_MinN; n<=ii_MaxN; n++)
       {
-         if (k1 <= il_MaxK) RemoveTermsSmallPrime(k1, n, p1);
-         if (k2 <= il_MaxK) RemoveTermsSmallPrime(k2, n, p2);
-         if (k3 <= il_MaxK) RemoveTermsSmallPrime(k3, n, p3);
-         if (k4 <= il_MaxK) RemoveTermsSmallPrime(k4, n, p4);
+         if (k1 <= il_MaxK) RemoveTermsSmallPrime(p1, k1);
+         if (k2 <= il_MaxK) RemoveTermsSmallPrime(p2, k2);
+         if (k3 <= il_MaxK) RemoveTermsSmallPrime(p3, k3);
+         if (k4 <= il_MaxK) RemoveTermsSmallPrime(p4, k4);
          
          // For the next n, divide k by 2
          // Note that k*2^n+1 = (k/2)*2^(n+1)+1
@@ -150,10 +150,10 @@ void  GFNDivisorWorker::TestMegaPrimeChunkLarge(void)
          n3 += bits3;
          n4 += bits4;
           
-         if (k1 >= il_MinK && k1 <= il_MaxK && n1 <= ii_MaxN) RemoveTermsBigPrime(k1, n1, p1);
-         if (k2 >= il_MinK && k2 <= il_MaxK && n2 <= ii_MaxN) RemoveTermsBigPrime(k2, n2, p2);
-         if (k3 >= il_MinK && k3 <= il_MaxK && n3 <= ii_MaxN) RemoveTermsBigPrime(k3, n3, p3);
-         if (k4 >= il_MinK && k4 <= il_MaxK && n4 <= ii_MaxN) RemoveTermsBigPrime(k4, n4, p4);
+         if (k1 >= il_MinK && k1 <= il_MaxK && n1 <= ii_MaxN) RemoveTermsBigPrime(p1, k1, n1);
+         if (k2 >= il_MinK && k2 <= il_MaxK && n2 <= ii_MaxN) RemoveTermsBigPrime(p2, k2, n2);
+         if (k3 >= il_MinK && k3 <= il_MaxK && n3 <= ii_MaxN) RemoveTermsBigPrime(p3, k3, n3);
+         if (k4 >= il_MinK && k4 <= il_MaxK && n4 <= ii_MaxN) RemoveTermsBigPrime(p4, k4, n4);
          
          // Make k even so that we can guarantee a shift for the next
          // iteration of the loop
@@ -173,7 +173,7 @@ void  GFNDivisorWorker::TestMegaPrimeChunkLarge(void)
          k2 >>= bits2;
          n2 += bits2;
          
-         if (k2 >= il_MinK && k2 <= il_MaxK) RemoveTermsBigPrime(k2, n2, p2);
+         if (k2 >= il_MinK && k2 <= il_MaxK) RemoveTermsBigPrime(p2, k2, n2);
          
          k2 += p2;
       }
@@ -187,7 +187,7 @@ void  GFNDivisorWorker::TestMegaPrimeChunkLarge(void)
          k3 >>= bits3;
          n3 += bits3;
          
-         if (k3 >= il_MinK && k3 <= il_MaxK) RemoveTermsBigPrime(k3, n3, p3);
+         if (k3 >= il_MinK && k3 <= il_MaxK) RemoveTermsBigPrime(p3, k3, n3);
          
          k3 += p3;
       }   
@@ -201,7 +201,7 @@ void  GFNDivisorWorker::TestMegaPrimeChunkLarge(void)
          k4 >>= bits4;
          n4 += bits4;
                   
-         if (k4 >= il_MinK && k4 <= il_MaxK) RemoveTermsBigPrime(k4, n4, p4);
+         if (k4 >= il_MinK && k4 <= il_MaxK) RemoveTermsBigPrime(p4, k4, n4);
          
          k4 += p4;
       }   
@@ -218,46 +218,35 @@ void  GFNDivisorWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
    FatalError("GFNDivisorWorker::TestMiniPrimeChunk not implemented");
 }
 
-// This must be used when prime <= il_MaxK.
-void    GFNDivisorWorker::RemoveTermsSmallPrime(uint64_t k, uint32_t n, uint64_t prime)
+// This must be used when thePrime <= il_MaxK.
+void    GFNDivisorWorker::RemoveTermsSmallPrime(uint64_t thePrime, uint64_t k, uint32_t n)
 {
    // Make sure that k >= il_MinK
    if (k < il_MinK)
    {
-      if (prime >= il_MinK)
-         k += prime; 
+      if (thePrime >= il_MinK)
+         k += thePrime; 
       else
       {
          // Compute k such that il_MinK <= k < il_MinK + p
-         k += prime * ((il_MinK - k + prime - 1)/prime);
+         k += thePrime * ((il_MinK - k + thePrime - 1)/thePrime);
       }
    }
 
    // Make sure that k is odd
    if (!(k & 1))
-      k += prime;
+      k += thePrime;
 
    if (k > il_MaxK)
       return;
 
-   uint32_t verifiedCount = 0;
-   
-   do
-	{
-      verifiedCount++;
-      
-      // If the first few are valid, then assume that the rest are valid.  This will
-      // speed up testing of small primes.
-      ip_GFNDivisorApp->ReportFactor(prime, k, n, (verifiedCount < 5));
-
-		k += (prime << 1); 
-	} while (k <= il_MaxK);
+   ip_GFNDivisorApp->ReportFactor(thePrime, k, n);
 }
 
 
 // Using this bypasses a number of if checks that can be done when prime > il_MaxK.
 // Do not report k/n combinations if the k*2^n+1 is divisible by any p < 50
-void    GFNDivisorWorker::RemoveTermsBigPrime(uint64_t k, uint32_t n, uint64_t prime)
+void    GFNDivisorWorker::RemoveTermsBigPrime(uint64_t thePrime, uint64_t k, uint32_t n)
 {   
    uint32_t smallN;
    uint64_t smallK;
@@ -318,5 +307,5 @@ void    GFNDivisorWorker::RemoveTermsBigPrime(uint64_t k, uint32_t n, uint64_t p
    smallK = k % (47);
    if ((smallK << smallN) % (47) == 46) return;
 
-   ip_GFNDivisorApp->ReportFactor(prime, k, n, true);
+   ip_GFNDivisorApp->ReportFactor(thePrime, k, n);
 }

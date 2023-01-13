@@ -17,7 +17,7 @@
 #include "GFNDivisorWorker.h"
 #include "../x86_asm/fpu-asm-x86.h"
 
-#define APP_VERSION     "2.2"
+#define APP_VERSION     "2.3"
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
 #include "GFNDivisorGpuWorker.h"
@@ -756,60 +756,61 @@ void  GFNDivisorApp::GetExtraTextForSieveStartedMessage(char *extraText)
    sprintf(extraText, "%s <= k <= %s, %d <= n <= %d, k*2^n+1", minK, maxK, ii_MinN, ii_MaxN);
 }
 
-bool  GFNDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, uint32_t n, bool verifyFactor)
-{
-   bool removedTerm = false;
-   
+void  GFNDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, uint32_t n)
+{   
+   // If the first term is valid, then the rest are valid.  In other words 
+   // k*x (mod p) = (k+p)*x (mod p) = ... = (k+n*p)*x (mod p)
+   VerifyFactor(theFactor, k, n);
+         
    if (!ib_UseTermsBitmap)
    {
-      uint32_t smallPrimeFactor = GetSmallPrimeFactor(k, n);
-      
-      if (smallPrimeFactor > 0 && smallPrimeFactor <= ii_SmallPrimeFactorLimit)
-         return true;
-
-      il_FactorCount++;
-      LogFactor(theFactor, "%" PRIu64"*2^%u+1", k, n);
-
-      if (verifyFactor)
-         VerifyFactor(theFactor, k, n);
+      do {
+         uint32_t smallPrimeFactor = GetSmallPrimeFactor(k, n);
          
-      return true;
+         if (smallPrimeFactor > 0 && smallPrimeFactor <= ii_SmallPrimeFactorLimit)
+            return;
+
+         il_FactorCount++;
+         LogFactor(theFactor, "%" PRIu64"*2^%u+1", k, n);
+
+         // We only care about odd k
+         k += (theFactor << 1);
+      } while (k <= il_MaxK);
+         
+      return;
    }
       
-   if (theFactor > GetMaxPrimeForSingleWorker())
-      ip_FactorAppLock->Lock();
+   ip_FactorAppLock->Lock();
 
-   uint64_t bit = BIT(k);
-      
-   if (iv_Terms[n-ii_MinN][bit])
-   {
-      iv_Terms[n-ii_MinN][bit] = false;
-      
-      il_FactorCount++;
-      il_TermCount--;
-               
-      if (n < 62)
+   do {
+      uint64_t bit = BIT(k);
+         
+      if (iv_Terms[n-ii_MinN][bit])
       {
-         uint64_t nexp = (1L << n);
+         iv_Terms[n-ii_MinN][bit] = false;
          
-         if (nexp < theFactor)
+         il_FactorCount++;
+         il_TermCount--;
+                  
+         if (n < 62)
          {
-            if (((theFactor - 1) >> n) == k)
-               WriteToConsole(COT_OTHER, "%" PRIu64"*2^%u+1 is prime (= %" PRIu64")", k, n, theFactor);
+            uint64_t nexp = (1L << n);
+            
+            if (nexp < theFactor)
+            {
+               if (((theFactor - 1) >> n) == k)
+                  WriteToConsole(COT_OTHER, "%" PRIu64"*2^%u+1 is prime (= %" PRIu64")", k, n, theFactor);
+            }
          }
+
+         LogFactor(theFactor, "%" PRIu64"*2^%u+1", k, n);
       }
-
-      LogFactor(theFactor, "%" PRIu64"*2^%u+1", k, n);
-      removedTerm = true;
-
-      if (verifyFactor)
-         VerifyFactor(theFactor, k, n);
-   }
+      
+      // We only care about odd k
+      k += (theFactor << 1);
+   } while (k <= il_MaxK);
    
-   if (theFactor > GetMaxPrimeForSingleWorker())
-      ip_FactorAppLock->Release();
-
-   return removedTerm;
+   ip_FactorAppLock->Release();
 }
 
 uint32_t GFNDivisorApp::GetSmallPrimeFactor(uint64_t k, uint32_t n)

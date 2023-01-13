@@ -30,9 +30,8 @@ protected:
 private:
    void              TestMegaPrimeChunkSmall(void);
    void              TestMegaPrimeChunkLarge(void);
-   void              RemoveTermsSmallPrime(uint64_t k, uint32_t n, uint64_t prime);
-   void              RemoveTermsBigPrime(uint64_t k, uint32_t n, uint64_t prime);
-   void              VerifyFactor(uint64_t k, uint32_t n, uint64_t prime);
+   void              RemoveTermsSmallPrime(uint64_t thePrime, uint64_t k, uint32_t n);
+   void              RemoveTermsBigPrime(uint64_t thePrime, uint64_t k, uint32_t n);
 
    GFNDivisorApp    *ip_GFNDivisorApp;
    

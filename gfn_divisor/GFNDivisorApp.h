@@ -35,7 +35,7 @@ public:
    
    std::vector<std::vector<bool>> GetTerms(void) { return iv_Terms; };
 
-   bool              ReportFactor(uint64_t theFactor, uint64_t k, uint32_t n, bool verifyFactor);
+   void              ReportFactor(uint64_t theFactor, uint64_t k, uint32_t n);
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          GetMaxGpuSteps(void) { return ii_MaxGpuSteps; };
@@ -61,7 +61,7 @@ private:
    void              VerifyFactor(uint64_t theFactor, uint64_t k, uint32_t n);
    
    std::vector<std::vector<bool>>  iv_Terms;
-   std::string            is_OutputTermsFilePrefix;
+   std::string       is_OutputTermsFilePrefix;
    
    bool              ib_UseTermsBitmap;
    uint32_t          ii_SmallPrimeFactorLimit;
