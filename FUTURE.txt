@@ -24,3 +24,7 @@ Added on October 22, 2021
 
 Added on January 03, 2022
    Add OpenCL to multi-sequence abs(c) = 1 logic of srsieve2.
+   
+Added on January 13, 2023
+   Add support for Apple Metal for all sieves supporting OpenCL.
+   Replace sprintf with snprintf to address compiler warnings.
