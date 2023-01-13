@@ -28,3 +28,4 @@ Added on January 03, 2022
 Added on January 13, 2023
    Add support for Apple Metal for all sieves supporting OpenCL.
    Replace sprintf with snprintf to address compiler warnings.
+   Get (k*b^n+c)/d sequences working in srsieve2.
