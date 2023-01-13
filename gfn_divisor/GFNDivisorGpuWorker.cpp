@@ -98,7 +98,7 @@ void  GFNDivisorGpuWorker::TestMegaPrimeChunk(void)
          n = (uint32_t) il_FactorList[idx+1];
          prime = il_FactorList[idx+2];
       
-         ip_GFNDivisorApp->ReportFactor(prime, k, n, true);
+         ip_GFNDivisorApp->ReportFactor(prime, k, n);
          
          if ((ii+1) == ii_MaxGpuFactors)
             break;
