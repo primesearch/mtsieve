@@ -22,6 +22,7 @@ CunninghamChainWorker::CunninghamChainWorker(uint32_t myId, App *theApp) : Worke
    it_TermType = ip_CunninghamChainApp->GetTermType();
    ii_ChainLength = ip_CunninghamChainApp->GetChainLength();
    
+   ib_HalfK = ip_CunninghamChainApp->IsHalfK();
    il_MinK = ip_CunninghamChainApp->GetMinK();
    il_MaxK = ip_CunninghamChainApp->GetMaxK();
    ii_Base = ip_CunninghamChainApp->GetBase();
@@ -142,36 +143,52 @@ void  CunninghamChainWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
    FatalError("CunninghamChainWorker::TestMiniPrimeChunk not implemented");
 }
 
-void    CunninghamChainWorker::RemoveTerms(uint64_t prime, uint64_t k, uint32_t termInChain)
+void    CunninghamChainWorker::RemoveTerms(uint64_t thePrime, uint64_t k, uint32_t termInChain)
 {
    if (it_TermType == TT_BN)
    {
       // If b^n (mod p) == 0, then there is no solution for k.
-      if (ii_Base >= prime && ii_Base % prime == 0)
+      if (ii_Base >= thePrime && ii_Base % thePrime == 0)
          return;
    }
    else
    {
       // This can happen if n! (mod p) == 1 or n# (mod p) == 1 or n! (mod p) == -1 or n# (mod p) == -1
-      if (prime == k || k == 0)
+      if (thePrime == k || k == 0)
          return;
    }
 
-   // Although k < prime, we need k >= il_MinK
+   // Although k < thePrime, we need k >= il_MinK
    if (k < il_MinK)
    {
-      if (prime >= il_MinK)
+      if (thePrime >= il_MinK)
       {
          // We can avoid the use of division here
-         k += prime; 
+         k += thePrime; 
       }
       else
       {
          // Compute k such that il_MinK <= k < il_MinK + p
-         k += prime * ((il_MinK - k + prime - 1)/prime);
+         k += thePrime * ((il_MinK - k + thePrime - 1)/thePrime);
+      }
+   }
+
+   if (ib_HalfK)
+   {
+      if (ii_Base == 2)
+      {
+         // Ensure that k is odd
+         if (!(k & 1))
+            k += thePrime;
+      }
+      else
+      {
+         // Ensure that k is event
+         if (k & 1)
+            k += thePrime;
       }
    }
 
    if (k <= il_MaxK)
-      ip_CunninghamChainApp->ReportFactor(prime, k, termInChain);
+      ip_CunninghamChainApp->ReportFactor(thePrime, k, termInChain);
 }

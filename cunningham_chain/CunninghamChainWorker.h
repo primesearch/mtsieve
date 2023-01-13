@@ -28,14 +28,15 @@ public:
 protected:
 
 private:
-   void              RemoveTerms(uint64_t prime, uint64_t k, uint32_t termInChain);
+   void              RemoveTerms(uint64_t thePrime, uint64_t k, uint32_t termInChain);
    
    CunninghamChainApp *ip_CunninghamChainApp;
 
-   chaintype_t       it_ChainKind;
+   chainkind_t       it_ChainKind;
    termtype_t        it_TermType;
    uint32_t          ii_ChainLength;
    
+   bool              ib_HalfK;
    uint64_t          il_MinK;
    uint64_t          il_MaxK;
    uint32_t          ii_Base;

@@ -17,12 +17,14 @@
 #include "CunninghamChainWorker.h"
 
 #define APP_NAME        "ccsieve"
-#define APP_VERSION     "1.0"
+#define APP_VERSION     "1.1"
 
 #define MAX_LENGTH      30
 #define NMAX_MAX        (1 << 31)
+#define MAX_FILES       9999
 
-#define BIT(k)          ((k) - il_MinK)
+#define BIT_HK(k)       (((k) - il_MinK) >> 1)
+#define BIT_AK(k)       ((k) - il_MinK)
 
 // This is declared in App.h, but implemented here.  This means that App.h
 // can remain unchanged if using the mtsieve framework for other applications.
@@ -48,6 +50,8 @@ CunninghamChainApp::CunninghamChainApp() : FactorApp()
    ii_ChainLength = 0;
    il_Terms = 0;
    ii_Primes = 0;
+   ib_HalfK = false;
+   ii_NumberOfFiles = 1;
  
    SetAppMinPrime(3);
    
@@ -75,13 +79,14 @@ void CunninghamChainApp::Help(void)
    printf("-b --base=b           Base to search\n");
    printf("-n --n=n              n of b^n, n# for primorial, n! for factorial\n");
    printf("-f --format=f         Format of output file (C=CC (default), N=NEWPGEN)\n");
+   printf("-N --numberOfFiles=N  Number of files to split k across\n");
 }
 
 void  CunninghamChainApp::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "b:k:K:m:n:f:c:t:l:0";
+   shortOpts += "b:k:K:m:n:f:c:t:N:l:";
 
    AppendLongOpt(longOpts, "chainkind",      required_argument, 0, 'c');
    AppendLongOpt(longOpts, "kmin",           required_argument, 0, 'k');
@@ -91,6 +96,7 @@ void  CunninghamChainApp::AddCommandLineOptions(std::string &shortOpts, struct o
    AppendLongOpt(longOpts, "base",           required_argument, 0, 'b');
    AppendLongOpt(longOpts, "n",              required_argument, 0, 'n');
    AppendLongOpt(longOpts, "format",         required_argument, 0, 'f');
+   AppendLongOpt(longOpts, "numberOfFiles",  required_argument, 0, 'N');
 }
 
 parse_t CunninghamChainApp::ParseOption(int opt, char *arg, const char *source)
@@ -147,6 +153,10 @@ parse_t CunninghamChainApp::ParseOption(int opt, char *arg, const char *source)
          status = Parser::Parse(arg, 3, NMAX_MAX, ii_N);
          break;
 
+      case 'N':
+         status = Parser::Parse(arg, 1, MAX_FILES, ii_NumberOfFiles);
+         break;
+
       case 'f':
          status = Parser::Parse(arg, "CN", value);
          
@@ -171,7 +181,17 @@ void CunninghamChainApp::ValidateOptions(void)
    {
       ProcessInputTermsFile(false);
 
-      iv_Terms.resize(((il_MaxK - il_MinK) >> 1) + 1);
+      if (it_TermType == TT_PRIMORIAL)
+         BuildPrimorialTerms();
+      
+      if (it_TermType == TT_FACTORIAL)
+         BuildFactorialTerms();
+
+      if (ib_HalfK)
+         iv_Terms.resize(((il_MaxK - il_MinK) >> 1) + 1);
+      else
+         iv_Terms.resize((il_MaxK - il_MinK) + 1);
+      
       std::fill(iv_Terms.begin(), iv_Terms.end(), false);
 
       ProcessInputTermsFile(true);
@@ -179,7 +199,7 @@ void CunninghamChainApp::ValidateOptions(void)
    else
    {
       if (it_ChainKind == CCT_UNKNOWN)
-         FatalError("Chain type must be specified");
+         FatalError("Chain kind must be specified");
       
       if (it_TermType == TT_UNKNOWN)
          FatalError("Term type must be specified");
@@ -205,13 +225,45 @@ void CunninghamChainApp::ValidateOptions(void)
       if (il_MaxK < ii_N)
          FatalError("n must be less then maxk");
       
+      il_TermCount = (il_MaxK - il_MinK) + 1;
+         
       if (it_TermType == TT_BN)
       {
          if (il_MaxK < ii_Base)
             FatalError("base must be less then maxk");
+         
+         if (ii_Base == 2)
+         {
+            // We only care about odd k
+            ib_HalfK = true;
+            il_TermCount = (il_MaxK - il_MinK)/2 + 1;
+         
+            // Make minK odd
+            if (!(il_MinK & 1))
+               il_MinK++;
+            
+            // Make maxK odd
+            if (!(il_MaxK & 1))
+               il_MaxK--;
+         }
+         
+         if (ii_Base & 0x01)
+         {
+            // We only care about even k
+            ib_HalfK = true;
+            il_TermCount = (il_MaxK - il_MinK)/2 + 1;
+         
+            // Make minK even
+            if (il_MinK & 1)
+               il_MinK++;
+            
+            // Make maxK even
+            if (il_MaxK & 1)
+               il_MaxK--;
+         }
       }
       else
-      {
+      {            
          if (it_TermType == TT_PRIMORIAL)
          {
             BuildPrimorialTerms();
@@ -224,8 +276,6 @@ void CunninghamChainApp::ValidateOptions(void)
             SetAppMinPrime(ii_N+1);
          }
       }
-         
-      il_TermCount = (il_MaxK - il_MinK) + 1;
       
       iv_Terms.resize(il_TermCount);
       std::fill(iv_Terms.begin(), iv_Terms.end(), true);      
@@ -233,18 +283,18 @@ void CunninghamChainApp::ValidateOptions(void)
 
    if (is_OutputTermsFileName.length() == 0)
    {
-      char fileName[60];
+      char filePrefix[60];
       
       if (it_TermType == TT_BN)
-         sprintf(fileName, "cc_%u_%u.%s", ii_Base, ii_N, (it_Format == FF_CC ? "cc" : "npg"));
+         sprintf(filePrefix, "cc_%u_%u", ii_Base, ii_N);
       
       if (it_TermType == TT_PRIMORIAL)
-         sprintf(fileName, "cc_%up.%s", ii_N, (it_Format == FF_CC ? "cc" : "npg"));
+         sprintf(filePrefix, "cc_%up", ii_N);
       
       if (it_TermType == TT_FACTORIAL)
-         sprintf(fileName, "cc_%uf.%s", ii_N, (it_Format == FF_CC ? "cc" : "npg"));
+         sprintf(filePrefix, "cc_%uf", ii_N);
 
-      is_OutputTermsFileName = fileName;
+      is_OutputTermsFileName = filePrefix;
    }
 
    FactorApp::ParentValidateOptions();
@@ -256,7 +306,7 @@ void CunninghamChainApp::ValidateOptions(void)
    // Allow only one worker to do work when processing small primes.  This allows us to avoid 
    // locking when factors are reported, which significantly hurts performance as most terms 
    // will be removed due to small primes.
-   SetMaxPrimeForSingleWorker(100000000);
+   SetMaxPrimeForSingleWorker(100000);
 }
 
 Worker *CunninghamChainApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested)
@@ -272,27 +322,95 @@ Worker *CunninghamChainApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t l
 
 void CunninghamChainApp::ProcessInputTermsFile(bool haveBitMap)
 {
-   FILE      *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
-   char       buffer[1000], *pos;
-   int32_t    c = 2;
-   uint32_t   n;
-   uint64_t   k, lastPrime;
-   format_t   format = FF_UNKNOWN;
+   FILE    *fPtr;
+   char     fileNamePattern[200], fileName[200];
+   uint32_t fileCount = 0;
 
-   if (!fPtr)
-      FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
+   il_TermCount = 0;
 
-   if (fgets(buffer, sizeof(buffer), fPtr) == NULL)
-      FatalError("No data in input file %s", is_InputTermsFileName.c_str());
-   
    if (!haveBitMap)
    {
       ii_Base = 0;
       ii_N = 0;
       ii_ChainLength = 0;
-      il_MinK = il_MaxK = 0;
+      il_MinK = PMAX_MAX_62BIT;
+      il_MaxK = 0;
+   }
+
+   sprintf(fileName, "%s", is_InputTermsFileName.c_str());
+      
+   fileNamePattern[0] = 0;
+   
+   // Look for the pattern used when we have multiple output files
+   for (uint32_t idx=0; idx<strlen(fileName); idx++)
+   {
+      if (fileName[idx] == '.' && fileName[idx+5] == '.')
+      {
+         fileName[idx] = 0;
+         fileName[idx+5] = 0;
+         sprintf(fileNamePattern, "%s.%s.%s", fileName, "%04u", &fileName[idx+6]);
+         break;
+      }
+   }
+
+   // If the file name has that pattern, then read from that set of files
+   if (fileNamePattern[0] != 0)
+   {
+      for (uint32_t idx=1; idx<=MAX_FILES; idx++)
+      {
+         sprintf(fileName, fileNamePattern, idx);
+         
+         fPtr = fopen(fileName, "r");
+      
+         if (!fPtr)
+            break;
+         
+         fileCount++;
+         
+         ProcessInputTermsFile(haveBitMap, fPtr, fileName, (fileCount == 1));
+         
+         fclose(fPtr);
+      }
+   }
+   else
+   {
+      fPtr = fopen(fileName, "r");
+
+      if (fPtr)
+      {
+         ProcessInputTermsFile(haveBitMap, fPtr, fileName, true);
+         
+         fileCount = 1;
+         
+         fclose(fPtr);
+         
+         if (haveBitMap)
+            WriteToConsole(COT_OTHER, "Read input terms from 1 file");
+         
+         return;
+      }
    }
    
+   if (fileCount == 0)
+      FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
+
+   if (haveBitMap)
+      WriteToConsole(COT_OTHER, "Read input terms from %d files", fileCount);
+}
+
+void CunninghamChainApp::ProcessInputTermsFile(bool haveBitMap, FILE *fPtr, char *fileName, bool firstFile)
+{
+   char       buffer[1000], *pos;
+   int32_t    c = 2;
+   uint32_t   base = 0, n = 0, chainLength;
+   chainkind_t chainKind;
+   termtype_t  termType = TT_UNKNOWN;
+   uint64_t   k, lastPrime;
+   format_t   format = FF_UNKNOWN;
+
+   if (fgets(buffer, sizeof(buffer), fPtr) == NULL)
+      FatalError("No data in input file %s", is_InputTermsFileName.c_str());
+
    pos = strstr(buffer, " //");
    if (pos)
    {
@@ -302,88 +420,114 @@ void CunninghamChainApp::ProcessInputTermsFile(bool haveBitMap)
          SetMinPrime(lastPrime);
    }
    
-   if (sscanf(buffer, "CC %u,%u,$a*%u^%u%d", &it_ChainKind, &ii_ChainLength, &ii_Base, &ii_N, &c) == 5)
+   if (sscanf(buffer, "CC %u,%u,$a*%u^%u%d", &chainKind, &chainLength, &base, &n, &c) == 5)
    {
       format = FF_CC;
-         
-      it_TermType = TT_BN;
+      termType = TT_BN;
    }
-   else if (sscanf(buffer, "CC %u,%u,$a*%u#%d", &it_ChainKind, &ii_ChainLength, &ii_N, &c) == 4)
+   else if (sscanf(buffer, "CC %u,%u,$a*%u#%d", &chainKind, &chainLength, &n, &c) == 4)
    {
       format = FF_CC;
-      
-      it_TermType = TT_PRIMORIAL;
+      termType = TT_PRIMORIAL;
    }
-   else if (sscanf(buffer, "CC %u,%u,$a*%u!%d", &it_ChainKind, &ii_ChainLength, &ii_N, &c) == 4)
+   else if (sscanf(buffer, "CC %u,%u,$a*%u!%d", &chainKind, &chainLength, &ii_N, &c) == 4)
    {
       format = FF_CC;
-      
-      it_TermType = TT_FACTORIAL;
+      termType = TT_FACTORIAL;
    }
-   
-   if (format == FF_CC)
-   {
-      if (it_ChainKind != CCT_FIRSTKIND && it_ChainKind != CCT_SECONDKIND)
-         FatalError("Chain type must be 1 or 2");
-      
-      if (ii_ChainLength > MAX_LENGTH || ii_ChainLength < 2)
-         FatalError("Chain length must between 2 and %u", MAX_LENGTH);
-      
-      if (it_ChainKind == CCT_FIRSTKIND && c != -1)
-         FatalError("Chain type of 1 requires temp to end with -1");
-      
-      if (it_ChainKind == CCT_SECONDKIND && c != +1)
-         FatalError("Chain type of 2 requires temp to end with +1");
-   }
-   else if (sscanf(buffer, "%" SCNu64":S:0:%u:74", &lastPrime, &ii_Base) == 2)
+   else if (sscanf(buffer, "%" SCNu64":S:0:%u:74", &lastPrime, &base) == 2)
    {
       // The n is on each line
       format = FF_NEWPGEN;
       SetMinPrime(lastPrime);
-      ii_ChainLength = 2;
-      it_ChainKind = CCT_FIRSTKIND;
+      termType = TT_BN;
+      chainLength = 2;
+      chainKind = CCT_FIRSTKIND;
    }
-   else if (sscanf(buffer, "%" SCNu64":C:0:%u:69", &lastPrime, &ii_Base) == 2)
+   else if (sscanf(buffer, "%" SCNu64":C:0:%u:69", &lastPrime, &base) == 2)
    {
       // The n is on each line
       format = FF_NEWPGEN;
       SetMinPrime(lastPrime);
-      ii_ChainLength = 2;
-      it_ChainKind = CCT_SECONDKIND;
+      termType = TT_BN;
+      chainLength = 2;
+      chainKind = CCT_SECONDKIND;
    }
-   else if (sscanf(buffer, "%" SCNu64":1:%u:%u:1066", &lastPrime, &ii_ChainLength, &ii_Base) == 3)
+   else if (sscanf(buffer, "%" SCNu64":1:%u:%u:1066", &lastPrime, &chainLength, &base) == 3)
    {
       format = FF_NEWPGEN;
       SetMinPrime(lastPrime);
-      it_ChainKind = CCT_FIRSTKIND;
+      termType = TT_BN;
+      chainKind = CCT_FIRSTKIND;
    }
-   else if (sscanf(buffer, "%" SCNu64":1:%u:%u:1045", &lastPrime, &ii_ChainLength, &ii_Base) == 3)
+   else if (sscanf(buffer, "%" SCNu64":1:%u:%u:1045", &lastPrime, &chainLength, &base) == 3)
    {
       format = FF_NEWPGEN;
       SetMinPrime(lastPrime);
-      it_ChainKind = CCT_SECONDKIND;
+      termType = TT_BN;
+      chainKind = CCT_SECONDKIND;
    }
-   else if (sscanf(buffer, "%" SCNu64":1:%u:2:106", &lastPrime, &ii_ChainLength) == 2)
-   {
-      // The primorial is on each line
-      format = FF_NEWPGEN;
-      SetMinPrime(lastPrime);
-      ii_Base = 0;
-      it_ChainKind = CCT_FIRSTKIND;
-   }
-   else if (sscanf(buffer, "%" SCNu64":2:%u:2:85", &lastPrime, &ii_ChainLength) == 2)
+   else if (sscanf(buffer, "%" SCNu64":1:%u:2:106", &lastPrime, &chainLength) == 2)
    {
       // The primorial is on each line
       format = FF_NEWPGEN;
-      SetMinPrime(lastPrime);
-      ii_Base = 0;
-      it_ChainKind = CCT_SECONDKIND;
+      termType = TT_PRIMORIAL;
+      
+      if (firstFile)
+      {
+         SetMinPrime(lastPrime);
+         chainKind = CCT_FIRSTKIND;
+      }
+   }
+   else if (sscanf(buffer, "%" SCNu64":2:%u:2:85", &lastPrime, &chainLength) == 2)
+   {
+      // The primorial is on each line
+      format = FF_NEWPGEN;
+      termType = TT_PRIMORIAL;
+      
+      if (firstFile)
+      {
+         SetMinPrime(lastPrime);
+         chainKind = CCT_SECONDKIND;
+      }
    }
    else
       FatalError("Input file %s has unknown format", is_InputTermsFileName.c_str());    
    
-   il_TermCount = 0;
+   if (firstFile)
+   {
+      it_ChainKind = chainKind;
+      ii_ChainLength = chainLength;
+      it_TermType = termType;
+      ii_Base = base;
+      ii_N = n;
+   }
+   
+   if (format == FF_CC && chainKind == CCT_FIRSTKIND && c != -1)
+      FatalError("Chains of the first kind must end with -1");
+   
+   if (format == FF_CC && chainKind == CCT_SECONDKIND && c != +1)
+      FatalError("Chains of the first kind must end with +1");
+   
+   if (base != ii_Base)
+      FatalError("Mixed bases in input files");
+   
+   if (format == FF_CC && n != ii_N)
+      FatalError("Mixed n in input files");
+      
+   if (chainLength != ii_ChainLength)
+      FatalError("Mixed length in input files");
+   
+   if (chainKind != it_ChainKind)
+      FatalError("Mixed tyeps of chains in input files");
+   
+   if (termType != it_TermType)
+      FatalError("Mixed types of terms in input files");
 
+   // We only care about odd k or even k, but not both
+   if (it_TermType == TT_BN && (ii_Base == 2 || ii_Base & 1))
+      ib_HalfK = true;
+   
    while (fgets(buffer, sizeof(buffer), fPtr) != NULL)
    {
       if (format == FF_CC)
@@ -405,7 +549,11 @@ void CunninghamChainApp::ProcessInputTermsFile(bool haveBitMap)
             
       if (haveBitMap)
       {
-         iv_Terms[BIT(k)] = true;
+         if (ib_HalfK)
+            iv_Terms[BIT_HK(k)] = true;
+         else
+            iv_Terms[BIT_AK(k)] = true;
+         
          il_TermCount++;
       }
       else
@@ -501,31 +649,44 @@ bool CunninghamChainApp::ApplyFactor(uint64_t theFactor, const char *term)
 void CunninghamChainApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
    uint64_t termsCounted = 0;
-   uint64_t k;
-   
-   FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
-
-   if (!termsFile)
-      FatalError("Unable to open output file %s", is_OutputTermsFileName.c_str());
-         
-   for (k=il_MinK; k<=il_MaxK; k+=2)
-   {
-      if (iv_Terms[BIT(k)])
-         break;
-   }
-   
-   if (k > il_MaxK)
-      FatalError("No remaining terms");
+   uint64_t k = il_MinK;
    
    ip_FactorAppLock->Lock();
+   
+   if (il_TermCount == 0)
+      FatalError("No remaining terms");
+
+   if (ii_NumberOfFiles > 1 && il_TermCount < 10 * ii_NumberOfFiles)
+   {
+      WriteToConsole(COT_OTHER, "Reducing to 1 file as we need at least 10 terms per file");
+      ii_NumberOfFiles = 1;
+   }
+   
+   for (uint32_t idx=1; idx<=ii_NumberOfFiles; idx++)
+   {
+      char fileName[200];
       
-   if (it_Format == FF_CC)
-      termsCounted = WriteCCTermsFile(largestPrime, termsFile);
-   
-   if (it_Format == FF_NEWPGEN)
-      termsCounted = WriteNewPGenTermsFile(largestPrime, termsFile);
-   
-   fclose(termsFile);
+      if (ii_NumberOfFiles == 1)
+         sprintf(fileName, "%s.%s", is_OutputTermsFileName.c_str(), (it_Format == FF_CC ? "cc" : "npg"));
+      else
+         sprintf(fileName, "%s.%04u.%s", is_OutputTermsFileName.c_str(), idx, (it_Format == FF_CC ? "cc" : "npg"));
+      
+      FILE    *termsFile = fopen(fileName, "w");
+
+      if (!termsFile)
+         FatalError("Unable to open output file %s", is_OutputTermsFileName.c_str());
+      
+      if (it_Format == FF_CC)
+         termsCounted += WriteCCTermsFile(largestPrime, termsFile, k);
+      
+      if (it_Format == FF_NEWPGEN)
+         termsCounted += WriteNewPGenTermsFile(largestPrime, termsFile, k);
+      
+      fclose(termsFile);
+      
+      if (k == 0)
+         break;
+   }
    
    if (termsCounted != il_TermCount)
       FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termsCounted, il_TermCount);
@@ -533,9 +694,10 @@ void CunninghamChainApp::WriteOutputTermsFile(uint64_t largestPrime)
    ip_FactorAppLock->Release();
 }
 
-uint64_t CunninghamChainApp::WriteCCTermsFile(uint64_t largestPrime, FILE *termsFile)
+uint64_t CunninghamChainApp::WriteCCTermsFile(uint64_t largestPrime, FILE *termsFile, uint64_t &nextK)
 {
    uint64_t k, kCount = 0;
+   uint64_t kToWrite = 1 + (il_TermCount / ii_NumberOfFiles);
    char     term[50];
 
    if (it_TermType == TT_BN)
@@ -549,22 +711,51 @@ uint64_t CunninghamChainApp::WriteCCTermsFile(uint64_t largestPrime, FILE *terms
       
    fprintf(termsFile, "CC %u,%u,%s // Sieved to %" SCNu64"\n", it_ChainKind, ii_ChainLength, term, largestPrime);
 
-   for (k=il_MinK; k<=il_MaxK; k++)
-   {      
-      if (iv_Terms[BIT(k)])
+   if (ib_HalfK)
+   {
+      for (k=nextK; k<=il_MaxK; k+=2)
       {
-         fprintf(termsFile, "%" PRIu64"\n", k);
+         if (iv_Terms[BIT_HK(k)])
+         {
+            if (kCount == kToWrite)
+            {
+               nextK = k;
+               return kCount;
+            }
          
-         kCount++;
+            fprintf(termsFile, "%" PRIu64"\n", k);
+            
+            kCount++;
+         }
+      }
+   }
+   else
+   {
+      for (k=nextK; k<=il_MaxK; k++)
+      {
+         if (iv_Terms[BIT_AK(k)])
+         {
+            if (kCount == kToWrite)
+            {
+               nextK = k;
+               return kCount;
+            }
+         
+            fprintf(termsFile, "%" PRIu64"\n", k);
+            
+            kCount++;
+         }
       }
    }
 
+   nextK = 0;
    return kCount;
 }
 
-uint64_t CunninghamChainApp::WriteNewPGenTermsFile(uint64_t largestPrime, FILE *termsFile)
+uint64_t CunninghamChainApp::WriteNewPGenTermsFile(uint64_t largestPrime, FILE *termsFile, uint64_t &nextK)
 {
    uint64_t k, kCount = 0;
+   uint64_t kToWrite = 1 + (il_TermCount / ii_NumberOfFiles);
 
    if (ii_Base > 0)
    {
@@ -592,17 +783,45 @@ uint64_t CunninghamChainApp::WriteNewPGenTermsFile(uint64_t largestPrime, FILE *
       if (it_ChainKind == 2)
          fprintf(termsFile, "%" PRIu64":2:%u:2:85", largestPrime, ii_ChainLength);
    }   
-   
-   for (k=il_MinK; k<=il_MaxK; k++)
-   {      
-      if (iv_Terms[BIT(k)])
+
+   if (ib_HalfK)
+   {
+      for (k=il_MinK; k<=il_MaxK; k+=2)
       {
-         fprintf(termsFile, "%" PRIu64" %u\n", k, ii_N);
+         if (iv_Terms[BIT_HK(k)])
+         {
+            if (kCount == kToWrite)
+            {
+               nextK = k;
+               return kCount;
+            }
          
-         kCount++;
+            fprintf(termsFile, "%" PRIu64" %u\n", k, ii_N);
+            
+            kCount++;
+         }
       }
    }
-
+   else
+   {
+      for (k=il_MinK; k<=il_MaxK; k++)
+      {
+         if (iv_Terms[BIT_AK(k)])
+         {
+            if (kCount == kToWrite)
+            {
+               nextK = k;
+               return kCount;
+            }
+         
+            fprintf(termsFile, "%" PRIu64" %u\n", k, ii_N);
+            
+            kCount++;
+         }
+      }
+   }
+   
+   nextK = 0;
    return kCount;
 }
 
@@ -626,12 +845,11 @@ void  CunninghamChainApp::ReportFactor(uint64_t theFactor, uint64_t k, uint32_t 
    // k*x (mod p) = (k+p)*x (mod p) = ... = (k+n*p)*x (mod p)
    VerifyFactor(theFactor, k, termInChain);
    
-   if (theFactor > GetMaxPrimeForSingleWorker())
-      ip_FactorAppLock->Lock();
+   ip_FactorAppLock->Lock();
    
-   while (k <= il_MaxK)
+   do
    {
-      uint64_t bit = BIT(k);
+      uint64_t bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
 
       if (iv_Terms[bit])
       {
@@ -674,11 +892,16 @@ void  CunninghamChainApp::ReportFactor(uint64_t theFactor, uint64_t k, uint32_t 
          il_TermCount--;
       }
       
-      k += theFactor; 
-   }
+      if (ib_HalfK)
+      {
+         // We only care about every other k
+         k += (theFactor << 1);
+      }
+      else
+         k += theFactor; 
+   } while (k <= il_MaxK);
    
-   if (theFactor > GetMaxPrimeForSingleWorker())
-      ip_FactorAppLock->Release();
+   ip_FactorAppLock->Release();
 }
 
 void  CunninghamChainApp::VerifyFactor(uint64_t theFactor, uint64_t k, uint32_t termInChain)

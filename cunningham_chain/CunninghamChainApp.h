@@ -17,7 +17,7 @@
 #define NMAX_MAX (1 << 31)
 
 typedef enum { FF_UNKNOWN = 1, FF_CC, FF_NEWPGEN } format_t;
-typedef enum { CCT_UNKNOWN = 0, CCT_FIRSTKIND, CCT_SECONDKIND } chaintype_t;
+typedef enum { CCT_UNKNOWN = 0, CCT_FIRSTKIND, CCT_SECONDKIND } chainkind_t;
 typedef enum { TT_UNKNOWN = 0, TT_BN, TT_PRIMORIAL, TT_FACTORIAL } termtype_t;
 
 class CunninghamChainApp : public FactorApp
@@ -34,10 +34,11 @@ public:
    bool              ApplyFactor(uint64_t theFactor, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText);
    
-   chaintype_t       GetChainKind(void) { return it_ChainKind; };
+   chainkind_t       GetChainKind(void) { return it_ChainKind; };
    termtype_t        GetTermType(void) { return it_TermType; };
    uint32_t          GetChainLength(void) { return ii_ChainLength; };
    
+   bool              IsHalfK(void) { return ib_HalfK; };
    uint64_t          GetMinK(void) { return il_MinK; };
    uint64_t          GetMaxK(void) { return il_MaxK; };
    uint32_t          GetBase(void) { return ii_Base; };
@@ -61,26 +62,26 @@ protected:
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
 
 private:
-   uint64_t          WriteCCTermsFile(uint64_t largestPrime, FILE *termsFile);
-   uint64_t          WriteNewPGenTermsFile(uint64_t largestPrime, FILE *termsFile);
+   void              ProcessInputTermsFile(bool haveBitMap, FILE *fPtr, char *fileName, bool firstFile);
+   uint64_t          WriteCCTermsFile(uint64_t largestPrime, FILE *termsFile, uint64_t &nextK);
+   uint64_t          WriteNewPGenTermsFile(uint64_t largestPrime, FILE *termsFile, uint64_t &nextK);
    
    void              VerifyFactor(uint64_t theFactor, uint64_t k, uint32_t termInChain);
    
    std::vector<bool> iv_Terms;
    
    format_t          it_Format;
-   
-   std::string       is_InputFileName;
-   std::string       is_OutputFileName;
 
-   chaintype_t       it_ChainKind;
+   chainkind_t       it_ChainKind;
    termtype_t        it_TermType;
    uint32_t          ii_ChainLength;
    
+   bool              ib_HalfK;
    uint64_t          il_MinK;
    uint64_t          il_MaxK;
    uint32_t          ii_Base;
    uint32_t          ii_N;
+   uint32_t          ii_NumberOfFiles;
    
    uint32_t         *ii_Primes;
    uint64_t         *il_Terms;
