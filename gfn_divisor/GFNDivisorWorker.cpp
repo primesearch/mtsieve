@@ -73,10 +73,10 @@ void  GFNDivisorWorker::TestMegaPrimeChunkSmall(void)
 
       for (n=ii_MinN; n<=ii_MaxN; n++)
       {
-         if (k1 <= il_MaxK) RemoveTermsSmallPrime(p1, k1);
-         if (k2 <= il_MaxK) RemoveTermsSmallPrime(p2, k2);
-         if (k3 <= il_MaxK) RemoveTermsSmallPrime(p3, k3);
-         if (k4 <= il_MaxK) RemoveTermsSmallPrime(p4, k4);
+         if (k1 <= il_MaxK) RemoveTermsSmallPrime(p1, k1, n);
+         if (k2 <= il_MaxK) RemoveTermsSmallPrime(p2, k2, n);
+         if (k3 <= il_MaxK) RemoveTermsSmallPrime(p3, k3, n);
+         if (k4 <= il_MaxK) RemoveTermsSmallPrime(p4, k4, n);
          
          // For the next n, divide k by 2
          // Note that k*2^n+1 = (k/2)*2^(n+1)+1
