@@ -1,3 +1,17 @@
+2.4.1 - January 13, 2023
+   twinsieve: version 1.4
+      Fix issue where no terms are removed.
+   
+   gfndsieve/gfndsievecl: version 2.3
+      For each prime, only verify the first k is factored for that prime.
+      Avoid concurrency issues with term removal at same time output file is being written.
+      
+   ccsieve: version 1.1
+      Added -N to allow splitting of k across multiple output files.
+      Fixed resuming from previous sieve (CC format).
+      For type 1 searches, only track odd k for base 2 and even k for odd bases.
+      Avoid concurrency issues with term removal at same time output file is being written.
+      
 2.4.0 - January 02, 2023
    xyyxsieve/xyysievecl: version 1.8.1
       Changed -D to -V for disabling AVX as -D is already used.
