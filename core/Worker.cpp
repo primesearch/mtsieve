@@ -107,13 +107,13 @@ static void *ThreadEntryPoint(void *threadInfo)
 
 void  Worker::AllocatePrimeList(void)
 {
-   if (il_PrimeList != NULL)
-      return;
- 
 #if defined(USE_OPENCL) || defined(USE_METAL)
    if (ib_GpuWorker)
       ii_MaxWorkSize = ip_App->GetGpuPrimesPerWorker();
 #endif
+
+   if (il_PrimeList != NULL)
+      return;
    
    // Get a little extra space because we want to use 0 to end the list.
    il_PrimeList = (uint64_t *) xmalloc((ii_MaxWorkSize + 10) * sizeof(uint64_t));
