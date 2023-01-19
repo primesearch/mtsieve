@@ -79,7 +79,7 @@ __kernel void mf_kernel(__global const  ulong  *primes,
                         __global        ulong  *rems,
                         __global const  ulong  *bases,
                         __global const  uint   *powers,
-                        __global        uint   *params,
+                        __global const  uint   *params,
                volatile __global        uint   *factorCount,
                         __global        long4  *factors)
 #else
@@ -87,7 +87,7 @@ kernel void mf_kernel(device const  ulong  *primes,
                       device        ulong  *rems,
                       device const  ulong  *bases,
                       device const  uint   *powers,
-                      device        uint   *params,
+                      device const  uint   *params,
              volatile device atomic_int    *factorCount,
                       device        long4  *factors,
                                     uint    tpid [[thread_position_in_grid]])
@@ -103,7 +103,9 @@ kernel void mf_kernel(device const  ulong  *primes,
    int    idx = 0;
    int    maxNFirstLoop = D_MIN_N - D_MULTIFACTORIAL;
    
-   ulong  n = params[0];
+   uint   mf = params[0];
+   uint   n = params[1];
+   uint   maxN = params[2];
    ulong  thePrime = primes[gid];
 
    if (thePrime == 0) return;
@@ -124,9 +126,7 @@ kernel void mf_kernel(device const  ulong  *primes,
          n = D_MIN_N - 1;
       }
       else
-      {
-         uint mf = params[1];
-         
+      {         
          resRem = computeFirstTerm(bases, powers, mf * D_BASES, thePrime, _q, _r2);
 
          n = D_MIN_N - 1;
@@ -149,7 +149,7 @@ kernel void mf_kernel(device const  ulong  *primes,
    
    // At this point resRem = (n-1)! and resN = (n-1)
    // where n is the largest n less than D_MIN_N (when params[0] = 0).
-   while (n < D_MAX_N)
+   while (n < maxN)
    {      
       if (steps >= D_MAX_STEPS)
          break;
@@ -167,7 +167,6 @@ kernel void mf_kernel(device const  ulong  *primes,
    }
 
    // We will recalculate resN on the next call so that.
-   params[0] = n;
    rems[gid] = resRem;
 }
 

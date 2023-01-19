@@ -59,7 +59,7 @@ MultiFactorialGpuWorker::MultiFactorialGpuWorker(uint32_t myId, App *theApp) : W
    il_RemainderList = (uint64_t *) ip_Kernel->AddSharedArgument("remainders", sizeof(uint64_t), ii_PrimesInList);
    ii_Bases = (uint64_t *) ip_Kernel->AddCpuArgument("bases", sizeof(uint64_t), ii_BaseCount * ii_MultiFactorial);
    ii_Powers = (uint32_t *) ip_Kernel->AddCpuArgument("powers", sizeof(uint32_t), ii_BaseCount * ii_MultiFactorial);
-   ii_Parameters = (uint32_t *) ip_Kernel->AddSharedArgument("parameters", sizeof(uint32_t), 3);
+   ii_Parameters = (uint32_t *) ip_Kernel->AddCpuArgument("parameters", sizeof(uint32_t), 4);
    ii_FactorCount = (uint32_t *) ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 1);
    il_FactorList = (int64_t *) ip_Kernel->AddGpuArgument("factorList", sizeof(uint64_t), 4*ii_MaxGpuFactors);
    
@@ -83,7 +83,7 @@ void  MultiFactorialGpuWorker::CleanUp(void)
 
 void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
 {
-   uint32_t ii, idx, n;
+   uint32_t ii, idx, n, startN;
    int32_t  iteration = 0, maxIterations, c;
    uint64_t prime;
    time_t   reportTime;
@@ -98,6 +98,7 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
    //    n_seed=2 will evaluate 2!3, 5!3, 8!3, etc.  (8!3 = 8*5*2)
    //    n_seed=3 will evaluate 3!3, 6!3, 9!3, etc.  (9!3 = 9*6*3)
 
+   startN = 0;
    for (uint32_t mf=0; mf<ii_MultiFactorial; mf++)
    {
       // If ii_Multifactorial is even and mf is odd then 
@@ -107,8 +108,12 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
          continue;
 
       // This tells the kernel to start from the beginning
-      ii_Parameters[0] = 0;
-      ii_Parameters[1] = mf;
+      ii_Parameters[0] = mf;
+      ii_Parameters[1] = startN;
+      ii_Parameters[2] = startN + ii_MaxGpuSteps;
+      
+      if (ii_Parameters[2] > ii_MaxN)
+         ii_Parameters[2] = ii_MaxN;
 
       reportTime = time(NULL) + 60;
       
@@ -141,7 +146,9 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
             ip_MultiFactorialApp->WriteToConsole(COT_SIEVE, "Thread %d has completed %d of %d iterations", ii_MyId, iteration, maxIterations);
             reportTime = time(NULL) + 60;
          }
-      } while (ii_Parameters[0] < ii_MaxN);
+      
+         startN += ii_MaxGpuSteps;
+      } while (startN < ii_MaxN);
    }
    
    SetLargestPrimeTested(il_PrimeList[ii_PrimesInList-1], ii_PrimesInList);
