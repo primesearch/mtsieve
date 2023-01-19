@@ -25,7 +25,7 @@
 #define APP_NAME        "mfsieve"
 #endif
 
-#define APP_VERSION     "2.1"
+#define APP_VERSION     "2.2"
 
 #define BIT(n)          ((n) - ii_MinN)
 
