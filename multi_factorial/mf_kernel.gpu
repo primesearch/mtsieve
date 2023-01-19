@@ -104,8 +104,9 @@ kernel void mf_kernel(device const  ulong  *primes,
    int    maxNFirstLoop = D_MIN_N - D_MULTIFACTORIAL;
    
    uint   mf = params[0];
-   uint   n = params[1];
-   uint   maxN = params[2];
+   uint   firstCall = params[1];
+   uint   n = params[2];
+   uint   maxN = params[3];
 
    if (thePrime == 0) return;
 
@@ -116,24 +117,12 @@ kernel void mf_kernel(device const  ulong  *primes,
 
    ulong resAdd, resN, resRem;
    
-   if (n == 0)
+   if (firstCall == 1)
    {
       if (D_MULTIFACTORIAL == 1)
-      {
          resRem = computeFirstTerm(bases, powers, 0, thePrime, _q, _r2);
-         
-         n = D_MIN_N - 1;
-      }
       else
-      {         
          resRem = computeFirstTerm(bases, powers, mf * D_BASES, thePrime, _q, _r2);
-
-         n = D_MIN_N - 1;
-         
-         while (n % D_MULTIFACTORIAL != mf)
-            n--;
-
-      }
    }
    else
    {

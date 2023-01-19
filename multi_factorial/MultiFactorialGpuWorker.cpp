@@ -58,7 +58,7 @@ MultiFactorialGpuWorker::MultiFactorialGpuWorker(uint32_t myId, App *theApp) : W
    il_RemainderList = (uint64_t *) ip_Kernel->AddSharedArgument("remainders", sizeof(uint64_t), ii_PrimesInList);
    ii_Bases = (uint64_t *) ip_Kernel->AddCpuArgument("bases", sizeof(uint64_t), ii_BaseCount * ii_MultiFactorial);
    ii_Powers = (uint32_t *) ip_Kernel->AddCpuArgument("powers", sizeof(uint32_t), ii_BaseCount * ii_MultiFactorial);
-   ii_Parameters = (uint32_t *) ip_Kernel->AddCpuArgument("parameters", sizeof(uint32_t), 4);
+   ii_Parameters = (uint32_t *) ip_Kernel->AddCpuArgument("parameters", sizeof(uint32_t), 5);
    ii_FactorCount = (uint32_t *) ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 1);
    il_FactorList = (int64_t *) ip_Kernel->AddGpuArgument("factorList", sizeof(uint64_t), 4*ii_MaxGpuFactors);
    
@@ -105,20 +105,26 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
       if (!(ii_MultiFactorial & 1) && (mf & 1))
          continue;
 
-      firstN = 0;
-      ii_Parameters[0] = mf;
       reportTime = time(NULL) + 60;
+
+      ii_Parameters[0] = mf;
+      ii_Parameters[1] = 1;
       
+      firstN = ii_MinN - 1;
+      
+      while (firstN % ii_MultiFactorial != mf)
+         firstN--;
+
       do
       {
          iteration++;
          lastN = firstN + (ii_MaxGpuSteps * ii_MultiFactorial);
 
-         ii_Parameters[1] = firstN;
-         ii_Parameters[2] = lastN;
+         ii_Parameters[2] = firstN;
+         ii_Parameters[3] = lastN;
          
-         if (ii_Parameters[2] > ii_MaxN)
-            ii_Parameters[2] = ii_MaxN;
+         if (ii_Parameters[3] > ii_MaxN)
+            ii_Parameters[3] = ii_MaxN;
 
          ii_FactorCount[0] = 0;
         
@@ -148,6 +154,7 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
          }
       
          firstN = lastN;
+         ii_Parameters[1] = 0;
       } while (firstN < ii_MaxN);
    }
    
