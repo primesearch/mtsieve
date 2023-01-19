@@ -26,7 +26,6 @@ using namespace metal;
 #ifdef MEED_METALLIB
 #define D_MIN_N            1000
 #define D_MAX_N            5000
-#define D_MAX_STEPS        1000
 #define D_MULTIFACTORIAL      1
 #define D_MAX_FACTORS      1000
 #endif
@@ -99,14 +98,14 @@ kernel void mf_kernel(device const  ulong  *primes,
    int    gid = tpid;
 #endif
 
-   int    steps;
+   ulong  thePrime = primes[gid];
+   
    int    idx = 0;
    int    maxNFirstLoop = D_MIN_N - D_MULTIFACTORIAL;
    
    uint   mf = params[0];
    uint   n = params[1];
    uint   maxN = params[2];
-   ulong  thePrime = primes[gid];
 
    if (thePrime == 0) return;
 
@@ -141,8 +140,6 @@ kernel void mf_kernel(device const  ulong  *primes,
       // Set resRem = residual of lastN!mf (mod p)
       resRem = rems[gid];
    }
-
-   steps = 0;
    
    resAdd = mmmNToRes(D_MULTIFACTORIAL, thePrime, _q, _r2);
    resN = mmmNToRes(n, thePrime, _q, _r2);
@@ -150,11 +147,7 @@ kernel void mf_kernel(device const  ulong  *primes,
    // At this point resRem = (n-1)! and resN = (n-1)
    // where n is the largest n less than D_MIN_N (when params[0] = 0).
    while (n < maxN)
-   {      
-      if (steps >= D_MAX_STEPS)
-         break;
-
-      steps++;
+   {
       n += D_MULTIFACTORIAL;
       resN = mmmAdd(resN, resAdd, thePrime);
       resRem = mmmMulmod(resRem, resN, thePrime, _q);

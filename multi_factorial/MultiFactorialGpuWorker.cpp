@@ -39,7 +39,6 @@ MultiFactorialGpuWorker::MultiFactorialGpuWorker(uint32_t myId, App *theApp) : W
    
    sprintf(defines[defineCount++], "#define D_MIN_N %u", ii_MinN);
    sprintf(defines[defineCount++], "#define D_MAX_N %u", ii_MaxN);
-   sprintf(defines[defineCount++], "#define D_MAX_STEPS %u", ii_MaxGpuSteps);
    sprintf(defines[defineCount++], "#define D_MAX_FACTORS %u", ii_MaxGpuFactors);
    sprintf(defines[defineCount++], "#define D_MULTIFACTORIAL %u", ii_MultiFactorial);
    sprintf(defines[defineCount++], "#define D_BASES %u", ii_BaseCount);
@@ -83,7 +82,7 @@ void  MultiFactorialGpuWorker::CleanUp(void)
 
 void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
 {
-   uint32_t ii, idx, n, startN;
+   uint32_t ii, idx, n, firstN, lastN;
    int32_t  iteration = 0, maxIterations, c;
    uint64_t prime;
    time_t   reportTime;
@@ -98,7 +97,6 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
    //    n_seed=2 will evaluate 2!3, 5!3, 8!3, etc.  (8!3 = 8*5*2)
    //    n_seed=3 will evaluate 3!3, 6!3, 9!3, etc.  (9!3 = 9*6*3)
 
-   startN = 0;
    for (uint32_t mf=0; mf<ii_MultiFactorial; mf++)
    {
       // If ii_Multifactorial is even and mf is odd then 
@@ -107,21 +105,23 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
       if (!(ii_MultiFactorial & 1) && (mf & 1))
          continue;
 
-      // This tells the kernel to start from the beginning
+      firstN = 0;
       ii_Parameters[0] = mf;
-      ii_Parameters[1] = startN;
-      ii_Parameters[2] = startN + ii_MaxGpuSteps;
-      
-      if (ii_Parameters[2] > ii_MaxN)
-         ii_Parameters[2] = ii_MaxN;
-
       reportTime = time(NULL) + 60;
       
       do
       {
          iteration++;
+         lastN = firstN + (ii_MaxGpuSteps * ii_MultiFactorial);
+
+         ii_Parameters[1] = firstN;
+         ii_Parameters[2] = lastN;
+         
+         if (ii_Parameters[2] > ii_MaxN)
+            ii_Parameters[2] = ii_MaxN;
+
          ii_FactorCount[0] = 0;
-     
+        
          ip_Kernel->Execute(ii_PrimesInList);
 
          for (ii=0; ii<ii_FactorCount[0]; ii++)
@@ -147,8 +147,8 @@ void  MultiFactorialGpuWorker::TestMegaPrimeChunk(void)
             reportTime = time(NULL) + 60;
          }
       
-         startN += ii_MaxGpuSteps;
-      } while (startN < ii_MaxN);
+         firstN = lastN;
+      } while (firstN < ii_MaxN);
    }
    
    SetLargestPrimeTested(il_PrimeList[ii_PrimesInList-1], ii_PrimesInList);
