@@ -1,3 +1,13 @@
+2.4.2 - January 19, 2023
+   framework:
+      For all OpenCL programs built on the framework except srsieve2cl, fix issue
+      where the buffer of primes for the GPU is not full.  In some cases this can
+      cause a crash.  In others it can lead to missing factors.
+      
+   mfsievecl: version 2.2
+      Fix issue in kernel with missing factors.
+      Fix issue in kernel with invalid factors.
+      
 2.4.1 - January 13, 2023
    twinsieve: version 1.4
       Fix issue where no terms are removed.
