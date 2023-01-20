@@ -286,13 +286,13 @@ void CunninghamChainApp::ValidateOptions(void)
       char filePrefix[60];
       
       if (it_TermType == TT_BN)
-         sprintf(filePrefix, "cc_%u_%u", ii_Base, ii_N);
+         snprintf(filePrefix, sizeof(filePrefix), "cc_%u_%u", ii_Base, ii_N);
       
       if (it_TermType == TT_PRIMORIAL)
-         sprintf(filePrefix, "cc_%up", ii_N);
+         snprintf(filePrefix, sizeof(filePrefix), "cc_%up", ii_N);
       
       if (it_TermType == TT_FACTORIAL)
-         sprintf(filePrefix, "cc_%uf", ii_N);
+         snprintf(filePrefix, sizeof(filePrefix), "cc_%uf", ii_N);
 
       is_OutputTermsFileName = filePrefix;
    }
@@ -337,7 +337,7 @@ void CunninghamChainApp::ProcessInputTermsFile(bool haveBitMap)
       il_MaxK = 0;
    }
 
-   sprintf(fileName, "%s", is_InputTermsFileName.c_str());
+   snprintf(fileName, sizeof(fileName), "%s", is_InputTermsFileName.c_str());
       
    fileNamePattern[0] = 0;
    
@@ -348,7 +348,7 @@ void CunninghamChainApp::ProcessInputTermsFile(bool haveBitMap)
       {
          fileName[idx] = 0;
          fileName[idx+5] = 0;
-         sprintf(fileNamePattern, "%s.%s.%s", fileName, "%04u", &fileName[idx+6]);
+         snprintf(fileNamePattern, sizeof(fileNamePattern), "%s.%s.%s", fileName, "%04u", &fileName[idx+6]);
          break;
       }
    }
@@ -358,7 +358,7 @@ void CunninghamChainApp::ProcessInputTermsFile(bool haveBitMap)
    {
       for (uint32_t idx=1; idx<=MAX_FILES; idx++)
       {
-         sprintf(fileName, fileNamePattern, idx);
+         snprintf(fileName, sizeof(fileName), fileNamePattern, idx);
          
          fPtr = fopen(fileName, "r");
       
@@ -667,9 +667,9 @@ void CunninghamChainApp::WriteOutputTermsFile(uint64_t largestPrime)
       char fileName[200];
       
       if (ii_NumberOfFiles == 1)
-         sprintf(fileName, "%s.%s", is_OutputTermsFileName.c_str(), (it_Format == FF_CC ? "cc" : "npg"));
+         snprintf(fileName, sizeof(fileName), "%s.%s", is_OutputTermsFileName.c_str(), (it_Format == FF_CC ? "cc" : "npg"));
       else
-         sprintf(fileName, "%s.%04u.%s", is_OutputTermsFileName.c_str(), idx, (it_Format == FF_CC ? "cc" : "npg"));
+         snprintf(fileName, sizeof(fileName), "%s.%04u.%s", is_OutputTermsFileName.c_str(), idx, (it_Format == FF_CC ? "cc" : "npg"));
       
       FILE    *termsFile = fopen(fileName, "w");
 
@@ -701,13 +701,13 @@ uint64_t CunninghamChainApp::WriteCCTermsFile(uint64_t largestPrime, FILE *terms
    char     term[50];
 
    if (it_TermType == TT_BN)
-      sprintf(term, "$a*%u^%u%+d", ii_Base, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
+      snprintf(term, sizeof(term), "$a*%u^%u%+d", ii_Base, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
    
    if (it_TermType == TT_PRIMORIAL)
-      sprintf(term, "$a*%u#%+d", ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
+      snprintf(term, sizeof(term), "$a*%u#%+d", ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
    
    if (it_TermType == TT_FACTORIAL)
-      sprintf(term, "$a*%u!%+d", ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
+      snprintf(term, sizeof(term), "$a*%u!%+d", ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
       
    fprintf(termsFile, "CC %u,%u,%s // Sieved to %" SCNu64"\n", it_ChainKind, ii_ChainLength, term, largestPrime);
 
@@ -825,18 +825,18 @@ uint64_t CunninghamChainApp::WriteNewPGenTermsFile(uint64_t largestPrime, FILE *
    return kCount;
 }
 
-void  CunninghamChainApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
+void  CunninghamChainApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
    int c = (it_ChainKind == 1 ? -1 : +1);
    
    if (it_TermType == TT_BN)
-      sprintf(extraTtext, "%" PRIu64 " < k < %" PRIu64", first term of k*%u^%u%+d for CC length %u", il_MinK, il_MaxK, ii_Base, ii_N, c, ii_ChainLength);
+      snprintf(extraText, maxTextLength, "%" PRIu64 " < k < %" PRIu64", first term of k*%u^%u%+d for CC length %u", il_MinK, il_MaxK, ii_Base, ii_N, c, ii_ChainLength);
    
    if (it_TermType == TT_PRIMORIAL)
-      sprintf(extraTtext, "%" PRIu64 " < k < %" PRIu64", first term of k*%u#%+d for CC length %u", il_MinK, il_MaxK, ii_N, c, ii_ChainLength);
+      snprintf(extraText, maxTextLength, "%" PRIu64 " < k < %" PRIu64", first term of k*%u#%+d for CC length %u", il_MinK, il_MaxK, ii_N, c, ii_ChainLength);
    
    if (it_TermType == TT_FACTORIAL)
-      sprintf(extraTtext, "%" PRIu64 " < k < %" PRIu64", first term of k*%u!%+d for CC length %u", il_MinK, il_MaxK, ii_N, c, ii_ChainLength);
+      snprintf(extraText, maxTextLength, "%" PRIu64 " < k < %" PRIu64", first term of k*%u!%+d for CC length %u", il_MinK, il_MaxK, ii_N, c, ii_ChainLength);
 }
 
 void  CunninghamChainApp::ReportFactor(uint64_t theFactor, uint64_t k, uint32_t termInChain)
@@ -862,13 +862,13 @@ void  CunninghamChainApp::ReportFactor(uint64_t theFactor, uint64_t k, uint32_t 
             if (termInChain == 1)
             {
                if (it_TermType == TT_BN)
-                  sprintf(term, "%" PRIu64"*%u^%u%+d", k, ii_Base, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
+                  snprintf(term, sizeof(term), "%" PRIu64"*%u^%u%+d", k, ii_Base, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
                   
                if (it_TermType == TT_PRIMORIAL)
-                  sprintf(term, "%" PRIu64"*%u#%+d", k, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
+                  snprintf(term, sizeof(term), "%" PRIu64"*%u#%+d", k, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
             
                if (it_TermType == TT_PRIMORIAL)
-                  sprintf(term, "%" PRIu64"*%u#%+d", k, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
+                  snprintf(term, sizeof(term), "%" PRIu64"*%u#%+d", k, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
             }
             else
             {
@@ -876,13 +876,13 @@ void  CunninghamChainApp::ReportFactor(uint64_t theFactor, uint64_t k, uint32_t 
                int32_t add = (it_ChainKind == CCT_FIRSTKIND ? (mult - 1) : -(mult - 1));
                
                if (it_TermType == TT_BN)
-                  sprintf(term, "%u*(%" PRIu64"*%u^%u%+d)%+d", mult, k, ii_Base, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1), add);
+                  snprintf(term, sizeof(term), "%u*(%" PRIu64"*%u^%u%+d)%+d", mult, k, ii_Base, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1), add);
                   
                if (it_TermType == TT_PRIMORIAL)
-                  sprintf(term, "%u*(%" PRIu64"*%u#%+d)%+d", mult, k, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1), add);
+                  snprintf(term, sizeof(term), "%u*(%" PRIu64"*%u#%+d)%+d", mult, k, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1), add);
             
                if (it_TermType == TT_PRIMORIAL)
-                  sprintf(term, "%u*(%" PRIu64"*%u#%+d)%+d", mult, k, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1), add);
+                  snprintf(term, sizeof(term), "%u*(%" PRIu64"*%u#%+d)%+d", mult, k, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1), add);
             }
             
             LogFactor(theFactor, "%s", term);
@@ -951,13 +951,13 @@ void  CunninghamChainApp::VerifyFactor(uint64_t theFactor, uint64_t k, uint32_t 
       if (termInChain == 1)
       {
          if (it_TermType == TT_BN)
-            sprintf(term, "%" PRIu64"*%u^%u%+d", k, ii_Base, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
+            snprintf(term, sizeof(term), "%" PRIu64"*%u^%u%+d", k, ii_Base, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
             
          if (it_TermType == TT_PRIMORIAL)
-            sprintf(term, "%" PRIu64"*%u#%+d", k, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
+            snprintf(term, sizeof(term), "%" PRIu64"*%u#%+d", k, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
       
          if (it_TermType == TT_FACTORIAL)
-            sprintf(term, "%" PRIu64"*%u!%+d", k, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
+            snprintf(term, sizeof(term), "%" PRIu64"*%u!%+d", k, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1));
       }
       else
       {
@@ -965,13 +965,13 @@ void  CunninghamChainApp::VerifyFactor(uint64_t theFactor, uint64_t k, uint32_t 
          int32_t add = (it_ChainKind == CCT_FIRSTKIND ? (mult - 1) : -(mult - 1));
          
          if (it_TermType == TT_BN)
-            sprintf(term, "%u*(%" PRIu64"*%u^%u%+d)%+d", mult, k, ii_Base, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1), add);
+            snprintf(term, sizeof(term), "%u*(%" PRIu64"*%u^%u%+d)%+d", mult, k, ii_Base, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1), add);
             
          if (it_TermType == TT_PRIMORIAL)
-            sprintf(term, "%u*(%" PRIu64"*%u#%+d)%+d", mult, k, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1), add);
+            snprintf(term, sizeof(term), "%u*(%" PRIu64"*%u#%+d)%+d", mult, k, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1), add);
       
          if (it_TermType == TT_FACTORIAL)
-            sprintf(term, "%u*(%" PRIu64"*%u!%+d)%+d", mult, k, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1), add);
+            snprintf(term, sizeof(term), "%u*(%" PRIu64"*%u!%+d)%+d", mult, k, ii_N, (it_ChainKind == CCT_FIRSTKIND ? -1 : +1), add);
       }
       
       FatalError("Invalid factor: %" PRIu64" is not a factor of %s", theFactor, term);

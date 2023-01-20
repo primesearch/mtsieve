@@ -192,9 +192,9 @@ void MultiFactorialApp::ValidateOptions(void)
       char fileName[50];
       
       if (ii_MultiFactorial == 1)
-         sprintf(fileName, "factorial.pfgw");
+         snprintf(fileName, sizeof(fileName), "factorial.pfgw");
       else
-         sprintf(fileName, "mf_%d.pfgw", ii_MultiFactorial);
+         snprintf(fileName, sizeof(fileName), "mf_%d.pfgw", ii_MultiFactorial);
       
       is_OutputTermsFileName = fileName;
    }
@@ -529,12 +529,12 @@ void MultiFactorialApp::WriteOutputTermsFile(uint64_t largestPrime)
    ip_FactorAppLock->Release();
 }
 
-void MultiFactorialApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
+void MultiFactorialApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
    if (ii_MultiFactorial > 1)
-      sprintf(extraTtext, "%d <= n <= %d, multifactorial %u", ii_MinN, ii_MaxN, ii_MultiFactorial);
+      snprintf(extraText, maxTextLength, "%d <= n <= %d, multifactorial %u", ii_MinN, ii_MaxN, ii_MultiFactorial);
    else
-      sprintf(extraTtext, "%d <= n <= %d, factorial", ii_MinN, ii_MaxN);
+      snprintf(extraText, maxTextLength, "%d <= n <= %d, factorial", ii_MinN, ii_MaxN);
 }
 
 bool MultiFactorialApp::ReportFactor(uint64_t theFactor, uint32_t n, int32_t c)
@@ -604,9 +604,9 @@ void  MultiFactorialApp::VerifyFactor(uint64_t theFactor, uint32_t n, int32_t c)
    if (termIsPrime)
    {
       if (ii_MultiFactorial == 1)
-         sprintf(buffer, "%u!%+d is prime! (%" PRId64")", n, c, theFactor);
+         snprintf(buffer, sizeof(buffer), "%u!%+d is prime! (%" PRId64")", n, c, theFactor);
       else
-         sprintf(buffer, "%u!%u%+d is prime! (%" PRId64")", n, ii_MultiFactorial, c, theFactor);
+         snprintf(buffer, sizeof(buffer), "%u!%u%+d is prime! (%" PRId64")", n, ii_MultiFactorial, c, theFactor);
          
       WriteToConsole(COT_OTHER, "%s", buffer);
 
@@ -646,9 +646,9 @@ void  MultiFactorialApp::VerifyFactor(uint64_t theFactor, uint32_t n, int32_t c)
       return;
    
    if (ii_MultiFactorial == 1)
-      sprintf(buffer, "%" PRIu64" is not a factor of not a factor of %u!%+d", theFactor, n, c);
+      snprintf(buffer, sizeof(buffer), "%" PRIu64" is not a factor of not a factor of %u!%+d", theFactor, n, c);
    else
-      sprintf(buffer, "%" PRIu64" is not a factor of not a factor of %u!%u%+d", theFactor, n, ii_MultiFactorial, c);
+      snprintf(buffer, sizeof(buffer), "%" PRIu64" is not a factor of not a factor of %u!%u%+d", theFactor, n, ii_MultiFactorial, c);
 
    FatalError("%s", buffer);
 }

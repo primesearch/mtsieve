@@ -159,7 +159,7 @@ void  FactorApp::ParentValidateOptions(void)
       
       fclose(factorFile);
       
-      sprintf(buffer,  "Read %u factors from %s which removed %u terms.", factors, is_InputFactorsFileName.c_str(), applied);
+      snprintf(buffer, sizeof(buffer), "Read %u factors from %s which removed %u terms.", factors, is_InputFactorsFileName.c_str(), applied);
       
       WriteToConsole(COT_OTHER, "%s", buffer);
 
@@ -226,28 +226,28 @@ void  FactorApp::LogStartSievingMessage(void)
    ConvertNumberToShortString(il_MinPrime, (char *) minPrime);
    ConvertNumberToShortString(il_MaxPrime, (char *) maxPrime);
       
-   sprintf(startOfMessage, "Sieve started: %s < p < %s with %" PRIu64" terms", minPrime, maxPrime, il_TermCount);
+   snprintf(startOfMessage, sizeof(startOfMessage), "Sieve started: %s < p < %s with %" PRIu64" terms", minPrime, maxPrime, il_TermCount);
 
-   GetExtraTextForSieveStartedMessage(extraText);
+   GetExtraTextForSieveStartedMessage(extraText, 200);
    
    if (il_MaxPrime != il_AppMaxPrime)
    {
       uint64_t minPrime = ((il_MinPrime == 1) ? 2 : il_MinPrime);
       double expectedFactors = ((double) il_TermCount) * (1.0 - log(minPrime) / log(il_MaxPrime));
    
-      sprintf(endOfMessage, "expecting %.f factors", expectedFactors);
+      snprintf(endOfMessage, sizeof(endOfMessage), "expecting %.f factors", expectedFactors);
    }
 
    if (*extraText != 0)
       if (*endOfMessage != 0)
-         sprintf(fullMessage, "%s (%s) (%s)", startOfMessage, extraText, endOfMessage);
+         snprintf(fullMessage, sizeof(fullMessage), "%s (%s) (%s)", startOfMessage, extraText, endOfMessage);
       else
-         sprintf(fullMessage, "%s (%s)", startOfMessage, extraText);
+         snprintf(fullMessage, sizeof(fullMessage), "%s (%s)", startOfMessage, extraText);
    else
       if (*endOfMessage != 0)
-         sprintf(fullMessage, "%s (%s)", startOfMessage, endOfMessage);
+         snprintf(fullMessage, sizeof(fullMessage), "%s (%s)", startOfMessage, endOfMessage);
       else
-         sprintf(fullMessage, "%s", startOfMessage);
+         snprintf(fullMessage, sizeof(fullMessage), "%s", startOfMessage);
       
    WriteToConsole(COT_OTHER, "%s", fullMessage);
 
@@ -273,7 +273,7 @@ void  FactorApp::Finish(const char *finishMethod, uint64_t elapsedTimeUS, uint64
            finishMethod, largestPrimeTested, primesTested, factorCount, il_TermCount, elapsedSeconds);
 }
 
-void  FactorApp::GetReportStats(char *reportStats, double cpuUtilization)
+void  FactorApp::GetReportStats(char *reportStats, uint32_t maxStatsLength, double cpuUtilization)
 {
    char     factoringRate[100];
    uint64_t checkpointPrime;
@@ -320,10 +320,10 @@ void  FactorApp::GetReportStats(char *reportStats, double cpuUtilization)
       if (!BuildFactorsPerSecondRateString(currentStatusEntry, cpuUtilization, factoringRate))
          BuildSecondsPerFactorRateString(currentStatusEntry, cpuUtilization, factoringRate);
    
-      sprintf(reportStats, "%" PRIu64" factors found at %s", il_FactorCount + il_PreviousFactorCount, factoringRate);
+      snprintf(reportStats, maxStatsLength, "%" PRIu64" factors found at %s", il_FactorCount + il_PreviousFactorCount, factoringRate);
    }
    else
-      sprintf(reportStats, "no factors found");
+      snprintf(reportStats, maxStatsLength, "no factors found");
       
    
    ip_FactorAppLock->Release();
@@ -402,7 +402,7 @@ bool  FactorApp::BuildFactorsPerSecondRateString(uint32_t currentStatusEntry, do
    if (factorsPerSecond < 100.0)  factorPrecision = 2;
    if (factorsPerSecond < 10.0)   factorPrecision = 3;
    
-   sprintf(factoringRate, "%.*f%s f/sec (last %u min)", factorPrecision, factorsPerSecond, factorRateUnit, currentStatusEntry - previousStatusEntry);
+   snprintf(factoringRate, 100, "%.*f%s f/sec (last %u min)", factorPrecision, factorsPerSecond, factorRateUnit, currentStatusEntry - previousStatusEntry);
    
    return true;
 }
@@ -474,7 +474,7 @@ bool  FactorApp::BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, do
    
    if (factorsFound == 0)
    {
-      sprintf(factoringRate, "no factors found (last %u min)", currentStatusEntry - previousStatusEntry);
+      snprintf(factoringRate, 100, "no factors found (last %u min)", currentStatusEntry - previousStatusEntry);
       return true;
    }
    
@@ -488,9 +488,9 @@ bool  FactorApp::BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, do
    secondsPerFactor *= cpuUtilization;
    
    if (secondsPerFactor > 100)
-      sprintf(factoringRate, "%.0f sec per factor (last %u min)", secondsPerFactor, currentStatusEntry - previousStatusEntry);
+      snprintf(factoringRate, 100, "%.0f sec per factor (last %u min)", secondsPerFactor, currentStatusEntry - previousStatusEntry);
    else
-      sprintf(factoringRate, "%.2f sec per factor (last %u min)", secondsPerFactor, currentStatusEntry - previousStatusEntry);
+      snprintf(factoringRate, 100, "%.2f sec per factor (last %u min)", secondsPerFactor, currentStatusEntry - previousStatusEntry);
 
    return true;      
 }

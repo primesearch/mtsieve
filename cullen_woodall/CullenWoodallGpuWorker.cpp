@@ -31,15 +31,15 @@ CullenWoodallGpuWorker::CullenWoodallGpuWorker(uint32_t myId, App *theApp) : Wor
    // Allocate enough memory to hold all of the terms.
    ii_Terms = (uint32_t *) xmalloc(groupCount*ii_MaxGpuSteps*sizeof(int32_t));
    
-   sprintf(defines[defineCount++], "#define BASE %d", ii_Base);
+   snprintf(defines[defineCount++], 50, "#define BASE %d", ii_Base);
    
    if (ip_CullenWoodallApp->IsCullenSearch())
-      sprintf(defines[defineCount++], "#define CHECK_CULLEN");
+      snprintf(defines[defineCount++], 50, "#define CHECK_CULLEN");
    
    if (ip_CullenWoodallApp->IsWoodallSearch())
-      sprintf(defines[defineCount++], "#define CHECK_WOODALL");
+      snprintf(defines[defineCount++], 50, "#define CHECK_WOODALL");
    
-   sprintf(defines[defineCount++], "#define D_MAX_FACTORS %d", ii_MaxGpuFactors);
+   snprintf(defines[defineCount++], 50, "#define D_MAX_FACTORS %d", ii_MaxGpuFactors);
    
    for (idx=0; idx<defineCount; idx++)
       preKernelSources[idx] = defines[idx];

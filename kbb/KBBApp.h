@@ -29,7 +29,7 @@ public:
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
    bool              ApplyFactor(uint64_t theFactor, const char *term);
-   void              GetExtraTextForSieveStartedMessage(char *extraText);
+   void              GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength);
    
    uint64_t          GetK(void) { return il_K; };
    uint32_t          GetMinB(void) { return ii_MinB; };

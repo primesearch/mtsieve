@@ -126,7 +126,7 @@ void FixedKBNApp::ValidateOptions(void)
    
    if (is_OutputTermsFileName.length() == 0)
    {
-      sprintf(fileName, "k%" PRIu64"_b%u_n%u.pfgw", il_K,ii_Base, ii_N);
+      snprintf(fileName, sizeof(fileName), "k%" PRIu64"_b%u_n%u.pfgw", il_K,ii_Base, ii_N);
       is_OutputTermsFileName = fileName;
    }
    
@@ -308,9 +308,9 @@ void FixedKBNApp::WriteOutputTermsFile(uint64_t largestPrime)
    ip_FactorAppLock->Release();
 }
 
-void  FixedKBNApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
+void  FixedKBNApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
-   sprintf(extraTtext, "%" PRId64" <= c <= %" PRId64", %" PRIu64 "*%u^%u+c", il_MinC, il_MaxC, il_K, ii_Base, ii_N);
+   snprintf(extraText, maxTextLength, "%" PRId64" <= c <= %" PRId64", %" PRIu64 "*%u^%u+c", il_MinC, il_MaxC, il_K, ii_Base, ii_N);
 }
 
 bool  FixedKBNApp::ReportFactor(uint64_t theFactor, int64_t c, bool verifyFactor)

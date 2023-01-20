@@ -68,15 +68,15 @@ CarolKyneaGpuWorker::CarolKyneaGpuWorker(uint32_t myId, App *theApp) : Worker(my
    for (hsize = 1<<HASH_MINIMUM_SHIFT; hsize < elements/DEFAULT_HASH_MAX_DENSITY; )
       hsize <<= 1;
 
-   sprintf(defines[defineCount++], "#define BASE    %u", ii_Base);
-   sprintf(defines[defineCount++], "#define N_MIN   %u", ii_MinN);
-   sprintf(defines[defineCount++], "#define SIEVE_LOW   %u", sieveLow);
-   sprintf(defines[defineCount++], "#define SIEVE_RANGE %u", sieveRange);
-   sprintf(defines[defineCount++], "#define MAX_FACTORS %u", ii_MaxGpuFactors);
-   sprintf(defines[defineCount++], "#define BABY_STEPS %u", babySteps);
-   sprintf(defines[defineCount++], "#define GIANT_STEPS %u", giantSteps);
-   sprintf(defines[defineCount++], "#define HASH_ELEMENTS %u", elements);
-   sprintf(defines[defineCount++], "#define HASH_SIZE %u", hsize);
+   snprintf(defines[defineCount++], 50, "#define BASE    %u", ii_Base);
+   snprintf(defines[defineCount++], 50, "#define N_MIN   %u", ii_MinN);
+   snprintf(defines[defineCount++], 50, "#define SIEVE_LOW   %u", sieveLow);
+   snprintf(defines[defineCount++], 50, "#define SIEVE_RANGE %u", sieveRange);
+   snprintf(defines[defineCount++], 50, "#define MAX_FACTORS %u", ii_MaxGpuFactors);
+   snprintf(defines[defineCount++], 50, "#define BABY_STEPS %u", babySteps);
+   snprintf(defines[defineCount++], 50, "#define GIANT_STEPS %u", giantSteps);
+   snprintf(defines[defineCount++], 50, "#define HASH_ELEMENTS %u", elements);
+   snprintf(defines[defineCount++], 50, "#define HASH_SIZE %u", hsize);
    
    for (idx=0; idx<defineCount; idx++)
       preKernelSources[idx] = defines[idx];

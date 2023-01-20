@@ -210,7 +210,7 @@ void CullenWoodallApp::ValidateOptions(void)
    {
       char fileName[20];
       
-      sprintf(fileName, "gcw_b%u.pfgw", ii_Base);
+      snprintf(fileName, sizeof(fileName), "gcw_b%u.pfgw", ii_Base);
       is_OutputTermsFileName = fileName;
    }
    
@@ -418,14 +418,14 @@ void CullenWoodallApp::WriteOutputTermsFile(uint64_t largestPrime)
    ip_FactorAppLock->Release();
 }
 
-void CullenWoodallApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
+void CullenWoodallApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
    if (ib_Cullen && ib_Woodall)
-      sprintf(extraTtext, "%u <= n <= %u, n*%u^n+/-1", ii_MinN, ii_MaxN, ii_Base);
+      snprintf(extraText, maxTextLength, "%u <= n <= %u, n*%u^n+/-1", ii_MinN, ii_MaxN, ii_Base);
    else if (ib_Cullen)
-      sprintf(extraTtext, "%u <= n <= %u, n*%u^n+1", ii_MinN, ii_MaxN, ii_Base);
+      snprintf(extraText, maxTextLength, "%u <= n <= %u, n*%u^n+1", ii_MinN, ii_MaxN, ii_Base);
    else
-      sprintf(extraTtext, "%u <= n <= %u, n*%u^n-1", ii_MinN, ii_MaxN, ii_Base);
+      snprintf(extraText, maxTextLength, "%u <= n <= %u, n*%u^n-1", ii_MinN, ii_MaxN, ii_Base);
 }
 
 void  CullenWoodallApp::SetInitialTerms(void)

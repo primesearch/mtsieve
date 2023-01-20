@@ -32,16 +32,16 @@ GFNDivisorGpuWorker::GFNDivisorGpuWorker(uint32_t myId, App *theApp) : Worker(my
    
    ii_MaxIterations = 1 + ((1 + ii_MaxN - ii_MinN) / ii_MaxGpuSteps);
 
-   sprintf(defines[defineCount++], "#define N_MIN %u\n", ii_MinN);
-   sprintf(defines[defineCount++], "#define N_MAX %u\n", ii_MaxN);
-   sprintf(defines[defineCount++], "#define K_MIN %" PRIu64"\n", il_MinK);
-   sprintf(defines[defineCount++], "#define K_MAX %" PRIu64"\n", il_MaxK);
-   sprintf(defines[defineCount++], "#define D_MAX_FACTORS %d\n", ii_MaxGpuFactors);
+   snprintf(defines[defineCount++], 50, "#define N_MIN %u\n", ii_MinN);
+   snprintf(defines[defineCount++], 50, "#define N_MAX %u\n", ii_MaxN);
+   snprintf(defines[defineCount++], 50, "#define K_MIN %" PRIu64"\n", il_MinK);
+   snprintf(defines[defineCount++], 50, "#define K_MAX %" PRIu64"\n", il_MaxK);
+   snprintf(defines[defineCount++], 50, "#define D_MAX_FACTORS %d\n", ii_MaxGpuFactors);
    
    if (ii_MaxIterations > 1)
    {
-      sprintf(defines[defineCount++], "#define D_MULTI_PASS\n");
-      sprintf(defines[defineCount++], "#define D_MAX_STEPS %d\n", ii_MaxGpuSteps);
+      snprintf(defines[defineCount++], 50, "#define D_MULTI_PASS\n");
+      snprintf(defines[defineCount++], 50, "#define D_MAX_STEPS %d\n", ii_MaxGpuSteps);
    }
    
    for (idx=0; idx<defineCount; idx++)

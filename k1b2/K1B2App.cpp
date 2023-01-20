@@ -307,9 +307,9 @@ void K1B2App::WriteOutputTermsFile(uint64_t largestPrime)
    ip_FactorAppLock->Release();
 }
 
-void  K1B2App::GetExtraTextForSieveStartedMessage(char *extraText)
+void  K1B2App::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 { 
-   sprintf(extraText, "%u <= n <= %u, %" PRId64" <= c <= %" PRId64", 2^n+c", ii_MinN, ii_MaxN, il_MinC, il_MaxC);
+   snprintf(extraText, maxTextLength, "%u <= n <= %u, %" PRId64" <= c <= %" PRId64", 2^n+c", ii_MinN, ii_MaxN, il_MinC, il_MaxC);
 }
 
 bool  K1B2App::ReportFactor(uint64_t theFactor, uint32_t n, int64_t c)

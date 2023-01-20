@@ -194,9 +194,9 @@ void FixedBNCApp::ValidateOptions(void)
       char  fileName[30];
       
       if (it_Format == FF_NEWPGEN)
-         sprintf(fileName, "k_b%u_n%u%+d.npg", ii_Base, ii_N, ii_C);
+         snprintf(fileName, sizeof(fileName), "k_b%u_n%u%+d.npg", ii_Base, ii_N, ii_C);
       else
-         sprintf(fileName, "k_b%u_n%u%+d.pfgw", ii_Base, ii_N, ii_C);
+         snprintf(fileName, sizeof(fileName), "k_b%u_n%u%+d.pfgw", ii_Base, ii_N, ii_C);
       
       is_OutputTermsFileName = fileName;
    }
@@ -499,9 +499,9 @@ uint64_t FixedBNCApp::WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsFile)
    return kCount;
 }
 
-void  FixedBNCApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
+void  FixedBNCApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
-   sprintf(extraTtext, "%" PRIu64 " < k < %" PRIu64", k*%u^%u%+d", il_MinK, il_MaxK, ii_Base, ii_N, ii_C);
+   snprintf(extraText, maxTextLength, "%" PRIu64 " < k < %" PRIu64", k*%u^%u%+d", il_MinK, il_MaxK, ii_Base, ii_N, ii_C);
 }
 
 bool  FixedBNCApp::ReportFactor(uint64_t theFactor, uint64_t k)

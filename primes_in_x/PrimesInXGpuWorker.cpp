@@ -36,8 +36,8 @@ PrimesInXGpuWorker::PrimesInXGpuWorker(uint32_t myId, App *theApp) : Worker(myId
    ii_e9DigitList = BuildDigitList(1000000000, 9, ip_PrimesInXApp->Get9DigitTermsCopy());
    
    defineCount = 0;
-   sprintf(defines[defineCount++], "#define D_MAX_FACTORS %u", ii_MaxGpuFactors);
-   sprintf(defines[defineCount++], "#define D_EOL %u", (1 << 31));
+   snprintf(defines[defineCount++], 50, "#define D_MAX_FACTORS %u", ii_MaxGpuFactors);
+   snprintf(defines[defineCount++], 50, "#define D_EOL %u", (1 << 31));
       
    for (idx=0; idx<defineCount; idx++)
       preKernelSources[idx] = defines[idx];
@@ -109,7 +109,7 @@ void  PrimesInXGpuWorker::TestMegaPrimeChunk(void)
          termLength = il_FactorList[idx+0];
          prime = il_FactorList[idx+1];
          
-         sprintf(sPrime, "%llu", prime);
+         snprintf(sPrime, 20, "%llu", prime);
          
          if (strlen(sPrime) == termLength)
             ip_PrimesInXApp->ReportPrime(prime, termLength);

@@ -346,13 +346,13 @@ void SierpinskiRieselApp::ValidateOptions(void)
       char  fileName[30];
       
       if (it_Format == FF_ABCD)
-         sprintf(fileName, "b%u_n.abcd", ii_Base);
+         snprintf(fileName, sizeof(fileName), "b%u_n.abcd", ii_Base);
       if (it_Format == FF_ABC)
-         sprintf(fileName, "b%u_n.abc", ii_Base);
+         snprintf(fileName, sizeof(fileName), "b%u_n.abc", ii_Base);
       if (it_Format == FF_BOINC)
-         sprintf(fileName, "b%u_n.boinc", ii_Base);
+         snprintf(fileName, sizeof(fileName), "b%u_n.boinc", ii_Base);
       if (it_Format == FF_NUMBER_PRIMES)
-         sprintf(fileName, "b%u_n.abcnp", ii_Base);
+         snprintf(fileName, sizeof(fileName), "b%u_n.abcnp", ii_Base);
       
       is_OutputTermsFileName = fileName;
    }
@@ -741,9 +741,9 @@ void  SierpinskiRieselApp::RemoveSequence(uint64_t k, uint32_t b, int64_t c, uin
    uint32_t removedCount = 0;
    
    if (d == 1)
-      sprintf(sequence, "%" PRIu64"*%u^n%+" PRId64"", k, b, c);
+      snprintf(sequence, sizeof(sequence), "%" PRIu64"*%u^n%+" PRId64"", k, b, c);
    else
-      sprintf(sequence, "(%" PRIu64"*%u^n%+" PRId64")/%u", k, b, c, d);
+      snprintf(sequence, sizeof(sequence), "(%" PRIu64"*%u^n%+" PRId64")/%u", k, b, c, d);
    
    if (b != ii_Base)
       WriteToConsole(COT_OTHER, "Sequence %s wasn't removed because it is not base %u", sequence, b);
@@ -1020,7 +1020,7 @@ uint32_t SierpinskiRieselApp::WriteABCNumberPrimesTermsFile(seq_t *seqPtr, uint6
    return nCount;
 }
 
-void  SierpinskiRieselApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
+void  SierpinskiRieselApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
    seq_t  *seqPtr;
    int32_t minC = 0, maxC = 0;
@@ -1035,13 +1035,13 @@ void  SierpinskiRieselApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
    } while (seqPtr != NULL);
    
    if (minC == maxC)
-      sprintf(extraTtext, "%u < n < %u, k*%u^n%+d", ii_MinN, ii_MaxN, ii_Base, minC);
+      snprintf(extraText, maxTextLength, "%u < n < %u, k*%u^n%+d", ii_MinN, ii_MaxN, ii_Base, minC);
    else if (maxC < 0)
-      sprintf(extraTtext, "%u < n < %u, k*%u^n-c", ii_MinN, ii_MaxN, ii_Base);
+      snprintf(extraText, maxTextLength, "%u < n < %u, k*%u^n-c", ii_MinN, ii_MaxN, ii_Base);
    else if (minC > 0)
-      sprintf(extraTtext, "%u < n < %u, k*%u^n+c", ii_MinN, ii_MaxN, ii_Base);
+      snprintf(extraText, maxTextLength, "%u < n < %u, k*%u^n+c", ii_MinN, ii_MaxN, ii_Base);
    else
-      sprintf(extraTtext, "%u < n < %u, k*%u^n+/-c", ii_MinN, ii_MaxN, ii_Base);
+      snprintf(extraText, maxTextLength, "%u < n < %u, k*%u^n+/-c", ii_MinN, ii_MaxN, ii_Base);
 }
 
 void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
@@ -1313,9 +1313,9 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t theFactor, seq_t *seqPtr, ui
       return;
 
    if (seqPtr->d > 1)
-      sprintf(buffer, "(%" PRIu64"*%u^%u%+" PRId64")/%u", seqPtr->k, ii_Base, n, seqPtr->c, seqPtr->d);
+      snprintf(buffer, sizeof(buffer), "(%" PRIu64"*%u^%u%+" PRId64")/%u", seqPtr->k, ii_Base, n, seqPtr->c, seqPtr->d);
    else
-      sprintf(buffer, "%" PRIu64"*%u^%u%+" PRId64"", seqPtr->k, ii_Base, n, seqPtr->c);
+      snprintf(buffer, sizeof(buffer), "%" PRIu64"*%u^%u%+" PRId64"", seqPtr->k, ii_Base, n, seqPtr->c);
    
    nbit = NBIT(n);
    
@@ -1389,9 +1389,9 @@ void  SierpinskiRieselApp::VerifyFactor(uint64_t theFactor, seq_t *seqPtr, uint3
    char buffer[200];
    
    if (seqPtr->d > 1)
-      sprintf(buffer, "Invalid factor: (%" PRIu64"*%u^%u%+" PRId64")/%u mod %" PRIu64" = %" PRIu64"", seqPtr->k, ii_Base, n, seqPtr->c, seqPtr->d, theFactor, rem);
+      snprintf(buffer, sizeof(buffer), "Invalid factor: (%" PRIu64"*%u^%u%+" PRId64")/%u mod %" PRIu64" = %" PRIu64"", seqPtr->k, ii_Base, n, seqPtr->c, seqPtr->d, theFactor, rem);
    else
-      sprintf(buffer, "Invalid factor: %" PRIu64"*%u^%u%+" PRId64" mod %" PRIu64" = %" PRIu64"", seqPtr->k, ii_Base, n, seqPtr->c, theFactor, rem);
+      snprintf(buffer, sizeof(buffer), "Invalid factor: %" PRIu64"*%u^%u%+" PRId64" mod %" PRIu64" = %" PRIu64"", seqPtr->k, ii_Base, n, seqPtr->c, theFactor, rem);
    
    FatalError("%s", buffer);
 }

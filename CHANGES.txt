@@ -4,6 +4,8 @@
       where the buffer of primes for the GPU is not full.  In some cases this can
       cause a crash.  In others it can lead to missing factors.
       
+      Replaced sprintf with snprintf in all sources and headers.
+      
    mfsievecl: version 2.2
       Fix issue in kernel with missing factors.
       Fix issue in kernel with invalid factors.

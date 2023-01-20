@@ -236,9 +236,9 @@ bool AlternatingFactorialApp::ApplyFactor(uint64_t theFactor, const char *term)
    return false;
 }
 
-void AlternatingFactorialApp::GetExtraTextForSieveStartedMessage(char *extraText)
+void AlternatingFactorialApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
-   sprintf(extraText, "%d <= n <= %d", ii_MinN, ii_MaxN);
+   snprintf(extraText, maxTextLength, "%d <= n <= %d", ii_MinN, ii_MaxN);
 }
 
 bool AlternatingFactorialApp::ReportFactor(uint64_t theFactor, uint32_t term)

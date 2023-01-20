@@ -469,13 +469,13 @@ void GFNDivisorApp::ProcessInputTermsFile(bool haveBitMap)
       il_MinK = il_MaxK = 0;
    }
    
-   sprintf(fileName, "%s", is_InputTermsFileName.c_str());
+   snprintf(fileName, sizeof(fileName), "%s", is_InputTermsFileName.c_str());
    
    fPtr = fopen(fileName, "r");
    
    if (!fPtr)
    {
-      sprintf(fileName, "%s.pfgw", is_InputTermsFileName.c_str());
+      snprintf(fileName, sizeof(fileName), "%s.pfgw", is_InputTermsFileName.c_str());
       
       fPtr = fopen(fileName, "r");
    }
@@ -494,7 +494,7 @@ void GFNDivisorApp::ProcessInputTermsFile(bool haveBitMap)
       
    for (int i=1; i<10000; i++)
    {
-      sprintf(fileName, "%s_%04d.pfgw", is_InputTermsFileName.c_str(), i);
+      snprintf(fileName, sizeof(fileName), "%s_%04d.pfgw", is_InputTermsFileName.c_str(), i);
       
       fPtr = fopen(fileName, "r");
    
@@ -654,7 +654,7 @@ void GFNDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    
    if (ii_NsPerFile >= (ii_MaxN - ii_MinN + 1))
    {
-      sprintf(fileName, "%s.pfgw", is_OutputTermsFilePrefix.c_str());
+      snprintf(fileName, sizeof(fileName), "%s.pfgw", is_OutputTermsFilePrefix.c_str());
            
       termsCounted = WriteABCDTermsFile(fileName, ii_MinN, largestPrime);
       
@@ -671,7 +671,7 @@ void GFNDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
       {
          fileCount++;
          
-         sprintf(fileName, "%s_%04d.pfgw", is_OutputTermsFilePrefix.c_str(), fileCount);
+         snprintf(fileName, sizeof(fileName), "%s_%04d.pfgw", is_OutputTermsFilePrefix.c_str(), fileCount);
          
          termsCounted += WriteABCDTermsFile(fileName, n, largestPrime);
       }
@@ -745,7 +745,7 @@ uint64_t GFNDivisorApp::WriteABCDTermsFile(char *fileName, uint32_t minN, uint64
    return termCount;
 }
 
-void  GFNDivisorApp::GetExtraTextForSieveStartedMessage(char *extraText)
+void  GFNDivisorApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
    char  minK[30];
    char  maxK[30];
@@ -753,7 +753,7 @@ void  GFNDivisorApp::GetExtraTextForSieveStartedMessage(char *extraText)
    ConvertNumberToShortString(il_MinK, (char *) minK);
    ConvertNumberToShortString(il_MaxK, (char *) maxK);
    
-   sprintf(extraText, "%s <= k <= %s, %d <= n <= %d, k*2^n+1", minK, maxK, ii_MinN, ii_MaxN);
+   snprintf(extraText, maxTextLength, "%s <= k <= %s, %d <= n <= %d, k*2^n+1", minK, maxK, ii_MinN, ii_MaxN);
 }
 
 void  GFNDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, uint32_t n)

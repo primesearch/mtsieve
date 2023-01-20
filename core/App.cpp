@@ -258,7 +258,7 @@ void App::ConvertNumberToShortString(uint64_t value, char *buffer)
    
    if (value % 1000 != 0)
    {
-      sprintf(buffer, "%" PRIu64"", value);
+      snprintf(buffer, 30, "%" PRIu64"", value);
       return;
    }
    
@@ -271,7 +271,7 @@ void App::ConvertNumberToShortString(uint64_t value, char *buffer)
       e++;
    }
    
-   sprintf(buffer, "%" PRIu64"e%u", value, e);
+   snprintf(buffer, 30, "%" PRIu64"e%u", value, e);
 }
 
 void App::SetLogFileName(std::string logFileName)
@@ -818,7 +818,7 @@ void  App::ReportStatus(void)
 #endif
    
    GetPrimeStats(primeStats, primesTested);
-   GetReportStats(childStats, cpuUtilization);
+   GetReportStats(childStats, sizeof(childStats), cpuUtilization);
    
    // Compute the percentage of the range we have completed
    if (largestPrimeTestedNoGaps == 0)
@@ -917,7 +917,7 @@ void  App::GetPrimeStats(char *primeStats, uint64_t primesTested)
    if (primeRate < 100.0)  primePrecision = 2;
    if (primeRate < 10.0)   primePrecision = 3;
    
-   sprintf(primeStats, "%.*f%s p/sec", primePrecision, primeRate, primeRateUnit);
+   snprintf(primeStats, 200, "%.*f%s p/sec", primePrecision, primeRate, primeRateUnit);
 }
 
 // When the program finishes, then the largest prime tested across all workers

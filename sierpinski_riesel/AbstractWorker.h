@@ -54,8 +54,8 @@ protected:
 
       if (a >= p)
       {
-         sprintf(aStr, "%" PRIu64"", a);
-         sprintf(pStr, "%" PRIu64"", p);
+         snprintf(aStr, sizeof(aStr), "%" PRIu64"", a);
+         snprintf(pStr, sizeof(pStr), "%" PRIu64"", p);
          
          FatalError("invmod called with invalid parameters (%s > %s)", aStr, pStr);
       }

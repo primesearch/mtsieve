@@ -181,7 +181,7 @@ void DMDivisorApp::ValidateOptions(void)
    {
       char fileName[30];
       
-      sprintf(fileName, "mmp_%u.pfgw", ii_N);
+      snprintf(fileName, sizeof(fileName), "mmp_%u.pfgw", ii_N);
       
       is_OutputTermsFileName = fileName;
    }
@@ -437,9 +437,9 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    ip_FactorAppLock->Release();
 }
 
-void  DMDivisorApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
+void  DMDivisorApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
-   sprintf(extraTtext, "%" PRIu64 " < k < %" PRIu64", 2*k*(2^%u-1)+1", il_MinK, il_MaxK, ii_N);
+   snprintf(extraText, maxTextLength, "%" PRIu64 " < k < %" PRIu64", 2*k*(2^%u-1)+1", il_MinK, il_MaxK, ii_N);
 }
 
 bool  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFactor)
@@ -475,7 +475,7 @@ bool  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFact
       iv_MMPTerms[bit] = false;
       removedTerm = true;
       
-      sprintf(kStr, "%" PRIu64"", k);
+      snprintf(kStr, sizeof(kStr), "%" PRIu64"", k);
       
       LogFactor(theFactor, "2*%s*(2^%u-1)+1", kStr, ii_N);
       

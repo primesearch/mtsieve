@@ -26,7 +26,7 @@ public:
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
    bool              ApplyFactor(uint64_t theFactor, const char *term);
-   void              GetExtraTextForSieveStartedMessage(char *extraText);
+   void              GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength);
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          GetMaxGpuSteps(void) { return ii_MaxGpuSteps; };

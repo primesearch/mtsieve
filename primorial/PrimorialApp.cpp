@@ -349,9 +349,9 @@ void PrimorialApp::WriteOutputTermsFile(uint64_t largestPrime)
    ip_FactorAppLock->Release();
 }
 
-void PrimorialApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
+void PrimorialApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
-   sprintf(extraTtext, "%u <= primorial <= %u", ii_MinPrimorial, ii_MaxPrimorial);
+   snprintf(extraText, maxTextLength, "%u <= primorial <= %u", ii_MinPrimorial, ii_MaxPrimorial);
 }
 
 bool PrimorialApp::ReportFactor(uint64_t theFactor, uint32_t primorial, int32_t c)

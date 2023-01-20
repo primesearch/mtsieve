@@ -174,20 +174,20 @@ GpuKernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uin
    const char *preKernelSources[20];
    uint32_t    defineCount = 0, idx;
 
-   sprintf(defines[defineCount++], "#define BASE  %u", ii_Base);
-   sprintf(defines[defineCount++], "#define BESTQ %u", ii_BestQ);
-   sprintf(defines[defineCount++], "#define SIEVE_LOW   %u", sieveLow);
-   sprintf(defines[defineCount++], "#define SIEVE_RANGE %u", sieveRange);
-   sprintf(defines[defineCount++], "#define MAX_FACTORS %u", ii_MaxGpuFactors);
-   sprintf(defines[defineCount++], "#define BABY_STEPS %u", babySteps);
-   sprintf(defines[defineCount++], "#define GIANT_STEPS %u", giantSteps);
-   sprintf(defines[defineCount++], "#define SEQUENCES %u", sequences);
-   sprintf(defines[defineCount++], "#define SUBSEQUENCES %u", subsequences);
-   sprintf(defines[defineCount++], "#define HASH_ELEMENTS %u", elements);
-   sprintf(defines[defineCount++], "#define HASH_SIZE %u", hsize);
+   snprintf(defines[defineCount++], 50, "#define BASE  %u", ii_Base);
+   snprintf(defines[defineCount++], 50, "#define BESTQ %u", ii_BestQ);
+   snprintf(defines[defineCount++], 50, "#define SIEVE_LOW   %u", sieveLow);
+   snprintf(defines[defineCount++], 50, "#define SIEVE_RANGE %u", sieveRange);
+   snprintf(defines[defineCount++], 50, "#define MAX_FACTORS %u", ii_MaxGpuFactors);
+   snprintf(defines[defineCount++], 50, "#define BABY_STEPS %u", babySteps);
+   snprintf(defines[defineCount++], 50, "#define GIANT_STEPS %u", giantSteps);
+   snprintf(defines[defineCount++], 50, "#define SEQUENCES %u", sequences);
+   snprintf(defines[defineCount++], 50, "#define SUBSEQUENCES %u", subsequences);
+   snprintf(defines[defineCount++], 50, "#define HASH_ELEMENTS %u", elements);
+   snprintf(defines[defineCount++], 50, "#define HASH_SIZE %u", hsize);
    
    if (ib_HaveSingleC)
-      sprintf(defines[defineCount++], "#define SINGLE_C %" PRId64"", ip_FirstSequence->c);
+      snprintf(defines[defineCount++], 50, "#define SINGLE_C %" PRId64"", ip_FirstSequence->c);
    
    for (idx=0; idx<defineCount; idx++)
       preKernelSources[idx] = defines[idx];

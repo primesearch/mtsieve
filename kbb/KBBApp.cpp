@@ -150,7 +150,7 @@ void KBBApp::ValidateOptions(void)
    {
       char  fileName[30];
       
-      sprintf(fileName, "k%" PRIu64"_bb.pfgw", il_K);
+      snprintf(fileName, sizeof(fileName), "k%" PRIu64"_bb.pfgw", il_K);
       is_OutputTermsFileName = fileName;
    } 
    
@@ -369,9 +369,9 @@ void  KBBApp::GetBases(uint32_t *bases)
    }
 }
 
-void KBBApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
+void KBBApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
-   sprintf(extraTtext, "k = %" PRIu64", %u <= b <= %u", il_K, ii_MinB, ii_MaxB);
+   snprintf(extraText, maxTextLength, "k = %" PRIu64", %u <= b <= %u", il_K, ii_MinB, ii_MaxB);
 }
 
 bool  KBBApp::ReportFactor(uint64_t theFactor, uint32_t b, int32_t c)

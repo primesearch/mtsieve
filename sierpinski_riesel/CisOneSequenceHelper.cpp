@@ -369,9 +369,9 @@ void   CisOneSequenceHelper::LoadLegendreTablesFromFile(legendre_t *legendrePtr)
       return;
 
 #ifdef WIN32
-   sprintf(fileName, "%s\\b%u_k%" PRIu64"_c%" PRId64".leg", directoryName.c_str(), ii_Base, legendrePtr->k, legendrePtr->c);
+   snprintf(fileName, sizeof(fileName), "%s\\b%u_k%" PRIu64"_c%" PRId64".leg", directoryName.c_str(), ii_Base, legendrePtr->k, legendrePtr->c);
 #else
-   sprintf(fileName, "%s/b%u_k%" PRIu64"_c%" PRId64".leg", directoryName.c_str(), ii_Base, legendrePtr->k, legendrePtr->c);
+   snprintf(fileName, sizeof(fileName), "%s/b%u_k%" PRIu64"_c%" PRId64".leg", directoryName.c_str(), ii_Base, legendrePtr->k, legendrePtr->c);
 #endif
    
    FILE *fPtr = fopen(fileName, "rb");
@@ -500,9 +500,9 @@ void   CisOneSequenceHelper::WriteLegendreTableToFile(legendre_t *legendrePtr)
       return;
 
 #ifdef WIN32
-   sprintf(fileName, "%s\\b%u_k%" PRIu64"_c%" PRId64".leg", directoryName.c_str(), ii_Base, legendrePtr->k, legendrePtr->c);
+   snprintf(fileName, sizeof(fileName),"%s\\b%u_k%" PRIu64"_c%" PRId64".leg", directoryName.c_str(), ii_Base, legendrePtr->k, legendrePtr->c);
 #else
-   sprintf(fileName, "%s/b%u_k%" PRIu64"_c%" PRId64".leg", directoryName.c_str(), ii_Base, legendrePtr->k, legendrePtr->c);
+   snprintf(fileName, sizeof(fileName),"%s/b%u_k%" PRIu64"_c%" PRId64".leg", directoryName.c_str(), ii_Base, legendrePtr->k, legendrePtr->c);
 #endif
       
    FILE *fPtr = fopen(fileName, "wb");

@@ -47,29 +47,29 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
    for (hsize = 1<<GPU_HASH_MINIMUM_SHIFT; hsize < elements/GPU_DEFAULT_HASH_MAX_DENSITY; )
       hsize <<= 1;
 
-   sprintf(defines[defineCount++], "#define BASE %u\n", ii_Base);
-   sprintf(defines[defineCount++], "#define BESTQ %u\n", ii_BestQ);
-   sprintf(defines[defineCount++], "#define SIEVE_LOW %u\n", sieveLow);
-   sprintf(defines[defineCount++], "#define SEQ_PARITY %u\n", ip_FirstSequence->nParity);
-   sprintf(defines[defineCount++], "#define SEQ_K %llu\n", ip_FirstSequence->k);
-   sprintf(defines[defineCount++], "#define SEQ_C %lld\n", ip_FirstSequence->c);
-   sprintf(defines[defineCount++], "#define KC_CORE %lld\n", ip_FirstSequence->kcCore);
-   sprintf(defines[defineCount++], "#define SUBSEQUENCE_COUNT %u\n", ii_SubsequenceCount);
-   sprintf(defines[defineCount++], "#define HASH_ELEMENTS %u\n", elements);
-   sprintf(defines[defineCount++], "#define HASH_SIZE %u\n", hsize);
-   sprintf(defines[defineCount++], "#define MAX_FACTORS %u\n", ii_MaxGpuFactors);
-   sprintf(defines[defineCount++], "#define POWER_RESIDUE_LCM %u\n", ip_CisOneHelper->GetPowerResidueLcm());
-   sprintf(defines[defineCount++], "#define DIM2 %u\n", ip_CisOneHelper->GetDim2());
-   sprintf(defines[defineCount++], "#define DIM3 %u\n", ip_CisOneHelper->GetDim3());
+   snprintf(defines[defineCount++], 50, "#define BASE %u\n", ii_Base);
+   snprintf(defines[defineCount++], 50, "#define BESTQ %u\n", ii_BestQ);
+   snprintf(defines[defineCount++], 50, "#define SIEVE_LOW %u\n", sieveLow);
+   snprintf(defines[defineCount++], 50, "#define SEQ_PARITY %u\n", ip_FirstSequence->nParity);
+   snprintf(defines[defineCount++], 50, "#define SEQ_K %llu\n", ip_FirstSequence->k);
+   snprintf(defines[defineCount++], 50, "#define SEQ_C %lld\n", ip_FirstSequence->c);
+   snprintf(defines[defineCount++], 50, "#define KC_CORE %lld\n", ip_FirstSequence->kcCore);
+   snprintf(defines[defineCount++], 50, "#define SUBSEQUENCE_COUNT %u\n", ii_SubsequenceCount);
+   snprintf(defines[defineCount++], 50, "#define HASH_ELEMENTS %u\n", elements);
+   snprintf(defines[defineCount++], 50, "#define HASH_SIZE %u\n", hsize);
+   snprintf(defines[defineCount++], 50, "#define MAX_FACTORS %u\n", ii_MaxGpuFactors);
+   snprintf(defines[defineCount++], 50, "#define POWER_RESIDUE_LCM %u\n", ip_CisOneHelper->GetPowerResidueLcm());
+   snprintf(defines[defineCount++], 50, "#define DIM2 %u\n", ip_CisOneHelper->GetDim2());
+   snprintf(defines[defineCount++], 50, "#define DIM3 %u\n", ip_CisOneHelper->GetDim3());
 
    if (legendrePtr->haveMap)
    {
-      sprintf(defines[defineCount++], "#define HAVE_LEGENDRE_TABLES");
-      sprintf(defines[defineCount++], "#define LEGENDRE_MOD %u\n", legendrePtr->mod);
+      snprintf(defines[defineCount++], 50, "#define HAVE_LEGENDRE_TABLES");
+      snprintf(defines[defineCount++], 50, "#define LEGENDRE_MOD %u\n", legendrePtr->mod);
    }
       
    if (ip_FirstSequence->nParity == SP_MIXED)
-      sprintf(defines[defineCount++], "#define HAVE_MIXED_PARITY");
+      snprintf(defines[defineCount++], 50, "#define HAVE_MIXED_PARITY");
 
    for (idx=0; idx<defineCount; idx++)
       preKernelSources[idx] = defines[idx];

@@ -160,7 +160,7 @@ void CarolKyneaApp::ValidateOptions(void)
    {
       char fileName[50];
       
-      sprintf(fileName, "ck_%u.pfgw", ii_Base);
+      snprintf(fileName, sizeof(fileName), "ck_%u.pfgw", ii_Base);
       
       is_OutputTermsFileName = fileName;
    }
@@ -323,9 +323,9 @@ void CarolKyneaApp::WriteOutputTermsFile(uint64_t largestPrime)
    ip_FactorAppLock->Release();
 }
 
-void CarolKyneaApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
+void CarolKyneaApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
-   sprintf(extraTtext, "%u <= n <= %u, (%u^n+/-1)^2-2", ii_MinN, ii_MaxN, ii_Base);
+   snprintf(extraText, maxTextLength, "%u <= n <= %u, (%u^n+/-1)^2-2", ii_MinN, ii_MaxN, ii_Base);
 }
 
 bool CarolKyneaApp::ReportFactor(uint64_t theFactor, uint32_t n, int32_t c)

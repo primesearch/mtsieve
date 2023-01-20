@@ -31,7 +31,7 @@ public:
    parse_t           ParseOption(int opt, char *arg, const char *source);
    void              ValidateOptions(void);
    bool              ApplyFactor(uint64_t thePrime, const char *term);
-   void              GetExtraTextForSieveStartedMessage(char *extraText);
+   void              GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength);
    
    uint32_t          GetMinPrimorial(void) { return ii_MinPrimorial; };
    uint32_t          GetMaxPrimorial(void) { return ii_MaxPrimorial; };

@@ -37,11 +37,11 @@ MultiFactorialGpuWorker::MultiFactorialGpuWorker(uint32_t myId, App *theApp) : W
    
    ii_BaseCount += 2;
    
-   sprintf(defines[defineCount++], "#define D_MIN_N %u", ii_MinN);
-   sprintf(defines[defineCount++], "#define D_MAX_N %u", ii_MaxN);
-   sprintf(defines[defineCount++], "#define D_MAX_FACTORS %u", ii_MaxGpuFactors);
-   sprintf(defines[defineCount++], "#define D_MULTIFACTORIAL %u", ii_MultiFactorial);
-   sprintf(defines[defineCount++], "#define D_BASES %u", ii_BaseCount);
+   snprintf(defines[defineCount++], 50, "#define D_MIN_N %u", ii_MinN);
+   snprintf(defines[defineCount++], 50, "#define D_MAX_N %u", ii_MaxN);
+   snprintf(defines[defineCount++], 50, "#define D_MAX_FACTORS %u", ii_MaxGpuFactors);
+   snprintf(defines[defineCount++], 50, "#define D_MULTIFACTORIAL %u", ii_MultiFactorial);
+   snprintf(defines[defineCount++], 50, "#define D_BASES %u", ii_BaseCount);
    
    for (idx=0; idx<defineCount; idx++)
       preKernelSources[idx] = defines[idx];

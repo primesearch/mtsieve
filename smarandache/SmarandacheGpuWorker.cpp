@@ -37,7 +37,7 @@ SmarandacheGpuWorker::SmarandacheGpuWorker(uint32_t myId, App *theApp) : Worker(
    for (idx=0; idx<ii_KernelCount; idx++)
       ii_AllTerms[idx] = (uint32_t *) xmalloc((ii_MaxGpuSteps+1) * sizeof(uint32_t));
    
-   sprintf(defines[defineCount++], "#define D_MAX_FACTORS %d\n", ii_MaxGpuFactors);
+   snprintf(defines[defineCount++], 50, "#define D_MAX_FACTORS %d\n", ii_MaxGpuFactors);
 
    for (idx=0; idx<defineCount; idx++)
       preKernelSources[idx] = defines[idx];

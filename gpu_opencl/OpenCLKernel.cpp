@@ -36,7 +36,7 @@ OpenCLKernel::OpenCLKernel(GpuDevice *device, const char *kernelName, const char
    sources[1] = kernelSource;
    sources[2] = NULL;
    
-   sprintf(tempSource, "#define USE_OPENCL\n");
+   snprintf(tempSource, 50000, "#define USE_OPENCL\n");
    
    if (preOpenCLKernelSources != NULL)
    {

@@ -391,9 +391,9 @@ void XYYXApp::WriteOutputTermsFile(uint64_t largestPrime)
    ip_FactorAppLock->Release();
 }
 
-void  XYYXApp::GetExtraTextForSieveStartedMessage(char *extraText)
+void  XYYXApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {   
-   sprintf(extraText, "%d <= x <= %d, %d <= y <= %d",ii_MinX, ii_MaxX, ii_MinY, ii_MaxY);
+   snprintf(extraText, maxTextLength, "%d <= x <= %d, %d <= y <= %d",ii_MinX, ii_MaxX, ii_MinY, ii_MaxY);
 }
 
 bool XYYXApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y)

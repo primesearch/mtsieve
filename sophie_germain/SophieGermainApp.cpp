@@ -472,9 +472,9 @@ uint64_t SophieGermainApp::WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsF
    return kCount;
 }
 
-void  SophieGermainApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
+void  SophieGermainApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
-   sprintf(extraTtext, "%" PRIu64 " < k < %" PRIu64", first term t = k*%u^%u-1, next term is %u*t+1", il_MinK, il_MaxK, ii_Base, ii_N, (ib_GeneralizedSearch ? ii_Base : 2));
+   snprintf(extraText, maxTextLength, "%" PRIu64 " < k < %" PRIu64", first term t = k*%u^%u-1, next term is %u*t+1", il_MinK, il_MaxK, ii_Base, ii_N, (ib_GeneralizedSearch ? ii_Base : 2));
 }
 
 void  SophieGermainApp::ReportFactor(uint64_t theFactor, uint64_t k, bool firstOfPair, bool verifyFactor)

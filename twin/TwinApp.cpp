@@ -237,9 +237,9 @@ void TwinApp::ValidateOptions(void)
       char  fileName[30];
       
       if (it_Format == FF_NEWPGEN)
-         sprintf(fileName, "k_b%u_n%u.npg", ii_Base, ii_N);
+         snprintf(fileName, sizeof(fileName), "k_b%u_n%u.npg", ii_Base, ii_N);
       else
-         sprintf(fileName, "k_b%u_n%u.pfgw", ii_Base, ii_N);
+         snprintf(fileName, sizeof(fileName), "k_b%u_n%u.pfgw", ii_Base, ii_N);
       
       is_OutputTermsFileName = fileName;
    }
@@ -628,9 +628,9 @@ uint64_t TwinApp::WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsFile)
    return kCount;
 }
 
-void  TwinApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
+void  TwinApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
-   sprintf(extraTtext, "%" PRIu64 " < k < %" PRIu64", k*%u^%u", il_MinK, il_MaxK, ii_Base, ii_N);
+   snprintf(extraText, maxTextLength, "%" PRIu64 " < k < %" PRIu64", k*%u^%u", il_MinK, il_MaxK, ii_Base, ii_N);
 }
 
 bool  TwinApp::ReportFactor(uint64_t theFactor, uint64_t k, int32_t c)
@@ -646,7 +646,7 @@ bool  TwinApp::ReportFactor(uint64_t theFactor, uint64_t k, int32_t c)
 
    uint64_t bit = BIT(k);
 
-   sprintf(kStr, "%" PRIu64"", k);
+   snprintf(kStr, sizeof(kStr), "%" PRIu64"", k);
 
    if (ib_OnlyTwins)
    {

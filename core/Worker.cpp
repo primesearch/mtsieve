@@ -31,8 +31,8 @@ Worker::Worker(uint32_t myId, App *theApp)
 {
    char        name1[30], name3[30];
 
-   sprintf(name1, "thread_%d_stats", myId);
-   sprintf(name3, "thread_%d_worker", myId);
+   snprintf(name1, 30, "thread_%d_stats", myId);
+   snprintf(name3, 30, "thread_%d_worker", myId);
    
    ip_StatsLocker = new SharedMemoryItem(name1);
    ip_WorkerStatus = new SharedMemoryItem(name3);

@@ -24,9 +24,9 @@ AlternatingFactorialGpuWorker::AlternatingFactorialGpuWorker(uint32_t myId, App 
    ii_MaxGpuFactors = ip_AlternatingFactorialApp->GetMaxGpuFactors() + 10;
    
    defineCount = 0;
-   sprintf(defines[defineCount++], "#define D_MAX_FACTORS %u", ii_MaxGpuFactors);
-   sprintf(defines[defineCount++], "#define D_MAX_N %u", ip_AlternatingFactorialApp->GetMaxN());
-   sprintf(defines[defineCount++], "#define D_MAX_STEPS %u", ip_AlternatingFactorialApp->GetMaxGpuSteps());
+   snprintf(defines[defineCount++], 50, "#define D_MAX_FACTORS %u", ii_MaxGpuFactors);
+   snprintf(defines[defineCount++], 50, "#define D_MAX_N %u", ip_AlternatingFactorialApp->GetMaxN());
+   snprintf(defines[defineCount++], 50, "#define D_MAX_STEPS %u", ip_AlternatingFactorialApp->GetMaxGpuSteps());
       
    for (idx=0; idx<defineCount; idx++)
       preKernelSources[idx] = defines[idx];

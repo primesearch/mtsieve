@@ -111,7 +111,7 @@ public:
 protected:
    virtual void      ResetFactorStats(void) = 0;
    
-   virtual void      GetReportStats(char *reportStats, double cpuUtilization) = 0;
+   virtual void      GetReportStats(char *reportStats, uint32_t maxStatsLength, double cpuUtilization) = 0;
    virtual void      LogStartSievingMessage(void) = 0;
    virtual void      Finish(const char *finishMethod, uint64_t elapsedTimeUS, uint64_t largestPrimeTested, uint64_t primesTested) = 0;
    virtual void      NotifyAppToRebuild(uint64_t largestPrimeTested) = 0;

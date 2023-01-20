@@ -442,12 +442,12 @@ void PrimesInXApp::WriteOutputTermsFile(uint64_t largestPrime)
    ip_FactorAppLock->Release();
 }
 
-void PrimesInXApp::GetExtraTextForSieveStartedMessage(char *extraText)
+void PrimesInXApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {                 
    if (is_SearchString.length() > 0)
-      sprintf(extraText, "%d <= length <= %d, terms starting with %s", ii_MinLength, ii_MaxLength, is_SearchString.c_str());
+      snprintf(extraText, maxTextLength, "%d <= length <= %d, terms starting with %s", ii_MinLength, ii_MaxLength, is_SearchString.c_str());
    else
-      sprintf(extraText, "%d <= length <= %d", ii_MinLength, ii_MaxLength);
+      snprintf(extraText, maxTextLength, "%d <= length <= %d", ii_MinLength, ii_MaxLength);
 }
 
 bool PrimesInXApp::ReportFactor(uint64_t theFactor, uint32_t n)

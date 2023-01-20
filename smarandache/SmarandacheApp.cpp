@@ -119,7 +119,7 @@ void SmarandacheApp::ValidateOptions(void)
    {
       char fileName[50];
       
-      sprintf(fileName, "smarandache.pfgw");
+      snprintf(fileName, sizeof(fileName), "smarandache.pfgw");
       
       is_OutputTermsFileName = fileName;
    }
@@ -292,9 +292,9 @@ void SmarandacheApp::WriteOutputTermsFile(uint64_t largestPrime)
    ip_FactorAppLock->Release();
 }
 
-void SmarandacheApp::GetExtraTextForSieveStartedMessage(char *extraTtext)
+void SmarandacheApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
-   sprintf(extraTtext, "%u <= n <= %u", ii_MinN, ii_MaxN);
+   snprintf(extraText, maxTextLength, "%u <= n <= %u", ii_MinN, ii_MaxN);
 }
 
 bool SmarandacheApp::ReportFactor(uint64_t theFactor, uint32_t n)

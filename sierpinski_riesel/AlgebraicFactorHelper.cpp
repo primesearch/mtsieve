@@ -436,11 +436,11 @@ uint64_t  AlgebraicFactorHelper::RemoveComplexRoot(seq_t *seqPtr)
             if (z1 == 0)
             {
                if (kbf_power[z1] == z)
-                  sprintf(root, "%u", kbf_factor[z1]);
+                  snprintf(root, sizeof(root), "%u", kbf_factor[z1]);
                else
                {
                   addParenthesis = 1;
-                  sprintf(root, "%u^%u", kbf_factor[z1], kbf_power[z1] / z);
+                  snprintf(root, sizeof(root), "%u^%u", kbf_factor[z1], kbf_power[z1] / z);
                }
             }
             else
@@ -449,9 +449,9 @@ uint64_t  AlgebraicFactorHelper::RemoveComplexRoot(seq_t *seqPtr)
                strcpy(part, root);
                
                if (kbf_power[z1] == z)
-                  sprintf(root, "%s*%u", part, kbf_factor[z1]);
+                  snprintf(root, sizeof(root), "%s*%u", part, kbf_factor[z1]);
                else
-                  sprintf(root, "%s*%u^%u", part, kbf_factor[z1], kbf_power[z1] / z);
+                  snprintf(root, sizeof(root), "%s*%u^%u", part, kbf_factor[z1], kbf_power[z1] / z);
             }
          }
          
@@ -741,7 +741,7 @@ uint32_t   AlgebraicFactorHelper::CheckAndLogAlgebraicFactor(seq_t *seqPtr, uint
    {   
       char  fName[50];
       
-      sprintf(fName, "alg_%" PRIu64"_%u_%+" PRId64".log", seqPtr->k, ii_Base, seqPtr->c);
+      snprintf(fName, sizeof(fName), "alg_%" PRIu64"_%u_%+" PRId64".log", seqPtr->k, ii_Base, seqPtr->c);
       
       ip_AlgebraicFactorFile = fopen(fName, "a");
    }

@@ -28,12 +28,12 @@ PrimorialGpuWorker::PrimorialGpuWorker(uint32_t myId, App *theApp) : Worker(myId
    
    BuildPrimeGapGroups();
 
-   sprintf(defines[defineCount++], "#define D_IDX_OF_MIN_PRIMORIAL %d\n", ii_IdxOfMinPrimorial);
-   sprintf(defines[defineCount++], "#define D_MAX_FACTORS %d\n", ii_MaxGpuFactors);
-   sprintf(defines[defineCount++], "#define D_BIGGEST_GAP %u\n", ii_BiggestGap);
-   sprintf(defines[defineCount++], "#define D_MIN_PRIMORIAL %u\n", ii_MinPrimorial);
-   sprintf(defines[defineCount++], "#define FIRST_PRIMORIAL %u\n", FIRST_PRIMORIAL);
-   sprintf(defines[defineCount++], "#define FIRST_PRIMORIAL_PRIME %u\n", FIRST_PRIMORIAL_PRIME);
+   snprintf(defines[defineCount++], 50, "#define D_IDX_OF_MIN_PRIMORIAL %d\n", ii_IdxOfMinPrimorial);
+   snprintf(defines[defineCount++], 50, "#define D_MAX_FACTORS %d\n", ii_MaxGpuFactors);
+   snprintf(defines[defineCount++], 50, "#define D_BIGGEST_GAP %u\n", ii_BiggestGap);
+   snprintf(defines[defineCount++], 50, "#define D_MIN_PRIMORIAL %u\n", ii_MinPrimorial);
+   snprintf(defines[defineCount++], 50, "#define FIRST_PRIMORIAL %u\n", FIRST_PRIMORIAL);
+   snprintf(defines[defineCount++], 50, "#define FIRST_PRIMORIAL_PRIME %u\n", FIRST_PRIMORIAL_PRIME);
    
    for (idx=0; idx<defineCount; idx++)
       preKernelSources[idx] = defines[idx];

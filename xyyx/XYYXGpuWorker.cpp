@@ -34,12 +34,12 @@ XYYXGpuWorker::XYYXGpuWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
    ii_Terms = (uint32_t *) xmalloc(ii_Groups * ii_GroupSize * sizeof(uint32_t));
    
    if (ip_XYYXApp->IsPlus())
-      sprintf(defines[defineCount++], "#define IS_PLUS");
+      snprintf(defines[defineCount++], 50, "#define IS_PLUS");
    
    if (ip_XYYXApp->IsMinus())
-      sprintf(defines[defineCount++], "#define IS_MINUS");
+      snprintf(defines[defineCount++], 50, "#define IS_MINUS");
 
-   sprintf(defines[defineCount++], "#define D_MAX_FACTORS %u", ii_MaxGpuFactors);
+   snprintf(defines[defineCount++], 50, "#define D_MAX_FACTORS %u", ii_MaxGpuFactors);
       
    for (idx=0; idx<defineCount; idx++)
       preKernelSources[idx] = defines[idx];

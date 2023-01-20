@@ -34,7 +34,7 @@ protected:
    virtual bool      IsWritingOutputTermsFile(void) = 0;
    virtual void      WriteOutputTermsFile(uint64_t largestPrime) = 0;
    virtual bool      ApplyFactor(uint64_t theFactor, const char *term) = 0;
-   virtual void      GetExtraTextForSieveStartedMessage(char *extraText) = 0;
+   virtual void      GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength) = 0;
    
    void              ParentHelp(void);
    void              ParentAddCommandLineOptions(std::string &shortOpts, struct option *longOpts);
@@ -43,7 +43,7 @@ protected:
    
    void              LogStartSievingMessage(void);
    void              Finish(const char *finishMethod, uint64_t elapsedTimeUS, uint64_t largestPrimeTested, uint64_t primesTested);
-   void              GetReportStats(char *reportStats, double cpuUtilization);
+   void              GetReportStats(char *reportStats, uint32_t maxStatsLength, double cpuUtilization);
    bool              StripCRLF(char *line);
    
    void              ResetFactorStats(void);
