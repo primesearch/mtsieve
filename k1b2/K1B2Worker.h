@@ -26,6 +26,7 @@ public:
    void              CleanUp(void);
 
 protected:
+   void              NotifyPrimeListAllocated(uint32_t primesInList) {}
 
 private:
    void              RemoveTermsSmallP(uint64_t prime, uint32_t n, uint64_t twoExpN);

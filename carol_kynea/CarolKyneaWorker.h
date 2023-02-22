@@ -32,6 +32,7 @@ public:
    void              TestMiniPrimeChunk(uint64_t *miniPrimeChunk);
       
 protected:
+   void              NotifyPrimeListAllocated(uint32_t primesInList) {}
 
 private:
    CarolKyneaApp    *ip_CarolKyneaApp;

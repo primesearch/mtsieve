@@ -28,7 +28,8 @@ public:
    void              VerifyExternalFactor(uint64_t prime, uint64_t k, uint32_t b, uint32_t n, int32_t c);
    
 protected:
-
+   void              NotifyPrimeListAllocated(uint32_t primesInList);
+   
 private:
    void              RemoveTermsSmallPrime(uint64_t prime, uint64_t k, int32_t c);
    void              RemoveTermsBigPrime(uint64_t prime, uint64_t k, int32_t c);
@@ -41,6 +42,7 @@ private:
    TwinApp          *ip_TwinApp;
    
    uint32_t         *ii_BaseInverses;
+   uint64_t         *il_MyPrimeList;
    uint32_t         *ii_InverseList;
    
    uint64_t          il_BpowN;

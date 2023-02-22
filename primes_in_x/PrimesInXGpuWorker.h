@@ -29,6 +29,7 @@ public:
    void              CleanUp(void);
 
 protected:
+   void              NotifyPrimeListAllocated(uint32_t primesInList) {}
    uint32_t         *BuildDigitList(void);
    uint32_t         *BuildDigitList(uint32_t multiplier, uint32_t power, uint32_t *digitList);
 

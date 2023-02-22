@@ -29,6 +29,7 @@ public:
    void              CleanUp(void);
 
 protected:
+   void              NotifyPrimeListAllocated(uint32_t primesInList) {}
    void              CreateKernels(uint32_t sequencesPerKernel);
    void              PopulateKernelArguments(uint32_t sequencesPerKernel);
    GpuKernel        *CreateKernel(uint32_t kIdx, uint32_t sequences, uint32_t subsequences);

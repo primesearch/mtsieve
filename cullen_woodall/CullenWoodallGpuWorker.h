@@ -27,6 +27,7 @@ public:
    void              CleanUp(void);
 
 protected:
+   void              NotifyPrimeListAllocated(uint32_t primesInList) {}
    uint64_t          il_NextTermsBuild;   
    uint32_t          ii_MaxGpuSteps;
    uint32_t          ii_MaxGpuFactors;

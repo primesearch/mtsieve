@@ -27,8 +27,9 @@ TwinWorker::TwinWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
    
    BuildBaseInverses();
    
-   il_PrimeList = (uint64_t *) xmalloc((ip_TwinApp->GetCpuWorkSize() + 10) * sizeof(uint64_t));
-   ii_InverseList = (uint32_t *) xmalloc((ip_TwinApp->GetCpuWorkSize() + 10) * sizeof(uint32_t));
+
+   il_MyPrimeList = NULL;
+   ii_InverseList = NULL;
    
    // The thread can't start until initialization is done
    ib_Initialized = true;
@@ -36,6 +37,23 @@ TwinWorker::TwinWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
 
 void  TwinWorker::CleanUp(void)
 {
+   if (il_MyPrimeList != NULL)
+   {
+      xfree(il_MyPrimeList);
+      xfree(ii_InverseList);
+   }
+}
+
+void  TwinWorker::NotifyPrimeListAllocated(uint32_t primesInList)
+{
+   if (il_MyPrimeList != NULL)
+   {
+      xfree(il_MyPrimeList);
+      xfree(ii_InverseList);
+   }
+   
+   il_MyPrimeList = (uint64_t *) xmalloc((primesInList + 10) * sizeof(uint64_t));
+   ii_InverseList = (uint32_t *) xmalloc((primesInList + 10) * sizeof(uint32_t));
 }
 
 void  TwinWorker::TestMegaPrimeChunk(void)
@@ -63,7 +81,7 @@ void  TwinWorker::TestMegaPrimeChunk(void)
       
       svb = ii_BaseInverses[pmb];
       
-      il_PrimeList[count] = p1;
+      il_MyPrimeList[count] = p1;
       ii_InverseList[count] = svb;
       count++;
    }
@@ -75,17 +93,17 @@ void  TwinWorker::TestMegaPrimeChunk(void)
    // number of valid entries is divisible by 4.
    while (count % 4 != 0)
    {
-      il_PrimeList[count] = p1;
+      il_MyPrimeList[count] = p1;
       ii_InverseList[count] = svb;
       count++;
    }
 
    for (idx=0; idx<count; idx+=4)
    {
-      p1 = il_PrimeList[idx+0];
-      p2 = il_PrimeList[idx+1];
-      p3 = il_PrimeList[idx+2];
-      p4 = il_PrimeList[idx+3];
+      p1 = il_MyPrimeList[idx+0];
+      p2 = il_MyPrimeList[idx+1];
+      p3 = il_MyPrimeList[idx+2];
+      p4 = il_MyPrimeList[idx+3];
       
       ks[0] = k1 = (1+ii_InverseList[idx+0]*p1)/ii_Base;
       ks[1] = k2 = (1+ii_InverseList[idx+1]*p2)/ii_Base;
@@ -95,7 +113,7 @@ void  TwinWorker::TestMegaPrimeChunk(void)
       // Starting with k*2^n = 1 (mod p) 
       //           --> k = (1/2)^n (mod p)
       //           --> k = inverse^n (mod p)
-      fpu_powmod_4b_1n_4p(ks, ii_N, &il_PrimeList[idx+0]);
+      fpu_powmod_4b_1n_4p(ks, ii_N, &il_MyPrimeList[idx+0]);
       
       k1 = p1 - ks[0];
       k2 = p2 - ks[1];

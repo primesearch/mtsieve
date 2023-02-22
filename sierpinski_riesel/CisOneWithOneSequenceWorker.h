@@ -29,6 +29,9 @@ public:
    void              TestMegaPrimeChunk(void);
    void              TestMiniPrimeChunk(uint64_t *miniPrimeChunk);
    void              CleanUp(void);
+
+protected:
+   void              NotifyPrimeListAllocated(uint32_t primesInList) {}
    
 private:   
    sp_t              GetParity(uint64_t p);

@@ -22,6 +22,8 @@ PrimorialWorker::PrimorialWorker(uint32_t myId, App *theApp) : Worker(myId, theA
    if (ii_BiggestGap > MAX_GAPS)
       FatalError("ip_ResGaps not large enough.  Update MAX_GAPS and rebuild");
       
+   id_PrimorialPrimes = NULL;
+   
 #ifndef USE_X86
    if (CpuSupportsAvx())
    {

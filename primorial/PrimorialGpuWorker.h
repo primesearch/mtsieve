@@ -29,6 +29,7 @@ public:
    void              CleanUp(void);
 
 protected:
+   void              NotifyPrimeListAllocated(uint32_t primesInList) {}
    void              BuildPrimeGapGroups(void);
    
    PrimorialApp     *ip_PrimorialApp;

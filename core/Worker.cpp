@@ -112,6 +112,8 @@ void  Worker::AllocatePrimeList(void)
       ii_MaxWorkSize = ip_App->GetGpuPrimesPerWorker();
 #endif
 
+   NotifyPrimeListAllocated(ii_MaxWorkSize);
+   
    if (il_PrimeList != NULL)
       return;
    

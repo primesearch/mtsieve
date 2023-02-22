@@ -26,6 +26,7 @@ public:
    void              CleanUp(void);
 
 protected:
+   void              NotifyPrimeListAllocated(uint32_t primesInList) {}
 
 private:
    void              TestMegaPrimeChunkSmall(void);

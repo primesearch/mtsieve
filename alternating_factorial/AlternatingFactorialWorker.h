@@ -26,7 +26,8 @@ public:
    void              CleanUp(void);
 
 protected:
-
+   void              NotifyPrimeListAllocated(uint32_t primesInList) {}
+   
 private:
    AlternatingFactorialApp      *ip_AlternatingFactorialApp;
    

@@ -29,6 +29,7 @@ public:
    void              CleanUp(void);
 
 protected:
+   void              NotifyPrimeListAllocated(uint32_t primesInList) {}
    MultiFactorialApp *ip_MultiFactorialApp;
    
    uint32_t          ii_MinN;

@@ -83,6 +83,8 @@ protected:
    uint64_t          InvMod32(uint32_t a, uint64_t p);
    uint64_t          InvMod64(uint64_t a, uint64_t p);
    
+   virtual void      NotifyPrimeListAllocated(uint32_t primesInList) = 0;
+   
    // This function will return a boolean indicating if the CPU supports the instructions used
    // by the avx256_xxx.S assembler code which rely on the ymm registers.
    bool              CpuSupportsAvx(void) { return (__builtin_cpu_supports("avx") && __builtin_cpu_supports("fma")); };

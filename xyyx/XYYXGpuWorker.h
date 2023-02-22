@@ -26,7 +26,8 @@ public:
    
    void              CleanUp(void);
 
-protected:   
+protected:
+   void              NotifyPrimeListAllocated(uint32_t primesInList) {}  
    uint32_t         *ii_Terms;
    uint64_t          il_NextTermsBuild;
    
