@@ -75,7 +75,7 @@ void  CullenWoodallApp::AddCommandLineOptions(std::string &shortOpts, struct opt
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "Db:n:N:s:";
+   shortOpts += "Db:n:N:s:f:";
 
    AppendLongOpt(longOpts, "base",           required_argument, 0, 'b');
    AppendLongOpt(longOpts, "min_n",          required_argument, 0, 'n');
