@@ -26,7 +26,7 @@ public:
    void              CleanUp(void);
 
 protected:
-   void              NotifyPrimeListAllocated(uint32_t primesInList) {}
+   void              NotifyPrimeListAllocated(uint32_t primesInList);
 
 private:
    void              RemoveTermsSmallPrime(uint64_t prime, uint64_t k);
@@ -40,7 +40,7 @@ private:
    FixedBNCApp      *ip_FixedBNCApp;
    
    uint32_t         *ii_BaseInverses;
-   uint64_t         *il_PrimeList;
+   uint64_t         *il_MyPrimeList;
    uint32_t         *ii_InverseList;
    
    uint64_t          il_BpowN;
