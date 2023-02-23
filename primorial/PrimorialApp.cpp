@@ -26,7 +26,13 @@
 #define APP_NAME        "psieve"
 #endif
 
-#define APP_VERSION     "1.5"
+// Since we have no explicit checks for p(n)+1 or p(n)-1 to be prime
+// we want to ensure that p(n) > 124 bits.  All primorials below this are known
+// so there isn't any value in sieving that range.
+#define MIN_PRIMORIAL   100
+#define MAX_PRIMORIAL   1000000000
+
+#define APP_VERSION     "1.6"
 
 #define BIT(primorial)  ((primorial) - ii_MinPrimorial)
 
@@ -98,11 +104,11 @@ parse_t PrimorialApp::ParseOption(int opt, char *arg, const char *source)
    switch (opt)
    {         
       case 'n':
-         status = Parser::Parse(arg, 100, 1000000000, ii_MinPrimorial);
+         status = Parser::Parse(arg, MIN_PRIMORIAL, MAX_PRIMORIAL, ii_MinPrimorial);
          break;
          
       case 'N':
-         status = Parser::Parse(arg, 100, 1000000000, ii_MaxPrimorial);
+         status = Parser::Parse(arg, MIN_PRIMORIAL, MAX_PRIMORIAL, ii_MaxPrimorial);
          break;
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
@@ -228,6 +234,7 @@ void PrimorialApp::ProcessInputTermsFile(bool haveBitMap)
    uint32_t primorial;
    int32_t  c;
    uint64_t sieveLimit;
+   bool     skipped = false;
 
    if (!fPtr)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
@@ -254,9 +261,15 @@ void PrimorialApp::ProcessInputTermsFile(bool haveBitMap)
       if (sscanf(buffer, "%u %d", &primorial, &c) != 2)
          FatalError("Line %s is malformed", buffer);
 
+      if (primorial < MIN_PRIMORIAL || primorial > MAX_PRIMORIAL)
+      {
+         skipped = true;
+         continue;
+      }
+
       if (!ii_MaxPrimorial)
          ii_MinPrimorial = ii_MaxPrimorial = primorial;
-            
+
       if (haveBitMap)
       {
          if (c == -1)
@@ -279,6 +292,9 @@ void PrimorialApp::ProcessInputTermsFile(bool haveBitMap)
    }
 
    fclose(fPtr);
+
+   if (skipped && haveBitMap)
+      WriteToConsole(COT_OTHER, "Igmoring primorials < %u or > %u as all primorials below this are known", MIN_PRIMORIAL, MAX_PRIMORIAL);
 }
 
 bool PrimorialApp::ApplyFactor(uint64_t thePrime, const char *term)
