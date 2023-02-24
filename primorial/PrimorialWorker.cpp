@@ -24,7 +24,7 @@ PrimorialWorker::PrimorialWorker(uint32_t myId, App *theApp) : Worker(myId, theA
       
    id_PrimorialPrimes = NULL;
    
-#ifndef USE_X86
+#ifdef USE_X86
    if (CpuSupportsAvx())
    {
       uint32_t pIdx;
