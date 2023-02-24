@@ -37,6 +37,11 @@ FixedBNCWorker::FixedBNCWorker(uint32_t myId, App *theApp) : Worker(myId, theApp
 
 void  FixedBNCWorker::CleanUp(void)
 {
+   if (il_MyPrimeList != NULL)
+   {
+      xfree(il_MyPrimeList);
+      xfree(ii_InverseList);
+   }
 }
 
 void  FixedBNCWorker::NotifyPrimeListAllocated(uint32_t primesInList)
@@ -65,7 +70,7 @@ void  FixedBNCWorker::TestMegaPrimeChunk(void)
    
    for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx++)
    {
-      p1 = il_MyPrimeList[pIdx];
+      p1 = il_PrimeList[pIdx];
       
       pmb = (p1 % ii_Base);
       
