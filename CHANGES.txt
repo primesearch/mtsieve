@@ -1,3 +1,18 @@
+2.4.3 - February 27, 2023
+   framework:
+      Notify workers when the "primes per chunk" changes as the worker might need
+      to allocate/re-allocate memory based upon that.
+      
+   psieve/psievecl: version 1.6
+      Ignore primorials < 100 and primorials > 1e9 if starting from an input file
+      as values outside of the supported range lead to missing factors.
+   
+   twinsieve: version 1.5
+      Handle changes to "primes per chunk".
+         
+   fbncsieve: version 1.5
+      Handle changes to "primes per chunk".
+      
 2.4.2 - January 19, 2023
    framework:
       For all OpenCL programs built on the framework except srsieve2cl, fix issue
