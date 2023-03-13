@@ -230,6 +230,12 @@ xyyx/%_cpu.o: xyyx/%.cpp
 xyyx/%_opencl.o: xyyx/%.cpp
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS_02) $(CPP_FLAGS_OPENCL) -c -o $@ $< 
 
+primes_in_x/%_cpu.o: primes_in_x/%.cpp
+	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS_02) -c -o $@ $< 
+    
+primes_in_x/%_opencl.o: primes_in_x/%.cpp
+	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS_02) $(CPP_FLAGS_OPENCL) -c -o $@ $< 
+   
 alternating_factorial/%_cpu.o: alternating_factorial/%.cpp
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS_02) -c -o $@ $< 
     

@@ -36,11 +36,14 @@ uint64_t  Clock::GetCurrentMicrosecond(void)
 {
 #ifdef _WIN32
    FILETIME ft;
-   ULARGE_INTEGER ns100;
    GetSystemTimeAsFileTime(&ft);
-   ns100.u.LowPart = ft.dwLowDateTime;
-   ns100.u.HighPart = ft.dwHighDateTime;
-   return (uint64_t)ns100.QuadPart/10;
+   unsigned long long tt = ft.dwHighDateTime;
+   tt <<=32;
+   tt |= ft.dwLowDateTime;
+   tt /=10;
+   tt -= 11644473600000000ULL;
+   
+   return (uint64_t) tt;
 #else
    struct timeval t;
    gettimeofday(&t,0);

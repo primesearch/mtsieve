@@ -147,7 +147,7 @@ void  Worker::StartProcessing(void)
                   
       SetStatusWorking();
       
-      startTime = Clock::GetThreadMicroseconds();
+      startTime = Clock::GetCurrentMicrosecond();
 
 #ifdef USE_X86
       // This is so the worker classes don't need to do this.
@@ -168,7 +168,7 @@ void  Worker::StartProcessing(void)
       // We need to lock while updating these variables as the main thread can read them.
       ip_StatsLocker->Lock();
       
-      endTime = Clock::GetThreadMicroseconds();
+      endTime = Clock::GetCurrentMicrosecond();
 
       il_WorkerCpuUS += (endTime - startTime);
       
@@ -177,6 +177,9 @@ void  Worker::StartProcessing(void)
       if (!ib_GpuWorker && il_LargestPrimeTested > 100000)
       {
          uint64_t newWorkSize = ComputeOptimalWorkSize(startTime, endTime);
+
+         if (newWorkSize < 1000)
+            newWorkSize = 1000;
 
          // This is the hard-coded limit in App.cpp
          if (newWorkSize > 1000000000)
@@ -257,29 +260,30 @@ uint64_t Worker::ComputeOptimalWorkSize(uint64_t startTime, uint64_t endTime)
    uint64_t optimalWorkSize = ii_MaxWorkSize;
    
    if (endTime - startTime == 0)
-      return optimalWorkSize * 10;
-   
-   double seconds = (double) ((endTime - startTime)) / 1000000.0;
-   
-   if (seconds < 1.0)
+      return optimalWorkSize * 100;
+
+   uint64_t microSeconds = endTime - startTime;
+
+   if (microSeconds < 1000000)
    {
-      while (seconds < 1.0)
+      while (microSeconds < 1000000)
       {
-         seconds *= 4.0;
-         optimalWorkSize *= 4;
+         microSeconds *= 5.0;
+         optimalWorkSize *= 5;
       }
-      
+
       return optimalWorkSize;
    }
    
-   if (seconds > 5.0)
+   if (microSeconds > 5000000)
    {
-      while (seconds > 5.0)
+      while (microSeconds > 5000000)
       {
-         seconds /= 2;
+         microSeconds /= 2;
          optimalWorkSize /= 2;
       }
       
+      // Make sure this is divisible by 32 for the workers
       while (optimalWorkSize % 32)
          optimalWorkSize++;
 
