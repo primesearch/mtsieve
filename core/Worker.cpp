@@ -178,8 +178,9 @@ void  Worker::StartProcessing(void)
       {
          uint64_t newWorkSize = ComputeOptimalWorkSize(startTime, endTime);
 
-         if (newWorkSize < 1000)
-            newWorkSize = 1000;
+         // AVX requires a multiple of 16.  All other CPU workers want a multiple of 4.
+         if (newWorkSize < 1600)
+            newWorkSize = 1600;
 
          // This is the hard-coded limit in App.cpp
          if (newWorkSize > 1000000000)
@@ -283,7 +284,7 @@ uint64_t Worker::ComputeOptimalWorkSize(uint64_t startTime, uint64_t endTime)
          optimalWorkSize /= 2;
       }
       
-      // Make sure this is divisible by 32 for the workers
+      // AVX requires a multiple of 16.  All other CPU workers want a multiple of 4.
       while (optimalWorkSize % 32)
          optimalWorkSize++;
 

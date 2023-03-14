@@ -1,3 +1,10 @@
+2.4.4 - March 14, 2023
+   framework:
+     Fixed calculation in GetCurrentMicrosecond() as it can lead to work sizes of 0.
+   
+   pixsieve/pixsievecl:
+      Build with -O2 on Windows as the CPU code misses factors when built with -O3.
+   
 2.4.3 - February 27, 2023
    framework:
       Notify workers when the "primes per chunk" changes as the worker might need
