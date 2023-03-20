@@ -21,7 +21,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.6.8"
+#define APP_VERSION     "1.6.9"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
@@ -1305,7 +1305,6 @@ void  SierpinskiRieselApp::CheckForLegendreSupport(void)
 void     SierpinskiRieselApp::ReportFactor(uint64_t theFactor, seq_t *seqPtr, uint32_t n, bool verifyFactor)
 {
    uint32_t nbit;
-   bool     wasRemoved = false;
    bool     isPrime = false;
    char     buffer[200];
                
@@ -1337,7 +1336,7 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t theFactor, seq_t *seqPtr, ui
          il_TermCount--;
          il_FactorCount++;
          seqPtr->nTerms[nbit] = false;
-         wasRemoved = true;
+         LogFactor(theFactor, "%s", buffer);
       }
    }
          
@@ -1349,11 +1348,6 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t theFactor, seq_t *seqPtr, ui
 
    if (verifyFactor)
       VerifyFactor(theFactor, seqPtr, n);
-
-   if (!wasRemoved)
-      return;   
-
-   LogFactor(theFactor, "%s", buffer);
 }
 
 void  SierpinskiRieselApp::VerifyFactor(uint64_t theFactor, seq_t *seqPtr, uint32_t n)
