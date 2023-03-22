@@ -51,7 +51,7 @@ void  DMDivisorWorker::TestMegaPrimeChunk(void)
       bs[2]--;
       bs[3]--;
       
-      // We are looking for p such that 2*k*bs+1 (mod p) = 0
+      // We are looking for k such that 2*k*bs+1 (mod p) = 0
       k1 = InvMod64(bs[0], ps[0]);
       k2 = InvMod64(bs[1], ps[1]);
       k3 = InvMod64(bs[2], ps[2]);
