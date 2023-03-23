@@ -23,7 +23,7 @@
 #define APP_NAME        "gcwsieve"
 #endif
 
-#define APP_VERSION     "1.5"
+#define APP_VERSION     "1.5.1"
 
 #define BIT(n)        ((n) - ii_MinN)
 
@@ -466,30 +466,51 @@ void  CullenWoodallApp::SetInitialTerms(void)
 
 void  CullenWoodallApp::EliminateGfnAndMersenneTerms(void)
 {
-   uint32_t n, bit;
-   uint32_t removedCount = 0;
+   uint32_t  n, bit;
+   uint32_t  gfnForm = 0;
+   uint32_t  mersenneForm = 0;
+   FILE     *fPtr;
+   uint64_t  broot, nroot;
+   uint32_t  bpower, npower;
    
+   GetRoot(ii_Base, &broot, &bpower);
+         
    for (n=ii_MinN; n<=ii_MaxN; n++)
    {
       bit = BIT(n);
       
       if (iv_CullenTerms[bit] && IsGfnOrMersenneForm(n, ii_Base, +1))
       {
+         gfnForm++;
          il_TermCount--;
          iv_CullenTerms[bit] = false;
-         removedCount++;
+
+         GetRoot(n, &nroot, &npower);
+         
+         fPtr = fopen("gcw_gfn.txt", "a+");
+         fprintf(fPtr, "%u*%u^%u+1 = 2^%u+1\n", n, ii_Base, n, bpower + npower);
+         fclose(fPtr);
       }
       
       if (iv_WoodallTerms[bit] && IsGfnOrMersenneForm(n, ii_Base, -1))
       {
+         mersenneForm++;
          il_TermCount--;
          iv_WoodallTerms[bit] = false;
-         removedCount++;
+
+         GetRoot(n, &nroot, &npower);
+         
+         fPtr = fopen("gcw_mersenne.txt", "a+");
+         fprintf(fPtr, "%u*%u^%u-1 = 2^%u-1\n", n, ii_Base, n, bpower + npower);
+         fclose(fPtr);
       }
    }
+
+   if (gfnForm > 0)
+      WriteToConsole(COT_OTHER, "%u terms removed as they were of GFN form (b^n+1)", gfnForm);
    
-   if (removedCount > 0)
-      WriteToConsole(COT_OTHER, "%u terms removed as they were of GFN or Mersenne form", removedCount);
+   if (mersenneForm > 0)
+      WriteToConsole(COT_OTHER, "%u terms removed as they were of Mersenne form (2^n-1)", mersenneForm);
 }
 
 // Generalized Woodalls and Cullens might have some easy to find large factors.
