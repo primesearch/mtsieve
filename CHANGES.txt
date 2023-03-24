@@ -1,6 +1,34 @@
+2.4.5 - March 24, 2023
+   framework:
+      Replace vsprintf with vsnprintf.
+      
+   srsieve2/srsieve2cl: version 1.6.9
+      Fix an issue that occurs when logging factors and using multiple threads.
+   
+   gcwsieve/gcwsievecl: version 1.5.1
+      Log terms of GFN or Mersenne forms as they are removed.
+
+   fbncsieve: version 1.6
+      Implement different logic (which is 5x slower) for larger bsaes to avoid invalid factors.
+      Only verify first factor for the first k for each prime.
+      Reduce memory usage for odd bases since we only track even k.
+      Reduce memory usage for base 2 since we only track odd k.
+      Output primes to a separate file.
+   
+   twincsieve: version 1.6
+      Implement different logic (which is 5x slower) for larger bsaes to avoid invalid.
+      factors.  This only applies to b^n forms.
+      Add support to sieve for factorial/primorial twins.
+      Reduce memory usage for odd bases since we only track even k.
+      Reduce memory usage for base 2 since we only track odd k.
+      Only verify first factor for the first k for each prime.
+      
+   ccsieve: version 1.2
+      Implement different logic (which is up to 2x faster) for b^n forms.
+      
 2.4.4 - March 14, 2023
    framework:
-     Fixed calculation in GetCurrentMicrosecond() as it can lead to work sizes of 0.
+      Fixed calculation in GetCurrentMicrosecond() as it can lead to work sizes of 0.
    
    pixsieve/pixsievecl:
       Build with -O2 on Windows as the CPU code misses factors when built with -O3.
