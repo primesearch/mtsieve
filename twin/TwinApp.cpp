@@ -360,10 +360,10 @@ void TwinApp::ValidateOptions(void)
       }
             
       if (it_TermType == TT_PRIMORIAL)
-         snprintf(filePrefix, sizeof(fileName), "twin_%up", ii_N);
+         snprintf(fileName, sizeof(fileName), "twin_%up.pfgw", ii_N);
       
       if (it_TermType == TT_FACTORIAL)
-         snprintf(filePrefix, sizeof(fileName), "twin_%uf", ii_N);
+         snprintf(fileName, sizeof(fileName), "twin_%uf.pfgw", ii_N);
       
       is_OutputTermsFileName = fileName;
    }
