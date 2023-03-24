@@ -11,16 +11,18 @@
 #include <cinttypes>
 #include "../core/Parser.h"
 #include "../core/Clock.h"
+#include "../core/MpArith.h"
 #include "TwinApp.h"
 #include "TwinWorker.h"
 
 #define APP_NAME        "twinsieve"
-#define APP_VERSION     "1.5"
+#define APP_VERSION     "1.6"
 
 #define NMAX_MAX        (1 << 31)
 #define BMAX_MAX        (1 << 31)
 
-#define BIT(k)          ((k) - il_MinK)
+#define BIT_HK(k)       (((k) - il_MinK) >> 1)
+#define BIT_AK(k)       ((k) - il_MinK)
 
 // This is declared in App.h, but implemented here.  This means that App.h
 // can remain unchanged if using the mtsieve framework for other applications.
@@ -41,12 +43,25 @@ TwinApp::TwinApp() : FactorApp()
    ib_OnlyTwins = true;
    it_Format = FF_ABCD;
    ib_Remove = false;
+   it_TermType = TT_UNKNOWN;
+   il_Terms = NULL;
+   ii_Primes = NULL;
+   ib_HalfK = false;
    
    il_MaxPrimeForValidFactor = PMAX_MAX_62BIT;
    
    iv_TwinTerms.clear();
    iv_MinusTerms.clear();
    iv_PlusTerms.clear();
+}
+
+TwinApp::~TwinApp()
+{
+   if (ii_Primes != 0)
+      xfree(ii_Primes);
+   
+   if (il_Terms != 0)
+      xfree(il_Terms);
 }
 
 void TwinApp::Help(void)
@@ -56,7 +71,8 @@ void TwinApp::Help(void)
    printf("-k --kmin=k           Minimum k to search\n");
    printf("-K --kmax=K           Maximum k to search\n");
    printf("-b --base=b           Base to search\n");
-   printf("-n --exp=n            Exponent to search\n");
+   printf("-n --n=n              n of b^n, n# for primorial, n! for factorial\n");
+   printf("-t --termtype=t       1 = b^n, 2 = primorial, 3 = factorial\n");
    printf("-f --format=f         Format of output file (A=ABC, D=ABCD (default), N=NEWPGEN)\n");
    printf("-r --remove           Remove k where k %% base = 0\n");
    printf("-s --independent      Sieve +1 and -1 independently\n");       
@@ -66,12 +82,13 @@ void  TwinApp::AddCommandLineOptions(std::string &shortOpts, struct option *long
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "srk:K:b:n:f:";
+   shortOpts += "srk:K:b:n:t:f:";
 
    AppendLongOpt(longOpts, "kmin",           required_argument, 0, 'k');
    AppendLongOpt(longOpts, "kmax",           required_argument, 0, 'K');
    AppendLongOpt(longOpts, "base",           required_argument, 0, 'b');
    AppendLongOpt(longOpts, "exp",            required_argument, 0, 'n');
+   AppendLongOpt(longOpts, "termtype",       required_argument, 0, 't');
    AppendLongOpt(longOpts, "format",         required_argument, 0, 'f');
    AppendLongOpt(longOpts, "remove",         no_argument, 0, 'r');
    AppendLongOpt(longOpts, "independent",    no_argument, 0, 's');
@@ -79,6 +96,7 @@ void  TwinApp::AddCommandLineOptions(std::string &shortOpts, struct option *long
 
 parse_t TwinApp::ParseOption(int opt, char *arg, const char *source)
 {
+   char value;
    parse_t status = P_UNSUPPORTED;
 
    status = FactorApp::ParentParseOption(opt, arg, source);
@@ -101,9 +119,21 @@ parse_t TwinApp::ParseOption(int opt, char *arg, const char *source)
       case 'n':
          status = Parser::Parse(arg, 1, NMAX_MAX, ii_N);
          break;
+
+      case 't':
+         status = Parser::Parse(arg, "123", value);
+         
+         it_TermType = TT_UNKNOWN;
+   
+         if (value == '1')
+            it_TermType = TT_BN;
+         if (value == '2')
+            it_TermType = TT_PRIMORIAL;
+         if (value == '3')
+            it_TermType = TT_FACTORIAL;
+         break;
          
       case 'f':
-         char value;
          status = Parser::Parse(arg, "ADN", value);
          
          it_Format = FF_UNKNOWN;
@@ -139,17 +169,32 @@ void TwinApp::ValidateOptions(void)
    {
       ProcessInputTermsFile(false);
       
+      // We only care about odd k or even k, but not both
+      if (it_TermType == TT_BN && (ii_Base == 2 || ii_Base & 1))
+         ib_HalfK = true;
+   
+      if (it_TermType == TT_PRIMORIAL)
+         BuildPrimorialTerms();
+      
+      if (it_TermType == TT_FACTORIAL)
+         BuildFactorialTerms();
+      
+      uint32_t termSize = (il_MaxK - il_MinK) + 1;
+      
+      if (ib_HalfK)
+         termSize = (il_MaxK - il_MinK)/2 + 1;
+            
       if (ib_OnlyTwins)
       {
-         iv_TwinTerms.resize(il_MaxK - il_MinK + 1);
+         iv_TwinTerms.resize(termSize);
          std::fill(iv_TwinTerms.begin(), iv_TwinTerms.end(), false);
       }
       else 
-      {         
-         iv_MinusTerms.resize(il_MaxK - il_MinK + 1);
+      {
+         iv_MinusTerms.resize(termSize);
          std::fill(iv_MinusTerms.begin(), iv_MinusTerms.end(), false);
          
-         iv_PlusTerms.resize(il_MaxK - il_MinK + 1);
+         iv_PlusTerms.resize(termSize);         
          std::fill(iv_PlusTerms.begin(), iv_PlusTerms.end(), false);
       }
       
@@ -157,6 +202,9 @@ void TwinApp::ValidateOptions(void)
    }
    else
    {
+      if (it_TermType == TT_UNKNOWN)
+         FatalError("Term type must be specified");
+      
       if (il_MinK == 0)
          FatalError("kmin must be specified");
 
@@ -166,29 +214,86 @@ void TwinApp::ValidateOptions(void)
       if (il_MaxK <= il_MinK)
          FatalError("kmax must be greater than kmin");
       
-      if (ii_Base == 0)
+      if (it_TermType == TT_BN && ii_Base == 0)
          FatalError("base must be specified");
       
       if (ii_N == 0)
          FatalError("exponent must be specified");
+
+      if (ib_OnlyTwins)
+         il_TermCount = (il_MaxK - il_MinK) + 1;
+      else
+         il_TermCount = 2*((il_MaxK - il_MinK) + 1);
+         
+      if (it_TermType == TT_BN)
+      {
+         if (il_MaxK < ii_Base)
+            FatalError("base must be less then maxk");
+         
+         if (ii_Base == 2)
+         {
+            // We only care about odd k
+            ib_HalfK = true;
+            if (ib_OnlyTwins)
+               il_TermCount = (il_MaxK - il_MinK)/2 + 1;
+            else
+               il_TermCount = 2*((il_MaxK - il_MinK)/2 + 1);
+         
+            // Make minK odd
+            if (!(il_MinK & 1))
+               il_MinK++;
+            
+            // Make maxK odd
+            if (!(il_MaxK & 1))
+               il_MaxK--;
+         }
+         
+         if (ii_Base & 0x01)
+         {
+            // We only care about even k
+            ib_HalfK = true;
+            if (ib_OnlyTwins)
+               il_TermCount = (il_MaxK - il_MinK)/2 + 1;
+            else
+               il_TermCount = 2*((il_MaxK - il_MinK)/2 + 1);
+         
+            // Make minK even
+            if (il_MinK & 1)
+               il_MinK++;
+            
+            // Make maxK even
+            if (il_MaxK & 1)
+               il_MaxK--;
+         }
+      }
+      else
+      {            
+         if (it_TermType == TT_PRIMORIAL)
+         {
+            BuildPrimorialTerms();
+            SetAppMinPrime(ii_N+1);
+         }
+         
+         if (it_TermType == TT_FACTORIAL)
+         {
+            BuildFactorialTerms();
+            SetAppMinPrime(ii_N+1);
+         }
+      }
       
       if (ib_OnlyTwins)
       {
-         il_TermCount = il_MaxK - il_MinK + 1;
-         
-         iv_TwinTerms.resize(il_MaxK - il_MinK + 1);
-         std::fill(iv_TwinTerms.begin(), iv_TwinTerms.end(), true);      
+         iv_TwinTerms.resize(il_TermCount);
+         std::fill(iv_TwinTerms.begin(), iv_TwinTerms.end(), true);
       }
       else 
       {
-         il_TermCount = 2*(il_MaxK - il_MinK + 1);
-         
-         iv_MinusTerms.resize(il_MaxK - il_MinK + 1);
+         iv_MinusTerms.resize(il_TermCount);
          std::fill(iv_MinusTerms.begin(), iv_MinusTerms.end(), true);
          
-         iv_PlusTerms.resize(il_MaxK - il_MinK + 1);
+         iv_PlusTerms.resize(il_TermCount);
          std::fill(iv_PlusTerms.begin(), iv_PlusTerms.end(), true);
-      }
+      } 
    }
    
    if (!ib_OnlyTwins && it_Format != FF_ABC)
@@ -197,7 +302,15 @@ void TwinApp::ValidateOptions(void)
       WriteToConsole(COT_OTHER, "Switching to ABC format since other formats are not supported when using -s");
    }
    
-   if (ib_Remove)
+   
+   if (it_TermType != TT_BN && it_Format == FF_NEWPGEN)
+   {
+      it_Format = FF_ABC;
+      WriteToConsole(COT_OTHER, "Switching to ABC format since newpgen format is not supported for primorials or factorials");
+   }
+         
+   
+   if (ib_Remove && it_TermType == TT_BN)
    {
       uint64_t k = il_MinK;
       
@@ -207,26 +320,28 @@ void TwinApp::ValidateOptions(void)
       // Remvoe k that are divisible by the base
       for ( ; k<=il_MaxK; k+=ii_Base)
       {
+         uint64_t bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
+         
          if (ib_OnlyTwins)
          {
-            if (iv_TwinTerms[BIT(k)])
+            if (iv_TwinTerms[bit])
             {
                il_TermCount--;
-               iv_TwinTerms[BIT(k)] = false;
+               iv_TwinTerms[bit] = false;
             }
          }
          else
          {
-            if (iv_MinusTerms[BIT(k)])
+            if (iv_MinusTerms[bit])
             {
                il_TermCount--;
-               iv_MinusTerms[BIT(k)] = false;
+               iv_MinusTerms[bit] = false;
             }
             
-            if (iv_PlusTerms[BIT(k)])
+            if (iv_PlusTerms[bit])
             {
                il_TermCount--;
-               iv_PlusTerms[BIT(k)] = false;
+               iv_PlusTerms[bit] = false;
             }
          }
       }
@@ -236,14 +351,24 @@ void TwinApp::ValidateOptions(void)
    {
       char  fileName[30];
       
-      if (it_Format == FF_NEWPGEN)
-         snprintf(fileName, sizeof(fileName), "k_b%u_n%u.npg", ii_Base, ii_N);
-      else
-         snprintf(fileName, sizeof(fileName), "k_b%u_n%u.pfgw", ii_Base, ii_N);
+      if (it_TermType == TT_BN)
+      {
+         if (it_Format == FF_NEWPGEN)
+            snprintf(fileName, sizeof(fileName), "k_b%u_n%u.npg", ii_Base, ii_N);
+         else
+            snprintf(fileName, sizeof(fileName), "k_b%u_n%u.pfgw", ii_Base, ii_N);
+      }
+            
+      if (it_TermType == TT_PRIMORIAL)
+         snprintf(filePrefix, sizeof(fileName), "twin_%up", ii_N);
+      
+      if (it_TermType == TT_FACTORIAL)
+         snprintf(filePrefix, sizeof(fileName), "twin_%uf", ii_N);
       
       is_OutputTermsFileName = fileName;
    }
-   
+
+
    FactorApp::ParentValidateOptions();
 
    // Since the worker wants primes in groups of 4
@@ -288,15 +413,25 @@ void TwinApp::ProcessInputTermsFile(bool haveBitMap)
    if (!haveBitMap)
       il_MinK = il_MaxK = 0;
    
+   it_TermType = TT_UNKNOWN;
+   
    if (!memcmp(buffer, "ABCD ", 5))
    {
       if (strchr(buffer, '&') != NULL)
       {
-         if (sscanf(buffer, "ABCD $a*%u^%d+1 & $a*%u^%d-1  [%" SCNu64"] // Sieved to %" SCNu64"", 
-            &base1, &n1, &base2, &n2, &k, &lastPrime) != 6)
+         if (sscanf(buffer, "ABCD $a*%u^%d+1 & $a*%u^%d-1  [%" SCNu64"] // Sieved to %" SCNu64"", &base1, &n1, &base2, &n2, &k, &lastPrime) == 6)
+            it_TermType = TT_BN;
+
+         if (sscanf(buffer, "ABCD $a*%u#+1 & $a*%u#-1  [%" SCNu64"] // Sieved to %" SCNu64"", &n1, &n2, &k, &lastPrime) == 4)
+            it_TermType = TT_PRIMORIAL;
+
+         if (sscanf(buffer, "ABCD $a*%u!+1 & $a*%u!-1  [%" SCNu64"] // Sieved to %" SCNu64"", &n1, &n2, &k, &lastPrime) == 4)
+            it_TermType = TT_FACTORIAL;
+
+         if (it_TermType == TT_UNKNOWN)
             FatalError("Line 1 is not a valid ABCD line in input file %s", is_InputTermsFileName.c_str());
             
-         if (base1 != base2)
+         if (it_TermType == TT_BN && base1 != base2)
             FatalError("Line 1 bases in ABCD input file %s do not match", is_InputTermsFileName.c_str());
             
          if (n1 != n2)
@@ -323,11 +458,19 @@ void TwinApp::ProcessInputTermsFile(bool haveBitMap)
    {
       if (strchr(buffer, '&') != NULL)
       {
-         if (sscanf(buffer, "ABC $a*%u^%d+1 & $a*%u^%d-1  // Sieved to %" SCNu64"", 
-            &base1, &n1, &base2, &n2, &lastPrime) != 5)
-            FatalError("Line 1 is not a valid ABC line in input file %s", is_InputTermsFileName.c_str());
+         if (sscanf(buffer, "ABC $a*%u^%d+1 & $a*%u^%d-1  // Sieved to %" SCNu64"", &base1, &n1, &base2, &n2, &lastPrime) == 5)
+            it_TermType = TT_BN;
+            
+         if (sscanf(buffer, "ABC $a*%u#+1 & $a*%u#-1  // Sieved to %" SCNu64"", &n1, &n2, &lastPrime) == 3)
+            it_TermType = TT_PRIMORIAL;
 
-         if (base1 != base2)
+         if (sscanf(buffer, "ABC $a*%u!+1 & $a*%u!-1  // Sieved to %" SCNu64"", &n1, &n2, &lastPrime) == 3)
+            it_TermType = TT_FACTORIAL;
+
+         if (it_TermType == TT_UNKNOWN)
+            FatalError("Line 1 is not a valid ABCD line in input file %s", is_InputTermsFileName.c_str());
+         
+         if (it_TermType == TT_BN && base1 != base2)
             FatalError("Line 1 bases in ABC input file %s do not match", is_InputTermsFileName.c_str());
             
          if (n1 != n2)
@@ -410,7 +553,8 @@ void TwinApp::ProcessInputTermsFile(bool haveBitMap)
             
       if (haveBitMap)
       {
-         bit = BIT(k);
+         bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
+
          if (ib_OnlyTwins)
          {
             iv_TwinTerms[bit] = true;
@@ -433,6 +577,79 @@ void TwinApp::ProcessInputTermsFile(bool haveBitMap)
    }
 
    fclose(fPtr);
+}
+
+void TwinApp::BuildPrimorialTerms(void)
+{
+   primesieve::iterator   primeIterator;
+   uint32_t termIdx = 0;
+   
+   primeIterator.skipto(1, ii_N);
+   
+   uint32_t primeCount = primesieve::count_primes(1, ii_N);
+   ii_Primes = (uint32_t *) xmalloc((10 + primeCount) * sizeof(uint32_t));
+   primeCount = 0;
+   
+   while (true)
+   {
+      ii_Primes[primeCount] = (uint32_t) primeIterator.next_prime();
+      
+      if (ii_Primes[primeCount] == ii_N)
+         break;
+      
+      if (ii_Primes[primeCount] > ii_N)
+         FatalError("%u is not prime, consider %u or %u\n", ii_N, ii_Primes[primeCount-1], ii_Primes[primeCount]);
+         
+      primeCount++;
+   }
+   
+   il_Terms = (uint64_t *) xmalloc((10 + (primeCount / 3)) * sizeof(uint64_t));
+   
+   il_Terms[0] = 2;
+   termIdx = 0;
+   for (uint32_t idx=1; ii_Primes[idx] > 0; idx++)
+   {
+      uint64_t mult = il_Terms[termIdx] * ii_Primes[idx];
+      
+      // If we overflows then mult will be less than il_Terms[termIdx]
+      if ((double) il_Terms[termIdx] * (double) ii_Primes[idx] < (double) PMAX_MAX_62BIT)
+      {
+         il_Terms[termIdx] = mult;
+         continue;
+      }
+      
+      termIdx++;
+      il_Terms[termIdx] = ii_Primes[idx];
+   }
+}
+
+void TwinApp::BuildFactorialTerms(void)
+{
+   primesieve::iterator   primeIterator;
+   uint32_t termIdx = 0;
+
+   il_Terms = (uint64_t *) xmalloc((10 + (ii_N / 3)) * sizeof(uint64_t));
+
+   for (uint32_t n=2; n<=ii_N; n++)
+   {
+      if (il_Terms[termIdx] == 0)
+      {
+         il_Terms[termIdx] = n;
+         continue;
+      }
+      
+      uint64_t mult = il_Terms[termIdx] * n;
+      
+      // If we overflows then mult will be less than il_Terms[termIdx]
+      if ((double) il_Terms[termIdx] * (double) n < (double) PMAX_MAX_62BIT)
+      {
+         il_Terms[termIdx] = mult;
+         continue;
+      }
+      
+      termIdx++;
+      il_Terms[termIdx] = n;
+   }
 }
 
 bool TwinApp::ApplyFactor(uint64_t theFactor,  const char *term)
@@ -522,12 +739,13 @@ void TwinApp::WriteOutputTermsFile(uint64_t largestPrime)
 uint64_t TwinApp::WriteABCDTermsFile(uint64_t maxPrime, FILE *termsFile)
 {
    uint64_t k, kCount = 0, previousK;
-   uint64_t bit;
+   uint64_t bit, adder = (ib_HalfK ? 2 : 1);
 
    k = il_MinK;
-   
-   bit = BIT(k);
-   for (; k<=il_MaxK; k++)
+
+   bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
+
+   for (; k<=il_MaxK; k+=adder)
    {      
       if (iv_TwinTerms[bit])
          break;
@@ -538,14 +756,22 @@ uint64_t TwinApp::WriteABCDTermsFile(uint64_t maxPrime, FILE *termsFile)
    if (k > il_MaxK)
       return 0;
    
-   fprintf(termsFile, "ABCD $a*%u^%d+1 & $a*%u^%d-1  [%" SCNu64"] // Sieved to %" SCNu64"\n", ii_Base, ii_N, ii_Base, ii_N, k, maxPrime);
+   if (it_TermType == TT_BN)
+      fprintf(termsFile, "ABCD $a*%u^%d+1 & $a*%u^%d-1  [%" SCNu64"] // Sieved to %" SCNu64"\n", ii_Base, ii_N, ii_Base, ii_N, k, maxPrime);
+
+   if (it_TermType == TT_PRIMORIAL)
+      fprintf(termsFile, "ABCD $a*%u#+1 & $a*%u#-1  [%" SCNu64"] // Sieved to %" SCNu64"\n", ii_N, ii_N, k, maxPrime);
+
+   if (it_TermType == TT_FACTORIAL)
+      fprintf(termsFile, "ABCD $a*%u!+1 & $a*%u!-1  [%" SCNu64"] // Sieved to %" SCNu64"\n", ii_N, ii_N, k, maxPrime);
    
    previousK = k;
    kCount = 1;
-   k++;
+   k += adder;
    
-   bit = BIT(k);
-   for (; k<=il_MaxK; k++)
+   bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
+   
+   for (; k<=il_MaxK; k+=adder)
    {
       if (iv_TwinTerms[bit])
       {
@@ -563,17 +789,35 @@ uint64_t TwinApp::WriteABCDTermsFile(uint64_t maxPrime, FILE *termsFile)
 uint64_t TwinApp::WriteABCTermsFile(uint64_t maxPrime, FILE *termsFile)
 {
    uint64_t k, kCount = 0;
-   uint64_t bit;
+   uint64_t bit, adder = (ib_HalfK ? 2 : 1);
 
    if (ib_OnlyTwins)
-      fprintf(termsFile, "ABC $a*%u^%u+1 & $a*%u^%u-1 // Sieved to %" PRIu64"\n", ii_Base, ii_N, ii_Base, ii_N, maxPrime);
+   {
+      if (it_TermType == TT_BN)
+         fprintf(termsFile, "ABC $a*%u^%d+1 & $a*%u^%d-1 // Sieved to %" SCNu64"\n", ii_Base, ii_N, ii_Base, ii_N, maxPrime);
+
+      if (it_TermType == TT_PRIMORIAL)
+         fprintf(termsFile, "ABC $a*%u#+1 & $a*%u#-1 // Sieved to %" SCNu64"\n", ii_N, ii_N, maxPrime);
+
+      if (it_TermType == TT_FACTORIAL)
+         fprintf(termsFile, "ABC $a*%u!+1 & $a*%u!-1 // Sieved to %" SCNu64"\n", ii_N, ii_N, maxPrime);
+   }
    else
-      fprintf(termsFile, "ABC $a*%u^%d$b // Sieved to %" SCNu64"\n", ii_Base, ii_N, maxPrime);
+   {
+      if (it_TermType == TT_BN)
+         fprintf(termsFile, "ABC $a*%u^%d$b // Sieved to %" SCNu64"\n", ii_Base, ii_N, maxPrime);
+
+      if (it_TermType == TT_PRIMORIAL)
+         fprintf(termsFile, "ABC $a*%u#$b // Sieved to %" SCNu64"\n", ii_N, maxPrime);
+
+      if (it_TermType == TT_FACTORIAL)
+         fprintf(termsFile, "ABC $a*%u!$b // Sieved to %" SCNu64"\n", ii_N, maxPrime);
+   }
       
    k = il_MinK;
-   bit = BIT(k);
+   bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
 
-   for ( ; k<=il_MaxK; k++)
+   for ( ; k<=il_MaxK; k+=adder)
    {
       if (ib_OnlyTwins)
       {
@@ -607,14 +851,14 @@ uint64_t TwinApp::WriteABCTermsFile(uint64_t maxPrime, FILE *termsFile)
 uint64_t TwinApp::WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsFile)
 {
    uint64_t k, kCount = 0;
-   uint64_t bit;
+   uint64_t bit, adder = (ib_HalfK ? 2 : 1);
 
    fprintf(termsFile, "%" PRIu64":T:0:%u:3\n", maxPrime, ii_Base);
       
    k = il_MinK;
-   bit = BIT(k);
+   bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
    
-   for ( ; k<=il_MaxK; k++)
+   for ( ; k<=il_MaxK; k+=adder)
    {
       if (iv_TwinTerms[bit])
       {
@@ -630,7 +874,14 @@ uint64_t TwinApp::WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsFile)
 
 void  TwinApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
-   snprintf(extraText, maxTextLength, "%" PRIu64 " < k < %" PRIu64", k*%u^%u", il_MinK, il_MaxK, ii_Base, ii_N);
+   if (it_TermType == TT_BN)
+      snprintf(extraText, maxTextLength, "%" PRIu64 " < k < %" PRIu64", k*%u^%u", il_MinK, il_MaxK, ii_Base, ii_N);
+   
+   if (it_TermType == TT_PRIMORIAL)
+      snprintf(extraText, maxTextLength, "%" PRIu64" < k < %" PRIu64", k*%u#", il_MinK, il_MaxK, ii_N);
+   
+   if (it_TermType == TT_FACTORIAL)
+      snprintf(extraText, maxTextLength, "%" PRIu64" < k < %" PRIu64", k*%u!", il_MinK, il_MaxK, ii_N);
 }
 
 bool  TwinApp::ReportFactor(uint64_t theFactor, uint64_t k, int32_t c)
@@ -641,53 +892,65 @@ bool  TwinApp::ReportFactor(uint64_t theFactor, uint64_t k, int32_t c)
    if (theFactor > il_MaxPrimeForValidFactor)
       return false;
    
-   if (theFactor > GetMaxPrimeForSingleWorker())
-      ip_FactorAppLock->Lock();
-
-   uint64_t bit = BIT(k);
-
-   snprintf(kStr, sizeof(kStr), "%" PRIu64"", k);
-
-   if (ib_OnlyTwins)
-   {
-      if (iv_TwinTerms[bit])
-      {
-         iv_TwinTerms[bit] = false;
-         removedTerm = true;
-         
-         LogFactor(theFactor, "%s*%u^%u%+d", kStr, ii_Base, ii_N, c);
-         
-         il_FactorCount++;
-         il_TermCount--;
-      }
-   }
-   else
-   {
-      if (c == -1 && iv_MinusTerms[bit])
-      {
-         iv_MinusTerms[bit] = false;
-         removedTerm = true;
-         
-         LogFactor(theFactor, "%s*%u^%u-1", kStr, ii_Base, ii_N);
-         
-         il_FactorCount++;
-         il_TermCount--;
-      }
-
-      if (c == +1 && iv_PlusTerms[bit])
-      {
-         iv_PlusTerms[bit] = false;
-         removedTerm = true;
-         
-         LogFactor(theFactor, "%s*%u^%u+1", kStr, ii_Base, ii_N);
-         
-         il_FactorCount++;
-         il_TermCount--;
-      }
-   }
+   // If the first term is valid, then the rest are valid.  In other words 
+   // k*x (mod p) = (k+p)*x (mod p) = ... = (k+n*p)*x (mod p)
+   VerifyFactor(theFactor, k, c);
    
-   if (theFactor > GetMaxPrimeForSingleWorker())
-      ip_FactorAppLock->Release();
+   ip_FactorAppLock->Lock();
+
+   do
+   {
+      uint64_t bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
+
+      snprintf(kStr, sizeof(kStr), "%" PRIu64"", k);
+
+      if (ib_OnlyTwins)
+      {
+         if (iv_TwinTerms[bit])
+         {
+            iv_TwinTerms[bit] = false;
+            removedTerm = true;
+            
+            LogFactor(theFactor, "%s*%u^%u%+d", kStr, ii_Base, ii_N, c);
+            
+            il_FactorCount++;
+            il_TermCount--;
+         }
+      }
+      else
+      {
+         if (c == -1 && iv_MinusTerms[bit])
+         {
+            iv_MinusTerms[bit] = false;
+            removedTerm = true;
+            
+            LogFactor(theFactor, "%s*%u^%u-1", kStr, ii_Base, ii_N);
+            
+            il_FactorCount++;
+            il_TermCount--;
+         }
+
+         if (c == +1 && iv_PlusTerms[bit])
+         {
+            iv_PlusTerms[bit] = false;
+            removedTerm = true;
+            
+            LogFactor(theFactor, "%s*%u^%u+1", kStr, ii_Base, ii_N);
+            
+            il_FactorCount++;
+            il_TermCount--;
+         }
+      }
+      if (ib_HalfK)
+      {
+         // We only care about every other k
+         k += (theFactor << 1);
+      }
+      else
+         k += theFactor; 
+   } while (k <= il_MaxK);
+   
+   ip_FactorAppLock->Release();
    
    return removedTerm;
 }
@@ -735,5 +998,50 @@ void  TwinApp::AdjustMaxPrime(void)
          SetMaxPrime(maxp, "All remaining terms will be prime");
          il_MaxPrimeForValidFactor = maxp;
       }
+   }
+}
+
+void  TwinApp::VerifyFactor(uint64_t theFactor, uint64_t k, int32_t c)
+{
+   MpArith  mp(theFactor);
+   MpRes    pOne = mp.one();
+   MpRes    resRem = pOne;
+   
+   if (it_TermType == TT_BN)
+   {
+      resRem = mp.pow(mp.nToRes(ii_Base), ii_N);
+   }
+   else
+   {   
+      uint32_t idx = 0;
+      while (il_Terms[idx] > 0)
+      {
+         resRem = mp.mul(resRem, mp.nToRes(il_Terms[idx]));
+
+         idx++;
+      }
+   }
+
+   resRem = mp.mul(resRem, mp.nToRes(k));
+   
+   if (c == +1)
+      resRem = mp.add(resRem, pOne);
+   else
+      resRem = mp.sub(resRem, pOne);
+   
+   if (resRem != mp.zero())
+   {
+      char     term[50];
+
+      if (it_TermType == TT_BN)
+         snprintf(term, sizeof(term), "%" PRIu64"*%u^%u%+d", k, ii_Base, ii_N, c);
+         
+      if (it_TermType == TT_PRIMORIAL)
+         snprintf(term, sizeof(term), "%" PRIu64"*%u#%+d", k, ii_N, c);
+   
+      if (it_TermType == TT_FACTORIAL)
+         snprintf(term, sizeof(term), "%" PRIu64"*%u!%+d", k, ii_N, c);
+
+      FatalError("Invalid factor: %" PRIu64" is not a factor of %s", theFactor, term);
    }
 }

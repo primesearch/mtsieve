@@ -31,6 +31,9 @@ protected:
    void              NotifyPrimeListAllocated(uint32_t primesInList);
    
 private:
+   void              TestSmallB(void);
+   void              TestLargeB(void);
+   
    void              RemoveTermsSmallPrime(uint64_t prime, uint64_t k, int32_t c);
    void              RemoveTermsBigPrime(uint64_t prime, uint64_t k, int32_t c);
    void              VerifyFactor(uint64_t prime, uint64_t k, int32_t c, uint64_t bPowNModP);
@@ -45,11 +48,13 @@ private:
    uint64_t         *il_MyPrimeList;
    uint32_t         *ii_InverseList;
    
+   termtype_t        it_TermType;
    uint64_t          il_BpowN;
    uint64_t          il_MinK;
    uint64_t          il_MaxK;
    uint32_t          ii_Base;
    uint32_t          ii_N;
+   uint64_t         *il_Terms;
 };
 
 #endif
