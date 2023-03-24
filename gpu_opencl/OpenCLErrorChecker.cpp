@@ -28,7 +28,7 @@ void OpenCLErrorChecker::ExitIfError(const char *functionName, cl_int status, co
    if (status == CL_SUCCESS) return;
 
    va_start(args, fmt);
-   vsprintf(buffer, fmt, args);
+   vsnprintf(buffer, sizeof(buffer), fmt, args);
    va_end(args);
 
    fprintf(stderr, "\nOpenCL Error: %s\n", GetErrorText(status));

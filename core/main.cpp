@@ -194,7 +194,7 @@ void     FatalError(const char *fmt, ...)
    char     buffer[20000];
 
    va_start(args, fmt);
-   vsprintf(buffer, fmt, args);
+   vsnprintf(buffer, sizeof(buffer), fmt, args);
    va_end(args);
 
    fprintf(stderr, "Fatal Error:  %s\n", buffer);

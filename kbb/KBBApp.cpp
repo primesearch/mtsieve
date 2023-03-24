@@ -500,7 +500,7 @@ bool  KBBApp::CheckAlgebraicFactor(uint32_t b, int32_t c, const char *fmt, ...)
       return false;
    
    va_start(args,fmt);
-   vsprintf(factor, fmt, args);
+   vsnprintf(factor, sizeof(factor), fmt, args);
    va_end(args);
       
    uint32_t bit = BIT(b);
