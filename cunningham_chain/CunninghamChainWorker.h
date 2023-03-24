@@ -26,13 +26,22 @@ public:
    void              CleanUp(void);
 
 protected:
-   void              NotifyPrimeListAllocated(uint32_t primesInList) {}
+   void              NotifyPrimeListAllocated(uint32_t primesInList);
 
 private:
+   void              TestSmallB(void);
+   
    void              RemoveTerms(uint64_t thePrime, uint64_t k, uint32_t termInChain);
+
+   void              BuildBaseInverses(void);
+   uint32_t          EuclidExtendedGCD(uint32_t a, uint32_t base);
    
    CunninghamChainApp *ip_CunninghamChainApp;
 
+   uint32_t         *ii_BaseInverses;
+   uint64_t         *il_MyPrimeList;
+   uint32_t         *ii_InverseList;
+   
    chainkind_t       it_ChainKind;
    termtype_t        it_TermType;
    uint32_t          ii_ChainLength;

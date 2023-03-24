@@ -17,7 +17,7 @@
 #include "CunninghamChainWorker.h"
 
 #define APP_NAME        "ccsieve"
-#define APP_VERSION     "1.1"
+#define APP_VERSION     "1.2"
 
 #define MAX_LENGTH      30
 #define NMAX_MAX        (1 << 31)
@@ -48,8 +48,8 @@ CunninghamChainApp::CunninghamChainApp() : FactorApp()
    il_MaxK = 0;
    ii_N = 0;
    ii_ChainLength = 0;
-   il_Terms = 0;
-   ii_Primes = 0;
+   il_Terms = NULL;
+   ii_Primes = NULL;
    ib_HalfK = false;
    ii_NumberOfFiles = 1;
  
@@ -181,6 +181,10 @@ void CunninghamChainApp::ValidateOptions(void)
    {
       ProcessInputTermsFile(false);
 
+      // We only care about odd k or even k, but not both
+      if (it_TermType == TT_BN && (ii_Base == 2 || ii_Base & 1))
+         ib_HalfK = true;
+   
       if (it_TermType == TT_PRIMORIAL)
          BuildPrimorialTerms();
       
@@ -507,7 +511,7 @@ void CunninghamChainApp::ProcessInputTermsFile(bool haveBitMap, FILE *fPtr, char
       FatalError("Chains of the first kind must end with -1");
    
    if (format == FF_CC && chainKind == CCT_SECONDKIND && c != +1)
-      FatalError("Chains of the first kind must end with +1");
+      FatalError("Chains of the second kind must end with +1");
    
    if (base != ii_Base)
       FatalError("Mixed bases in input files");
@@ -523,10 +527,6 @@ void CunninghamChainApp::ProcessInputTermsFile(bool haveBitMap, FILE *fPtr, char
    
    if (termType != it_TermType)
       FatalError("Mixed types of terms in input files");
-
-   // We only care about odd k or even k, but not both
-   if (it_TermType == TT_BN && (ii_Base == 2 || ii_Base & 1))
-      ib_HalfK = true;
    
    while (fgets(buffer, sizeof(buffer), fPtr) != NULL)
    {
