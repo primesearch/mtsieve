@@ -29,13 +29,15 @@ protected:
    void              NotifyPrimeListAllocated(uint32_t primesInList);
 
 private:
+   void              TestSmallB(void);
+   void              TestLargeB(void);
+   
    void              RemoveTermsSmallPrime(uint64_t prime, uint64_t k);
    void              RemoveTermsBigPrime(uint64_t prime, uint64_t k);
    void              VerifyFactor(uint64_t prime, uint64_t k, uint64_t bPowNModP);
 
    void              BuildBaseInverses(void);
    uint32_t          EuclidExtendedGCD(uint32_t a, uint32_t base);
-   void              DeterminePrimeTermRange(void);
 
    FixedBNCApp      *ip_FixedBNCApp;
    

@@ -38,7 +38,7 @@ public:
    uint32_t          GetN(void) { return ii_N; };
    int32_t           GetC(void) { return ii_C; };
    
-   bool              ReportFactor(uint64_t theFactor, uint64_t k);
+   void              ReportFactor(uint64_t theFactor, uint64_t k);
 
 protected:
    void              PreSieveHook(void) {};
@@ -53,16 +53,19 @@ protected:
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
 
 private:
+   void              ComputeBPowN(void);
    uint64_t          WriteABCDTermsFile(uint64_t maxPrime, FILE *termsFile);
    uint64_t          WriteABCTermsFile(uint64_t maxPrime, FILE *termsFile);
    uint64_t          WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsFile);
    void              AdjustMaxPrime(void);
+   void              VerifyFactor(uint64_t theFactor, uint64_t k);
    
    std::vector<bool> iv_Terms;
 
    std::string       is_Sequence;
    std::string       is_InputFileName;
    std::string       is_OutputFileName;
+   std::string       is_PrimeFileName;
 
    format_t          it_Format;
    uint64_t          il_MaxPrimeForValidFactor;
@@ -72,6 +75,9 @@ private:
    uint32_t          ii_N;
    int32_t           ii_C;
    bool              ib_Remove;
+   bool              ib_HalfK;
+   
+   uint64_t          il_BPowN;
 };
 
 #endif

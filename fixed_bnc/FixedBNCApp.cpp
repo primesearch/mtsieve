@@ -11,13 +11,15 @@
 #include <cinttypes>
 #include "../core/Parser.h"
 #include "../core/Clock.h"
+#include "../core/MpArith.h"
 #include "FixedBNCApp.h"
 #include "FixedBNCWorker.h"
 
 #define APP_NAME        "fbncsieve"
-#define APP_VERSION     "1.5"
+#define APP_VERSION     "1.6"
 
-#define BIT(k)          ((k) - il_MinK)
+#define BIT_HK(k)       (((k) - il_MinK) >> 1)
+#define BIT_AK(k)       ((k) - il_MinK)
 
 // This is declared in App.h, but implemented here.  This means that App.h
 // can remain unchanged if using the mtsieve framework for other applications.
@@ -37,6 +39,7 @@ FixedBNCApp::FixedBNCApp() : FactorApp()
    il_MaxK = 0;
    it_Format = FF_ABCD;
    ib_Remove = false;
+   ib_HalfK = false;
    
    il_MaxPrimeForValidFactor = PMAX_MAX_62BIT;
 }
@@ -112,6 +115,8 @@ parse_t FixedBNCApp::ParseOption(int opt, char *arg, const char *source)
 
 void FixedBNCApp::ValidateOptions(void)
 {
+   char  fileName[30];
+      
    if (it_Format == FF_UNKNOWN)
       FatalError("File format not valid, use A (ABC), D (ABCD) or N (NewPGen)");
    
@@ -119,28 +124,19 @@ void FixedBNCApp::ValidateOptions(void)
    {
       ProcessInputTermsFile(false);
       
-      iv_Terms.resize(il_MaxK - il_MinK + 1);
+      // We only care about odd k or even k, but not both
+      if ((ii_Base == 2 || ii_Base & 1))
+         ib_HalfK = true;
+      
+      uint32_t termSize = (il_MaxK - il_MinK) + 1;
+      
+      if (ib_HalfK)
+         termSize = (il_MaxK - il_MinK)/2 + 1;
+      
+      iv_Terms.resize(termSize);
       std::fill(iv_Terms.begin(), iv_Terms.end(), false);
       
       ProcessInputTermsFile(true);
-
-      if (ib_Remove)
-      {
-         uint64_t k = il_MinK;
-         
-         while (k % ii_Base > 0)
-            k++;
-         
-         // Remvoe k that are divisible by the base
-         for ( ; k<=il_MaxK; k+=ii_Base)
-         {
-            if (iv_Terms[BIT(k)])
-            {
-               il_TermCount--;
-               iv_Terms[BIT(k)] = false;
-            }
-         }
-      }
    }
    else
    {
@@ -168,31 +164,38 @@ void FixedBNCApp::ValidateOptions(void)
       if (ii_C != 1 && ii_C != -1)
          FatalError("c must be -1 or +1");
       
+      // We only care about odd k or even k, but not both
+      if ((ii_Base == 2 || ii_Base & 1))
+         ib_HalfK = true;
+      
       il_TermCount = il_MaxK - il_MinK + 1;
       
-      iv_Terms.resize(il_MaxK - il_MinK + 1);
+      if (ib_HalfK)
+         il_TermCount = (il_MaxK - il_MinK)/2 + 1;
+      
+      iv_Terms.resize(il_TermCount);
       std::fill(iv_Terms.begin(), iv_Terms.end(), true);
       
       if (ib_Remove)
       {
          uint64_t k = il_MinK;
+         uint32_t adder = (ib_HalfK ? ii_Base*2 : ii_Base);
          
          while (k % ii_Base > 0)
             k++;
          
          // Remvoe k that are divisible by the base
-         for ( ; k<=il_MaxK; k+=ii_Base)
+         for ( ; k<=il_MaxK; k+=adder)
          {
+            uint64_t bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
             il_TermCount--;
-            iv_Terms[BIT(k)] = false;
+            iv_Terms[bit] = false;
          }
       }
    }
    
    if (is_OutputTermsFileName.length() == 0)
-   {
-      char  fileName[30];
-      
+   {      
       if (it_Format == FF_NEWPGEN)
          snprintf(fileName, sizeof(fileName), "k_b%u_n%u%+d.npg", ii_Base, ii_N, ii_C);
       else
@@ -200,6 +203,11 @@ void FixedBNCApp::ValidateOptions(void)
       
       is_OutputTermsFileName = fileName;
    }
+
+   snprintf(fileName, sizeof(fileName), "k_b%u_n%u%+d.primes.txt", ii_Base, ii_N, ii_C);
+   is_PrimeFileName = fileName;
+   
+   ComputeBPowN();
    
    FactorApp::ParentValidateOptions();
 
@@ -333,7 +341,7 @@ void FixedBNCApp::ProcessInputTermsFile(bool haveBitMap)
             
       if (haveBitMap)
       {
-         bit = BIT(k);
+         bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
          iv_Terms[bit] = true;
          il_TermCount++;
       }
@@ -345,6 +353,36 @@ void FixedBNCApp::ProcessInputTermsFile(bool haveBitMap)
    }
 
    fclose(fPtr);
+}
+
+void FixedBNCApp::ComputeBPowN(void)
+{
+   double    tooBig;
+   double    b = (double) ii_Base;
+   double    bpown;
+   double    mink = (double) il_MinK;
+   
+   // KMAX_MAX is the same as PMAX_MAX, 2^62.
+   if (GetMaxPrime() == 0)
+      tooBig = (double) KMAX_MAX;
+   else
+      tooBig = (double) GetMaxPrime();
+   
+   il_BPowN = 1;
+   bpown = 1.0;
+   
+   for (uint32_t i=0; i<ii_N; i++)
+   {
+      bpown *= b;
+      il_BPowN *= ii_Base;
+
+      // If mink*b^n-1.0 > the max prime to sieve, then we don't need to worry about removing terms that are prime.
+      if (mink*bpown-1.0 > tooBig)
+      {
+         il_BPowN = 0;
+         return;
+      }
+   }
 }
 
 bool FixedBNCApp::ApplyFactor(uint64_t theFactor, const char *term)
@@ -413,12 +451,14 @@ void FixedBNCApp::WriteOutputTermsFile(uint64_t largestPrime)
 uint64_t FixedBNCApp::WriteABCDTermsFile(uint64_t maxPrime, FILE *termsFile)
 {
    uint64_t k, kCount = 0, previousK;
-   uint64_t bit;
+   uint64_t bit, adder;
 
    k = il_MinK;
    
-   bit = BIT(k);
-   for (; k<=il_MaxK; k++)
+   bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
+   adder = (ib_HalfK ? 2 : 1);
+   
+   for (; k<=il_MaxK; k+=adder)
    {      
       if (iv_Terms[bit])
          break;
@@ -435,8 +475,10 @@ uint64_t FixedBNCApp::WriteABCDTermsFile(uint64_t maxPrime, FILE *termsFile)
    kCount = 1;
    k++;
    
-   bit = BIT(k);
-   for (; k<=il_MaxK; k++)
+
+   bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
+   
+   for (; k<=il_MaxK; k+=adder)
    {
       if (iv_Terms[bit])
       {
@@ -454,14 +496,16 @@ uint64_t FixedBNCApp::WriteABCDTermsFile(uint64_t maxPrime, FILE *termsFile)
 uint64_t FixedBNCApp::WriteABCTermsFile(uint64_t maxPrime, FILE *termsFile)
 {
    uint64_t k, kCount = 0;
-   uint64_t bit;
+   uint64_t bit, adder;
 
    fprintf(termsFile, "ABC $a*%u^%u%+d // Sieved to %" PRIu64"\n", ii_Base, ii_N, ii_C, maxPrime);
       
    k = il_MinK;
-   bit = BIT(k);
 
-   for ( ; k<=il_MaxK; k++)
+   bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
+   adder = (ib_HalfK ? 2 : 1);
+
+   for ( ; k<=il_MaxK; k+=adder)
    {
       if (iv_Terms[bit])
       {
@@ -478,14 +522,16 @@ uint64_t FixedBNCApp::WriteABCTermsFile(uint64_t maxPrime, FILE *termsFile)
 uint64_t FixedBNCApp::WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsFile)
 {
    uint64_t k, kCount = 0;
-   uint64_t bit;
+   uint64_t bit, adder;
 
    fprintf(termsFile, "%" PRIu64":%c:1:%u:%u\n", maxPrime, (ii_C == 1 ? 'P' : 'M'), ii_Base, (ii_C == 1 ? 1 : 2));
       
    k = il_MinK;
-   bit = BIT(k);
+
+   bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
+   adder = (ib_HalfK ? 2 : 1);
    
-   for ( ; k<=il_MaxK; k++)
+   for ( ; k<=il_MaxK; k+=adder)
    {
       if (iv_Terms[bit])
       {
@@ -504,33 +550,71 @@ void  FixedBNCApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t 
    snprintf(extraText, maxTextLength, "%" PRIu64 " < k < %" PRIu64", k*%u^%u%+d", il_MinK, il_MaxK, ii_Base, ii_N, ii_C);
 }
 
-bool  FixedBNCApp::ReportFactor(uint64_t theFactor, uint64_t k)
+void  FixedBNCApp::ReportFactor(uint64_t theFactor, uint64_t k)
 {
-   bool     removedTerm = false;
-
    if (theFactor > il_MaxPrimeForValidFactor)
-      return false;
+      return;
    
-   if (theFactor > GetMaxPrimeForSingleWorker())
-      ip_FactorAppLock->Lock();
+   VerifyFactor(theFactor, k);
+      
+   ip_FactorAppLock->Lock();
 
-   uint64_t bit = BIT(k);
-      
-   if (iv_Terms[bit])
+   do
    {
-      iv_Terms[bit] = false;
-      removedTerm = true;
-            
-      LogFactor(theFactor, "%" PRIu64"*%u^%u%+d", k, ii_Base, ii_N, ii_C);
+      uint64_t termValue = 0;
       
-      il_FactorCount++;
-      il_TermCount--;
-   }
+      if (il_BPowN > 0)
+         termValue = k * il_BPowN + ii_C;
+      
+      uint64_t bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
+      
+      if (iv_Terms[bit])
+      {
+         iv_Terms[bit] = false;
+
+         if (termValue == theFactor)
+         {
+            FILE *fPtr = fopen(is_PrimeFileName.c_str(), "a+");
+            fprintf(fPtr, "%" PRIu64"*%u^%u%+d = %" PRIu64"", k, ii_Base, ii_N, ii_C, theFactor);
+            fclose(fPtr);
+         }
+         else
+            LogFactor(theFactor, "%" PRIu64"*%u^%u%+d", k, ii_Base, ii_N, ii_C);
+         
+         il_FactorCount++;
+         il_TermCount--;
+      }
+      
+      if (ib_HalfK)
+      {
+         // We only care about every other k
+         k += (theFactor << 1);
+      }
+      else
+         k += theFactor; 
+   } while (k <= il_MaxK);
    
-   if (theFactor > GetMaxPrimeForSingleWorker())
-      ip_FactorAppLock->Release();
+   ip_FactorAppLock->Release();
+}
+
+void  FixedBNCApp::VerifyFactor(uint64_t theFactor, uint64_t k)
+{
+   MpArith  mp(theFactor);
+   MpRes    pOne = mp.one();
+   MpRes    resRem = pOne;
    
-   return removedTerm;
+   resRem = mp.pow(mp.nToRes(ii_Base), ii_N);
+   resRem = mp.mul(resRem, mp.nToRes(k));
+   
+   if (ii_C == +1)
+      resRem = mp.add(resRem, pOne);
+   else
+      resRem = mp.sub(resRem, pOne);
+   
+   if (resRem == mp.zero())
+      return;
+
+   FatalError("Invalid factor: %" PRIu64" is not a factor of %" PRIu64"*%u^%u%+d", theFactor, k, ii_Base, ii_N, ii_C);
 }
 
 // Don't sieve beyond sqrt(maxk*b^n+c).  The worker will not
