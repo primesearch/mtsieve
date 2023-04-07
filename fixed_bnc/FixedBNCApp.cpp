@@ -16,7 +16,7 @@
 #include "FixedBNCWorker.h"
 
 #define APP_NAME        "fbncsieve"
-#define APP_VERSION     "1.6"
+#define APP_VERSION     "1.6.1"
 
 #define BIT_HK(k)       (((k) - il_MinK) >> 1)
 #define BIT_AK(k)       ((k) - il_MinK)
@@ -163,6 +163,25 @@ void FixedBNCApp::ValidateOptions(void)
       
       if (ii_C != 1 && ii_C != -1)
          FatalError("c must be -1 or +1");
+
+      if (ii_Base & 1)
+      {
+         // Both need to be even if the base is odd
+         if (il_MinK & 1)
+            il_MinK++;
+         
+         if (il_MaxK & 1)
+            il_MaxK--;
+      }
+      else
+      {
+         // Both need to be odd if the base is even
+         if (!(il_MinK & 1))
+            il_MinK++;
+         
+         if (!(il_MaxK & 1))
+            il_MaxK--;
+      }
       
       // We only care about odd k or even k, but not both
       if ((ii_Base == 2 || ii_Base & 1))
@@ -473,9 +492,8 @@ uint64_t FixedBNCApp::WriteABCDTermsFile(uint64_t maxPrime, FILE *termsFile)
    
    previousK = k;
    kCount = 1;
-   k++;
+   k += adder;
    
-
    bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
    
    for (; k<=il_MaxK; k+=adder)
