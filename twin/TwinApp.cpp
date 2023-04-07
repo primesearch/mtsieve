@@ -16,7 +16,7 @@
 #include "TwinWorker.h"
 
 #define APP_NAME        "twinsieve"
-#define APP_VERSION     "1.6"
+#define APP_VERSION     "1.6.1"
 
 #define NMAX_MAX        (1 << 31)
 #define BMAX_MAX        (1 << 31)
@@ -234,36 +234,36 @@ void TwinApp::ValidateOptions(void)
          {
             // We only care about odd k
             ib_HalfK = true;
-            if (ib_OnlyTwins)
-               il_TermCount = (il_MaxK - il_MinK)/2 + 1;
-            else
-               il_TermCount = 2*((il_MaxK - il_MinK)/2 + 1);
-         
-            // Make minK odd
+
+            // Both need to be odd if the base is even
             if (!(il_MinK & 1))
                il_MinK++;
             
-            // Make maxK odd
             if (!(il_MaxK & 1))
                il_MaxK--;
-         }
-         
-         if (ii_Base & 0x01)
-         {
-            // We only care about even k
-            ib_HalfK = true;
+
             if (ib_OnlyTwins)
                il_TermCount = (il_MaxK - il_MinK)/2 + 1;
             else
                il_TermCount = 2*((il_MaxK - il_MinK)/2 + 1);
+         }
          
-            // Make minK even
+         if (ii_Base & 1)
+         {
+            // We only care about even k
+            ib_HalfK = true;
+
+            // Both need to be even if the base is odd
             if (il_MinK & 1)
                il_MinK++;
             
-            // Make maxK even
             if (il_MaxK & 1)
                il_MaxK--;
+         
+            if (ib_OnlyTwins)
+               il_TermCount = (il_MaxK - il_MinK)/2 + 1;
+            else
+               il_TermCount = 2*((il_MaxK - il_MinK)/2 + 1);
          }
       }
       else
@@ -308,9 +308,8 @@ void TwinApp::ValidateOptions(void)
       it_Format = FF_ABC;
       WriteToConsole(COT_OTHER, "Switching to ABC format since newpgen format is not supported for primorials or factorials");
    }
-         
-   
-   if (ib_Remove && it_TermType == TT_BN)
+
+   if (ib_Remove && it_TermType == TT_BN && ii_Base != 2)
    {
       uint64_t k = il_MinK;
       
