@@ -79,6 +79,7 @@ App::App(void)
    il_MinGpuPrime = 0;
    ib_HaveCreatedWorkers = false;
    ib_SetMinPrimeFromCommandLine = false;
+   ib_FixedCpuWorkSize = false;
 
    ip_Workers = (Worker **) xmalloc((MAX_WORKERS + 1) * sizeof(Worker *));
    
@@ -187,6 +188,12 @@ parse_t App::ParentParseOption(int opt, char *arg, const char *source)
          break;
 
       case 'w':
+         if (arg[strlen(arg)-1] == 'F' || arg[strlen(arg)-1] == 'f')
+         {
+            arg[strlen(arg)-1] = 0;
+            ib_FixedCpuWorkSize = true;
+         }
+         
          status = Parser::Parse(arg, 10, 1000000000, ii_CpuWorkSize);
          break;
 

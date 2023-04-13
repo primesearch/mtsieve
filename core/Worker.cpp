@@ -174,7 +174,7 @@ void  Worker::StartProcessing(void)
       
       ip_StatsLocker->Release();
 
-      if (!ib_GpuWorker && il_LargestPrimeTested > 100000)
+      if (!ib_GpuWorker && il_LargestPrimeTested > 100000 && !ip_App->IsFixedCpuWorkSize())
       {
          uint64_t newWorkSize = ComputeOptimalWorkSize(startTime, endTime);
 

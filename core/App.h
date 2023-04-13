@@ -66,6 +66,7 @@ public:
    virtual void      ValidateOptions(void) = 0;
    
    uint32_t          GetCpuWorkSize(void) { return ii_CpuWorkSize; };
+   bool              IsFixedCpuWorkSize(void) { return ib_FixedCpuWorkSize; };
    uint32_t          GetTotalWorkers(void) { return ii_TotalWorkerCount; };
    uint64_t          GetMaxPrimeForSingleWorker(void) { return il_MaxPrimeForSingleWorker; };
    
@@ -203,6 +204,7 @@ private:
    
    Worker          **ip_Workers;
    
+   bool              ib_FixedCpuWorkSize;
    bool              ib_SetMinPrimeFromCommandLine;
    
    uint32_t          ii_CpuWorkerCount;
