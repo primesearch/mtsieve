@@ -1,3 +1,14 @@
+2.4.6 - April 14, 2023
+   framework:
+      Support 'f' or 'F' at the end of the -w argument.  This will "fix" the
+      number of primes per CPU workunit and not resize the workunit.
+      
+   twinsieve: version 1.6.1
+      Do not apply -r logic to base 2 since even k are already excluded.
+      
+   fbncsieve: version 1.6.1
+      Fix issue when generating ABCD file as it counts terms incorretly.
+      
 2.4.5 - March 24, 2023
    framework:
       Replace vsprintf with vsnprintf.
@@ -15,8 +26,8 @@
       Reduce memory usage for base 2 since we only track odd k.
       Output primes to a separate file.
    
-   twincsieve: version 1.6
-      Implement different logic (which is 5x slower) for larger bsaes to avoid invalid.
+   twinsieve: version 1.6
+      Implement different logic (which is 5x slower) for larger bsaes to avoid invalid
       factors.  This only applies to b^n forms.
       Add support to sieve for factorial/primorial twins.
       Reduce memory usage for odd bases since we only track even k.
