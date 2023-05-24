@@ -10,7 +10,7 @@
 #include <time.h>
 #include <assert.h>
 
-#include "../core/HashTable.h"
+#include "../core/SmallHashTable.h"
 #include "CarolKyneaGpuWorker.h"
 #include "ck_kernel.gpu.h"
 
@@ -47,9 +47,9 @@ CarolKyneaGpuWorker::CarolKyneaGpuWorker(uint32_t myId, App *theApp) : Worker(my
    giantSteps = MAX(1, sqrt((double) r/ROOT_COUNT));
    babySteps = MIN(r, ceil((double) r/giantSteps));
 
-   if (babySteps > HASH_MAX_ELTS)
+   if (babySteps > SMALL_HASH_MAX_ELTS)
    {
-      giantSteps = ceil((double)r/HASH_MAX_ELTS);
+      giantSteps = ceil((double)r/SMALL_HASH_MAX_ELTS);
       babySteps = ceil((double)r/giantSteps);
    }
 

@@ -23,7 +23,7 @@
 #define APP_NAME        "gcwsieve"
 #endif
 
-#define APP_VERSION     "1.5.1"
+#define APP_VERSION     "1.5.2"
 
 #define BIT(n)        ((n) - ii_MinN)
 
@@ -478,7 +478,7 @@ void  CullenWoodallApp::EliminateGfnAndMersenneTerms(void)
    for (n=ii_MinN; n<=ii_MaxN; n++)
    {
       bit = BIT(n);
-      
+            
       if (iv_CullenTerms[bit] && IsGfnOrMersenneForm(n, ii_Base, +1))
       {
          gfnForm++;
@@ -488,7 +488,8 @@ void  CullenWoodallApp::EliminateGfnAndMersenneTerms(void)
          GetRoot(n, &nroot, &npower);
          
          fPtr = fopen("gcw_gfn.txt", "a+");
-         fprintf(fPtr, "%u*%u^%u+1 = 2^%u+1\n", n, ii_Base, n, bpower + npower);
+         fprintf(fPtr, "%u = %llu^%u, %u = %llu^%u thus %u*%u^%u+1 = %llu^%u+1\n", 
+            ii_Base, broot, bpower, n, nroot, npower, n, ii_Base, n, broot, bpower*n+npower);
          fclose(fPtr);
       }
       

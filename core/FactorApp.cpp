@@ -31,6 +31,9 @@ FactorApp::FactorApp(void)
    il_TermCount = 0;
    if_FactorFile = 0;
    
+   id_FPSTarget = 0.0;
+   id_SPFTarget = 0.0;
+   
    ib_ApplyAndExit = false;
    
    ResetFactorStats();
@@ -53,19 +56,23 @@ void FactorApp::ParentHelp(void)
    printf("-I --inputfactors=I   input file with factors (used with -A)\n");
    printf("-o --outputterms=o    output file of remaining candidates\n");
    printf("-O --outputfactors=O  output file with new factors\n");
+   printf("-4 --fpstarget=4      stop sieving ASAP when factors per second falls below this value\n");
+   printf("-5 --spftarget=5      stop sieving ASAP when seconds per factor goes above this value\n");
 }
 
 void  FactorApp::ParentAddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    App::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "Ai:o:I:O:";
+   shortOpts += "Ai:o:I:O:4:5:";
 
    AppendLongOpt(longOpts, "applyandexit",   no_argument, 0, 'A');
    AppendLongOpt(longOpts, "inputterms",     required_argument, 0, 'i');
    AppendLongOpt(longOpts, "inputfactors",   required_argument, 0, 'I');
    AppendLongOpt(longOpts, "outputterms",    required_argument, 0, 'o');
    AppendLongOpt(longOpts, "outputfactors",  required_argument, 0, 'O');
+   AppendLongOpt(longOpts, "fpstarget",      required_argument, 0, '4');
+   AppendLongOpt(longOpts, "spftarget",      required_argument, 0, '5');
 }
 
 parse_t FactorApp::ParentParseOption(int opt, char *arg, const char *source)
@@ -103,6 +110,14 @@ parse_t FactorApp::ParentParseOption(int opt, char *arg, const char *source)
          is_OutputFactorsFileName = arg;
          status = P_SUCCESS;
          break;
+         
+      case '4':
+         status = Parser::Parse(arg, 0.1, 1000000000.0, id_FPSTarget);
+         break;
+         
+      case '5':
+         status = Parser::Parse(arg, 0.1, 1000000000.0, id_SPFTarget);
+         break;
    }
 
    return status;
@@ -114,6 +129,9 @@ void  FactorApp::ParentValidateOptions(void)
    char    *pos;
    uint32_t factors = 0, applied = 0;
    uint64_t thePrime;
+
+   if (id_FPSTarget > 0.0 && id_SPFTarget > 0.0)
+      FatalError("Cannot specify both -4 and -5");
    
    if (is_OutputTermsFileName.length() == 0)
    {
@@ -336,7 +354,7 @@ bool  FactorApp::BuildFactorsPerSecondRateString(uint32_t currentStatusEntry, do
    const char  *factorRateUnit;
    uint64_t     factorsFound = 0;
    uint64_t     factorTimeUS = 0;
-   double       factorsPerSecond = 0;
+   double       factorsPerUS = 0;
    double       adjustedFactorTimeSeconds;
    uint64_t     currentReportTimeUS = ir_ReportStatus[currentStatusEntry].reportTimeUS;
    uint64_t     currentFactorsFound = ir_ReportStatus[currentStatusEntry].factorsFound;
@@ -388,21 +406,24 @@ bool  FactorApp::BuildFactorsPerSecondRateString(uint32_t currentStatusEntry, do
       return false;
    
    // Note that we are computing factors per second
-   factorsPerSecond = ((double) factorsFound) / ((double) factorTimeUS);
+   factorsPerUS = ((double) factorsFound) / ((double) factorTimeUS);
    
    // Divide the CPU utilization to account for less or more than 1 core
-   factorsPerSecond /= cpuUtilization;
+   factorsPerUS /= cpuUtilization;
 
+   if (id_FPSTarget > factorsPerUS * 1000000.0)
+      Interrupt("f/sec is slower than target");
+   
    factorRateUnit = "M";
-   if (factorsPerSecond < 1.0) factorsPerSecond *= 1000.0, factorRateUnit = "K";
-   if (factorsPerSecond < 1.0) factorsPerSecond *= 1000.0, factorRateUnit = "";
+   if (factorsPerUS < 1.0) factorsPerUS *= 1000.0, factorRateUnit = "K";
+   if (factorsPerUS < 1.0) factorsPerUS *= 1000.0, factorRateUnit = "";
 
    factorPrecision = 0;
-   if (factorsPerSecond < 1000.0) factorPrecision = 1;
-   if (factorsPerSecond < 100.0)  factorPrecision = 2;
-   if (factorsPerSecond < 10.0)   factorPrecision = 3;
+   if (factorsPerUS < 1000.0) factorPrecision = 1;
+   if (factorsPerUS < 100.0)  factorPrecision = 2;
+   if (factorsPerUS < 10.0)   factorPrecision = 3;
    
-   snprintf(factoringRate, 100, "%.*f%s f/sec (last %u min)", factorPrecision, factorsPerSecond, factorRateUnit, currentStatusEntry - previousStatusEntry);
+   snprintf(factoringRate, 100, "%.*f%s f/sec (last %u min)", factorPrecision, factorsPerUS, factorRateUnit, currentStatusEntry - previousStatusEntry);
    
    return true;
 }
@@ -487,11 +508,17 @@ bool  FactorApp::BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, do
    // Multiply the CPU utilization to account for less or more than 1 core
    secondsPerFactor *= cpuUtilization;
    
+   if (id_FPSTarget > 0.0)
+      Interrupt("sec/f is slower than target");
+   
+   if (id_SPFTarget > 0.0 && id_SPFTarget < secondsPerFactor)
+      Interrupt("sec/f is slower than target");
+   
    if (secondsPerFactor > 100)
       snprintf(factoringRate, 100, "%.0f sec per factor (last %u min)", secondsPerFactor, currentStatusEntry - previousStatusEntry);
    else
       snprintf(factoringRate, 100, "%.2f sec per factor (last %u min)", secondsPerFactor, currentStatusEntry - previousStatusEntry);
-
+   
    return true;      
 }
 

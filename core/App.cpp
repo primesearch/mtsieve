@@ -389,13 +389,13 @@ void  App::StopWorkers(void)
    }
 }
 
-void  App::Interrupt(void)
+void  App::Interrupt(const char *why)
 {
    ip_AppStatus->SetValueNoLock(AS_INTERRUPTED);
 
    uint64_t maxPrime = (il_LargestPrimeSieved > il_MaxPrime ? il_MaxPrime : il_LargestPrimeSieved);
   
-   WriteToConsole(COT_OTHER, "CTRL-C accepted.  Threads will stop after sieving to %" PRIu64"", maxPrime);
+   WriteToConsole(COT_OTHER, "%s.  Threads will stop after sieving to %" PRIu64"", why, maxPrime);
 }
 
 void  App::SetMinPrime(uint64_t minPrime)

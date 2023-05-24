@@ -8,6 +8,7 @@
 
 #include <cinttypes>
 #include <assert.h>
+#include "../core/SmallHashTable.h"
 #include "CarolKyneaWorker.h"
 
 CarolKyneaWorker::CarolKyneaWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
@@ -30,9 +31,9 @@ CarolKyneaWorker::CarolKyneaWorker(uint32_t myId, App *theApp) : Worker(myId, th
    ii_GiantSteps = MAX(1, sqrt((double) r/ROOT_COUNT));
    ii_BabySteps = MIN(r, ceil((double) r/ii_GiantSteps));
 
-   if (ii_BabySteps > HASH_MAX_ELTS)
+   if (ii_BabySteps > SMALL_HASH_MAX_ELTS)
    {
-      ii_GiantSteps = ceil((double)r/HASH_MAX_ELTS);
+      ii_GiantSteps = ceil((double)r/SMALL_HASH_MAX_ELTS);
       ii_BabySteps = ceil((double)r/ii_GiantSteps);
    }
 
@@ -42,8 +43,8 @@ CarolKyneaWorker::CarolKyneaWorker(uint32_t myId, App *theApp) : Worker(myId, th
    assert(ii_SieveLow <= ip_CarolKyneaApp->GetMinN());
    assert(ip_CarolKyneaApp->GetMaxN() < ii_SieveLow+ii_SieveRange);
    
-   ip_HashTable = new HashTable(ii_BabySteps);
-      
+   ip_HashTable = new SmallHashTable(SMALL_HASH_MAX_ELTS);
+  
    // The thread can't start until initialization is done
    ib_Initialized = true;
 }

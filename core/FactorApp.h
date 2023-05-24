@@ -69,6 +69,9 @@ protected:
    uint64_t          il_PreviousFactorCount;
    uint64_t          il_TermCount;
    
+   double            id_FPSTarget;
+   double            id_SPFTarget;
+   
    std::string       is_InputTermsFileName;
    std::string       is_InputFactorsFileName;
    std::string       is_OutputTermsFileName;

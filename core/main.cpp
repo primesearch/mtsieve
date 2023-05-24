@@ -49,7 +49,7 @@ void SetQuitting(int sig)
       exit(0);
    }
    
-   theApp->Interrupt();
+   theApp->Interrupt("CTRL-C accepted");
    gb_ForceQuit = true;
 }
 
@@ -244,17 +244,20 @@ void *xmallocNew(size_t requestedSize, bool exitIfError, const char *what)
    
    temp = (uint64_t) allocatedPtr;
    
-   // We want temp divisible by 64 and within the allocated area
-   temp = temp - (temp%64) + 64;
+   //printf("allocating %llu at %llu\n", allocatedSize, temp);
    
-   // Align to a 64-byte boundary
+   // We want temp divisible by 64 and within the allocated area
+   while (temp % 64 != 0)
+      temp++;
+      
+   // Align to a 32-byte boundary
    currentPtr = (char *) temp;
 
    // Put the pointer to the allocated memory here
    *(uint64_t *) currentPtr = (uint64_t) allocatedPtr;
       
    // Put the size of the  to what was actually allocated here
-   *(size_t *) (currentPtr + 8) = allocatedSize;
+   *(uint64_t *) (currentPtr + 8) = (uint64_t) allocatedSize;
 
    // Get to the next boundary
    currentPtr += 64;
@@ -267,20 +270,22 @@ void *xmallocNew(size_t requestedSize, bool exitIfError, const char *what)
 
 void xfree(void *memoryPtr)
 {
-   char     *currentPtr;
+   uint64_t  currentPtr;
    void     *allocatedPtr;
    size_t    allocatedSize;
    uint64_t  temp;
-   
+      
    temp = (uint64_t) memoryPtr;
    
-   currentPtr = (char *) (temp - 64);
+   currentPtr = (uint64_t) (temp - 64);
    
    // Reduce by what we actually allocated
-   allocatedSize = *(size_t *) (currentPtr + 8);
+   allocatedSize = *((uint64_t *) (currentPtr + 8));
    cpuBytes -= allocatedSize;
    
-   allocatedPtr =  (void *) *(uint64_t *) currentPtr;
+   allocatedPtr =  (void *) *((uint64_t *) currentPtr);
+
+   //printf("freeing %llu at %llu\n", allocatedSize, currentPtr);
    
    free(allocatedPtr);
 }

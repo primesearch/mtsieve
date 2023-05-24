@@ -16,7 +16,7 @@
 #include "FixedBNCWorker.h"
 
 #define APP_NAME        "fbncsieve"
-#define APP_VERSION     "1.6.1"
+#define APP_VERSION     "1.6.2"
 
 #define BIT_HK(k)       (((k) - il_MinK) >> 1)
 #define BIT_AK(k)       ((k) - il_MinK)
@@ -581,7 +581,7 @@ void  FixedBNCApp::ReportFactor(uint64_t theFactor, uint64_t k)
    {
       uint64_t termValue = 0;
       
-      if (il_BPowN > 0)
+      if (il_BPowN > 0 && il_MaxPrimeForValidFactor == PMAX_MAX_62BIT)
          termValue = k * il_BPowN + ii_C;
       
       uint64_t bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
@@ -593,7 +593,7 @@ void  FixedBNCApp::ReportFactor(uint64_t theFactor, uint64_t k)
          if (termValue == theFactor)
          {
             FILE *fPtr = fopen(is_PrimeFileName.c_str(), "a+");
-            fprintf(fPtr, "%" PRIu64"*%u^%u%+d = %" PRIu64"", k, ii_Base, ii_N, ii_C, theFactor);
+            fprintf(fPtr, "%" PRIu64"*%u^%u%+d = %" PRIu64"\n", k, ii_Base, ii_N, ii_C, theFactor);
             fclose(fPtr);
          }
          else
