@@ -436,8 +436,7 @@ ushort getParity(ulong thePrime)
       qr = (sym == 1);
    else
       qr = (sym == legendre(BASE, thePrime));
-   }
-   
+
    if (qr)
       return SEQ_PARITY;
       

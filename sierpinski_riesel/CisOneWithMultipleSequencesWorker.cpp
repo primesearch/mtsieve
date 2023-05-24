@@ -9,6 +9,10 @@
 #include <cinttypes>
 #include <stdint.h>
 
+#include "../core/BigHashTable.h"
+#include "../core/SmallHashTable.h"
+#include "../core/TinyHashTable.h"
+
 #include "CisOneWithMultipleSequencesWorker.h"
 #include "../core/inline.h"
 #include "../core/MpArith.h"
@@ -67,7 +71,12 @@ void  CisOneWithMultipleSequencesWorker::Prepare(uint64_t largestPrimeTested, ui
    ip_Legendre = ip_CisOneHelper->GetLegendre();
    ip_LegendreTable = ip_CisOneHelper->GetLegendreTable();
    
-   ip_HashTable = new HashTable(ii_MaxBabySteps);
+   if (ii_MaxBabySteps < TINY_HASH_MAX_ELTS)
+      ip_HashTable = new TinyHashTable(ii_MaxBabySteps);
+   else if (ii_MaxBabySteps < SMALL_HASH_MAX_ELTS)
+      ip_HashTable = new SmallHashTable(ii_MaxBabySteps);
+   else
+      ip_HashTable = new BigHashTable(ii_MaxBabySteps);
 
    ib_AllSequencesHaveLegendreTables = true;
    for (uint32_t seqIdx=0; seqIdx<ii_SequenceCount; seqIdx++)

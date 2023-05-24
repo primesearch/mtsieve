@@ -12,6 +12,8 @@
 #include "CisOneWithOneSequenceWorker.h"
 #include "../core/inline.h"
 #include "../core/MpArith.h"
+#include "../core/SmallHashTable.h"
+#include "../core/TinyHashTable.h"
 
 #define N_TERM(q, i, j)      ((ii_SieveLow + (j) + (i)*babySteps)*ii_BestQ + q)
 
@@ -63,8 +65,13 @@ void  CisOneWithOneSequenceWorker::Prepare(uint64_t largestPrimeTested, uint32_t
    
    ip_Legendre = ip_CisOneHelper->GetLegendre();
    ip_LegendreTable = ip_CisOneHelper->GetLegendreTable();
+
+   uint32_t maxBabySteps = ip_CisOneHelper->GetMaxBabySteps();
    
-   ip_HashTable = new HashTable(ip_CisOneHelper->GetMaxBabySteps());
+   if (maxBabySteps < TINY_HASH_MAX_ELTS)
+      ip_HashTable = new TinyHashTable(maxBabySteps);
+   else if (maxBabySteps < SMALL_HASH_MAX_ELTS)
+      ip_HashTable = new SmallHashTable(maxBabySteps);
 }
 
 void  CisOneWithOneSequenceWorker::TestMegaPrimeChunk(void)

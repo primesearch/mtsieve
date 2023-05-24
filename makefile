@@ -99,14 +99,17 @@ endif
 METAL_PROGS=cksievemtl cwsievemtl gcwsievemtl gfndsievemtl mfsievemtl psievemtl smsievemtl srsieve2mtl
 
 CPU_CORE_OBJS=core/App_cpu.o core/FactorApp_cpu.o core/AlgebraicFactorApp_cpu.o \
-   core/Clock_cpu.o core/Parser_cpu.o core/Worker_cpu.o core/HashTable_cpu.o core/main_cpu.o core/SharedMemoryItem_cpu.o
+   core/Clock_cpu.o core/Parser_cpu.o core/Worker_cpu.o core/main_cpu.o core/SharedMemoryItem_cpu.o \
+   core/HashTable_cpu.o core/BigHashTable_cpu.o core/SmallHashTable_cpu.o core/TinyHashTable_cpu.o 
    
 OPENCL_CORE_OBJS=core/App_opencl.o core/FactorApp_opencl.o core/AlgebraicFactorApp_opencl.o core/GpuDevice_opencl.o core/GpuKernel_opencl.o \
-   core/Clock_opencl.o core/Parser_opencl.o core/Worker_opencl.o core/HashTable_opencl.o core/main_opencl.o core/SharedMemoryItem_opencl.o \
+   core/Clock_opencl.o core/Parser_opencl.o core/Worker_opencl.o core/main_opencl.o core/SharedMemoryItem_opencl.o \
+   core/HashTable_opencl.o core/BigHashTable_opencl.o core/SmallHashTable_opencl.o core/TinyHashTable_opencl.o \
    gpu_opencl/OpenCLDevice_opencl.o gpu_opencl/OpenCLKernel_opencl.o gpu_opencl/OpenCLErrorChecker_opencl.o
 
 METAL_CORE_OBJS=core/App_metal.o core/FactorApp_metal.o core/AlgebraicFactorApp_metal.o core/GpuDevice_metal.o core/GpuKernel_metal.o \
-   core/Clock_metal.o core/Parser_metal.o core/Worker_metal.o core/HashTable_metal.o core/main_metal.o core/SharedMemoryItem_metal.o \
+   core/Clock_metal.o core/Parser_metal.o core/Worker_metal.o core/main_metal.o core/SharedMemoryItem_metal.o \
+   core/HashTable_metal.o core/BigHashTable_metal.o core/SmallHashTable_metal.o core/TinyHashTable_metal.o \
    gpu_metal/MetalDevice_metal.o gpu_metal/MetalKernel_metal.o
 
 ifeq ($(strip $(HAS_X86)),yes)

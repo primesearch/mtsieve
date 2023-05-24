@@ -11,8 +11,8 @@
 #include <cfenv>
 #include "SierpinskiRieselApp.h"
 #include "AbstractSequenceHelper.h"
-#include "../core/HashTable.h"
 #include "../core/inline.h"
+#include "../core/SmallHashTable.h"
 
 #define NBIT(n)         ((n) - ii_MinN)
 #define MBIT(m)         ((m) - ii_MinM)
@@ -243,7 +243,7 @@ void  AbstractSequenceHelper::ChooseSteps(uint32_t Q, uint32_t s, uint32_t &baby
    uint32_t m, M;
    int32_t  roundingMode = fegetround();
    uint32_t r = ii_MaxN/Q - ii_MinN/Q + 1;
-   
+      
    fesetround(FE_TONEAREST);
    
    // r = range of n, s = number of subsequences.
@@ -259,17 +259,18 @@ void  AbstractSequenceHelper::ChooseSteps(uint32_t Q, uint32_t s, uint32_t &baby
 
    fesetround(roundingMode);
    
-   if (m > HASH_MAX_ELTS)
+   // For either m or M to exceed this limit it would be really unusual.  It could only
+   // happen if the range of N would have to be at least 2^30, s = 1 and Q = 1.
+   if (m > SMALL_HASH_MAX_ELTS)
    {   
      // There are three ways to handle this undesirable case:
-     //   1. Allow m > HASH_MAX_ELTS (undersize hash table).
-     //   2. Restrict m <= HASH_MAX_ELTS (suboptimal baby/giant-step ratio).
-     //   3. Recompile with SHORT_HASHTABLE=0
-     M = ceil((double)r/HASH_MAX_ELTS);
+     //   1. Allow m > maxHashElements (undersize hash table).
+     //   2. Restrict m <= maxHashElements (suboptimal baby/giant-step ratio).
+     M = ceil((double)r/SMALL_HASH_MAX_ELTS);
      m = ceil((double)r/M);
    }
    
-   while (m > HASH_MAX_ELTS)
+   while (m > SMALL_HASH_MAX_ELTS)
    {
       M++;
       m = ceil((double)r/M);

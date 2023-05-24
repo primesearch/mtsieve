@@ -29,9 +29,10 @@ public:
 private:
    uint32_t          FindBestQ(uint32_t &expectedSubsequences);
    
-   uint32_t          ForEachDivisor(uint32_t Q, std::vector<bool> R, choice_bc_t *S, bool firstTime);
+   uint32_t          ComputePossibleQ(uint32_t Q, std::vector<bool> R, choice_bc_t *S);
+   uint32_t          ForEachDivisor(seq_t *seq, uint32_t Q, std::vector<bool> R, choice_bc_t *S);
    uint32_t          FindMultiplicities(uint32_t n, uint32_t *P, uint32_t *M);
-   double            EstimateWork(uint32_t Q, uint32_t s);
+   double            EstimateWork(uint32_t Q, uint32_t s, bool print);
 };
 
 #endif

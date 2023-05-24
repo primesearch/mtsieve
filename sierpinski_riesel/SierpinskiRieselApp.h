@@ -13,6 +13,7 @@
 
 #include "../core/FactorApp.h"
 #include "AbstractSequenceHelper.h"
+#include "../core/BigHashTable.h"
 
 #define NMAX_MAX (1 << 31)
 
@@ -53,6 +54,7 @@ public:
    std::string       GetLegendreDirectoryName(void) { return is_LegendreDirectoryName; };
    
    seq_t            *GetFirstSequenceAndSequenceCount(uint32_t &count) { count = ii_SequenceCount; return ip_FirstSequence; };
+   uint32_t          GetSequenceCount(void) { return ii_SequenceCount; };
    
    double            GetBabyStepFactor(void) { return id_BabyStepFactor; };
    uint32_t          GetBaseMultipleMulitplier(void) { return ii_BaseMultipleMultiplier; };
@@ -86,6 +88,8 @@ private:
    uint32_t          ii_LimitBaseMultiplier;
 
    seq_t            *ip_FirstSequence;
+   seq_t            *ip_LastSequence;
+   BigHashTable     *ip_HashTable;
    AbstractSequenceHelper   *ip_AppHelper; 
    
    bool              ib_SetLegengreBytes;
@@ -104,7 +108,12 @@ private:
    
    void              RemoveSequencesWithNoTerms(void);
    void              CheckForLegendreSupport(void);
+   void              RemoveN(void);
+   void              CheckForUnsievableSequences(void);
       
+   void              WriteOutputTermsFilesByQ(void);
+   void              WriteSequenceFilesByQ(uint32_t q);
+   uint32_t          WriteOutputTermsFile(uint64_t largestPrime, uint32_t q);
    uint32_t          WriteABCDTermsFile(seq_t *seqPtr, uint64_t maxPrime, FILE *termsFile);
    uint32_t          WriteABCTermsFile(seq_t *seqPtr, uint64_t maxPrime, FILE *termsFile);
    uint32_t          WriteBoincTermsFile(seq_t *seqPtr, uint64_t maxPrime, FILE *termsFile);
@@ -125,6 +134,8 @@ private:
 
    bool              ib_HaveNewSequences;
    bool              ib_HaveSingleC;
+   bool              ib_HaveGenericWorkers;
+   bool              ib_RemoveN;
    format_t          it_Format;
    
    uint32_t          ii_Base;
@@ -134,7 +145,9 @@ private:
    uint32_t          ii_MaxN;
    uint64_t          il_MaxK;
    uint64_t          il_MaxAbsC;
+   uint32_t          ii_MaxD;
 
+   bool              ib_SplitByBestQ;
    bool              ib_ShowQEffort;
    uint32_t          ii_UserBestQ;
    uint32_t          ii_SequenceCount;

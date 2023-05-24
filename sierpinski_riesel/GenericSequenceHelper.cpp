@@ -54,7 +54,7 @@ uint32_t    GenericSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
    SierpinskiRieselApp *srApp = (SierpinskiRieselApp *) ip_App;
    userBestQ = srApp->GetUserBestQ();
 
-   k = ForEachDivisor(Q, R, S, true);
+   k = ComputePossibleQ(Q, R, S);
    
    R.resize(Q, false);
    S = (choice_bc_t *) xmalloc(k*sizeof(choice_bc_t));
@@ -78,7 +78,7 @@ uint32_t    GenericSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
          bit++;
       }
       
-      ForEachDivisor(Q, R, S, false);
+      ForEachDivisor(seqPtr, Q, R, S);
       
       seqPtr = (seq_t *) seqPtr->next;
    } while (seqPtr != NULL);
@@ -86,7 +86,7 @@ uint32_t    GenericSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
    j = 0;
    for (i = 0; i < k; i++)
    {      
-      S[i].work = EstimateWork(S[i].div, S[i].subseqs);
+      S[i].work = EstimateWork(S[i].div, S[i].subseqs, true);
             
       if (S[i].work < S[j].work)
          j = i;
@@ -109,9 +109,9 @@ uint32_t    GenericSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
    return bestQ;
 }
 
-uint32_t GenericSequenceHelper::ForEachDivisor(uint32_t Q, std::vector<bool> R, choice_bc_t *S, bool firstTime)
+uint32_t GenericSequenceHelper::ComputePossibleQ(uint32_t Q, std::vector<bool> R, choice_bc_t *S)
 {
-   uint32_t A[9], P[9], M[9], d, i, j, k, t;
+   uint32_t A[9], P[9], M[9], i, k, t;
 
    k = FindMultiplicities(Q, P, M);
 
@@ -121,8 +121,23 @@ uint32_t GenericSequenceHelper::ForEachDivisor(uint32_t Q, std::vector<bool> R, 
       t *= (M[i]+1);
    }
 
-   if (firstTime)
-      return t;
+   return t;
+}
+
+uint32_t GenericSequenceHelper::ForEachDivisor(seq_t *seq, uint32_t Q, std::vector<bool> R, choice_bc_t *S)
+{
+   uint32_t A[9], P[9], M[9], d, i, j, k, t, subseqs;
+
+   k = FindMultiplicities(Q, P, M);
+
+   for (i = 0, t = 1; i < k; i++)
+   {
+      A[i] = 0;
+      t *= (M[i]+1);
+   }
+
+   uint32_t q = 0;
+   double qWork = 999999999.0;
    
    for (i = 0; i < t; i++)
    {
@@ -133,10 +148,23 @@ uint32_t GenericSequenceHelper::ForEachDivisor(uint32_t Q, std::vector<bool> R, 
       for (j = 0, d = 1; j < k; j++)
          d *= pow32(P[j], A[j]);
 
-     S[i].div = d;
-     S[i].subseqs += CountResidueClasses(d, Q, R);
+      subseqs = CountResidueClasses(d, Q, R);
+
+      double work = EstimateWork(d, subseqs, false);
+
+      if (work < qWork)
+      {
+         q = d;
+         qWork = work;
+      }
+
+      S[i].div = d;
+      S[i].subseqs += subseqs;
    }
 
+   seq->bestQ = q;
+   //printf("best for %llu %u %.0lf\n", seq->k, q, qWork);
+      
    return t;
 }
 
@@ -164,7 +192,7 @@ uint32_t    GenericSequenceHelper::FindMultiplicities(uint32_t n, uint32_t *P, u
 #define EXP_WORK     0.7    // 1 mulmod
 #define SUBSEQ_WORK  1.4    // 1 mulmod, 1 lookup (giant step 0)
                                
-double    GenericSequenceHelper::EstimateWork(uint32_t Q, uint32_t s)
+double    GenericSequenceHelper::EstimateWork(uint32_t Q, uint32_t s, bool print)
 {
    uint32_t babySteps, giantSteps;
    double   work;
@@ -175,7 +203,7 @@ double    GenericSequenceHelper::EstimateWork(uint32_t Q, uint32_t s)
 
    SierpinskiRieselApp *srApp = (SierpinskiRieselApp *) ip_App;
    
-   if (srApp->ShowQEffort())
+   if (print && srApp->ShowQEffort())
       srApp->WriteToConsole(COT_OTHER, "q = %4u with %7u subseq yields bs = %5u, gs = %5u, work = %8.0lf", Q, s, babySteps, giantSteps, work);
    
    return work;

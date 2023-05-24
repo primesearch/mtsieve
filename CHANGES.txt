@@ -1,3 +1,40 @@
+2.4.7 - May 24, 2023
+   framework:
+      Added command line switch -4.  Sieving will stop when the factors per
+      second rate falls below the specified rate.   The rates only only evaluated 
+      when the factor rate is computed, which is once per minute.
+      
+      Added command line switch -5.  Sieving will stop when the seconds per
+      facter rate falls is above specified rate.  The rates only only evaluated 
+      when the factor rate is computed, which is once per minute.
+   
+   fbncsieve: version 1.6.2:
+      If max p is overridden due to the ability to factor out all composite terms,
+      then all remaining prime terms will be written the the output file as opposed
+      to some being written to the <xx>_primes.txt file.
+      
+   gcwsieve/gcwsievecl: version 1.5.2
+      Modify format output to gcw_gfn.txt and gcw_mersenne.txt to make more sense.
+
+   srsieve2/srsieve2cl: version 1.7
+      Can now support hundreds of thousands of sequences per execution.
+
+      Added command line switch -S to split the sequences into separate files by
+      best Q for tha sequence.  The resulting files should then be run with -q to
+      ensure that it uses the best Q for that set of sequences.
+
+      The software only factors k*b^n+/-c, even if d > 1.  When d > 1 a couple
+      of other checks are in play.
+      
+      When sieving sequences (k*b^n+/-c)/d where d > 1, terms where d > factor and
+      gcd(d, factor) > 0 will be not be removed when (k*b^n+/-c) mod factor = 0
+      because there is no easy way to verify that if factor divides (k*b^n+/-c)
+      that it also divides (k*b^n+/-c)/d.
+
+      Added -r for use with (k*b^n+/-c)/d sequences where d > 1.  When specified
+      this will remove terms where k*b^n+/-c mod d != 0.  If you do not use -r
+      then pfgw will use floor((k*b^n+/-c)/d) before doing the PRP test.
+
 2.4.6 - April 14, 2023
    framework:
       Support 'f' or 'F' at the end of the -w argument.  This will "fix" the
@@ -7,7 +44,7 @@
       Do not apply -r logic to base 2 since even k are already excluded.
       
    fbncsieve: version 1.6.1
-      Fix issue when generating ABCD file as it counts terms incorretly.
+      Fix issue when generating ABCD file as it counts terms incorrectly.
       
 2.4.5 - March 24, 2023
    framework:

@@ -346,7 +346,7 @@ void   CisOneSequenceHelper::BuildLegendreTables()
       ip_App->WriteToConsole(COT_OTHER, "Took %u seconds to build Legendre tables", (uint32_t) (stopTime - startTime));
    
    uint32_t seqLegendreIsPossible = ii_SequenceCount - seqNoLegendrePossible;
-      
+   
    ip_App->WriteToConsole(COT_OTHER, "Legendre summary:  Approximately %.0f %s needed for Legendre tables", bytes, bytesPrecision);
    ip_App->WriteToConsole(COT_OTHER, "  %8u total sequences", ii_SequenceCount);
    ip_App->WriteToConsole(COT_OTHER, "  %8u are eligible for Legendre tables", seqLegendreIsPossible);   

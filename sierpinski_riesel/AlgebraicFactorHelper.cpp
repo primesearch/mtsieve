@@ -42,7 +42,7 @@ uint64_t AlgebraicFactorHelper::RemoveTermsWithAlgebraicFactors(seq_t *seqPtr)
 {
    uint64_t  startingCount, removedCount = 0;
    
-   if (seqPtr->c > 1 || seqPtr->c < -1)
+   if (seqPtr->c > 1 || seqPtr->c < -1 || seqPtr->d > 1)
       return 0;
    
    GetRoot(seqPtr->k, &ii_KRoot, &ii_KPower);

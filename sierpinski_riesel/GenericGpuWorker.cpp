@@ -9,6 +9,8 @@
 #include <cinttypes>
 #include <time.h>
 
+#include "../core/SmallHashTable.h"
+
 #include "GenericGpuWorker.h"
 #include "generic_kernel.gpu.h"
 
@@ -149,13 +151,13 @@ GpuKernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uin
 
    //printf("1 q=%u r=%u gs=%u bs=%u\n", ii_BestQ, r, giantSteps, babySteps);
 
-   if (babySteps > HASH_MAX_ELTS)
+   if (babySteps > SMALL_HASH_MAX_ELTS)
    {
-      giantSteps = ceil((double)r/HASH_MAX_ELTS);
+      giantSteps = ceil((double)r/SMALL_HASH_MAX_ELTS);
       babySteps = ceil((double)r/giantSteps);
    }
    
-   //printf("2 gs=%u bs=%u max=%u\n", giantSteps, babySteps, HASH_MAX_ELTS);
+   //printf("2 gs=%u bs=%u max=%u\n", giantSteps, babySteps, SMALL_HASH_MAX_ELTS);
 
    uint32_t sieveLow = ii_MinN / ii_BestQ;
    uint32_t sieveRange = babySteps * giantSteps;

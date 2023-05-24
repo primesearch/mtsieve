@@ -9,6 +9,10 @@
 #include <cinttypes>
 #include <stdint.h>
 
+#include "../core/BigHashTable.h"
+#include "../core/SmallHashTable.h"
+#include "../core/TinyHashTable.h"
+
 #include "GenericWorker.h"
 #include "SierpinskiRieselApp.h"
 
@@ -85,10 +89,14 @@ void  GenericWorker::InitializeWorker(void)
    ii_GiantSteps = MAX(1, sqrt((double) r/ii_SubsequenceCount/babyStepFactor));
    ii_BabySteps = MIN(r, ceil((double) r/ii_GiantSteps));
 
-   if (ii_BabySteps > HASH_MAX_ELTS)
+   for (idx=0; idx<4; idx++)
    {
-      ii_GiantSteps = ceil((double)r/HASH_MAX_ELTS);
-      ii_BabySteps = ceil((double)r/ii_GiantSteps);
+      if (ii_BabySteps < TINY_HASH_MAX_ELTS)
+         ip_HashTable[idx] = new TinyHashTable(ii_BabySteps);
+      else if (ii_BabySteps < SMALL_HASH_MAX_ELTS)
+         ip_HashTable[idx] = new SmallHashTable(ii_BabySteps);
+      else
+         ip_HashTable[idx] = new BigHashTable(ii_BabySteps);
    }
 
    ii_SieveLow = ii_MinN / ii_BestQ;
@@ -104,9 +112,6 @@ void  GenericWorker::InitializeWorker(void)
    
    mBDCK = (MpResVec *) xmalloc(ii_SubsequenceCount*sizeof(MpResVec));
    mBD = (MpResVec *) xmalloc(ii_BestQ*sizeof(MpResVec));
-
-   for (idx=0; idx<4; idx++)
-      ip_HashTable[idx] = new HashTable(ii_BabySteps);
 }
 
 void  GenericWorker::TestMegaPrimeChunk(void)

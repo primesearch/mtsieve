@@ -227,7 +227,7 @@ void  CisOneWithOneSequenceHelper::CopyQsAndMakeLadder(seq_t *seqPtr, sp_t parit
    if (qListLen == 0)
       return;
 
-   assert(qListLen < ii_BestQ);
+   assert(qListLen <= ii_BestQ);
 
    uint16_t rIdx = ip_PowerResidueIndices[r];
    uint32_t cqIdx = CQ_INDEX(parity, rIdx, h);
@@ -276,7 +276,7 @@ void   CisOneWithOneSequenceHelper::MakeLadder(uint16_t *qList, uint32_t qListLe
    uint32_t          i, j, k, a;
    vector<uint8_t>   tempQs;
       
-   assert(qListLen+1 < ii_BestQ);
+   assert(qListLen <= ii_BestQ);
    
    tempQs.resize(ii_BestQ+1);
 

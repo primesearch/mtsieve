@@ -12,7 +12,7 @@
 #include "../core/Worker.h"
 #include "../core/MpArithVector.h"
 
-#define SP_COUNT   3
+#define SP_COUNT      3
 typedef enum { SP_NO_PARITY = 999, SP_MIXED = 0, SP_EVEN = 1, SP_ODD = 2} sp_t;
 
 // All of these fields are set before sieving is started, but only nTerms can be
@@ -32,6 +32,7 @@ typedef struct
    uint32_t     ssCount;
    uint32_t     ssIdxFirst;   // index of first subsequence for the sequence
    uint32_t     ssIdxLast;    // index of first subsequence for the sequence
+   uint32_t     bestQ;        // best Q
    
    std::vector<bool> nTerms;  // remaining n for this sequences
    
