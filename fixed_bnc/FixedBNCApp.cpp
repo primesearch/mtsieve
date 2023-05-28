@@ -16,7 +16,7 @@
 #include "FixedBNCWorker.h"
 
 #define APP_NAME        "fbncsieve"
-#define APP_VERSION     "1.6.2"
+#define APP_VERSION     "1.6.3"
 
 #define BIT_HK(k)       (((k) - il_MinK) >> 1)
 #define BIT_AK(k)       ((k) - il_MinK)
@@ -173,9 +173,10 @@ void FixedBNCApp::ValidateOptions(void)
          if (il_MaxK & 1)
             il_MaxK--;
       }
-      else
+      
+      if (ii_Base == 2)
       {
-         // Both need to be odd if the base is even
+         // Both need to be odd if the base is 2
          if (!(il_MinK & 1))
             il_MinK++;
          
@@ -581,26 +582,35 @@ void  FixedBNCApp::ReportFactor(uint64_t theFactor, uint64_t k)
    {
       uint64_t termValue = 0;
       
-      if (il_BPowN > 0 && il_MaxPrimeForValidFactor == PMAX_MAX_62BIT)
+      if (il_BPowN > 0)
          termValue = k * il_BPowN + ii_C;
       
       uint64_t bit = (ib_HalfK ? BIT_HK(k) : BIT_AK(k));
       
       if (iv_Terms[bit])
       {
-         iv_Terms[bit] = false;
-
+         bool removeTerm = true;
+         
          if (termValue == theFactor)
          {
-            FILE *fPtr = fopen(is_PrimeFileName.c_str(), "a+");
-            fprintf(fPtr, "%" PRIu64"*%u^%u%+d = %" PRIu64"\n", k, ii_Base, ii_N, ii_C, theFactor);
-            fclose(fPtr);
+            if (il_MaxPrimeForValidFactor != PMAX_MAX_62BIT)
+               removeTerm = false;
+            else
+            {
+               FILE *fPtr = fopen(is_PrimeFileName.c_str(), "a+");
+               fprintf(fPtr, "%" PRIu64"*%u^%u%+d = %" PRIu64"\n", k, ii_Base, ii_N, ii_C, theFactor);
+               fclose(fPtr);
+            }
          }
          else
             LogFactor(theFactor, "%" PRIu64"*%u^%u%+d", k, ii_Base, ii_N, ii_C);
          
-         il_FactorCount++;
-         il_TermCount--;
+         if (removeTerm)
+         {
+            iv_Terms[bit] = false;
+            il_FactorCount++;
+            il_TermCount--;
+         }
       }
       
       if (ib_HalfK)
