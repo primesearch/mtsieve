@@ -1,0 +1,200 @@
+/* xyyx_sparse_kernel.gpu -- (C) Mark Rodenkirch, Mary 2023
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 3 of the License, or
+   (at your option) any later version.
+ */
+ 
+#define MAX_POWERS 50
+
+#if defined(USE_OPENCL)
+#pragma OPENCL EXTENSION cl_khr_int64_extended_atomics: enable
+#define MUL_HI          mul_hi
+
+void collectFactor(uint    x,
+                   uint    y,
+                   ulong   p,
+ volatile __global uint   *factorCount,
+          __global ulong4 *factors);
+#else
+#define MUL_HI          mulhi
+
+void collectFactor(uint        x,
+                   uint        y,
+                   ulong       p,
+   volatile device atomic_int *factorCount,
+            device ulong4     *factors);
+#endif
+          
+ulong mmmInvert(ulong _p);
+ulong mmmOne(ulong _p);
+ulong mmmR2(ulong _p, ulong _q, ulong _one);
+ulong mmmAdd(ulong a, ulong b, ulong _p);
+ulong mmmSub(ulong a, ulong b, ulong _p);
+ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q);
+ulong mmmNToRes(ulong n, ulong _p, ulong _q, ulong _r2);
+ulong mmmPowmod(ulong resbase, ulong exp, ulong _p, ulong _q, ulong _one);
+
+__kernel void xyyx_sparse_kernel(__global const ulong  *primes,
+                                 __global const uint2  *terms,
+                        volatile __global       uint   *factorCount,
+                                 __global       ulong4 *factors)
+{
+   uint   gid = get_global_id(0);
+
+   uint   termIndex;
+
+   ulong  thePrime = primes[gid];
+
+   if (thePrime == 0)
+      return;
+
+   ulong _q = mmmInvert(thePrime);
+   ulong _one = mmmOne(thePrime);
+   ulong _r2 = mmmR2(thePrime, _q, _one);
+   ulong _zero = mmmNToRes(0, thePrime, _q, _r2);
+
+   ulong resBaseX, resBaseY;
+   ulong resXexpY, resYexpX;
+   
+   for (uint idx=0; ; idx++)
+   {
+      if (terms[idx].x == 0)
+         break;
+      
+      resBaseX = mmmNToRes(terms[idx].x, thePrime, _q, _r2);
+      resBaseY = mmmNToRes(terms[idx].y, thePrime, _q, _r2);
+         
+      resXexpY = mmmPowmod(resBaseX, terms[idx].y, thePrime, _q, _one);
+      resYexpX = mmmPowmod(resBaseY, terms[idx].x, thePrime, _q, _one);
+      
+#ifdef IS_MINUS
+      if (resXexpY == resYexpX)
+         collectFactor(terms[idx].x, terms[idx].y, thePrime, factorCount, factors);
+#else
+      resYexpX = mmmAdd(resXexpY, resYexpX, thePrime);
+         
+      if (resYexpX == _zero)
+         collectFactor(terms[idx].x, terms[idx].y, thePrime, factorCount, factors);
+#endif
+   };
+}
+
+ulong mmmInvert(ulong _p)
+{
+   ulong p_inv = 1;
+   ulong prev = 0;
+   
+   while (p_inv != prev)
+   {
+      prev = p_inv;
+      p_inv *= (2 - _p * p_inv);
+   }
+   
+   return p_inv;
+}
+
+// Compute the residual of 1 (mod p)
+ulong mmmOne(ulong _p)
+{
+   return ((-_p) % _p);
+}
+
+// Compute the residual of 2^64 (mod p)
+ulong mmmR2(ulong _p, ulong _q, ulong _one)
+{
+	ulong t = mmmAdd(_one, _one, _p);
+   
+   t = mmmAdd(t, t, _p);   // 4
+	for (size_t i=0; i<5; i++)
+      t = mmmMulmod(t, t, _p, _q);   // 4^{2^5} = 2^64
+      
+	return t;
+}
+
+ulong mmmAdd(ulong a, ulong b, ulong _p)
+{
+   ulong c = (a >= _p - b) ? _p : 0;
+   return a + b - c;
+}
+
+ulong mmmSub(ulong a, ulong b, ulong _p)
+{
+   ulong c = (a < b) ? _p : 0;
+   return a - b + c;
+}
+
+// Compute the residual of n (mod p)
+ulong mmmNToRes(ulong n, ulong _p, ulong _q, ulong _r2)
+{
+   return mmmMulmod(n, _r2, _p, _q);
+}
+
+ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q)
+{
+   ulong lo = a * b;
+   ulong hi = MUL_HI(a, b);
+   
+   ulong m = lo * _q;
+   
+   ulong hi2 = MUL_HI(m, _p);
+   long r = (long) hi - (long) hi2;
+
+   if (r < 0)
+      return (ulong) (r + _p);
+      
+   return (ulong) r;
+}
+
+// Compute the residual of b ^ n (mod p)
+ulong   mmmPowmod(ulong resbase, ulong exp, ulong _p, ulong _q, ulong _one)
+{
+   ulong x = resbase;
+   ulong y = _one;
+   
+   while (true)
+   {
+      if (exp & 1)
+         y = mmmMulmod(x, y, _p, _q);
+
+      exp >>= 1;
+
+      if (!exp)
+         return y;
+
+      x = mmmMulmod(x, x, _p, _q);
+   }
+
+   // Should never get here
+   return 0;
+}
+
+#if defined(USE_OPENCL)
+void collectFactor(uint    x,
+                   uint    y,
+                   ulong   p,
+ volatile __global uint   *factorCount,
+          __global ulong4 *factors)
+#else
+void collectFactor(uint        x,
+                   uint        y,
+                   ulong       p,
+   volatile device atomic_int *factorCount,
+            device long4      *factors)
+#endif
+{      
+#if defined(USE_OPENCL)
+   int old = atomic_inc(factorCount);
+#else
+   int old = atomic_fetch_add_explicit(factorCount, 1, memory_order_relaxed);
+#endif
+   // If we reach the end, stop adding to the buffer.  The CPU code will end
+   // with an error as the buffer is not large enough to capture all factors.
+   if (old >= D_MAX_FACTORS)
+      return;
+   
+   factors[old].x = x;
+   factors[old].y = y;
+   factors[old].z = p;
+}

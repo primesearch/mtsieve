@@ -35,6 +35,7 @@ LD_FLAGS_GMP=-lgmp
 GPULIBS=
 
 ifeq ($(strip $(DEBUG)),yes)
+   OPT_CPP_FLAGS_02=-g
    OPT_CPP_FLAGS=-g
 else
    OPT_CPP_FLAGS_02=-O2
@@ -154,7 +155,7 @@ SR2_OBJS=sierpinski_riesel/SierpinskiRieselApp_cpu.o sierpinski_riesel/Algebraic
    sierpinski_riesel/CisOneSequenceHelper_cpu.o sierpinski_riesel/CisOneWithOneSequenceHelper_cpu.o \
    sierpinski_riesel/CisOneWithOneSequenceWorker_cpu.o \
    sierpinski_riesel/CisOneWithMultipleSequencesHelper_cpu.o sierpinski_riesel/CisOneWithMultipleSequencesWorker_cpu.o
-XYYX_OBJS=xyyx/XYYXApp_cpu.o xyyx/XYYXWorker_cpu.o
+XYYX_OBJS=xyyx/XYYXApp_cpu.o xyyx/XYYXWorker_cpu.o xyyx/XYYXSparseWorker_cpu.o
 
 AF_OPENCL_OBJS=alternating_factorial/AlternatingFactorialApp_opencl.o alternating_factorial/AlternatingFactorialWorker_opencl.o alternating_factorial/afsieve.o alternating_factorial/AlternatingFactorialGpuWorker_opencl.o
 CK_OPENCL_OBJS=carol_kynea/CarolKyneaApp_opencl.o carol_kynea/CarolKyneaWorker_opencl.o carol_kynea/CarolKyneaGpuWorker_opencl.o
@@ -170,7 +171,7 @@ SR2_OPENCL_OBJS=sierpinski_riesel/SierpinskiRieselApp_opencl.o sierpinski_riesel
    sierpinski_riesel/CisOneSequenceHelper_opencl.o sierpinski_riesel/CisOneWithOneSequenceHelper_opencl.o \
    sierpinski_riesel/CisOneWithOneSequenceWorker_opencl.o sierpinski_riesel/CisOneWithOneSequenceGpuWorker_opencl.o \
    sierpinski_riesel/CisOneWithMultipleSequencesHelper_opencl.o sierpinski_riesel/CisOneWithMultipleSequencesWorker_opencl.o
-XYYX_OPENCL_OBJS=xyyx/XYYXApp_opencl.o xyyx/XYYXWorker_opencl.o xyyx/XYYXGpuWorker_opencl.o
+XYYX_OPENCL_OBJS=xyyx/XYYXApp_opencl.o xyyx/XYYXWorker_opencl.o xyyx/XYYXGpuWorker_opencl.o xyyx/XYYXSparseWorker_opencl.o xyyx/XYYXSparseGpuWorker_opencl.o
 
 CK_METAL_OBJS=carol_kynea/CarolKyneaApp_metal.o carol_kynea/CarolKyneaWorker_metal.o carol_kynea/CarolKyneaGpuWorker_metal.o
 GCW_METAL_OBJS=cullen_woodall/CullenWoodallApp_metal.o cullen_woodall/CullenWoodallWorker_metal.o cullen_woodall/CullenWoodallGpuWorker_metal.o
@@ -183,7 +184,7 @@ SR2_METAL_OBJS=sierpinski_riesel/SierpinskiRieselApp_metal.o sierpinski_riesel/A
    sierpinski_riesel/CisOneSequenceHelper_metal.o sierpinski_riesel/CisOneWithOneSequenceHelper_metal.o \
    sierpinski_riesel/CisOneWithOneSequenceWorker_metal.o sierpinski_riesel/CisOneWithOneSequenceGpuWorker_metal.o \
    sierpinski_riesel/CisOneWithMultipleSequencesHelper_metal.o sierpinski_riesel/CisOneWithMultipleSequencesWorker_metal.o
-XYYX_METAL_OBJS=xyyx/XYYXApp_metal.o xyyx/XYYXWorker_metal.o xyyx/XYYXGpuWorker_metal.o
+XYYX_METAL_OBJS=xyyx/XYYXApp_metal.o xyyx/XYYXWorker_metal.o xyyx/XYYXGpuWorker_metal.o xyyx/XYYXSparseWorker_metal.o xyyx/XYYXSparseGpuWorker_metal.o
 
 AIR_LIBS=alternating_factorial/af_kernel.air cullen_woodall/cw_kernel.air gfn_divisor/gfn_kernel.air \
    multi_factorial/mf_kernel.air primes_in_x/pix_kernel.air primorial/primorial_kernel.air \
@@ -282,7 +283,7 @@ primorial/PrimorialGpuWorker_metal.o: primorial/primorial_kernel.gpu.h primorial
 sierpinski_riesel/CisOneWithOneSequenceGpuWorker_metal.o: sierpinski_riesel/cisonesingle_kernel.gpu.h sierpinski_riesel/cisonesingle_kernel.metallib
 sierpinski_riesel/GenericGpuWorker_metal.o: sierpinski_riesel/generic_kernel.gpu.h sierpinski_riesel/generic_kernel.metallib
 smarandache/SmarandacheGpuWorker_metal.o: smarandache/sm_kernel.gpu.h smarandache/sm_kernel.metallib
-xyyx/XYYXGpuWorker_metal.o: xyyx/xyyx_kernel.gpu.h xyyx/xyyx_kernel.metallib
+xyyx/XYYXGpuWorker_metal.o: xyyx/xyyx_kernel.gpu.h xyyx/xyyx_kernel.metallib xyyx/xyyx_sparse_kernel.gpu.h xyyx/xyyx_sparse_kernel.metallib
 endif
 
 alternating_factorial/AlternatingFactorialGpuWorker_opencl.o: alternating_factorial/af_kernel.gpu.h
@@ -295,7 +296,7 @@ primorial/PrimorialGpuWorker_opencl.o: primorial/primorial_kernel.gpu.h
 sierpinski_riesel/CisOneWithOneSequenceGpuWorker_opencl.o: sierpinski_riesel/cisonesingle_kernel.gpu.h
 sierpinski_riesel/GenericGpuWorker_opencl.o: sierpinski_riesel/generic_kernel.gpu.h
 smarandache/SmarandacheGpuWorker_opencl.o: smarandache/sm_kernel.gpu.h
-xyyx/XYYXGpuWorker_opencl.o: xyyx/xyyx_kernel.gpu.h
+xyyx/XYYXGpuWorker_opencl.o: xyyx/xyyx_kernel.gpu.h xyyx/xyyx_sparse_kernel.gpu.h
 
 afsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(AF_OBJS)
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(LD_FLAGS_OPENCL) -o $@ $^ $(LD_FLAGS)

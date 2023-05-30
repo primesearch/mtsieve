@@ -12,6 +12,7 @@
 #define _XYYXApp_H
 
 #include <vector>
+#include <set>
 
 #include "../core/FactorApp.h"
 
@@ -42,6 +43,17 @@ typedef struct {
    base_t     *yPowX;
 } bases_t;
 
+typedef struct {
+   uint32_t    x;
+   uint32_t    y;
+   bool        haveFactor;
+} term_t;
+
+typedef struct {
+   uint32_t    x;
+   uint32_t    y;
+} gputerm_t;
+
 class XYYXApp : public FactorApp
 {
 public:
@@ -71,10 +83,12 @@ public:
    bool              IsMinus(void) { return ib_IsMinus; };
 
    void              GetTerms(uint32_t fpuRemaindersCount, uint32_t avxRemaindersCount, bases_t *bases);
+   term_t           *GetSparseTerms(void);
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          GetNumberOfGroups(void);
    uint32_t          GetGroupedTerms(uint32_t *terms);
+   gputerm_t        *GetSparseGroupedTerms(void);
    
    uint32_t          GetMaxGpuSteps(void) { return ii_MaxGpuSteps; };
    uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
@@ -96,8 +110,10 @@ private:
    void              SetInitialTerms(void);
    void              VerifyFactor(uint64_t theFactor, uint32_t x, uint32_t y);
    
-   std::vector<bool> iv_Terms;
+   std::vector<bool>  iv_Terms;
+   term_t            *ip_Terms;
    
+   bool              ib_Sparse;
    bool              ib_UseAvx;
    bool              ib_IsPlus;
    bool              ib_IsMinus;
@@ -105,8 +121,6 @@ private:
    uint32_t          ii_MaxX;
    uint32_t          ii_MinY;
    uint32_t          ii_MaxY;
-   uint32_t          ii_SplitYCount;
-   uint32_t          ii_SplitYValue;
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          ii_MaxGpuSteps;
