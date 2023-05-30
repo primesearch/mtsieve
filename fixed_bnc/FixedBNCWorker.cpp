@@ -248,10 +248,6 @@ void    FixedBNCWorker::RemoveTermsSmallPrime(uint64_t prime, uint64_t k)
    if ((ii_Base & 1) && (k & 1))
       k += prime;
 
-   // If the base is even, then we want k to start with odd k
-   if ((ii_Base == 2) && !(k & 1))
-      k += prime;
-
    if (k > il_MaxK)
       return;
    
@@ -263,10 +259,6 @@ void    FixedBNCWorker::RemoveTermsBigPrime(uint64_t prime, uint64_t k)
 {
    // If the base is odd, then we want k to start with even k
    if ((ii_Base & 1) && (k & 1))
-      k += prime;
-
-   // If the base is even, then we want k to start with odd k
-   if ((ii_Base == 2) && !(k & 1))
       k += prime;
 
    // Make sure that k >= il_MinK
