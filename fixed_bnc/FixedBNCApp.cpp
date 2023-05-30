@@ -124,8 +124,8 @@ void FixedBNCApp::ValidateOptions(void)
    {
       ProcessInputTermsFile(false);
       
-      // We only care about odd k or even k, but not both
-      if ((ii_Base == 2 || ii_Base & 1))
+      // We only care about even k
+      if (ii_Base & 1)
          ib_HalfK = true;
       
       uint32_t termSize = (il_MaxK - il_MinK) + 1;
@@ -184,8 +184,8 @@ void FixedBNCApp::ValidateOptions(void)
             il_MaxK--;
       }
       
-      // We only care about odd k or even k, but not both
-      if ((ii_Base == 2 || ii_Base & 1))
+      // We only care about even k
+      if (ii_Base & 1)
          ib_HalfK = true;
       
       il_TermCount = il_MaxK - il_MinK + 1;
@@ -224,6 +224,12 @@ void FixedBNCApp::ValidateOptions(void)
       is_OutputTermsFileName = fileName;
    }
 
+   if (ii_Base == 2 && ii_N == 1 && ii_C == -1 && il_MinK == 1)
+   {
+      WriteToConsole(COT_OTHER, "Changing mink to 2 because 1*2^1-1 = 1");
+      il_MinK = 2;
+   }
+
    snprintf(fileName, sizeof(fileName), "k_b%u_n%u%+d.primes.txt", ii_Base, ii_N, ii_C);
    is_PrimeFileName = fileName;
    
@@ -234,6 +240,12 @@ void FixedBNCApp::ValidateOptions(void)
    // Since the worker wants primes in groups of 4
    while (ii_CpuWorkSize % 4 != 0)
       ii_CpuWorkSize++;
+
+   if (ii_Base & 1 && GetMinPrime() < 3)
+      SetAppMinPrime(3);
+   
+   if (!(ii_Base & 1) && GetMinPrime() < 2)
+      SetAppMinPrime(2);
    
    AdjustMaxPrime();
    
@@ -575,7 +587,7 @@ void  FixedBNCApp::ReportFactor(uint64_t theFactor, uint64_t k)
       return;
    
    VerifyFactor(theFactor, k);
-      
+
    ip_FactorAppLock->Lock();
 
    do
