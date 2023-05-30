@@ -16,7 +16,7 @@
 #include "FixedBNCWorker.h"
 
 #define APP_NAME        "fbncsieve"
-#define APP_VERSION     "1.6.3"
+#define APP_VERSION     "1.7"
 
 #define BIT_HK(k)       (((k) - il_MinK) >> 1)
 #define BIT_AK(k)       ((k) - il_MinK)

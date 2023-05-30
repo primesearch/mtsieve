@@ -1,3 +1,12 @@
+2.4.8 - June 1, 2023
+   fbncsieve: version 1.7
+      No longer remove even k for base 2.
+      Ensure that odd bases only report even k that are removed.
+      
+   xyyxsieve/xyyxsievecl: version 2.0
+      If the range of x or the range of y is greater than the number of candidates,
+      then different logic is used to manage the candidates and iterate over them.
+      
 2.4.7 - May 24, 2023
    framework:
       Added command line switch -4.  Sieving will stop when the factors per
@@ -5,7 +14,7 @@
       when the factor rate is computed, which is once per minute.
       
       Added command line switch -5.  Sieving will stop when the seconds per
-      facter rate falls is above specified rate.  The rates only only evaluated 
+      factor rate falls is above specified rate.  The rates only only evaluated 
       when the factor rate is computed, which is once per minute.
    
    fbncsieve: version 1.6.2:
@@ -14,7 +23,7 @@
       to some being written to the <xx>_primes.txt file.
       
    gcwsieve/gcwsievecl: version 1.5.2
-      Modify format output to gcw_gfn.txt and gcw_mersenne.txt to make more sense.
+      Modify output format to gcw_gfn.txt and gcw_mersenne.txt to make more sense.
 
    srsieve2/srsieve2cl: version 1.7
       Can now support hundreds of thousands of sequences per execution.
@@ -31,9 +40,9 @@
       because there is no easy way to verify that if factor divides (k*b^n+/-c)
       that it also divides (k*b^n+/-c)/d.
 
-      Added -r for use with (k*b^n+/-c)/d sequences where d > 1.  When specified
-      this will remove terms where k*b^n+/-c mod d != 0.  If you do not use -r
-      then pfgw will use floor((k*b^n+/-c)/d) before doing the PRP test.
+      Added command line switch -r for use with (k*b^n+/-c)/d sequences where d > 1.
+      When specified this will remove terms where k*b^n+/-c mod d != 0.  If you do not
+      use -r then pfgw will use floor((k*b^n+/-c)/d) before doing the PRP test.
 
 2.4.6 - April 14, 2023
    framework:
