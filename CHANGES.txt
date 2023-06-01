@@ -2,6 +2,7 @@
    fbncsieve: version 1.7
       No longer remove even k for base 2.
       Ensure that odd bases only report even k that are removed.
+      Ignore factors for terms where k is outside of specified range.
       
    xyyxsieve/xyyxsievecl: version 2.0
       If the range of x or the range of y is greater than the number of candidates,
