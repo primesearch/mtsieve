@@ -586,6 +586,9 @@ void  FixedBNCApp::ReportFactor(uint64_t theFactor, uint64_t k)
    if (theFactor > il_MaxPrimeForValidFactor)
       return;
    
+   if (k > il_MaxK)
+      return;
+   
    VerifyFactor(theFactor, k);
 
    ip_FactorAppLock->Lock();
