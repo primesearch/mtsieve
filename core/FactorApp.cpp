@@ -244,7 +244,7 @@ void  FactorApp::LogStartSievingMessage(void)
    ConvertNumberToShortString(il_MinPrime, (char *) minPrime);
    ConvertNumberToShortString(il_MaxPrime, (char *) maxPrime);
       
-   snprintf(startOfMessage, sizeof(startOfMessage), "Sieve started: %s < p < %s with %" PRIu64" terms", minPrime, maxPrime, il_TermCount);
+   snprintf(startOfMessage, sizeof(startOfMessage), "Sieve started: %s <= p <= %s with %" PRIu64" terms", minPrime, maxPrime, il_TermCount);
 
    GetExtraTextForSieveStartedMessage(extraText, 200);
    

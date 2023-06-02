@@ -16,7 +16,7 @@
 #include "FixedBNCWorker.h"
 
 #define APP_NAME        "fbncsieve"
-#define APP_VERSION     "1.7"
+#define APP_VERSION     "1.7.1"
 
 #define BIT_HK(k)       (((k) - il_MinK) >> 1)
 #define BIT_AK(k)       ((k) - il_MinK)
@@ -173,17 +173,7 @@ void FixedBNCApp::ValidateOptions(void)
          if (il_MaxK & 1)
             il_MaxK--;
       }
-      
-      if (ii_Base == 2)
-      {
-         // Both need to be odd if the base is 2
-         if (!(il_MinK & 1))
-            il_MinK++;
-         
-         if (!(il_MaxK & 1))
-            il_MaxK--;
-      }
-      
+
       // We only care about even k
       if (ii_Base & 1)
          ib_HalfK = true;
@@ -228,6 +218,7 @@ void FixedBNCApp::ValidateOptions(void)
    {
       WriteToConsole(COT_OTHER, "Changing mink to 2 because 1*2^1-1 = 1");
       il_MinK = 2;
+      il_TermCount--;
    }
 
    snprintf(fileName, sizeof(fileName), "k_b%u_n%u%+d.primes.txt", ii_Base, ii_N, ii_C);
@@ -578,7 +569,7 @@ uint64_t FixedBNCApp::WriteNewPGenTermsFile(uint64_t maxPrime, FILE *termsFile)
 
 void  FixedBNCApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
-   snprintf(extraText, maxTextLength, "%" PRIu64 " < k < %" PRIu64", k*%u^%u%+d", il_MinK, il_MaxK, ii_Base, ii_N, ii_C);
+   snprintf(extraText, maxTextLength, "%" PRIu64 " <= k <= %" PRIu64", k*%u^%u%+d", il_MinK, il_MaxK, ii_Base, ii_N, ii_C);
 }
 
 void  FixedBNCApp::ReportFactor(uint64_t theFactor, uint64_t k)
