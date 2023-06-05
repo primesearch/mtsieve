@@ -289,10 +289,10 @@ void   CisOneSequenceHelper::BuildLegendreTables()
 
    // index = 0 is not used so that the GPU can use != 0 to know that a Legendre table exists
    bytesUsed = 1;
-   for (uint32_t legIdx=0; legIdx<ii_SequenceCount; legIdx++)
+   for (uint32_t legIdx=1; legIdx<=ii_SequenceCount; legIdx++)
    {
       legendrePtr = &ip_Legendre[legIdx];
-
+   
       if (!legendrePtr->canCreateMap)
          continue;
 
@@ -318,7 +318,7 @@ void   CisOneSequenceHelper::BuildLegendreTables()
       
    startTime = time(NULL);
 
-   for (uint32_t legIdx=0; legIdx<ii_SequenceCount; legIdx++)
+   for (uint32_t legIdx=1; legIdx<=ii_SequenceCount; legIdx++)
    {
       legendrePtr = &ip_Legendre[legIdx];
 
