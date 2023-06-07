@@ -1,8 +1,17 @@
-2.4.9 - June 2, 2023
+2.4.9 - June 7, 2023
+   framework:
+      Added command line switch -6.  When the removal rate is computed as "seconds
+      per factor", this is the number of minutes to includes in that rate.  It can
+      exceed that number of minutes, but only if no factors are found.
+      
    fnbcsieve: version 1.7.1
       For base 2 do not adjust mink or maxk when they are even.  End user can use -r
       to remove those terms.
       
+   srsieve2/srsieve2cl: version 1.7.1
+      Fix two issues with generating Legendre tables that can cause program to crash.
+      Fix issue where some sequences are removed due to incorrect algebraic factorizations.
+
 2.4.8 - June 1, 2023
    fbncsieve: version 1.7
       No longer remove even k for base 2.

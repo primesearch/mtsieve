@@ -34,6 +34,8 @@ FactorApp::FactorApp(void)
    id_FPSTarget = 0.0;
    id_SPFTarget = 0.0;
    
+   ii_MinutesForStatus = 0;
+   
    ib_ApplyAndExit = false;
    
    ResetFactorStats();
@@ -58,13 +60,14 @@ void FactorApp::ParentHelp(void)
    printf("-O --outputfactors=O  output file with new factors\n");
    printf("-4 --fpstarget=4      stop sieving ASAP when factors per second falls below this value\n");
    printf("-5 --spftarget=5      stop sieving ASAP when seconds per factor goes above this value\n");
+   printf("-6 --minutesforspf=6  maximum number of minutes to use for computed seconds per factor\n");
 }
 
 void  FactorApp::ParentAddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
 {
    App::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "Ai:o:I:O:4:5:";
+   shortOpts += "Ai:o:I:O:4:5:6:";
 
    AppendLongOpt(longOpts, "applyandexit",   no_argument, 0, 'A');
    AppendLongOpt(longOpts, "inputterms",     required_argument, 0, 'i');
@@ -73,6 +76,7 @@ void  FactorApp::ParentAddCommandLineOptions(std::string &shortOpts, struct opti
    AppendLongOpt(longOpts, "outputfactors",  required_argument, 0, 'O');
    AppendLongOpt(longOpts, "fpstarget",      required_argument, 0, '4');
    AppendLongOpt(longOpts, "spftarget",      required_argument, 0, '5');
+   AppendLongOpt(longOpts, "minutesforspf",  required_argument, 0, '6');
 }
 
 parse_t FactorApp::ParentParseOption(int opt, char *arg, const char *source)
@@ -118,6 +122,10 @@ parse_t FactorApp::ParentParseOption(int opt, char *arg, const char *source)
       case '5':
          status = Parser::Parse(arg, 0.1, 1000000000.0, id_SPFTarget);
          break;
+
+      case '6':
+         status = Parser::Parse(arg, 1, MAX_FACTOR_REPORT_COUNT, ii_MinutesForStatus);
+         break;
    }
 
    return status;
@@ -133,6 +141,14 @@ void  FactorApp::ParentValidateOptions(void)
    if (id_FPSTarget > 0.0 && id_SPFTarget > 0.0)
       FatalError("Cannot specify both -4 and -5");
    
+   if (ii_MinutesForStatus == 0)
+   {
+      ii_MinutesForStatus = MAX_FACTOR_REPORT_COUNT;
+      
+      if (id_FPSTarget > 0.0)
+         WriteToConsole(COT_OTHER, "Option -6 ignored as it only applies to seconds per factor calculations");
+   }
+      
    if (is_OutputTermsFileName.length() == 0)
    {
       FatalError("An output terms file name must be specified");
@@ -459,12 +475,9 @@ bool  FactorApp::BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, do
       factorTimeUS = currentReportTimeUS - ir_ReportStatus[previousStatusEntry].reportTimeUS;
       factorsFound = currentFactorsFound - ir_ReportStatus[previousStatusEntry].factorsFound;
 
-      // If no factors found in this time slice, use a larger time slice
+      // If no factors found in this time slice, go back another minute
       if (factorsFound == 0) {
-         if (previousStatusEntry > 60)
-            previousStatusEntry -= 60;
-         else
-            previousStatusEntry = 1;
+         previousStatusEntry = 1;
          continue;
       }
 
@@ -477,13 +490,7 @@ bool  FactorApp::BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, do
       // Multiply the CPU utilization to account for less or more than 1 core
       secondsPerFactor *= cpuUtilization;
       
-      // The value of 5000 is arbitrary.  The idea is that as the factor rate decreases
-      // we want a longer time slice so that natural fluctuations in factor density
-      // do not skew the factoring rate too much with successive reports.  For example
-      // once the rate is about 10 seconds per factor, it will compute the rate for the
-      // past 50000 seconds.  If the rate is about 15 seconds per factor, it will
-      // compute the rate based upon the last 75000 seconds.
-      if ((double) factorsFound > 5000.0 * secondsPerFactor)
+      if (currentStatusEntry - previousStatusEntry >= ii_MinutesForStatus)
          break;
       
       // It is possible that we haven't removed that many factors in the window that

@@ -86,6 +86,7 @@ private:
    // I could use a vector, but I'm lazy
    factor_report_t   ir_ReportStatus[MAX_FACTOR_REPORT_COUNT];
    uint32_t          ii_NextStatusEntry;
+   uint32_t          ii_MinutesForStatus;
 };
 
 #endif

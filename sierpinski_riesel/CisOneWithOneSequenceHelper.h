@@ -72,6 +72,8 @@ protected:
    
    uint16_t      *ip_AllQs;
    uint16_t      *ip_AllLadders;
+   
+   uint8_t       *ip_Scratch;
 };
 
 #endif

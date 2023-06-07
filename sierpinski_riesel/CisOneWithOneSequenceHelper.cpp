@@ -131,6 +131,8 @@ void  CisOneWithOneSequenceHelper::BuildCongruenceTables(void)
    ii_Dim2 = ii_Dim3 * ii_UsedPowerResidueIndices;
    ii_Dim1 = ii_Dim2 * SP_COUNT;
 
+   ip_Scratch = (uint8_t *) xmalloc((ii_BestQ + 5) * sizeof(uint8_t));
+   
    ip_CongruentQIndices = (uint32_t *) xmalloc(ii_Dim1 * sizeof(uint32_t));
    ip_LadderIndices = (uint32_t *) xmalloc(ii_Dim1 * sizeof(uint32_t));
 
@@ -150,6 +152,8 @@ void  CisOneWithOneSequenceHelper::BuildCongruenceTables(void)
    ip_AllQs = (uint16_t *) xmalloc(ii_MaxQEntries * sizeof(uint16_t));
    ip_AllLadders = (uint16_t *) xmalloc(ii_MaxLadderEntries * sizeof(uint16_t));
    
+   ip_Scratch = (uint8_t *) xmalloc((ii_BestQ + 5) * sizeof(uint8_t));
+   
    seqPtr = ip_FirstSequence;
    while (seqPtr != NULL)
    {
@@ -157,6 +161,8 @@ void  CisOneWithOneSequenceHelper::BuildCongruenceTables(void)
       
       seqPtr = (seq_t *) seqPtr->next;
    }
+   
+   xfree(ip_Scratch);
    
    bytesNeeded = ii_Dim1 * sizeof(uint32_t) * 2;
    ip_App->WriteToConsole(COT_OTHER, "%" PRIu64" bytes used for congruent q and ladder indices", bytesNeeded);
@@ -175,6 +181,7 @@ void  CisOneWithOneSequenceHelper::BuildCongruenceTablesForSequence(seq_t *seqPt
    
    for (h=0; h<SP_COUNT; h++)
       tempQs[h] = (uint16_t *) xmalloc(ii_PowerResidueLcm * sizeof(uint16_t));
+   
    
    for (r=1; r<=ii_PowerResidueLcm; r++)
    {
@@ -217,7 +224,7 @@ void  CisOneWithOneSequenceHelper::BuildCongruenceTablesForSequence(seq_t *seqPt
          CopyQsAndMakeLadder(seqPtr, SP_MIXED, r, h, tempQs[SP_MIXED], len[SP_MIXED]);
       }
    }
-   
+
    for (h=0; h<SP_COUNT; h++)
       xfree(tempQs[h]);
 }
@@ -274,56 +281,55 @@ void  CisOneWithOneSequenceHelper::CopyQsAndMakeLadder(seq_t *seqPtr, sp_t parit
 void   CisOneWithOneSequenceHelper::MakeLadder(uint16_t *qList, uint32_t qListLen)
 {
    uint32_t          i, j, k, a;
-   vector<uint8_t>   tempQs;
       
    assert(qListLen <= ii_BestQ);
    
-   tempQs.resize(ii_BestQ+1);
+   memset(ip_Scratch, 0x00, ii_BestQ+10);
 
-   tempQs[ii_BestQ] = 1;
+   ip_Scratch[ii_BestQ] = 1;
    
    for (i=0, a=1; i<qListLen; i++, a++)
-      tempQs[qList[i]] = 1;
+      ip_Scratch[qList[i]] = 1;
 
    for (i=0; i<3; i++)
    {
-      if (tempQs[i] == 1)
+      if (ip_Scratch[i] == 1)
         a--;
-      tempQs[i] = 2;
+      ip_Scratch[i] = 2;
    }
 
    while (a > 0)
    {
       for (i=3, j=2; i<=ii_BestQ; i++)
       {
-         if (tempQs[i] == 2)
+         if (ip_Scratch[i] == 2)
             j = i;
          else
-            if (tempQs[i] == 1)
+            if (ip_Scratch[i] == 1)
                break;
       }
       
       assert(i <= ii_BestQ);
 
-      if (tempQs[i-j] == 2)
+      if (ip_Scratch[i-j] == 2)
       {
          /* We can use an existing rung */
-         tempQs[i] = 2;
+         ip_Scratch[i] = 2;
          a--; 
       }
       else
       {
          /* Need to create a new rung */
          k = MIN(i-j,(i+1)/2); 
-         assert(tempQs[k]==0);
-         tempQs[k] = 1;
+         assert(ip_Scratch[k]==0);
+         ip_Scratch[k] = 1;
          a++;
          
          /* Need to re-check rungs above the new one */
          for (k++; k<=j; k++) 
-            if (tempQs[k] == 2)
+            if (ip_Scratch[k] == 2)
             {
-               tempQs[k] = 1;
+               ip_Scratch[k] = 1;
                a++;
             }
       }
@@ -331,7 +337,7 @@ void   CisOneWithOneSequenceHelper::MakeLadder(uint16_t *qList, uint32_t qListLe
 
    a = 0;
    for (i=3; i<=ii_BestQ; i++)
-      if (tempQs[i] == 2)
+      if (ip_Scratch[i] == 2)
          a++;
 
    ip_AllLadders[ii_UsedLadderEntries] = a;
@@ -339,9 +345,9 @@ void   CisOneWithOneSequenceHelper::MakeLadder(uint16_t *qList, uint32_t qListLe
    
    j = 2;
    for (i=3; i<=ii_BestQ; i++)
-      if (tempQs[i] == 2)
+      if (ip_Scratch[i] == 2)
       {
-         assert(tempQs[i-j]==2);
+         assert(ip_Scratch[i-j]==2);
          ip_AllLadders[ii_UsedLadderEntries] = i - j;
          ii_UsedLadderEntries++;
          j = i;

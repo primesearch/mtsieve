@@ -232,7 +232,8 @@ void   CisOneSequenceHelper::BuildLegendreTables()
    
    legendreTableBytes = srApp->GetLegendreTableBytes();
 
-   ip_Legendre = (legendre_t *) xmalloc(ii_SequenceCount * sizeof(legendre_t));
+   // seqIdx starts at 1
+   ip_Legendre = (legendre_t *) xmalloc((ii_SequenceCount+1) * sizeof(legendre_t));
 
    seqPtr = ip_FirstSequence;
    bytesNeeded = 0;

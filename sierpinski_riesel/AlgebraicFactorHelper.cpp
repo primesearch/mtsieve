@@ -270,7 +270,7 @@ uint64_t  AlgebraicFactorHelper::RemoveTermsWithKAndBPowers(seq_t *seqPtr)
    if (ii_BPower == 1)
       return removedCount;   
    
-   for (idx=2; idx<=ii_KPower; idx++)
+   for (idx=2; idx<ii_KPower; idx++)
    {
       // Given k=ii_KRoot^ii_KPower, find all idx where ii_KPower%idx = 0.
       // If ii_KPower == 6, then we look for algebraic factors with the
