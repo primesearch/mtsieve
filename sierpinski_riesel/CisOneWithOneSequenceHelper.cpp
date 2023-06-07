@@ -131,8 +131,6 @@ void  CisOneWithOneSequenceHelper::BuildCongruenceTables(void)
    ii_Dim2 = ii_Dim3 * ii_UsedPowerResidueIndices;
    ii_Dim1 = ii_Dim2 * SP_COUNT;
 
-   ip_Scratch = (uint8_t *) xmalloc((ii_BestQ + 5) * sizeof(uint8_t));
-   
    ip_CongruentQIndices = (uint32_t *) xmalloc(ii_Dim1 * sizeof(uint32_t));
    ip_LadderIndices = (uint32_t *) xmalloc(ii_Dim1 * sizeof(uint32_t));
 
