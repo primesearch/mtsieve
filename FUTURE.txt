@@ -3,7 +3,7 @@ Once these are completed, they will be removed from this file and documented in 
 
 Added on December 29, 2020
    framework:
-      Add ARM support
+      Add ARM support in programs that can only run on x86.
 
 Added on December 22, 2020
    framework:
@@ -28,3 +28,7 @@ Added on January 03, 2022
 Added on January 13, 2023
    Add support for Apple Metal for all sieves supporting OpenCL.
    Get (k*b^n+c)/d sequences working in srsieve2.
+
+Added on June 7, 2023
+   Add feature to compute rate for the last xx factors instead of
+   seconds per factor.
