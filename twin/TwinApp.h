@@ -40,7 +40,7 @@ public:
    termtype_t        GetTermType(void) { return it_TermType; };
    uint64_t         *GetTerms(void) { return il_Terms; };
    
-   bool              ReportFactor(uint64_t theFactor, uint64_t k, int32_t c);
+   void              ReportFactor(uint64_t theFactor, uint64_t k, int32_t c);
 
 protected:
    void              PreSieveHook(void) {};

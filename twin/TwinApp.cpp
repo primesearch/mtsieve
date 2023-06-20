@@ -16,7 +16,7 @@
 #include "TwinWorker.h"
 
 #define APP_NAME        "twinsieve"
-#define APP_VERSION     "1.6.1"
+#define APP_VERSION     "1.6.2"
 
 #define NMAX_MAX        (1 << 31)
 #define BMAX_MAX        (1 << 31)
@@ -883,14 +883,31 @@ void  TwinApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxT
       snprintf(extraText, maxTextLength, "%" PRIu64" < k < %" PRIu64", k*%u!", il_MinK, il_MaxK, ii_N);
 }
 
-bool  TwinApp::ReportFactor(uint64_t theFactor, uint64_t k, int32_t c)
+void  TwinApp::ReportFactor(uint64_t theFactor, uint64_t k, int32_t c)
 {
-   bool     removedTerm = false;
    char     kStr[50];
 
    if (theFactor > il_MaxPrimeForValidFactor)
-      return false;
+      return;
    
+   if (ib_HalfK)
+   {
+      if (ii_Base == 2)
+      {
+         if (!(k & 1))
+            k += theFactor;
+      }
+      else if (ii_Base & 1)
+      {
+         if (k & 1)
+            k += theFactor;
+      }
+      
+      if (k >= il_MaxK)
+         return;
+   }
+   
+      
    // If the first term is valid, then the rest are valid.  In other words 
    // k*x (mod p) = (k+p)*x (mod p) = ... = (k+n*p)*x (mod p)
    VerifyFactor(theFactor, k, c);
@@ -908,12 +925,14 @@ bool  TwinApp::ReportFactor(uint64_t theFactor, uint64_t k, int32_t c)
          if (iv_TwinTerms[bit])
          {
             iv_TwinTerms[bit] = false;
-            removedTerm = true;
             
             LogFactor(theFactor, "%s*%u^%u%+d", kStr, ii_Base, ii_N, c);
             
             il_FactorCount++;
             il_TermCount--;
+            
+            if (il_TermCount == 0)
+               Interrupt("All terms have factors");
          }
       }
       else
@@ -921,23 +940,27 @@ bool  TwinApp::ReportFactor(uint64_t theFactor, uint64_t k, int32_t c)
          if (c == -1 && iv_MinusTerms[bit])
          {
             iv_MinusTerms[bit] = false;
-            removedTerm = true;
             
             LogFactor(theFactor, "%s*%u^%u-1", kStr, ii_Base, ii_N);
             
             il_FactorCount++;
             il_TermCount--;
+            
+            if (il_TermCount == 0)
+               Interrupt("All terms have factors");
          }
 
          if (c == +1 && iv_PlusTerms[bit])
          {
             iv_PlusTerms[bit] = false;
-            removedTerm = true;
             
             LogFactor(theFactor, "%s*%u^%u+1", kStr, ii_Base, ii_N);
             
             il_FactorCount++;
             il_TermCount--;
+            
+            if (il_TermCount == 0)
+               Interrupt("All terms have factors");
          }
       }
       if (ib_HalfK)
@@ -950,8 +973,6 @@ bool  TwinApp::ReportFactor(uint64_t theFactor, uint64_t k, int32_t c)
    } while (k <= il_MaxK);
    
    ip_FactorAppLock->Release();
-   
-   return removedTerm;
 }
 
 // Don't sieve beyond sqrt(maxk*b^n+c).  The worker will not
