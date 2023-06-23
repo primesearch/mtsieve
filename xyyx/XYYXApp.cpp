@@ -24,7 +24,7 @@
 #endif
 
 #define APP_NAME        "xyyxsieve"
-#define APP_VERSION     "2.0"
+#define APP_VERSION     "2.1"
 
 #define BIT(x, y)       ((((x) - ii_MinX) * GetYCount()) + ((y) - ii_MinY))
 
