@@ -945,32 +945,27 @@ void  App::GetWorkerStats(uint64_t &workerCpuUS, uint64_t &largestPrimeTestedNoG
    // Treat time spent in GPU as if spent in CPU
    workerCpuUS += ip_GpuDevice->GetGpuMicroseconds();
 #endif
-
+   
    for (uint32_t ii=0; ii<=ii_TotalWorkerCount; ii++)
    {
-      // ip_Worker[0] is the special CPU worker (if we need one)
-      if (ii == 0)
+      // This is only populated if we need a CPU worker when doing GPU sieving
+      if (ip_Workers[ii] == 0)
          continue;
 
       ip_Workers[ii]->LockStats();
 
       workerLargestPrimeTested = ip_Workers[ii]->GetLargestPrimeTested();
-
-      // Ignore worker if it hasn't done any work.
-      if (workerLargestPrimeTested > 0)
-      {
-         // If this worker is waiting for work, then aasume that at least one worker
-         // will be working on the next chunk, so use its stats instead.
-         if (!ip_Workers[ii]->IsStatusWaitingForWork())
-         {
-            // If there are multiple workers, this will be the largest prime tested
-            // where we know that all primes less than this prime have been tested.
-            if (workerLargestPrimeTested < largestPrimeTestedNoGaps)
-               largestPrimeTestedNoGaps = workerLargestPrimeTested;
-         }
          
-         if (workerLargestPrimeTested > largestPrimeTested)
-            largestPrimeTested = workerLargestPrimeTested;
+      if (workerLargestPrimeTested > largestPrimeTested)
+         largestPrimeTested = workerLargestPrimeTested;
+         
+      // Gaps can only be identified by workers that are currently busy.
+      // If the worker isn't busy, then it has completed the range of primes
+      // it was working on.
+      if (ip_Workers[ii]->IsStatusHasWorkToDo() || ip_Workers[ii]->IsStatusWorking())
+      {
+         if (workerLargestPrimeTested < largestPrimeTestedNoGaps)
+            largestPrimeTestedNoGaps = workerLargestPrimeTested;
       }
       
       primesTested += ip_Workers[ii]->GetPrimesTested();
@@ -978,23 +973,7 @@ void  App::GetWorkerStats(uint64_t &workerCpuUS, uint64_t &largestPrimeTestedNoG
 
       ip_Workers[ii]->ReleaseStats();
    }
-      
-   if (ip_Workers[0] != NULL)
-   {
-      ip_Workers[0]->LockStats();
 
-      if (largestPrimeTested == 0)
-      {
-         largestPrimeTestedNoGaps = ip_Workers[0]->GetLargestPrimeTested();
-         largestPrimeTested = ip_Workers[0]->GetLargestPrimeTested();
-      }
-      
-      primesTested += ip_Workers[0]->GetPrimesTested();
-      workerCpuUS += ip_Workers[0]->GetWorkerCpuUS();
-
-      ip_Workers[0]->ReleaseStats();
-   }
-   
    if (largestPrimeTestedNoGaps == PMAX_MAX_62BIT)
       largestPrimeTestedNoGaps = largestPrimeTested;
 }
