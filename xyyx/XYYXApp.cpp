@@ -65,8 +65,9 @@ void XYYXApp::Help(void)
    printf("-X --maxx=X           maximum x to search\n");
    printf("-y --miny=y           minimum y to search\n");
    printf("-Y --maxy=Y           maximum y to search\n");
-   printf("-V --disableavx       disableavx\n");
    printf("-s --sign=+/-         sign to sieve for\n");
+   printf("-V --disableavx       disableavx\n");
+   printf("-Z --sparselogic      use sparse logic\n");
 #if defined(USE_OPENCL) || defined(USE_METAL)
    printf("-S --step=S           max steps iterated per call to GPU (default %d)\n", ii_MaxGpuSteps);
    printf("-M --maxfactors=M     max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
@@ -77,13 +78,14 @@ void  XYYXApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "x:X:y:Y:s:S:z:Z:M:V";
+   shortOpts += "x:X:y:Y:s:S:M:VZ";
 
    AppendLongOpt(longOpts, "minx",              required_argument, 0, 'x');
    AppendLongOpt(longOpts, "maxx",              required_argument, 0, 'X');
    AppendLongOpt(longOpts, "miny",              required_argument, 0, 'y');
    AppendLongOpt(longOpts, "sign",              required_argument, 0, 's');
    AppendLongOpt(longOpts, "disableavx",        no_argument, 0, 'V');
+   AppendLongOpt(longOpts, "sparselogic",       no_argument, 0, 'Z');
    AppendLongOpt(longOpts, "sign",              required_argument, 0, 's');
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
@@ -122,6 +124,11 @@ parse_t XYYXApp::ParseOption(int opt, char *arg, const char *source)
          ib_UseAvx = false;
          status = P_SUCCESS;
          break;
+     
+      case 'Z':
+         ib_Sparse = true;
+         status = P_SUCCESS;
+         break;
          
       case 's':
          char value;
@@ -156,9 +163,9 @@ void XYYXApp::ValidateOptions(void)
       ProcessInputTermsFile(false);
       
       // If there are multiple x per y and multiple y per x, then we can use a vector.
-      if (il_TermCount > ii_MaxX - ii_MinX && il_TermCount > ii_MaxY - ii_MinY)
+      if (!ib_Sparse && il_TermCount > ii_MaxX - ii_MinX && il_TermCount > ii_MaxY - ii_MinY)
       {
-         iv_Terms.resize(il_TermCount);
+         iv_Terms.resize(GetXCount() * GetYCount());
          std::fill(iv_Terms.begin(), iv_Terms.end(), false);
       }
       else
