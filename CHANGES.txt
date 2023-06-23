@@ -1,3 +1,20 @@
+2.5.0 - June 22, 2023
+   framework:
+      Fix how max p tested is computed as it could be wrong when running many workers.
+
+   srsieve2/srsieve2cl: version 1.7.2
+      Reverted part of the change for algebraic factorizations as it excluded too many.
+      Fix issue when using Legendre tables where factors would be missed.
+
+   twinsieve: version 1.6.2
+      Fixed issue with base 2 where even k are factored even though even k are not used.
+      The same issue can occur with odd bases.
+
+   xyyxsieve/xyyxsievecl: version 2.1
+      Added -Z to allow user to force sparse logic, which can be faster or slower
+      depending upon the density of x and y.
+      Fixed an issue when starting with -i that can lead to a crash.
+      
 2.4.9 - June 7, 2023
    framework:
       Added command line switch -6.  When the removal rate is computed as "seconds
