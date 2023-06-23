@@ -193,8 +193,6 @@ uint64_t  AlgebraicFactorHelper::RemoveTermsWithKPowers(seq_t *seqPtr)
    // seqPtr->k must be x^f for some x and f must be greater than 1
    if (ii_KPower == 1)
       return 0;
-
-
    
    for (idx=1; idx<ii_KPower; idx++)
    {
@@ -252,7 +250,7 @@ uint64_t  AlgebraicFactorHelper::RemoveTermsWithKPowers(seq_t *seqPtr)
 uint64_t  AlgebraicFactorHelper::RemoveTermsWithKAndBPowers(seq_t *seqPtr)
 {
    uint32_t  removedCount = 0, loopRemovedCount = 0;
-   uint32_t  n, idx;
+   uint32_t  idx, n;
    uint32_t  curroot, curpower;
    
    // If k = 1, then RemoveAlgebraicSimpleTerm() will have handled it
@@ -268,14 +266,18 @@ uint64_t  AlgebraicFactorHelper::RemoveTermsWithKAndBPowers(seq_t *seqPtr)
       return 0;
 
    if (ii_BPower == 1)
-      return removedCount;   
-   
-   for (idx=2; idx<ii_KPower; idx++)
+      return removedCount;
+
+   for (idx=2; idx<=ii_KPower; idx++)
    {
       // Given k=ii_KRoot^ii_KPower, find all idx where ii_KPower%idx = 0.
       // If ii_KPower == 6, then we look for algebraic factors with the
       // forms ii_KRoot^(6/2), ii_KRoot^(6/2), and ii_KRoot^(6/6).
       if (ii_KPower % idx != 0)
+         continue;
+      
+      // k must be square when b is square
+      if (ii_KPower & 1 && ii_BPower == 2)
          continue;
       
       curpower = ii_KPower / idx;
