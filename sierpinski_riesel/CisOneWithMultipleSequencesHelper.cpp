@@ -153,7 +153,7 @@ void  CisOneWithMultipleSequencesHelper::BuildCongruenceTables(void)
    // for that parity, r, and h.  The relationship for the ladder is the same.
    
    ii_MaxSubseqEntries = 1000;
-   ii_UsedSubseqEntries = 0;
+   ii_UsedSubseqEntries = 1;
    
    ip_AllSubseqs = (uint32_t *) xmalloc(ii_MaxSubseqEntries * sizeof(uint32_t));
 
