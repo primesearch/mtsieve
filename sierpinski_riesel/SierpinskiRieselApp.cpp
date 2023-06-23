@@ -22,7 +22,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.7.1"
+#define APP_VERSION     "1.7.2"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
