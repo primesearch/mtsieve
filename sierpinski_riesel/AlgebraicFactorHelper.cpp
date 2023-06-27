@@ -268,11 +268,13 @@ uint64_t  AlgebraicFactorHelper::RemoveTermsWithKAndBPowers(seq_t *seqPtr)
    if (ii_BPower == 1)
       return removedCount;
 
-   for (idx=2; idx<=ii_KPower; idx++)
+   // Avoid removing terms for f=1 as the factor will equal the term itself.
+   // We need a separate function to handle powers of b.
+   for (idx=2; idx<ii_KPower; idx++)
    {
       // Given k=ii_KRoot^ii_KPower, find all idx where ii_KPower%idx = 0.
-      // If ii_KPower == 6, then we look for algebraic factors with the
-      // forms ii_KRoot^(6/2), ii_KRoot^(6/2), and ii_KRoot^(6/6).
+      // If ii_KPower = 6, then we look for algebraic factors with the
+      // forms ii_KRoot^2 and ii_KRoot^3.
       if (ii_KPower % idx != 0)
          continue;
       
@@ -285,16 +287,9 @@ uint64_t  AlgebraicFactorHelper::RemoveTermsWithKAndBPowers(seq_t *seqPtr)
       for (n=1; n<idx; n++)
          curroot *= ii_KRoot;
       
-      if (seqPtr->c == +1)
-      {
-         // x^1 is not a divisor of x^n+1, so skip this idx
-         if (idx == ii_KPower)
-            continue;
-         
-         // x^y for even y is not a divisor of x^(y*n)+1, so skip this idx.
-         if (curpower%2 == 0)
-            continue;
-      }
+      // x^y for even y is not a divisor of x^(y*n)+1, so skip this idx.
+      if (seqPtr->c == +1 && curpower%2 == 0)
+         continue;
 
       ip_App->WriteToConsole(COT_OTHER, "(kbp) Sequence has algebraic factorization: %" PRIu64"*%u^n%+" PRId64" -> (%u^%u)*%u^(%u*n)%+" PRId64"", 
                   seqPtr->k, ii_Base, seqPtr->c, curroot, curpower, ii_BRoot, ii_BPower, seqPtr->c);
@@ -314,12 +309,8 @@ uint64_t  AlgebraicFactorHelper::RemoveTermsWithKAndBPowers(seq_t *seqPtr)
          loopRemovedCount += CheckAndLogAlgebraicFactor(seqPtr, n, "(%u*%u^%u%+" PRId64")", curroot, ii_BRoot, (ii_BPower*n)/curpower, seqPtr->c);
       }
 
-      if (idx == ii_KPower)
-        ip_App->WriteToConsole(COT_OTHER, "(kbp) Sequence %" PRIu64"*%u^n%+" PRId64" has %u terms removed due to algebraic factors of the form %u*%u^((%u*n)/%u)%+" PRId64"", 
-                  seqPtr->k, ii_Base, seqPtr->c, loopRemovedCount, curroot, ii_BRoot, ii_BPower, curpower, seqPtr->c);
-      else
-        ip_App->WriteToConsole(COT_OTHER, "(kbp) Sequence %" PRIu64"*%u^n%+" PRId64" has %u terms removed due to algebraic factors of the form (%u^%u)*%u^((%u*n)/%u)%+" PRId64"", 
-                  seqPtr->k, ii_Base, seqPtr->c, loopRemovedCount, curroot, curpower, ii_BRoot, ii_BPower, curpower, seqPtr->c);
+      ip_App->WriteToConsole(COT_OTHER, "(kbp) Sequence %" PRIu64"*%u^n%+" PRId64" has %u terms removed due to algebraic factors of the form (%u^%u)*%u^((%u*n)/%u)%+" PRId64"", 
+               seqPtr->k, ii_Base, seqPtr->c, loopRemovedCount, curroot, curpower, ii_BRoot, ii_BPower, curpower, seqPtr->c);
 
       removedCount += loopRemovedCount;
    }
