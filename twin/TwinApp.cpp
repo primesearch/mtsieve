@@ -16,7 +16,7 @@
 #include "TwinWorker.h"
 
 #define APP_NAME        "twinsieve"
-#define APP_VERSION     "1.6.2"
+#define APP_VERSION     "1.6.3"
 
 #define NMAX_MAX        (1 << 31)
 #define BMAX_MAX        (1 << 31)
@@ -420,19 +420,19 @@ void TwinApp::ProcessInputTermsFile(bool haveBitMap)
       {
          if (sscanf(buffer, "ABCD $a*%u^%d+1 & $a*%u^%d-1  [%" SCNu64"] // Sieved to %" SCNu64"", &base1, &n1, &base2, &n2, &k, &lastPrime) == 6)
             it_TermType = TT_BN;
-
-         if (sscanf(buffer, "ABCD $a*%u#+1 & $a*%u#-1  [%" SCNu64"] // Sieved to %" SCNu64"", &n1, &n2, &k, &lastPrime) == 4)
-            it_TermType = TT_PRIMORIAL;
-
-         if (sscanf(buffer, "ABCD $a*%u!+1 & $a*%u!-1  [%" SCNu64"] // Sieved to %" SCNu64"", &n1, &n2, &k, &lastPrime) == 4)
-            it_TermType = TT_FACTORIAL;
+         else 
+            if (sscanf(buffer, "ABCD $a*%u#+1 & $a*%u#-1  [%" SCNu64"] // Sieved to %" SCNu64"", &n1, &n2, &k, &lastPrime) == 4)
+               it_TermType = TT_PRIMORIAL;
+            else
+               if (sscanf(buffer, "ABCD $a*%u!+1 & $a*%u!-1  [%" SCNu64"] // Sieved to %" SCNu64"", &n1, &n2, &k, &lastPrime) == 4)
+                  it_TermType = TT_FACTORIAL;
 
          if (it_TermType == TT_UNKNOWN)
             FatalError("Line 1 is not a valid ABCD line in input file %s", is_InputTermsFileName.c_str());
             
          if (it_TermType == TT_BN && base1 != base2)
             FatalError("Line 1 bases in ABCD input file %s do not match", is_InputTermsFileName.c_str());
-            
+
          if (n1 != n2)
             FatalError("Line 1 exponents in ABCD input file %s do not match", is_InputTermsFileName.c_str());
          
