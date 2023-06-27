@@ -459,12 +459,12 @@ void TwinApp::ProcessInputTermsFile(bool haveBitMap)
       {
          if (sscanf(buffer, "ABC $a*%u^%d+1 & $a*%u^%d-1  // Sieved to %" SCNu64"", &base1, &n1, &base2, &n2, &lastPrime) == 5)
             it_TermType = TT_BN;
-            
-         if (sscanf(buffer, "ABC $a*%u#+1 & $a*%u#-1  // Sieved to %" SCNu64"", &n1, &n2, &lastPrime) == 3)
-            it_TermType = TT_PRIMORIAL;
-
-         if (sscanf(buffer, "ABC $a*%u!+1 & $a*%u!-1  // Sieved to %" SCNu64"", &n1, &n2, &lastPrime) == 3)
-            it_TermType = TT_FACTORIAL;
+         else 
+            if (sscanf(buffer, "ABC $a*%u#+1 & $a*%u#-1  // Sieved to %" SCNu64"", &n1, &n2, &lastPrime) == 3)
+               it_TermType = TT_PRIMORIAL;
+            else
+               if (sscanf(buffer, "ABC $a*%u!+1 & $a*%u!-1  // Sieved to %" SCNu64"", &n1, &n2, &lastPrime) == 3)
+                  it_TermType = TT_FACTORIAL;
 
          if (it_TermType == TT_UNKNOWN)
             FatalError("Line 1 is not a valid ABCD line in input file %s", is_InputTermsFileName.c_str());
@@ -496,7 +496,8 @@ void TwinApp::ProcessInputTermsFile(bool haveBitMap)
          FatalError("Line 1 is not a valid newgpen line in input file %s", is_InputTermsFileName.c_str());
       
       ii_N = 0;
-                 
+
+      it_TermType = TT_BN;
       format = FF_NEWPGEN;
       ib_OnlyTwins = true;
    }
