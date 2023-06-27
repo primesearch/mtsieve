@@ -121,6 +121,7 @@ private:
    uint32_t          ii_MaxX;
    uint32_t          ii_MinY;
    uint32_t          ii_MaxY;
+   uint64_t          il_InitialSparseTermCount;
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          ii_MaxGpuSteps;

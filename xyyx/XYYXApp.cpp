@@ -24,7 +24,7 @@
 #endif
 
 #define APP_NAME        "xyyxsieve"
-#define APP_VERSION     "2.1"
+#define APP_VERSION     "2.2"
 
 #define BIT(x, y)       ((((x) - ii_MinX) * GetYCount()) + ((y) - ii_MinY))
 
@@ -50,6 +50,7 @@ XYYXApp::XYYXApp(void) : FactorApp()
    SetAppMinPrime(3);
    ib_UseAvx = true;
    ib_Sparse = false;
+   il_InitialSparseTermCount = 0;
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    ii_MaxGpuSteps = 100000;
@@ -173,11 +174,13 @@ void XYYXApp::ValidateOptions(void)
          // Otherwise we use a map
          ib_Sparse = true;
          ip_Terms = (term_t *) xmalloc((1+il_TermCount) * sizeof(term_t));
+         il_InitialSparseTermCount = il_TermCount;
       }
          
       il_TermCount = 0;
       
       ProcessInputTermsFile(true);
+      
    }
    else
    {
@@ -352,7 +355,7 @@ bool XYYXApp::ApplyFactor(uint64_t theFactor, const char *term)
    // No locking is needed because the Workers aren't running yet
    if (ib_Sparse)
    {
-      for (idx=0; idx<=il_TermCount; idx++)
+      for (idx=0; idx<=il_InitialSparseTermCount; idx++)
       {
          if (ip_Terms[idx].x == x1 && ip_Terms[idx].y == y1 && !ip_Terms[idx].haveFactor)
          {
@@ -395,8 +398,8 @@ void XYYXApp::WriteOutputTermsFile(uint64_t largestPrime)
 
    if (ib_Sparse)
    {
-      for (uint32_t idx=0; idx<=il_TermCount; idx++)
-      {
+      for (uint32_t idx=0; idx<=il_InitialSparseTermCount; idx++)
+      {         
          if (ip_Terms[idx].x > 0 && ip_Terms[idx].y > 0 && !ip_Terms[idx].haveFactor)
          {
             fprintf(fPtr, "%u %u\n", ip_Terms[idx].x, ip_Terms[idx].y);
@@ -438,7 +441,7 @@ bool XYYXApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y)
 {
    uint64_t bit;
    bool     removedTerm = false;
-   uint32_t idx;
+   uint32_t idx = 0;
    
    if (x < ii_MinX || x > ii_MaxX)
       return false;
@@ -456,7 +459,7 @@ bool XYYXApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y)
    
    if (ib_Sparse)
    {
-      for (idx=0; idx<=il_TermCount; idx++)
+      for (idx=0; idx<=il_InitialSparseTermCount; idx++)
       {
          if (ip_Terms[idx].x == x && ip_Terms[idx].y == y && !ip_Terms[idx].haveFactor)
          {
@@ -724,11 +727,11 @@ term_t  *XYYXApp::GetSparseTerms(void)
 {
    ip_FactorAppLock->Lock();
    
-   term_t *terms = (term_t *) xmalloc((il_TermCount + 1) * sizeof(term_t));
+   term_t *terms = (term_t *) xmalloc((il_InitialSparseTermCount + 1) * sizeof(term_t));
    
    uint32_t cIdx = 0;
    
-   for (uint32_t idx=0; idx<il_TermCount; idx++)
+   for (uint32_t idx=0; idx<il_InitialSparseTermCount; idx++)
    {
       if (ip_Terms[idx].haveFactor)
          continue;
@@ -867,13 +870,13 @@ gputerm_t *XYYXApp::GetSparseGroupedTerms(void)
 {
    ip_FactorAppLock->Lock();
    
-   uint32_t groups = 1 + (il_TermCount / ii_MaxGpuSteps);
+   uint32_t groups = 1 + (il_InitialSparseTermCount / ii_MaxGpuSteps);
    
    gputerm_t *terms = (gputerm_t *) xmalloc((1 + groups * ii_MaxGpuSteps) * sizeof(gputerm_t *));
    
    uint32_t cIdx = 0, termsInGroup = 0;
    
-   for (uint32_t idx=0; idx<il_TermCount; idx++)
+   for (uint32_t idx=0; idx<il_InitialSparseTermCount; idx++)
    {
       if (ip_Terms[idx].haveFactor)
          continue;
