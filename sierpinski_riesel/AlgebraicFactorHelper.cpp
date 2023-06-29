@@ -271,15 +271,11 @@ uint64_t   AlgebraicFactorHelper::RemoveRieselPowers(seq_t *seqPtr)
    uint32_t bRoot = ii_BRoot;
    uint32_t kRoot = ii_KRoot;
 
-   printf("%u %u\n", bRoot, kRoot);
-
    for (uint32_t i=1; i<ii_BPower/root; i++)
       bRoot *= ii_BRoot;
 
    for (uint32_t i=1; i<ii_KPower/root; i++)
       kRoot *= ii_KRoot;
-   
-   printf("%u %u\n", bRoot, kRoot);
    
    ip_App->WriteToConsole(COT_OTHER, "(r) Sequence has algebraic factorization: %" PRIu64"*%u^n%+" PRId64" -> k = %u^%u and b = %u^%u and gcd(%u,%u) > 1", 
                seqPtr->k, ii_Base, seqPtr->c, ii_KRoot, ii_KPower, ii_BRoot, ii_BPower, ii_KPower, ii_BPower);
