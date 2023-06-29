@@ -1,3 +1,13 @@
+2.5.1 - June xx, 2023
+   twinsieve: version 1.6.3
+      Fix issue when continuing a sieve from an input file.
+
+   xyyxsieve/xyyxsievecl: version 2.2
+      Fix issue when using sparse terms where terms are not counted correctly.
+
+   srsieve2/srsieve2cl: version 1.7.3
+      Refactored algebraic factorization code to avoid issues that plagued previous builds.
+      
 2.5.0 - June 22, 2023
    framework:
       Fix how max p tested is computed as it could be wrong when running many workers.
