@@ -330,7 +330,7 @@ uint64_t   AlgebraicFactorHelper::RemoveSierpinskiPowers(seq_t *seqPtr)
    for (uint32_t i=1; i<kPower; i++)
       kRoot *= ii_KRoot;
    
-   ip_App->WriteToConsole(COT_OTHER, "(s) Sequence has algebraic factorization: %" PRIu64"*%u^n%+" PRId64" -> k = %u^%u and b = %u^%u and gcd(%u,%u) > 1", 
+   ip_App->WriteToConsole(COT_OTHER, "(s) Sequence has algebraic factorization: %" PRIu64"*%u^n%+" PRId64" -> k = %u^%u and b = %u^%u and gcd(%u,%u) > 2", 
                seqPtr->k, ii_Base, seqPtr->c, ii_KRoot, ii_KPower, ii_BRoot, ii_BPower, ii_KPower, ii_BPower);
             
    uint32_t removedCount = 0;
