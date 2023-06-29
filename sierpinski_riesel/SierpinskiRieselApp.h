@@ -147,6 +147,7 @@ private:
    uint64_t          il_MaxAbsC;
    uint32_t          ii_MaxD;
 
+   bool              ib_Algebraic;
    bool              ib_SplitByBestQ;
    bool              ib_ShowQEffort;
    uint32_t          ii_UserBestQ;

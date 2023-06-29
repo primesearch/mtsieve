@@ -41,11 +41,15 @@ private:
    void              GetSmallPrimes(void);
    uint32_t          GetFactorList(uint64_t the_number, uint32_t *factor_list, uint32_t *power_list);
    
-   void              CheckForSpecialForm(seq_t *seqPtr);
+   void              CheckForGFNForm(seq_t *seqPtr);
+   void              CheckForMersenneForm(seq_t *seqPtr);
+   
    uint64_t          RemoveSimpleTerm(seq_t *seqPtr);
    uint64_t          RemoveTermsWithKPowers(seq_t *seqPtr);
-   uint64_t          RemoveTermsWithKAndBPowers(seq_t *seqPtr);
+   uint64_t          RemoveRieselPowers(seq_t *seqPtr);
+   uint64_t          RemoveSierpinskiPowers(seq_t *seqPtr);
    uint64_t          RemoveComplexRoot(seq_t *seqPtr);
+   
    uint64_t          CheckBase2(seq_t *seqPtr);
    uint64_t          CheckPower4(seq_t *seqPtr);
    

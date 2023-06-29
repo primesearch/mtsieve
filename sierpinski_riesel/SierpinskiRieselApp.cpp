@@ -22,7 +22,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.7.2"
+#define APP_VERSION     "1.7.3"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
@@ -75,6 +75,7 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    ib_SplitByBestQ = false;
    ib_HaveGenericWorkers = false;
    ib_RemoveN = false;
+   ib_Algebraic = false;
 
    // These are only used when starting.
    ip_LastSequence = NULL;
@@ -109,6 +110,7 @@ void SierpinskiRieselApp::Help(void)
    printf("-r --removen          For sequences with d > 1, remove n where k*b^n+/-c mod d != 0\n");
    printf("-R --remove=r         Remove sequence r\n");
    printf("-S --splitbybestq     Split sequences into a file based upon best q for each sequence\n");
+   printf("-a --algebraic        Exit after generating algebraic factors\n");
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    printf("-M --maxfactordensity=M   factors per 1e6 terms per GPU worker chunk (default %u)\n", ii_GpuFactorDensity);
@@ -139,7 +141,7 @@ void  SierpinskiRieselApp::AddCommandLineOptions(std::string &shortOpts, struct 
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "n:N:s:f:l:L:Qq:rR:U:V:X:b:S";
+   shortOpts += "an:N:s:f:l:L:Qq:rR:U:V:X:b:S";
 
    AppendLongOpt(longOpts, "nmin",           required_argument, 0, 'n');
    AppendLongOpt(longOpts, "nmax",           required_argument, 0, 'N');
@@ -154,8 +156,9 @@ void  SierpinskiRieselApp::AddCommandLineOptions(std::string &shortOpts, struct 
    AppendLongOpt(longOpts, "basemultiple",   required_argument, 0, 'U');
    AppendLongOpt(longOpts, "limitbase",      required_argument, 0, 'V');
    AppendLongOpt(longOpts, "powerresidue",   required_argument, 0, 'X');
-   AppendLongOpt(longOpts, "splitbybestq",   required_argument, 0, 'S');
-   
+   AppendLongOpt(longOpts, "splitbybestq",   no_argument,       0, 'S');
+   AppendLongOpt(longOpts, "algebraic",      no_argument,       0, 'a');
+
 #if defined(USE_OPENCL) || defined(USE_METAL)
    shortOpts += "M:K:C:";
    
@@ -237,6 +240,11 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
 
       case 'b':
          sscanf(arg, "%lf", &id_BabyStepFactor);
+         status = P_SUCCESS;
+         break;
+
+      case 'a':
+         ib_Algebraic = true;
          status = P_SUCCESS;
          break;
 
@@ -340,7 +348,10 @@ void SierpinskiRieselApp::ValidateOptions(void)
       } while (seqPtr != NULL);
       
       delete afh;
-      
+         
+      if (ib_Algebraic)
+         FatalError("Exiting without sieving after generating algebraic factors");
+   
       RemoveN();
    
       MakeSubsequences(true, GetMinPrime());  
