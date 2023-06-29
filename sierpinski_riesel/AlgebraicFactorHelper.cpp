@@ -100,16 +100,16 @@ void    AlgebraicFactorHelper::CheckForGFNForm(seq_t *seqPtr)
          return;
 
       if (ii_BPower == 1)
-         ip_App->WriteToConsole(COT_OTHER, "(sf) Sequence %" PRIu64"*%u^n+1 is the form of a GFN --> %u^(n+%u)+1", seqPtr->k, ii_Base, ii_BRoot, ii_KPower);
+         ip_App->WriteToConsole(COT_OTHER, "(gfn) Sequence %" PRIu64"*%u^n+1 is the form of a GFN --> %u^(n+%u)+1", seqPtr->k, ii_Base, ii_BRoot, ii_KPower);
       else
-         ip_App->WriteToConsole(COT_OTHER, "(sf) Sequence %" PRIu64"*%u^n+1 is the form of a GFN --> %u^(%u*n+%u)+1", seqPtr->k, ii_Base, ii_BRoot, ii_BPower, ii_KPower);
+         ip_App->WriteToConsole(COT_OTHER, "(gfn) Sequence %" PRIu64"*%u^n+1 is the form of a GFN --> %u^(%u*n+%u)+1", seqPtr->k, ii_Base, ii_BRoot, ii_BPower, ii_KPower);
    }
    else
    {
       if (ii_BPower == 1)
-         ip_App->WriteToConsole(COT_OTHER, "(sf) Sequence %" PRIu64"*%u^n+1 as it is a GFN", seqPtr->k, ii_Base);
+         ip_App->WriteToConsole(COT_OTHER, "(gfn) Sequence %" PRIu64"*%u^n+1 as it is a GFN", seqPtr->k, ii_Base);
       else
-         ip_App->WriteToConsole(COT_OTHER, "(sf) Sequence %" PRIu64"*%u^n+1 as it is a GFN --> %u^(%u*n)+1", seqPtr->k, ii_Base, ii_BRoot, ii_BPower);
+         ip_App->WriteToConsole(COT_OTHER, "(gfn) Sequence %" PRIu64"*%u^n+1 as it is a GFN --> %u^(%u*n)+1", seqPtr->k, ii_Base, ii_BRoot, ii_BPower);
    }
 }
 
@@ -132,7 +132,7 @@ void    AlgebraicFactorHelper::CheckForMersenneForm(seq_t *seqPtr)
          return;
    }
    
-   ip_App->WriteToConsole(COT_OTHER, "(sf) Sequence %" PRIu64"*%u^n-1 is the form of a Mersenne number", seqPtr->k, ii_Base);
+   ip_App->WriteToConsole(COT_OTHER, "(mersenne) Sequence %" PRIu64"*%u^n-1 is the form of a Mersenne number", seqPtr->k, ii_Base);
 
 }
 
