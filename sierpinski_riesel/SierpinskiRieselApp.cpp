@@ -1398,7 +1398,6 @@ void  SierpinskiRieselApp::MakeSubsequences(bool newSieve, uint64_t largestPrime
       uint64_t termsCounted = ip_AppHelper->MakeSubsequencesForNewSieve();
       
       if (termsCounted != il_TermCount)
-         
          FatalError("Expected (%" PRIu64") terms, but only set (%" PRIu64")", termsCounted, il_TermCount);
    }
    else
@@ -1406,7 +1405,6 @@ void  SierpinskiRieselApp::MakeSubsequences(bool newSieve, uint64_t largestPrime
    
    ip_AppHelper->LastChanceLogicBeforeSieving();
    
-      
    if (!newSieve && ib_SplitByBestQ)
    {
       if (ib_HaveGenericWorkers)
