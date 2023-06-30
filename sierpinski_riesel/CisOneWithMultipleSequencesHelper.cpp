@@ -142,7 +142,7 @@ void  CisOneWithMultipleSequencesHelper::BuildCongruenceTables(void)
    // Unlike the CisOneWithOneSequence, there is only one parity for this code
    ii_Dim3 = ii_PowerResidueLcm;
    ii_Dim2 = ii_Dim3 * ii_UsedPowerResidueIndices;
-   ii_Dim1 = ii_Dim2 * (ii_SequenceCount + 1);
+   ii_Dim1 = ii_Dim2 * (ii_SequenceCount + 2);
 
    ip_CongruentSubseqIndices = (uint32_t *) xmalloc(ii_Dim1 * sizeof(uint32_t));
 
