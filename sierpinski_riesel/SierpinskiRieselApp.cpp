@@ -1568,7 +1568,7 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t theFactor, seq_t *seqPtr, ui
    if (n < ii_MinN || n > ii_MaxN)
       return;
 
-   if (seqPtr->d == theFactor)
+   if (seqPtr->d > 1 && gcd32(seqPtr->d, theFactor) > 1)
       return;
 
    if (seqPtr->d > 1)
