@@ -136,6 +136,7 @@ private:
    bool              ib_HaveSingleC;
    bool              ib_HaveGenericWorkers;
    bool              ib_RemoveN;
+   bool              ib_OnlyPrimeNs;
    format_t          it_Format;
    
    uint32_t          ii_Base;

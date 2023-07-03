@@ -22,7 +22,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.7.3"
+#define APP_VERSION     "1.7.4"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
@@ -76,6 +76,7 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    ib_HaveGenericWorkers = false;
    ib_RemoveN = false;
    ib_Algebraic = false;
+   ib_OnlyPrimeNs = false;
 
    // These are only used when starting.
    ip_LastSequence = NULL;
@@ -99,7 +100,7 @@ void SierpinskiRieselApp::Help(void)
 {
    FactorApp::ParentHelp();
 
-   printf("-n --nmin=n           Minimum n to search\n");
+   printf("-n --nmin=n           Minimum n to search (append value with 'p' to limit to n that are prime)\n");
    printf("-N --nmax=N           Maximum n to search\n");
    printf("-s --sequence=s       Sequence in form k*b^n+c where k, b, and c are decimal values\n");
    printf("-f --format=f         Format of output file (A=ABC, D=ABCD (default), B=BOINC, P=ABC with number_primes)\n");
@@ -178,6 +179,12 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
    switch (opt)
    {
       case 'n':
+         if (arg[strlen(arg)-1] == 'P' || arg[strlen(arg)-1] == 'p')
+         {
+            arg[strlen(arg)-1] = 0;
+            ib_OnlyPrimeNs = true;
+         }
+         
          status = Parser::Parse(arg, 1, NMAX_MAX, ii_MinN);
          break;
 
@@ -334,14 +341,38 @@ void SierpinskiRieselApp::ValidateOptions(void)
          
       AlgebraicFactorHelper *afh = new AlgebraicFactorHelper(this, ii_Base, ii_MinN, ii_MaxN);
       
+      std::vector<uint64_t> primes;
+   
+      if (ib_OnlyPrimeNs)
+         primesieve::generate_primes(ii_MinN, ii_MaxN, &primes);
+      
       seqPtr = ip_FirstSequence;
       do
       {
          seqPtr->nTerms.resize(ii_MaxN - ii_MinN + 1);
-         std::fill(seqPtr->nTerms.begin(), seqPtr->nTerms.end(), true);
          
-         il_TermCount += (ii_MaxN - ii_MinN + 1);
-         
+         if (ib_OnlyPrimeNs)
+         {
+            std::fill(seqPtr->nTerms.begin(), seqPtr->nTerms.end(), false);
+   
+            std::vector<uint64_t>::iterator it = primes.begin();
+                        
+            while (it != primes.end())
+            {
+               uint64_t prime = *it;
+               it++;
+            
+               seqPtr->nTerms[NBIT(prime)] = true;
+               il_TermCount++;
+            }
+         }
+         else
+         {
+            std::fill(seqPtr->nTerms.begin(), seqPtr->nTerms.end(), true);
+            
+            il_TermCount += (ii_MaxN - ii_MinN + 1);
+         }
+            
          il_TermCount -= afh->RemoveTermsWithAlgebraicFactors(seqPtr);
          
          seqPtr = (seq_t *) seqPtr->next;
@@ -1398,7 +1429,7 @@ void  SierpinskiRieselApp::MakeSubsequences(bool newSieve, uint64_t largestPrime
       uint64_t termsCounted = ip_AppHelper->MakeSubsequencesForNewSieve();
       
       if (termsCounted != il_TermCount)
-         FatalError("Expected (%" PRIu64") terms, but only set (%" PRIu64")", termsCounted, il_TermCount);
+         FatalError("Expected (%" PRIu64") terms, but only set (%" PRIu64")", il_TermCount, termsCounted);
    }
    else
       ip_AppHelper->MakeSubsequencesForOldSieve(il_TermCount);
