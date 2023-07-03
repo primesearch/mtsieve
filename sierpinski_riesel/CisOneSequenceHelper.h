@@ -137,20 +137,6 @@ protected:
    uint8_t          *ip_LegendreTable;
    uint64_t          ii_LegendreBytes;
 
-   inline uint64_t getNegCK(seq_t *seqPtr, uint64_t p)
-   {
-      uint64_t negCK;
-      
-      if (p < seqPtr->k)
-         negCK = seqPtr->k % p;
-      else 
-         negCK = seqPtr->k;
-     
-      if (seqPtr->c > 0)
-         negCK = p - negCK;
-      
-      return negCK;
-   }
 };
 
 #endif

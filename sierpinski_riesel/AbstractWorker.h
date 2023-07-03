@@ -142,17 +142,16 @@ protected:
       return (a < p) ? a : a%p;
    }
    
-   inline uint64_t  getNegCK(seq_t *seq, uint64_t p)
+   inline uint64_t getNegCK(seq_t *seqPtr, uint64_t p)
    {
       uint64_t negCK;
       
-       /* neg_ck <-- -k/c (mod p) == -ck (mod p) */
-      if (p < seq->k)
-         negCK = seq->k % p;
+      if (p < seqPtr->k)
+         negCK = seqPtr->k % p;
       else 
-         negCK = seq->k;
+         negCK = seqPtr->k;
      
-      if (ip_FirstSequence->c > 0)
+      if (seqPtr->c > 0)
          negCK = p - negCK;
       
       return negCK;
