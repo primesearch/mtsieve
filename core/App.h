@@ -160,6 +160,7 @@ protected:
    uint64_t          il_SplitRangeSize;
    
    uint64_t          il_MinGpuPrime;
+   uint64_t          il_StartSievingProcessUS;
    uint64_t          il_StartSievingUS;
    
    uint32_t          ii_CpuWorkSize;

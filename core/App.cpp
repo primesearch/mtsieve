@@ -463,6 +463,7 @@ void  App::Sieve(void)
    ip_SievingStatus->SetValueNoLock(SS_SIEVING);
    
    il_LargestPrimeSieved = il_MinPrime - 1;
+   il_StartSievingProcessUS = Clock::GetProcessMicroseconds();
    il_StartSievingUS = Clock::GetCurrentMicrosecond();
 
    it_StartTime = time(NULL);
@@ -748,9 +749,8 @@ void  App::CreateWorkers(uint64_t largestPrimeTested)
 void  App::Finish(void)
 {
    uint64_t    largestPrimeTestedNoGaps, largestPrimeTested, primesTested;
-   uint64_t    workerCpuUS;
-   uint64_t    processCpuUS;
-   uint64_t    elapsedTimeUS;
+   uint64_t    workerCpuUS, processCpuUS;
+   uint64_t    sievingCpuUS, elapsedTimeUS;
    double      cpuUtilization;
    const char *finishMethod = (IsInterrupted() ? "interrupted" : "completed");
    
@@ -758,6 +758,7 @@ void  App::Finish(void)
    StopWorkers();
 
    processCpuUS = Clock::GetProcessMicroseconds();
+   sievingCpuUS = processCpuUS - il_StartSievingProcessUS;
 
    elapsedTimeUS = Clock::GetCurrentMicrosecond() - il_StartSievingUS;
 
@@ -766,7 +767,7 @@ void  App::Finish(void)
    // Since all threads finished normally, there are no gaps thus we use largestPrimeTested.
    WriteToConsole(COT_OTHER, "Sieve %s at p=%" PRIu64".", finishMethod, largestPrimeTested);
    
-   cpuUtilization = ((double) processCpuUS) / ((double) elapsedTimeUS);
+   cpuUtilization = ((double) sievingCpuUS) / ((double) elapsedTimeUS);
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    uint64_t    processGpuUS = ip_GpuDevice->GetGpuMicroseconds();
@@ -801,15 +802,16 @@ void  App::ReportStatus(void)
    char     primeStats[200];
    char     childStats[200];
    char     finishTimeBuffer[32];
-   uint64_t workerCpuUS;
+   uint64_t workerCpuUS, sievingCpuUS;
    uint64_t processCpuUS, elapsedTimeUS;
    uint64_t largestPrimeTestedNoGaps, largestPrimeTested, primesTested;
    time_t   finish_date;
 
    processCpuUS = Clock::GetProcessMicroseconds();
-   
+   sievingCpuUS = processCpuUS - il_StartSievingProcessUS;
+      
    elapsedTimeUS = Clock::GetCurrentMicrosecond() - il_StartSievingUS;
-   
+      
    GetWorkerStats(workerCpuUS, largestPrimeTestedNoGaps, largestPrimeTested, primesTested);
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
@@ -819,9 +821,9 @@ void  App::ReportStatus(void)
    //        (for now) that this is a problem on other OSes so I will exclude the GPU utilization until
    //        this is fully investigated.  This could be a problem with how this program executed the
    //        kernel.  It could be a problem specific to Windows.  I just don't know at this time.
-   cpuUtilization = ((double) processCpuUS + ip_GpuDevice->GetGpuMicroseconds()) / ((double) elapsedTimeUS);
+   cpuUtilization = ((double) sievingCpuUS + ip_GpuDevice->GetGpuMicroseconds()) / ((double) elapsedTimeUS);
 #else
-   cpuUtilization = ((double) processCpuUS) / ((double) elapsedTimeUS);
+   cpuUtilization = ((double) sievingCpuUS) / ((double) elapsedTimeUS);
 #endif
    
    GetPrimeStats(primeStats, primesTested);
