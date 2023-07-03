@@ -5,7 +5,7 @@
    gcwsieve/gcwsivecl: version 1.5.3
       Fix bug where the second term is skipped when testing small primes.
 
-   srsieve2/srsieve2cl: version 1.7.3
+   srsieve2/srsieve2cl: version 1.7.4
       Added -a to output algebraic factorizations and terminate without sieving.
       Add support for 'p' at the end of the -n argument to limit n to primes
       between min and max n.
