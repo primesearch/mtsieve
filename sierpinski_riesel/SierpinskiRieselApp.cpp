@@ -1568,6 +1568,9 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t theFactor, seq_t *seqPtr, ui
    if (n < ii_MinN || n > ii_MaxN)
       return;
 
+   if (seqPtr->d == theFactor)
+      return;
+
    if (seqPtr->d > 1)
       snprintf(buffer, sizeof(buffer), "(%" PRIu64"*%u^%u%+" PRId64")/%u", seqPtr->k, ii_Base, n, seqPtr->c, seqPtr->d);
    else
