@@ -151,8 +151,6 @@ void  CullenWoodallWorker::TestSmallPrimes(uint64_t *ps)
       
       // Compute our starting term
       res = mp.pow(resBase, theN);
-
-      termIndex--;
       
       // Note that the terms start at max N and decrease
       termIndex--;
