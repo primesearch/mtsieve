@@ -11,7 +11,7 @@
 #include "main.h"
 #include "SmallHashTable.h"
 
-#define HASH_MINIMUM_SHIFT    11
+#define HASH_MINIMUM_SHIFT    8
 
 #define HASH_MAX_DENSITY      0.60
 #define HASH_MINIMUM_ELTS     8
