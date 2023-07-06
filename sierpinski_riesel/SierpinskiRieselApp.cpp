@@ -1568,7 +1568,8 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t theFactor, seq_t *seqPtr, ui
    if (n < ii_MinN || n > ii_MaxN)
       return;
 
-   if (seqPtr->d > 1 && gcd32(seqPtr->d, theFactor) > 1)
+   // We cannot verify these factors, so ignore them
+   if (seqPtr->d > 1 && gcd64(seqPtr->d, theFactor) > 1)
       return;
 
    if (seqPtr->d > 1)
@@ -1604,20 +1605,12 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t theFactor, seq_t *seqPtr, ui
    {
       if (verifyFactor)
          VerifyFactor(theFactor, seqPtr, n);
-   
-      bool gcdIsOne = true;
-      
-      if (seqPtr->d > theFactor)
-         gcdIsOne = (gcd64(seqPtr->d, theFactor) == 1);
 
-      if (gcdIsOne)
-      {
-         il_TermCount--;
-         il_FactorCount++;
-         seqPtr->nTerms[nbit] = false;
-         
-         LogFactor(theFactor, "%s", buffer);
-      }
+      il_TermCount--;
+      il_FactorCount++;
+      seqPtr->nTerms[nbit] = false;
+      
+      LogFactor(theFactor, "%s", buffer);
    }
 
    if (needToLock)
