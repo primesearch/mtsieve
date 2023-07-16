@@ -79,7 +79,6 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    ib_OnlyPrimeNs = false;
 
    // These are only used when starting.
-   ip_LastSequence = NULL;
    ip_HashTable = new BigHashTable(BIG_HASH_MAX_ELTS);
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
@@ -1346,14 +1345,51 @@ void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
    newPtr->next = NULL;
    
    if (ii_SequenceCount == 0)
+   {
       ip_FirstSequence = newPtr;
+      ii_SequenceCount = 1;
+      newPtr->seqIdx = ii_SequenceCount;
+      return;
+   }
    else
-      ip_LastSequence->next = newPtr;
+   {
+      seqPtr = ip_FirstSequence;
+      seq_t *prevSeqPtr = NULL;
+      do
+      {
+         // If the new sequence has a smaller k then the current sequence
+         // then insert the new sequence here.
+         if (newPtr->k < seqPtr->k)
+         {
+            if (prevSeqPtr == NULL)
+               ip_FirstSequence = newPtr;
+            else
+               prevSeqPtr->next = newPtr;
+            
+            newPtr->next = seqPtr;
+                        
+            break;
+         }
+         
+         prevSeqPtr = seqPtr;
+         
+         seqPtr = (seq_t *) seqPtr->next;
+      } while (seqPtr != NULL);
+      
+      // If this sequence has the largest k then add to the end.
+      if (newPtr->next == NULL)
+         prevSeqPtr->next = newPtr;
+   }
    
-   ii_SequenceCount++;
-   
-   newPtr->seqIdx = ii_SequenceCount;
-   ip_LastSequence = newPtr;
+   ii_SequenceCount = 0;
+   seqPtr = ip_FirstSequence;
+   do
+   {
+      ii_SequenceCount++;
+      seqPtr->seqIdx = ii_SequenceCount;
+      
+      seqPtr = (seq_t *) seqPtr->next;
+   } while (seqPtr != NULL);
 }
 
 seq_t    *SierpinskiRieselApp::GetSequence(uint64_t k, int64_t c, uint32_t d) 

@@ -88,7 +88,6 @@ private:
    uint32_t          ii_LimitBaseMultiplier;
 
    seq_t            *ip_FirstSequence;
-   seq_t            *ip_LastSequence;
    BigHashTable     *ip_HashTable;
    AbstractSequenceHelper   *ip_AppHelper; 
    
