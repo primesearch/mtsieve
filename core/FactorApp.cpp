@@ -141,7 +141,7 @@ void  FactorApp::ParentValidateOptions(void)
    if (id_FPSTarget > 0.0 && id_SPFTarget > 0.0)
       FatalError("Cannot specify both -4 and -5");
    
-   if (ii_MinutesForStatus == 0 *&& id_FPSTarget > 0.0)
+   if (ii_MinutesForStatus == 0 && id_FPSTarget > 0.0)
       WriteToConsole(COT_OTHER, "Option -6 ignored as it only applies to seconds per factor calculations");
       
    if (ii_MinutesForStatus == 0)
