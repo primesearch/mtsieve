@@ -32,7 +32,7 @@ public:
    void              CleanUp(void);
 
 protected:
-   void              NotifyPrimeListAllocated(uint32_t primesInList) {}
+   void              NotifyPrimeListAllocated(uint32_t primesInList) {};
    CisOneWithOneSequenceHelper *ip_CisOneHelper;
    
    uint32_t          ii_MaxGpuFactors;
@@ -60,8 +60,6 @@ protected:
    
    uint32_t         *ii_FactorCount;
    uint64_t         *il_FactorList;
-   
-   
 };
 
 #endif

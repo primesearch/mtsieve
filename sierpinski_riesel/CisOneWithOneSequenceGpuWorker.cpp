@@ -105,11 +105,11 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
    ii_DivisorShifts       = ( int16_t *) ip_Kernel->AddCpuArgument("divisorShifts", sizeof( int16_t), ip_CisOneHelper->GetPowerResidueLcm() / 2, ip_CisOneHelper->GetDivisorShifts());
    ii_PowerResidueIndices = (uint16_t *) ip_Kernel->AddCpuArgument("powerResidueIndices", sizeof(uint32_t), ip_CisOneHelper->GetPowerResidueLcm() + 1, ip_CisOneHelper->GetPowerResidueIndices());
 
-   ii_QIndices      = (uint32_t *) ip_Kernel->AddCpuArgument("divisorShifts", sizeof(uint32_t), ip_CisOneHelper->GetDim1(), ip_CisOneHelper->GetCongruentQIndices());
-   ii_Qs            = (uint16_t *) ip_Kernel->AddCpuArgument("divisorShifts", sizeof(uint16_t), ip_CisOneHelper->GetUsedQEntries(), ip_CisOneHelper->GetAllQs());
+   ii_QIndices      = (uint32_t *) ip_Kernel->AddCpuArgument("congruentQIndices", sizeof(uint32_t), ip_CisOneHelper->GetDim1(), ip_CisOneHelper->GetCongruentQIndices());
+   ii_Qs            = (uint16_t *) ip_Kernel->AddCpuArgument("allQs", sizeof(uint16_t), ip_CisOneHelper->GetUsedQEntries(), ip_CisOneHelper->GetAllQs());
 
-   ii_LadderIndices = (uint32_t *) ip_Kernel->AddCpuArgument("divisorShifts", sizeof(uint32_t), ip_CisOneHelper->GetDim1(), ip_CisOneHelper->GetLadderIndices());
-   ii_Ladders       = (uint16_t *) ip_Kernel->AddCpuArgument("divisorShifts", sizeof(uint16_t), ip_CisOneHelper->GetUsedLadderEntries(), ip_CisOneHelper->GetAllLadders());
+   ii_LadderIndices = (uint32_t *) ip_Kernel->AddCpuArgument("ladderIndices", sizeof(uint32_t), ip_CisOneHelper->GetDim1(), ip_CisOneHelper->GetLadderIndices());
+   ii_Ladders       = (uint16_t *) ip_Kernel->AddCpuArgument("allLadders", sizeof(uint16_t), ip_CisOneHelper->GetUsedLadderEntries(), ip_CisOneHelper->GetAllLadders());
 
    ii_FactorCount = (uint32_t *) ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 1);
    il_FactorList  = (uint64_t *) ip_Kernel->AddGpuArgument("factorList", sizeof(uint64_t), 2*ii_MaxGpuFactors);
