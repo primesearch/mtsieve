@@ -198,10 +198,6 @@ parse_t App::ParentParseOption(int opt, char *arg, const char *source)
          break;
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
-      case 'W':
-         status = Parser::Parse(arg, 0, MAX_WORKERS, ii_CpuWorkerCount);
-         break;
-
       case 'g':
          status = Parser::Parse(arg, 1, 1000000, ii_GpuWorkGroups);
          break;
@@ -228,6 +224,7 @@ void App::ParentValidateOptions(void)
    {
 #if defined(USE_OPENCL) || defined(USE_METAL)
       ii_GpuWorkerCount = 1;
+      ii_CpuWorkerCount = 0;
 #else
       ii_CpuWorkerCount = 1;
 #endif
@@ -821,7 +818,7 @@ void  App::ReportStatus(void)
    //        (for now) that this is a problem on other OSes so I will exclude the GPU utilization until
    //        this is fully investigated.  This could be a problem with how this program executed the
    //        kernel.  It could be a problem specific to Windows.  I just don't know at this time.
-   cpuUtilization = ((double) sievingCpuUS + ip_GpuDevice->GetGpuMicroseconds()) / ((double) elapsedTimeUS);
+   cpuUtilization = ((double) ip_GpuDevice->GetGpuMicroseconds()) / ((double) elapsedTimeUS);
 #else
    cpuUtilization = ((double) sievingCpuUS) / ((double) elapsedTimeUS);
 #endif
