@@ -171,7 +171,8 @@ SR2_OPENCL_OBJS=sierpinski_riesel/SierpinskiRieselApp_opencl.o sierpinski_riesel
    sierpinski_riesel/GenericSequenceHelper_opencl.o sierpinski_riesel/GenericWorker_opencl.o sierpinski_riesel/GenericGpuWorker_opencl.o \
    sierpinski_riesel/CisOneSequenceHelper_opencl.o sierpinski_riesel/CisOneWithOneSequenceHelper_opencl.o \
    sierpinski_riesel/CisOneWithOneSequenceWorker_opencl.o sierpinski_riesel/CisOneWithOneSequenceGpuWorker_opencl.o \
-   sierpinski_riesel/CisOneWithMultipleSequencesHelper_opencl.o sierpinski_riesel/CisOneWithMultipleSequencesWorker_opencl.o
+   sierpinski_riesel/CisOneWithMultipleSequencesHelper_opencl.o sierpinski_riesel/CisOneWithMultipleSequencesWorker_opencl.o \
+   sierpinski_riesel/CisOneWithMultipleSequencesGpuWorker_opencl.o
 XYYX_OPENCL_OBJS=xyyx/XYYXApp_opencl.o xyyx/XYYXWorker_opencl.o xyyx/XYYXGpuWorker_opencl.o xyyx/XYYXSparseWorker_opencl.o xyyx/XYYXSparseGpuWorker_opencl.o
 
 CK_METAL_OBJS=carol_kynea/CarolKyneaApp_metal.o carol_kynea/CarolKyneaWorker_metal.o carol_kynea/CarolKyneaGpuWorker_metal.o
@@ -184,7 +185,8 @@ SR2_METAL_OBJS=sierpinski_riesel/SierpinskiRieselApp_metal.o sierpinski_riesel/A
    sierpinski_riesel/GenericSequenceHelper_metal.o sierpinski_riesel/GenericWorker_metal.o sierpinski_riesel/GenericGpuWorker_metal.o \
    sierpinski_riesel/CisOneSequenceHelper_metal.o sierpinski_riesel/CisOneWithOneSequenceHelper_metal.o \
    sierpinski_riesel/CisOneWithOneSequenceWorker_metal.o sierpinski_riesel/CisOneWithOneSequenceGpuWorker_metal.o \
-   sierpinski_riesel/CisOneWithMultipleSequencesHelper_metal.o sierpinski_riesel/CisOneWithMultipleSequencesWorker_metal.o
+   sierpinski_riesel/CisOneWithMultipleSequencesHelper_metal.o sierpinski_riesel/CisOneWithMultipleSequencesWorker_metal.o \
+   sierpinski_riesel/CisOneWithMultipleSequencesGpuWorker_metal.o
 XYYX_METAL_OBJS=xyyx/XYYXApp_metal.o xyyx/XYYXWorker_metal.o xyyx/XYYXGpuWorker_metal.o xyyx/XYYXSparseWorker_metal.o xyyx/XYYXSparseGpuWorker_metal.o
 
 AIR_LIBS=alternating_factorial/af_kernel.air cullen_woodall/cw_kernel.air gfn_divisor/gfn_kernel.air \
@@ -281,6 +283,7 @@ gfn_divisor/GFNDivisorGpuWorker_metal.o: gfn_divisor/gfn_kernel.gpu.h gfn_diviso
 multi_factorial/MultiFactorialGpuWorker_metal.o: multi_factorial/mf_kernel.gpu.h multi_factorial/mf_kernel.metallib
 primes_in_x/PrimesInXGpuWorker_metal.o: primes_in_x/pix_kernel.gpu.h primes_in_x/pix_kernel.metallib
 primorial/PrimorialGpuWorker_metal.o: primorial/primorial_kernel.gpu.h primorial/primorial_kernel.metallib
+sierpinski_riesel/CisOneWithMultipleSequencesGpuWorker_metal.o: sierpinski_riesel/cisonemultiple_kernel.gpu.h sierpinski_riesel/cisonemultiple_kernel.metallib
 sierpinski_riesel/CisOneWithOneSequenceGpuWorker_metal.o: sierpinski_riesel/cisonesingle_kernel.gpu.h sierpinski_riesel/cisonesingle_kernel.metallib
 sierpinski_riesel/GenericGpuWorker_metal.o: sierpinski_riesel/generic_kernel.gpu.h sierpinski_riesel/generic_kernel.metallib
 smarandache/SmarandacheGpuWorker_metal.o: smarandache/sm_kernel.gpu.h smarandache/sm_kernel.metallib
@@ -294,6 +297,7 @@ gfn_divisor/GFNDivisorGpuWorker_opencl.o: gfn_divisor/gfn_kernel.gpu.h
 multi_factorial/MultiFactorialGpuWorker_opencl.o: multi_factorial/mf_kernel.gpu.h
 primes_in_x/PrimesInXGpuWorker_opencl.o: primes_in_x/pix_kernel.gpu.h
 primorial/PrimorialGpuWorker_opencl.o: primorial/primorial_kernel.gpu.h
+sierpinski_riesel/CisOneWithMultipleSequencesGpuWorker_opencl.o: sierpinski_riesel/cisonemultiple_kernel.gpu.h
 sierpinski_riesel/CisOneWithOneSequenceGpuWorker_opencl.o: sierpinski_riesel/cisonesingle_kernel.gpu.h
 sierpinski_riesel/GenericGpuWorker_opencl.o: sierpinski_riesel/generic_kernel.gpu.h
 smarandache/SmarandacheGpuWorker_opencl.o: smarandache/sm_kernel.gpu.h

@@ -1,3 +1,15 @@
+2.5.3 - August 15, 2023
+   framework:
+      Fix removal rate calculation to exclude time used prior to the start of sieving.
+      Do not allow mixing of GPU and CPU threads due to difficulties in computing
+      factor removal rate.
+      Do not include CPU time when computing removal rate with the GPU. 
+
+   srsieve2/srsieve2cl: version 1.7.5
+      Sort sequences by ascending k in output files.
+      Improved speed when loading large numbers of sequences when using -i.
+      Fix issue where factors are ignored when d > 1.
+
 2.5.2 - July 3, 2023
    framework:
       Fixed factor rate calculation to exclude time used prior to sieving.
