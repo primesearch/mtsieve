@@ -25,7 +25,6 @@ CisOneWithOneSequenceGpuWorker::CisOneWithOneSequenceGpuWorker(uint32_t myId, Ap
    ip_CisOneHelper = (CisOneWithOneSequenceHelper *) appHelper;
    
    ii_MaxGpuFactors = ip_SierpinskiRieselApp->GetMaxGpuFactors();
-   ii_ChunksPerGpuWorker = ip_SierpinskiRieselApp->GetChunksPerGpuWorker();
 }
 
 void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint32_t bestQ)
@@ -80,11 +79,9 @@ void  CisOneWithOneSequenceGpuWorker::Prepare(uint64_t largestPrimeTested, uint3
 
    ip_SierpinskiRieselApp->SetGpuWorkGroupSize(ip_Kernel->GetWorkGroupSize());
    
-   ii_PrimesInList = ip_SierpinskiRieselApp->GetGpuPrimesPerWorker() * ii_ChunksPerGpuWorker;
+   ii_PrimesInList = ip_SierpinskiRieselApp->GetGpuPrimesPerWorker();
    
-   ii_KernelWorkSize = ii_PrimesInList / ii_ChunksPerGpuWorker;
-   
-   il_Primes = (uint64_t *) ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_KernelWorkSize);
+   il_Primes = (uint64_t *) ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_PrimesInList);
    
    if (legendrePtr->haveMap)
    {      
@@ -137,32 +134,29 @@ void  CisOneWithOneSequenceGpuWorker::TestMegaPrimeChunk(void)
    uint32_t n;
    uint64_t prime;
 
-   for (uint32_t x=0; x<ii_ChunksPerGpuWorker; x++)
+   memcpy(il_Primes, il_PrimeList, ii_PrimesInList * sizeof(uint64_t));
+   
+   ii_FactorCount[0] = 0;
+
+   ip_Kernel->Execute(ii_PrimesInList);
+   
+   for (uint32_t ii=0; ii<ii_FactorCount[0]; ii++)
    {
-      memcpy(il_Primes, &il_PrimeList[ii_KernelWorkSize * x], ii_KernelWorkSize * sizeof(uint64_t));
+      idx = ii*2;
+
+      n = (uint32_t) il_FactorList[idx+0];
+      prime = il_FactorList[idx+1];
+   
+      ip_SierpinskiRieselApp->ReportFactor(prime, ip_FirstSequence, n, true);
       
-      ii_FactorCount[0] = 0;
-
-      ip_Kernel->Execute(ii_KernelWorkSize);
-      
-      for (uint32_t ii=0; ii<ii_FactorCount[0]; ii++)
-      {
-         idx = ii*2;
-
-         n = (uint32_t) il_FactorList[idx+0];
-         prime = il_FactorList[idx+1];
-      
-         ip_SierpinskiRieselApp->ReportFactor(prime, ip_FirstSequence, n, true);
-         
-         if ((ii+1) == ii_MaxGpuFactors)
-            break;
-      }
-
-      if (ii_FactorCount[0] >= ii_MaxGpuFactors)
-         FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factor density", ii_FactorCount[0], ii_MaxGpuFactors);
-
-      SetLargestPrimeTested(il_Primes[ii_KernelWorkSize-1], ii_KernelWorkSize);
+      if ((ii+1) == ii_MaxGpuFactors)
+         break;
    }
+
+   if (ii_FactorCount[0] >= ii_MaxGpuFactors)
+      FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factor density", ii_FactorCount[0], ii_MaxGpuFactors);
+
+   SetLargestPrimeTested(il_Primes[ii_PrimesInList-1], ii_PrimesInList);
 }
 
 void  CisOneWithOneSequenceGpuWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)

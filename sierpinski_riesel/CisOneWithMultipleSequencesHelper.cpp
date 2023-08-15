@@ -14,9 +14,9 @@
 #include "CisOneWithMultipleSequencesHelper.h"
 #include "CisOneWithMultipleSequencesWorker.h"
 
-#if defined(USE_OPENCL) || defined(USE_METAL)
-#include "CisOneWithOneSequenceGpuWorker.h"
-#endif
+//#if defined(USE_OPENCL) || defined(USE_METAL)
+//#include "CisOneWithMultipleSequencesGpuWorker.h"
+//#endif
 
 #define REPORT_STRFTIME_FORMAT "ETC %Y-%m-%d %H:%M"
 
@@ -58,12 +58,9 @@ Worker  *CisOneWithMultipleSequencesHelper::CreateWorker(uint32_t id, bool gpuWo
    // only create the worker, but also start it.
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
-   if (gpuWorker)
-   {
-      theWorker = NULL;
-      FatalError("Must use generic worker if using GPU with multiple sequences by specifying -l0");
-   }
-   else
+   //if (gpuWorker)
+   //   theWorker = new CisOneWithMultipleSequencesGpuWorker(id, ip_App, this);
+   //else
 #endif
       theWorker = new CisOneWithMultipleSequencesWorker(id, ip_App, this);
       
@@ -155,7 +152,7 @@ void  CisOneWithMultipleSequencesHelper::BuildCongruenceTables(void)
    ii_MaxSubseqEntries = 1000;
    ii_UsedSubseqEntries = 1;
    
-   ip_AllSubseqs = (uint32_t *) xmalloc(ii_MaxSubseqEntries * sizeof(uint32_t));
+   ip_CongruentSubseqs = (uint32_t *) xmalloc(ii_MaxSubseqEntries * sizeof(uint32_t));
 
    tempSubseqs = (uint32_t *) xmalloc(ii_PowerResidueLcm * sizeof(uint32_t));
       
@@ -220,17 +217,17 @@ void  CisOneWithMultipleSequencesHelper::CopySubseqs(seq_t *seqPtr, uint32_t r, 
       uint32_t newMaxSubseqEntries = ii_MaxSubseqEntries + 1000;
       uint32_t *temp = (uint32_t *) xmalloc(newMaxSubseqEntries * sizeof(uint32_t));
 
-      memcpy(temp, ip_AllSubseqs, ii_MaxSubseqEntries * sizeof(uint32_t));
-      xfree(ip_AllSubseqs);
+      memcpy(temp, ip_CongruentSubseqs, ii_MaxSubseqEntries * sizeof(uint32_t));
+      xfree(ip_CongruentSubseqs);
 
-      ip_AllSubseqs = temp;
+      ip_CongruentSubseqs = temp;
       ii_MaxSubseqEntries = newMaxSubseqEntries;
    }
    
-   ip_AllSubseqs[ii_UsedSubseqEntries] = ssListLen;
+   ip_CongruentSubseqs[ii_UsedSubseqEntries] = ssListLen;
    ii_UsedSubseqEntries++;
    
-   memcpy(&ip_AllSubseqs[ii_UsedSubseqEntries], ssList, ssListLen * sizeof(uint32_t));
+   memcpy(&ip_CongruentSubseqs[ii_UsedSubseqEntries], ssList, ssListLen * sizeof(uint32_t));
    ii_UsedSubseqEntries += ssListLen;
 }
 

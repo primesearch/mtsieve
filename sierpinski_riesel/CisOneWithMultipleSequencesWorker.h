@@ -87,7 +87,7 @@ private:
    
    uint32_t         *ip_CongruentSubseqIndices;
    
-   uint32_t         *ip_AllSubseqs;
+   uint32_t         *ip_CongruentSubseqs;
    uint16_t         *ip_AllLadders;
 
    uint32_t          ii_Dim1;

@@ -38,8 +38,6 @@ protected:
    uint64_t          il_MaxK;
    bool              ib_HaveSingleC;
    
-   uint32_t          ii_KernelWorkSize;
-   uint32_t          ii_ChunksPerGpuWorker;
    uint32_t          ii_KernelCount;
    uint32_t          ii_MaxGpuFactors;
    uint32_t         *ii_SubseqIdx;

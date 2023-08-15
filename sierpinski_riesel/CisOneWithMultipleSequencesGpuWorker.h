@@ -1,4 +1,4 @@
-/* CisOneWithOneSequenceGpuWorker.h -- (C) Mark Rodenkirch, December 2020
+/* CisOneWithMultipleSequencesGpuWorker.h -- (C) Mark Rodenkirch, July 2023
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6,24 +6,22 @@
    (at your option) any later version.
 */
 
-#ifndef _CisOneWithOneSequenceGpuWorker_H
-#define _CisOneWithOneSequenceGpuWorker_H
+#ifndef _CisOneWithMultipleSequencesGpuWorker_H
+#define _CisOneWithMultipleSequencesGpuWorker_H
 
 #include "SierpinskiRieselApp.h"
 #include "AbstractSequenceHelper.h"
-#include "CisOneWithOneSequenceHelper.h"
 #include "AbstractWorker.h"
+#include "CisOneWithMultipleSequencesHelper.h"
 
 #include "../core/GpuKernel.h"
 
-using namespace std;
-
-class CisOneWithOneSequenceGpuWorker : public AbstractWorker
+class CisOneWithMultipleSequencesGpuWorker : public AbstractWorker
 {
 public:
-   CisOneWithOneSequenceGpuWorker(uint32_t myId, App *theApp, AbstractSequenceHelper *appHelper);
+   CisOneWithMultipleSequencesGpuWorker(uint32_t myId, App *theApp, AbstractSequenceHelper *appHelper);
 
-   ~CisOneWithOneSequenceGpuWorker() {};
+   ~CisOneWithMultipleSequencesGpuWorker() {};
 
    void              Prepare(uint64_t largestPrimeTested, uint32_t bestQ);
    void              TestMegaPrimeChunk(void);
@@ -33,29 +31,32 @@ public:
 
 protected:
    void              NotifyPrimeListAllocated(uint32_t primesInList) {};
-   CisOneWithOneSequenceHelper *ip_CisOneHelper;
-   
+   void              CreateKernels(uint32_t sequencesPerKernel);
+   void              PopulateKernelArguments(void);
+   void              CreateKernel(void);
+
+   uint32_t          ii_KernelCount;
+   uint32_t          ii_SequencesPerKernel;
    uint32_t          ii_MaxGpuFactors;
+
+   CisOneWithMultipleSequencesHelper *ip_CisOneHelper;   
    
    GpuKernel        *ip_Kernel;
-   
-   uint64_t         *il_Primes;
-   uint8_t          *ii_DualParityMapM1;
-   uint8_t          *ii_DualParityMapP1;
-   uint8_t          *ii_SingleParityMap;
-   
-   uint32_t         *ii_BabySteps;
-   uint32_t         *ii_GiantSteps;
 
+   uint64_t         *il_Primes;
+   
+   uint64_t         *il_Ks;
+   int64_t          *il_KCCores;
+   uint32_t         *ii_SeqData;
+   uint32_t         *ii_SubseqData;
+                    
    int16_t          *ii_DivisorShifts;
    uint16_t         *ii_PowerResidueIndices;
-
-   uint32_t         *ii_QIndices;
-   uint16_t         *ii_Qs;
-   
-   uint32_t         *ii_LadderIndices;
+   uint32_t         *ii_CongruentSubseqIndices;
+   uint32_t         *ii_CongruentSubseqs;
+                    
    uint16_t         *ii_Ladders;
-   
+
    uint32_t         *ii_FactorCount;
    uint64_t         *il_FactorList;
 };

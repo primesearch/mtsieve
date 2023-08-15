@@ -43,7 +43,6 @@ GenericGpuWorker::GenericGpuWorker(uint32_t myId, App *theApp, AbstractSequenceH
 
    ii_MaxGpuFactors = ip_SierpinskiRieselApp->GetMaxGpuFactors();
    ii_KernelCount = ip_SierpinskiRieselApp->GetKernelCount();
-   ii_ChunksPerGpuWorker = ip_SierpinskiRieselApp->GetChunksPerGpuWorker();
 }
 
 void  GenericGpuWorker::Prepare(uint64_t largestPrimeTested, uint32_t bestQ)
@@ -149,16 +148,12 @@ GpuKernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uin
    uint32_t giantSteps = MAX(1, sqrt((double) r/subsequences/babyStepFactor));
    uint32_t babySteps = MIN(r, ceil((double) r/giantSteps));
 
-   //printf("1 q=%u r=%u gs=%u bs=%u\n", ii_BestQ, r, giantSteps, babySteps);
-
    if (babySteps > SMALL_HASH_MAX_ELTS)
    {
       giantSteps = ceil((double)r/SMALL_HASH_MAX_ELTS);
       babySteps = ceil((double)r/giantSteps);
    }
    
-   //printf("2 gs=%u bs=%u max=%u\n", giantSteps, babySteps, SMALL_HASH_MAX_ELTS);
-
    uint32_t sieveLow = ii_MinN / ii_BestQ;
    uint32_t sieveRange = babySteps * giantSteps;
    uint32_t elements = babySteps;
@@ -169,8 +164,6 @@ GpuKernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uin
       
    for (hsize = 1<<HASH_MINIMUM_SHIFT; hsize < elements/DEFAULT_HASH_MAX_DENSITY; )
       hsize <<= 1;
-
-   //printf("3 %u %lf %u\n", elements, elements/DEFAULT_HASH_MAX_DENSITY, hsize);
 
    char        defines[20][50];
    const char *preKernelSources[20];
@@ -200,11 +193,10 @@ GpuKernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uin
 
    ip_SierpinskiRieselApp->SetGpuWorkGroupSize(kernel->GetWorkGroupSize());
    
-   ii_PrimesInList = ip_SierpinskiRieselApp->GetGpuPrimesPerWorker() * ii_ChunksPerGpuWorker;
-   ii_KernelWorkSize = ii_PrimesInList / ii_ChunksPerGpuWorker;
+   ii_PrimesInList = ip_SierpinskiRieselApp->GetGpuPrimesPerWorker();
 
    if (kIdx == 0)
-      il_Primes[kIdx]   = (uint64_t *) kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_KernelWorkSize);
+      il_Primes[kIdx]   = (uint64_t *) kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_PrimesInList);
    else
       il_Primes[kIdx]   = (uint64_t *) kernel->AddArgument("primes", ip_Kernel[0]);
       
@@ -252,40 +244,35 @@ void  GenericGpuWorker::TestMegaPrimeChunk(void)
    uint32_t idx, ssIdx;
    uint32_t n, gpuFactors;
    uint64_t prime;
-
-   for (uint32_t cIdx=0; cIdx<ii_ChunksPerGpuWorker; cIdx++)
-   {
-      uint32_t pIndex = ii_KernelWorkSize * cIdx;
       
-      // All kernels share the same memory for the primes
-      memcpy(il_Primes[0], &il_PrimeList[pIndex], sizeof(uint64_t) * ii_KernelWorkSize);
-   
-      for (uint32_t kIdx=0; kIdx<ii_KernelCount; kIdx++)
-      {
-         ii_FactorCount[kIdx][0] = 0;
+   // All kernels share the same memory for the primes
+   memcpy(il_Primes[0], il_PrimeList, sizeof(uint64_t) * ii_PrimesInList);
 
-         ip_Kernel[kIdx]->Execute(ii_KernelWorkSize);
+   for (uint32_t kIdx=0; kIdx<ii_KernelCount; kIdx++)
+   {
+      ii_FactorCount[kIdx][0] = 0;
 
-         gpuFactors = ii_FactorCount[kIdx][0];
+      ip_Kernel[kIdx]->Execute(ii_PrimesInList);
+
+      gpuFactors = ii_FactorCount[kIdx][0];
+      
+      for (uint32_t ii=0; ii<gpuFactors; ii++)
+      {  
+         idx = ii*4;
          
-         for (uint32_t ii=0; ii<gpuFactors; ii++)
-         {  
-            idx = ii*4;
-            
-            ssIdx = (uint32_t) il_FactorList[kIdx][idx+0] + ii_SubseqIdx[kIdx];
-            n = (uint32_t) il_FactorList[kIdx][idx+1];
-            prime = il_FactorList[kIdx][idx+2];
+         ssIdx = (uint32_t) il_FactorList[kIdx][idx+0] + ii_SubseqIdx[kIdx];
+         n = (uint32_t) il_FactorList[kIdx][idx+1];
+         prime = il_FactorList[kIdx][idx+2];
 
-            if ((ii+1) == ii_MaxGpuFactors)
-               break;
+         if ((ii+1) == ii_MaxGpuFactors)
+            break;
+      
+         ip_SierpinskiRieselApp->ReportFactor(prime, ip_Subsequences[ssIdx].seqPtr, n, true);
          
-            ip_SierpinskiRieselApp->ReportFactor(prime, ip_Subsequences[ssIdx].seqPtr, n, true);
-            
-         }
-
-         if (gpuFactors >= ii_MaxGpuFactors)
-            FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factor density", gpuFactors, ii_MaxGpuFactors);
       }
+
+      if (gpuFactors >= ii_MaxGpuFactors)
+         FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factor density", gpuFactors, ii_MaxGpuFactors);
    }
 
    SetLargestPrimeTested(il_PrimeList[ii_PrimesInList-1], ii_PrimesInList);

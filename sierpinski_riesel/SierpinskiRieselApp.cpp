@@ -22,7 +22,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.7.4"
+#define APP_VERSION     "1.7.5"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
@@ -77,15 +77,11 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    ib_RemoveN = false;
    ib_Algebraic = false;
    ib_OnlyPrimeNs = false;
-
-   // These are only used when starting.
-   ip_HashTable = new BigHashTable(BIG_HASH_MAX_ELTS);
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    ib_UseGPUWorkersUponRebuild = false;
    ii_GpuFactorDensity = 100;
    ii_KernelCount = 1;
-   ii_ChunksPerGpuWorker = 1;
 #endif
 }
 
@@ -115,7 +111,6 @@ void SierpinskiRieselApp::Help(void)
 #if defined(USE_OPENCL) || defined(USE_METAL)
    printf("-M --maxfactordensity=M   factors per 1e6 terms per GPU worker chunk (default %u)\n", ii_GpuFactorDensity);
    printf("-K --kernelcount=K        the number of kernels when splitting large numbers of sequences for the GPU (default %u)\n", ii_KernelCount);
-   printf("-C --chunksperworker=C    the number of chunks of primes per GPU worker (default %u)\n", ii_ChunksPerGpuWorker);
 #endif
    
    printf("-b --babystepfactor=b used when calculating number of baby steps and giant steps.\n");
@@ -160,11 +155,10 @@ void  SierpinskiRieselApp::AddCommandLineOptions(std::string &shortOpts, struct 
    AppendLongOpt(longOpts, "algebraic",      no_argument,       0, 'a');
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
-   shortOpts += "M:K:C:";
+   shortOpts += "M:K:";
    
    AppendLongOpt(longOpts, "maxfactordensity",  required_argument, 0, 'M');
    AppendLongOpt(longOpts, "kernelcount",       required_argument, 0, 'K');
-   AppendLongOpt(longOpts, "chunksperworker",   required_argument, 0, 'C');
 #endif
 }
 
@@ -279,10 +273,6 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
       case 'K':
          status = Parser::Parse(arg, 1, 1000000, ii_KernelCount);
          break;
-         
-      case 'C':
-         status = Parser::Parse(arg, 1, 100000, ii_ChunksPerGpuWorker);
-         break;
 #endif
    }
 
@@ -386,9 +376,7 @@ void SierpinskiRieselApp::ValidateOptions(void)
    
       MakeSubsequences(true, GetMinPrime());  
    }
-   
-   delete ip_HashTable;
-   
+      
    seqPtr = ip_FirstSequence;
    int64_t firstC = seqPtr->c;
    ib_HaveSingleC = true;
@@ -544,15 +532,15 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
    FILE    *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
    char     buffer[1000];
    uint32_t n, diff;
-   uint64_t k;
-   int64_t  c;
-   uint32_t d = 1;
+   uint64_t k, prevK = 0;
+   int64_t  c, prevC = 0;
+   uint32_t d = 1, prevD = 1;
    uint64_t lastPrime = 0;
    uint32_t lineNumber = 0;
    format_t format = FF_UNKNOWN;
    seq_t   *currentSequence = 0;
    bool     haveMinN = false;
-
+   
    if (!fPtr)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
    
@@ -679,10 +667,13 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
          
          format = FF_ABC;
          
-         if (haveBitMap)
-            currentSequence = GetSequence(k, c, d);
-         else
-            AddSequence(k, c, d);
+         if (k != prevK || c != prevC || d != prevD)
+         {
+            if (haveBitMap)
+               currentSequence = GetSequence(k, c, d);
+            else
+               AddSequence(k, c, d);
+         }
       }
       else
       {
@@ -705,10 +696,13 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
                if (sscanf(buffer, "%" SCNu64" %u", &k, &n) != 2)
                   FatalError("Line %s is malformed", buffer);
                
-               if (haveBitMap)
-                  currentSequence = GetSequence(k, c, d);
-               else
-                  AddSequence(k, c, d);
+               if (k != prevK || c != prevC || d != prevD)
+               {
+                  if (haveBitMap)
+                     currentSequence = GetSequence(k, c, d);
+                  else
+                     AddSequence(k, c, d);
+               }
                
                break;
                
@@ -716,16 +710,23 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
                if (sscanf(buffer, "%" SCNu64" %u %" SCNd64"", &k, &n, &c) != 3)
                   FatalError("Line %s is malformed", buffer);
                
-               if (haveBitMap)
-                  currentSequence = GetSequence(k, c, d);
-               else
-                  AddSequence(k, c, d);
+               if (k != prevK || c != prevC || d != prevD)
+               {
+                  if (haveBitMap)
+                     currentSequence = GetSequence(k, c, d);
+                  else
+                     AddSequence(k, c, d);
+               }
                
                break;
                
             default:
                FatalError("Input file %s has unknown format", is_InputTermsFileName.c_str());
          }
+
+         prevK = k;
+         prevC = c;
+         prevD = d;
 
          if (haveBitMap)
          {
@@ -1312,21 +1313,14 @@ void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
       return;
    }
    
-   // If this k hasn't been added, then bypass this loop
-   if (ip_HashTable->Lookup(k) != HASH_NOT_FOUND)
-   {
-      // If the sequence already exists, then nothing to do.
-      seqPtr = ip_FirstSequence;
-      do
-      {
-         if (seqPtr->k == k && seqPtr->c == c && seqPtr->d == d)
-            return;
-
-         seqPtr = (seq_t *) seqPtr->next;
-      } while (seqPtr != NULL);
-   }
+   char sequence[50];
    
-   ip_HashTable->Insert(k, ii_Base);
+   snprintf(sequence, sizeof(sequence), "%" PRIu64"*%u^n%+" PRId64"/%u", k, ii_Base, c, d);
+
+   if (is_SequenceSet.find(sequence) != is_SequenceSet.end())
+      return;
+
+   is_SequenceSet.insert(sequence);
    
    seq_t *newPtr = (seq_t *) xmalloc(sizeof(seq_t));
    

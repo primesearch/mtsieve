@@ -11,6 +11,8 @@
 #ifndef _SierpinskiRieselApp_H
 #define _SierpinskiRieselApp_H
 
+#include <set>
+
 #include "../core/FactorApp.h"
 #include "AbstractSequenceHelper.h"
 #include "../core/BigHashTable.h"
@@ -67,7 +69,6 @@ public:
    uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
    uint32_t          GetKernelCount(void) { return ii_KernelCount; };
    void              UseGpuWorkersUponRebuild(void) { ib_UseGPUWorkersUponRebuild = true; };
-   uint32_t          GetChunksPerGpuWorker(void) { return ii_ChunksPerGpuWorker; };
 #endif
 
 protected:
@@ -88,13 +89,14 @@ private:
    uint32_t          ii_LimitBaseMultiplier;
 
    seq_t            *ip_FirstSequence;
-   BigHashTable     *ip_HashTable;
    AbstractSequenceHelper   *ip_AppHelper; 
    
    bool              ib_SetLegengreBytes;
    uint64_t          il_LegendreTableBytes;
    std::string       is_LegendreDirectoryName;
    std::string       is_SequencesToRemove;
+   
+   std::set<std::string>  is_SequenceSet;
    
    bool              LoadSequencesFromFile(char *fileName);
    void              ValidateAndAddNewSequence(char *arg);
@@ -157,7 +159,6 @@ private:
    uint32_t          ii_GpuFactorDensity;
    uint32_t          ii_MaxGpuFactors;
    uint32_t          ii_KernelCount;
-   uint32_t          ii_ChunksPerGpuWorker;
 #endif
 };
 

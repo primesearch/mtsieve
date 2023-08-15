@@ -65,7 +65,7 @@ void  CisOneWithMultipleSequencesWorker::Prepare(uint64_t largestPrimeTested, ui
    ii_Dim3 = ip_CisOneHelper->GetDim3();
    
    ip_CongruentSubseqIndices = ip_CisOneHelper->GetCongruentSubseqIndices();
-   ip_AllSubseqs = ip_CisOneHelper->GetAllSubseqs();
+   ip_CongruentSubseqs = ip_CisOneHelper->GetAllSubseqs();
    ip_AllLadders = ip_CisOneHelper->GetAllLadders();   
    
    ip_Legendre = ip_CisOneHelper->GetLegendre();
@@ -166,7 +166,7 @@ void  CisOneWithMultipleSequencesWorker::TestSinglePrime(uint64_t p)
    babySteps = ip_Subsequences[ssCount-1].babySteps;
    giantSteps = ip_Subsequences[ssCount-1].giantSteps;
 
-   orderOfB = BabySteps(mp, resBase, resInvBase, ii_MaxBabySteps);
+   orderOfB = BabySteps(mp, resBase, resInvBase, babySteps);
      
    if (orderOfB > 0)
    {
@@ -430,9 +430,9 @@ uint32_t  CisOneWithMultipleSequencesWorker::GetShiftXSubsequences(MpArith mp, u
             cssIdx = ip_CongruentSubseqIndices[cssIdx];
   
   
-            if (cssIdx > 0 && ip_AllSubseqs[cssIdx] > 0)
+            if (cssIdx > 0 && ip_CongruentSubseqs[cssIdx] > 0)
             {
-               uint32_t *subseqs = &ip_AllSubseqs[cssIdx];
+               uint32_t *subseqs = &ip_CongruentSubseqs[cssIdx];
                uint32_t count = *subseqs;
                subseqs++;
      

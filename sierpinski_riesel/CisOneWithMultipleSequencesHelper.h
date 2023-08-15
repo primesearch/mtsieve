@@ -33,7 +33,9 @@ public:
    Worker        *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
    
    uint32_t      *GetCongruentSubseqIndices(void) { return ip_CongruentSubseqIndices; };
-   uint32_t      *GetAllSubseqs(void) { return ip_AllSubseqs; };
+   uint32_t       GetUsedSubseqEntries(void) { return ii_UsedSubseqEntries; };
+   uint32_t       GetUsedLadderEntries(void) { return ii_LadderEntries; };
+   uint32_t      *GetAllSubseqs(void) { return ip_CongruentSubseqs; };
    uint16_t      *GetAllLadders(void) { return ip_AllLadders; };
 
    uint32_t       GetDim1(void) { return ii_Dim1; };
@@ -63,7 +65,7 @@ protected:
    
    uint32_t      *ip_CongruentSubseqIndices;
    
-   uint32_t      *ip_AllSubseqs;
+   uint32_t      *ip_CongruentSubseqs;
    uint16_t      *ip_AllLadders;
 };
 
