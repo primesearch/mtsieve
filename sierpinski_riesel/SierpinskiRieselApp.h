@@ -96,7 +96,9 @@ private:
    std::string       is_LegendreDirectoryName;
    std::string       is_SequencesToRemove;
    
+   std::set<uint64_t>     is_SequenceKs;
    std::set<std::string>  is_SequenceSet;
+   seq_t            *ip_LastSequence;
    
    bool              LoadSequencesFromFile(char *fileName);
    void              ValidateAndAddNewSequence(char *arg);

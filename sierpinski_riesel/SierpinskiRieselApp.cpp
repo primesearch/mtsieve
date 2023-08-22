@@ -22,7 +22,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.7.5"
+#define APP_VERSION     "1.7.6"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
@@ -1314,12 +1314,21 @@ void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
    }
    
    char sequence[50];
-   
+      
+   // If the given k is greater than any other k, then we can bypas the next check.
+   if (k <= il_MaxK && is_SequenceKs.find(k) != is_SequenceKs.end())
+   {
+      // We have seen the k before, so if is it for the same c and d, then this is
+      // a known sequence and we can just return.
+      snprintf(sequence, sizeof(sequence), "%" PRIu64"*%u^n%+" PRId64"/%u", k, ii_Base, c, d);
+
+      if (is_SequenceSet.find(sequence) != is_SequenceSet.end())
+         return;
+   }
+
    snprintf(sequence, sizeof(sequence), "%" PRIu64"*%u^n%+" PRId64"/%u", k, ii_Base, c, d);
 
-   if (is_SequenceSet.find(sequence) != is_SequenceSet.end())
-      return;
-
+   is_SequenceKs.insert(k);
    is_SequenceSet.insert(sequence);
    
    seq_t *newPtr = (seq_t *) xmalloc(sizeof(seq_t));
@@ -1343,37 +1352,46 @@ void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
       ip_FirstSequence = newPtr;
       ii_SequenceCount = 1;
       newPtr->seqIdx = ii_SequenceCount;
+      
+      ip_LastSequence = newPtr;
       return;
    }
    else
    {
-      seqPtr = ip_FirstSequence;
-      seq_t *prevSeqPtr = NULL;
-      do
+      if (ip_LastSequence->k <= newPtr->k)
       {
-         // If the new sequence has a smaller k then the current sequence
-         // then insert the new sequence here.
-         if (newPtr->k < seqPtr->k)
-         {
-            if (prevSeqPtr == NULL)
-               ip_FirstSequence = newPtr;
-            else
-               prevSeqPtr->next = newPtr;
-            
-            newPtr->next = seqPtr;
-                        
-            break;
-         }
+         ip_LastSequence->next = newPtr;
+         ip_LastSequence = newPtr;
+         ii_SequenceCount++;
+         newPtr->seqIdx = ii_SequenceCount;
          
-         prevSeqPtr = seqPtr;
-         
-         seqPtr = (seq_t *) seqPtr->next;
-      } while (seqPtr != NULL);
-      
-      // If this sequence has the largest k then add to the end.
-      if (newPtr->next == NULL)
-         prevSeqPtr->next = newPtr;
+         return;
+      }
    }
+
+   seqPtr = ip_FirstSequence;
+   seq_t *prevSeqPtr = NULL;
+   do
+   {
+      // If the new sequence has a smaller k then the current sequence
+      // then insert the new sequence here.
+      if (newPtr->k < seqPtr->k)
+      {
+         if (prevSeqPtr == NULL)
+            ip_FirstSequence = newPtr;
+         else
+            prevSeqPtr->next = newPtr;
+         
+         newPtr->next = seqPtr;
+                     
+         break;
+      }
+      
+      prevSeqPtr = seqPtr;
+      
+      seqPtr = (seq_t *) seqPtr->next;
+   } while (seqPtr != NULL);
+
    
    ii_SequenceCount = 0;
    seqPtr = ip_FirstSequence;
