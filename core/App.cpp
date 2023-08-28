@@ -500,6 +500,15 @@ void  App::Sieve(void)
    
    uint32_t stoppedCount = 0;
    
+   uint64_t largestPrimeTestedNoGaps, largestPrimeTested, primesTested;
+   uint64_t workerCpuUS;
+   
+   // Get the largest prime tested without gaps in case workers stopped processing
+   // before reaching the of their chunk of work.
+   GetWorkerStats(workerCpuUS, largestPrimeTestedNoGaps, largestPrimeTested, primesTested);
+   
+   il_LargestPrimeSieved = largestPrimeTestedNoGaps;
+   
    // In the second loop, run until we are done.  Hopefully this will do a better job at keeping
    // of the workers busy.
    while (il_LargestPrimeSieved < il_MaxPrime && IsRunning() && stoppedCount < ii_TotalWorkerCount)

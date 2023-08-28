@@ -45,7 +45,7 @@ public:
    
    void              AddSequence(uint64_t k, int64_t c, uint32_t d);
    
-   seq_t            *GetSequence(uint64_t k, int64_t c, uint32_t d);
+   seq_t            *GetSequence(uint64_t k, int64_t c, uint32_t d, seq_t *startSeqPtr);
 
    void              ReportFactor(uint64_t theFactor, seq_t *seqPtr, uint32_t n, bool verifyFactor);
 

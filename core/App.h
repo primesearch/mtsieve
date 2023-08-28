@@ -122,7 +122,13 @@ protected:
 
    void              SetBanner(std::string banner) { is_Banner = banner; };
    void              SetLogFileName(std::string logFileName);
-   void              SetMaxPrimeForSingleWorker(uint64_t maxPrimeForSingleWorker) { il_MaxPrimeForSingleWorker = maxPrimeForSingleWorker; };
+   void              SetMaxPrimeForSingleWorker(uint64_t maxPrimeForSingleWorker)
+   {
+         if (il_MaxPrime < maxPrimeForSingleWorker)
+            il_MaxPrimeForSingleWorker = il_MaxPrime;
+         else
+            il_MaxPrimeForSingleWorker = maxPrimeForSingleWorker;
+   };
    
    void              SetAppMinPrime(uint64_t minPrime) { il_MinPrime = il_AppMinPrime = minPrime; };
    void              SetAppMaxPrime(uint64_t maxPrime) { il_MaxPrime = il_AppMaxPrime = maxPrime; };

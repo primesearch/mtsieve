@@ -1,3 +1,14 @@
+2.5.4 - August 15, 2023
+   framework:
+      Fix issue where small primes might not be tested because the initial worker
+      stops processing its chunk so that another worker can continue.
+
+   srsieve2/srsieve2cl: version 1.7.6
+      Fix a performance issue when starting with -i with tens of thousands of sequences.
+      If you are sieving tens of thousands of sequences avoid using input files where
+      k's are not in ascending sequence.  Performance for loading the sequences will
+      take a noticeable hit if the input is not sorted by ascending k.
+      
 2.5.3 - August 15, 2023
    framework:
       Fix removal rate calculation to exclude time used prior to the start of sieving.
@@ -6,6 +17,7 @@
       Do not include CPU time when computing removal rate with the GPU. 
 
    srsieve2/srsieve2cl: version 1.7.5
+      Removed -C command line option as -g does the same time, but in a different way.
       Sort sequences by ascending k in output files.
       Improved speed when loading large numbers of sequences when using -i.
       Fix issue where factors are ignored when d > 1.

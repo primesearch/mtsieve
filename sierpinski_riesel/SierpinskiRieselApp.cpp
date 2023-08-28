@@ -602,7 +602,7 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
 
          if (haveBitMap)
          {
-            currentSequence = GetSequence(k, c, d);
+            currentSequence = GetSequence(k, c, d, currentSequence);
             currentSequence->nTerms[NBIT(n)] = true;
             il_TermCount++;
             continue;
@@ -670,7 +670,7 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
          if (k != prevK || c != prevC || d != prevD)
          {
             if (haveBitMap)
-               currentSequence = GetSequence(k, c, d);
+               currentSequence = GetSequence(k, c, d, currentSequence);
             else
                AddSequence(k, c, d);
          }
@@ -699,7 +699,7 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
                if (k != prevK || c != prevC || d != prevD)
                {
                   if (haveBitMap)
-                     currentSequence = GetSequence(k, c, d);
+                     currentSequence = GetSequence(k, c, d, currentSequence);
                   else
                      AddSequence(k, c, d);
                }
@@ -713,7 +713,7 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
                if (k != prevK || c != prevC || d != prevD)
                {
                   if (haveBitMap)
-                     currentSequence = GetSequence(k, c, d);
+                     currentSequence = GetSequence(k, c, d, currentSequence);
                   else
                      AddSequence(k, c, d);
                }
@@ -1357,7 +1357,7 @@ void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
       return;
    }
    else
-   {
+   {      
       if (ip_LastSequence->k <= newPtr->k)
       {
          ip_LastSequence->next = newPtr;
@@ -1404,10 +1404,22 @@ void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
    } while (seqPtr != NULL);
 }
 
-seq_t    *SierpinskiRieselApp::GetSequence(uint64_t k, int64_t c, uint32_t d) 
+seq_t    *SierpinskiRieselApp::GetSequence(uint64_t k, int64_t c, uint32_t d, seq_t *startSeqPtr) 
 {
    seq_t  *seqPtr;
 
+   if (startSeqPtr != NULL)
+   {
+      seqPtr = startSeqPtr;
+      do
+      {
+         if (seqPtr->k == k && seqPtr->c == c && seqPtr->d == d)
+            return seqPtr;
+
+         seqPtr = (seq_t *) seqPtr->next;
+      } while (seqPtr != NULL);
+   }
+   
    seqPtr = ip_FirstSequence;
    do
    {
@@ -1415,9 +1427,8 @@ seq_t    *SierpinskiRieselApp::GetSequence(uint64_t k, int64_t c, uint32_t d)
          return seqPtr;
 
       seqPtr = (seq_t *) seqPtr->next;
-   } while (seqPtr != NULL);
+   } while (seqPtr != startSeqPtr);
    
-
    FatalError("Sequence for k=%" PRIu64" and c=%+" PRId64" was not found", k, c);
    
    return 0;
