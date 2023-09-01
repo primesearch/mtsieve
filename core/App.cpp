@@ -808,13 +808,11 @@ void  App::ReportStatus(void)
    char     primeStats[200];
    char     childStats[200];
    char     finishTimeBuffer[32];
-   uint64_t workerCpuUS, sievingCpuUS;
-   uint64_t processCpuUS, elapsedTimeUS;
+   uint64_t workerCpuUS;
+   uint64_t elapsedTimeUS;
    uint64_t largestPrimeTestedNoGaps, largestPrimeTested, primesTested;
    time_t   finish_date;
 
-   processCpuUS = Clock::GetProcessMicroseconds();
-   sievingCpuUS = processCpuUS - il_StartSievingProcessUS;
       
    elapsedTimeUS = Clock::GetCurrentMicrosecond() - il_StartSievingUS;
       
@@ -829,7 +827,14 @@ void  App::ReportStatus(void)
    //        kernel.  It could be a problem specific to Windows.  I just don't know at this time.
    cpuUtilization = ((double) ip_GpuDevice->GetGpuMicroseconds()) / ((double) elapsedTimeUS);
 #else
-   cpuUtilization = ((double) sievingCpuUS) / ((double) elapsedTimeUS);
+   {
+      uint64_t processCpuUS, sievingCpuUS;
+      
+      processCpuUS = Clock::GetProcessMicroseconds();
+      sievingCpuUS = processCpuUS - il_StartSievingProcessUS;
+      
+      cpuUtilization = ((double) sievingCpuUS) / ((double) elapsedTimeUS);
+   }
 #endif
    
    GetPrimeStats(primeStats, primesTested);
