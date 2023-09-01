@@ -25,7 +25,6 @@ OpenCLKernel::OpenCLKernel(GpuDevice *device, const char *kernelName, const char
    cl_ulong  deviceLocalMemorySize;
    cl_ulong  localMemorySize;
    cl_ulong  privateMemorySize;
-   char      buffer[16384];
    char     *tempSource;
    std::string    madEnable = "-cl-mad-enable";
    std::string    buildOptions = "";
@@ -79,6 +78,8 @@ OpenCLKernel::OpenCLKernel(GpuDevice *device, const char *kernelName, const char
 
    if (status != CL_SUCCESS)
    {
+      char      buffer[100000];
+      
       clGetProgramBuildInfo(im_Program, ip_OpenCLDevice->GetDeviceId(), CL_PROGRAM_BUILD_LOG, (uint32_t) sizeof(buffer), buffer, &len);
       OpenCLErrorChecker::ExitIfError("clBuildProgram", status, "%s", buffer);
    }
