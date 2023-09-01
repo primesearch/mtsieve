@@ -38,6 +38,8 @@ protected:
    uint32_t          ii_KernelCount;
    uint32_t          ii_SequencesPerKernel;
    uint32_t          ii_MaxGpuFactors;
+   uint32_t          ii_MaxSequences;
+   uint32_t          ii_MaxSubsequences;
 
    CisOneWithMultipleSequencesHelper *ip_CisOneHelper;   
    

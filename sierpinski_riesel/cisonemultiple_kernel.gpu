@@ -25,7 +25,8 @@ using namespace metal;
 #define BASE                    2
 #define BEST_Q                  5
 #define SIEVE_LOW               5
-#define SEQUENCES_PER_KERNEL  100
+#define MAX_SEQUENCES         100
+#define MAX_SUBSEQUENCES      100
 #define HASH_ELEMENTS         500
 #define HASH_SIZE             500
 #define POWER_RESIDUE_LCM     720
@@ -39,16 +40,18 @@ using namespace metal;
 #define MUL_HI          mul_hi
 
 void collectFactor(ulong   p,
+                   uint    ssIdx,
                    uint    n,
  volatile __global uint   *factorCount,
-          __global ulong2 *factors);
+          __global ulong4 *factors);
 #else
 #define MUL_HI          mulhi
 
 void collectFactor(ulong       p,
+                   uint        ssIdx,
                    uint        n,
    volatile device atomic_int *factorCount,
-            device ulong2     *factors);
+            device ulong4     *factors);
 #endif
  
 
@@ -62,20 +65,21 @@ void collectFactor(ulong       p,
 #define MM_ONE(p)           (p.z)
 #define MM_R2(p)            (p.w)
 
-#defien SEQ_PARITY(a,b)     (a[b].x)
-#defien SEQ_MINSS(a,b)      (a[b].y)
-#defien SEQ_MAXSS(a,b)      (a[b].z)
-#defien SEQ_C(a,b)          (a[b].w)
+#define SEQ_PARITY(a,b)     (a[b].x)
+#define SEQ_MINSS(a,b)      (a[b].y)
+#define SEQ_MAXSS(a,b)      (a[b].z)
+#define SEQ_C(a,b)          (a[b].w)
                             
-#defien SUBSEQ_Q(a,b)       (a[b].x)
-#defien SUBSEQ_BS(a,b)      (a[b].y)
-#defien SUBSEQ_GS(a,b)      (a[b].z)
+#define SUBSEQ_Q(a,b)       (a[b].x)
+#define SUBSEQ_BS(a,b)      (a[b].y)
+#define SUBSEQ_GS(a,b)      (a[b].z)
 
 #define USABLE_SEQIDX(a,b)  (a[b].x)
-#define USABLE_Q(a,b)       (a[b].y)
-#define USABLE_BDCK(a,b)    (a[b].z)
+#define USABLE_SSIDX(a,b)   (a[b].y)
+#define USABLE_Q(a,b)       (a[b].z)
+#define USABLE_BDCK(a,b)    (a[b].w)
 
-#define N_TERM(q, i, j)       ((SIEVE_LOW + (j) + (i)*bSteps)*BEST_Q + q)
+#define N_TERM(q, i, j)       ((SIEVE_LOW + (j) + (i)*babySteps)*BEST_Q + q)
 
 // This allows us to create a one dimensional array to access the qList and ladders
 //    a = parity
@@ -92,20 +96,55 @@ void collectFactor(ulong       p,
 
 ulong  invmod(ulong a, ulong p);
 short  legendre(long a, ulong p);
+ulong  getNegCK(ulong k, int c, ulong p);
 
-uint  setupDiscreteLog(ulong thePrime, ulong _q, ulong _one,
-                       ulong resBase, ulong resInvBase, ulong resNegCK, ushort parity,
-                       __global const short  *divisorShifts,
-                       __global const ushort *cssIndices);
+uint      setupDiscreteLog(__global const ulong   *ks,
+                           __global const long    *kcCores,
+                           __global const uint4   *seqData,
+                           __global const uint4   *subseqData,
+                           __global const short   *divisorShifts,
+                           __global const uint    *prlIndices,
+                           __global const uint    *cssIndices,
+                           __global const uint    *cssSubseqs,
+                                          ulong   *resBD,
+                                          ulong4   mmPrime,
+                                          ulong    resInvBase,
+                                          ulong   *resX,
+                                          ulong4  *usableSubsequence);
 
-ulong buildLookupsAndClimbLadder(ulong thePrime, ulong _q, ulong _one,
-                                  ulong resBase, ulong resNegCK, ulong *resBDCK,
-                                  uint qIndex, uint ladderIndex,
-                                  __global const ushort *qs,
-                                  __global const ushort *ladders);
+uint      getShift0Subsequences(__global const ulong   *ks,
+                                __global const long    *kcCores,
+                                __global const uint4   *seqData,
+                                __global const uint4   *subseqData,
+                                               ulong   *resBD,
+                                               ulong4   mmPrime,
+                                               ulong4  *usableSubsequence);
 
-ulong babySteps(ulong thePrime, ulong _q, ulong _one, ulong resInvBase, uint bSteps,
-                ushort *h_table, ushort *h_olist, ulong *h_BJ64);
+uint  getShiftXSubsequences(__global const ulong   *ks,
+                            __global const long    *kcCores,
+                            __global const uint4   *seqData,
+                            __global const uint4   *subseqData,
+                            __global const uint    *prlIndices,
+                            __global const uint    *cssIndices,
+                            __global const uint    *cssSubseqs,
+                                           ulong   *resBD,
+                                           ulong4   mmPrime,
+                                           ulong    pShift,
+                                           uint     r,
+                                           ulong   *resX,
+                                           ulong4  *usableSubsequence);
+
+ulong climbLadder(__global const ushort  *ladders,
+                                 ulong4   mmPrime,
+                                 ulong    resBase,
+                                 ulong   *resBD);
+
+ulong doBabySteps(ulong4 mmPrime,
+                  ulong resInvBase,
+                  uint bSteps,
+                  ushort *h_table,
+                  ushort *h_olist,
+                  ulong *h_BJ64);
                 
 void  hashInsert(ulong bj, uint j, ushort *h_table, ushort *h_olist, ulong *h_BJ64);
 uint  hashLookup(ulong bj, ushort *h_table, ushort *h_olist, ulong *h_BJ64);
@@ -131,7 +170,7 @@ __kernel void cisonemultiple_kernel(__global const ulong   *primes,
                                     __global const uint    *cssSubseqs,
                                     __global const ushort  *ladders,
                            volatile __global       uint    *factorCount,
-                                    __global       ulong2  *factors)
+                                    __global       ulong4  *factors)
 #else
 kernel void cisonemultiple_kernel(device const ulong   *primes,
                                   device const ulong   *ks,
@@ -144,7 +183,7 @@ kernel void cisonemultiple_kernel(device const ulong   *primes,
                                   device const uint    *cssSubseqs,
                                   device const ushort  *ladders,
                          volatile device atomic_int   *factorCount,
-                                  device       ulong2 *factors)
+                                  device       ulong4 *factors)
                                                uint    tpid [[thread_position_in_grid]])
 #endif
 {
@@ -172,31 +211,29 @@ kernel void cisonemultiple_kernel(device const ulong   *primes,
    ushort  h_olist[HASH_ELEMENTS];
    ulong   h_BJ64[HASH_ELEMENTS+1];
 
-   ulong4  usableSubsequences[SUBSEQUENCE_COUNT];
-   ulong   resBDCK[SUBSEQUENCE_COUNT];
+   ulong4  usableSubsequences[MAX_SUBSEQUENCES];
+   ulong   resBDCK[MAX_SUBSEQUENCES];
    ulong   resBD[BEST_Q];
    ulong   resX[POWER_RESIDUE_LCM];
 
-   uint64_t invBase, resBexpQ;
-   uint32_t k, ssCount;
-   uint32_t babySteps, giantSteps;
-   uint32_t i, j;
+   ulong   resBexpQ;
+   ulong   k, ssCount;
+   uint    babySteps, giantSteps;
+   uint    i, j;
 
    // -ckb^d is an r-th power residue for at least one term (k*b^d)*(b^Q)^(n/Q)+c of this subsequence
-   resBexpQ = climbLadder(mp, resBase);
+   resBexpQ = climbLadder(ladders, mmPrime, resBase, resBD);
 
-   ssCount = setupDiscreteLog(ks, kcCores, seqData, subseqData, divisorShifts, cssIndices, cssIndices, resBD, mmPrime, resInvBase, resX, usable);
+   ssCount = setupDiscreteLog(ks, kcCores, seqData, subseqData, divisorShifts, prlIndices, cssIndices, cssSubseqs, resBD, mmPrime, resInvBase, resX, usableSubsequences);
 
    // If no subsequences for this p, then no factors, so return
    if (ssCount == 0)
       return;
-   
-   ip_HashTable->Clear();
-   
-   babySteps  = SUBSEQ_BS(subseqData[ssCount-1]);
-   giantSteps = SUBSEQ_GS(subseqData[ssCount-1]);
+      
+   babySteps  = SUBSEQ_BS(subseqData, ssCount-1);
+   giantSteps = SUBSEQ_GS(subseqData, ssCount-1);
 
-   ushort orderOfB = babySteps(thePrime, _q, _one, resInvBase, babySteps, h_table, h_olist, h_BJ64);
+   ushort orderOfB = doBabySteps(mmPrime, resInvBase, babySteps, h_table, h_olist, h_BJ64);
      
    if (orderOfB > 0)
    {
@@ -204,13 +241,13 @@ kernel void cisonemultiple_kernel(device const ulong   *primes,
       // determine every solution for this p, so no giant steps are neede
       for (k=0; k<ssCount; k++)
       {
-         j = hashLookup(USABLE_BDCK(usable[k]), h_table, h_olist, h_BJ64);
+         j = hashLookup(USABLE_BDCK(usableSubsequences, k), h_table, h_olist, h_BJ64);
 
          while (j < babySteps * giantSteps)
          {
-            uint q = USABLE_Q[usable(k)];
+            uint q = USABLE_Q(usableSubsequences, k);
              
-            collectFactor(p, ssIdx, N_TERM(q, 0, j), factorCount, factors);
+            collectFactor(thePrime, USABLE_SSIDX(usableSubsequences, k), N_TERM(q, 0, j), factorCount, factors);
              
             j += orderOfB;
          }
@@ -221,13 +258,13 @@ kernel void cisonemultiple_kernel(device const ulong   *primes,
       // First giant step
       for (k=0; k<ssCount; k++)
       {
-         j = hashLookup(USABLE_BDCK(usable[k]), h_table, h_olist, h_BJ64);
+         j = hashLookup(USABLE_BDCK(usableSubsequences, k), h_table, h_olist, h_BJ64);
 
          if (j != HASH_NOT_FOUND)
          {
-            uint q = USABLE_Q[usable(k)];
+            uint q = USABLE_Q(usableSubsequences, k);
             
-            collectFactor(p, ssIdx, N_TERM(q, 0, j), factorCount, factors);
+            collectFactor(thePrime, USABLE_SSIDX(usableSubsequences, k), N_TERM(q, 0, j), factorCount, factors);
          }
       }
 
@@ -241,15 +278,15 @@ kernel void cisonemultiple_kernel(device const ulong   *primes,
          {
             for (k=0; k<ssCount; k++)
             {         
-               USABLE_BDCK(usable[k]) = mmmMulmod(USABLE_BDCK(usable[k]), resBQM, mmPrime);
+               USABLE_BDCK(usableSubsequences, k) = mmmMulmod(USABLE_BDCK(usableSubsequences, k), resBQM, mmPrime);
                
-               j = hashLookup(USABLE_BDCK(usable[k]), h_table, h_olist, h_BJ64);
+               j = hashLookup(USABLE_BDCK(usableSubsequences, k), h_table, h_olist, h_BJ64);
 
                if (j != HASH_NOT_FOUND)
                {
-                  uint q = USABLE_Q[usable(k)];
+                  uint q = USABLE_Q(usableSubsequences, k);
                   
-                  collectFactor(p, ssIdx, N_TERM(q, i, j), factorCount, factors);
+                  collectFactor(thePrime, USABLE_SSIDX(usableSubsequences, k), N_TERM(q, i, j), factorCount, factors);
                }
             }
          }
@@ -264,7 +301,7 @@ ulong climbLadder(__global const ushort  *ladders,
                                  ulong    resBase,
                                  ulong   *resBD)
 {
-   uint32_t  i, j, idx, lLen;
+   uint  i, j, idx, lLen;
 
    lLen = *ladders;
    
@@ -291,7 +328,7 @@ ulong climbLadder(__global const ushort  *ladders,
 // residue with respect to p) and initialises the table D64[] with the
 // values -c/(k*b^d) (mod p). As a side effect, bQ is set to the value b^Q
 // (mod p) for use later in bsgs64(). Returns the number of subsequences listed in ii_CSS[].
-uint32_t  setupDiscreteLog(__global const ulong   *ks,
+uint      setupDiscreteLog(__global const ulong   *ks,
                            __global const long    *kcCores,
                            __global const uint4   *seqData,
                            __global const uint4   *subseqData,
@@ -302,8 +339,8 @@ uint32_t  setupDiscreteLog(__global const ulong   *ks,
                                           ulong   *resBD,
                                           ulong4   mmPrime,
                                           ulong    resInvBase,
-                                          ulong    resX,
-                                          ulong4  *usable)
+                                          ulong   *resX,
+                                          ulong4  *usableSubsequence)
 {
    ulong      bm, pShift;
    uint       idx, r;
@@ -315,7 +352,7 @@ uint32_t  setupDiscreteLog(__global const ulong   *ks,
    shift = divisorShifts[idx];
    
    if (shift == 0)
-      return GetShift0Subsequences(ks, kcCores, seqData, subseqData, resBD, mmPrime, usable);
+      return getShift0Subsequences(ks, kcCores, seqData, subseqData, resBD, mmPrime, usableSubsequence);
    
    if (shift > 0)
    {
@@ -332,11 +369,11 @@ uint32_t  setupDiscreteLog(__global const ulong   *ks,
    }
 
    /* For 0 <= r < s, resX[r] <- 1/(b^r)^((p-1)/s) */
-   resX[0] = MM_ONE(mmPrime)
+   resX[0] = MM_ONE(mmPrime);
    resX[1] = mmmPowmod(resInvBase, pShift, mmPrime);
   
    for (r=1; resX[r] != resX[0]; r++)
-      resX[r+1] = mmmMulMod(resX[r], resX[1], mmPrime);
+      resX[r+1] = mmmMulmod(resX[r], resX[1], mmPrime);
 
    if (shift % r != 0)
       return 0;
@@ -344,26 +381,26 @@ uint32_t  setupDiscreteLog(__global const ulong   *ks,
    // 1/(b^r)^((p-1)/s)=1 (mod p) therefore (1/(b^r)^((p-1)/s))^y=1 (mod p)
    // for 0 <= y < s/r. (Could we do more with this?)
    
-   return GetShiftXSubsequences(ks, kcCores, seqData, subseqData, cssIndices, cssIndices, cssSubseqs, resBD, mmPrime, pShift, r, resX, usable);
+   return getShiftXSubsequences(ks, kcCores, seqData, subseqData, prlIndices, cssIndices, cssSubseqs, resBD, mmPrime, pShift, r, resX, usableSubsequence);
 }
 
-uint32_t  getShift0Subsequences(__global const ulong   *ks,
+uint      getShift0Subsequences(__global const ulong   *ks,
                                 __global const long    *kcCores,
                                 __global const uint4   *seqData,
                                 __global const uint4   *subseqData,
                                                ulong   *resBD,
                                                ulong4   mmPrime,
-                                               ulong4  *usable)
+                                               ulong4  *usableSubsequence)
 {
    short      kcLegendre;
    short      bLegendre = 0;
    short      usable = 0;
    uint       j = 0;
-   uint       seqIdx = subseqData[0].w * SEQUENCES_PER_KERNEL;
+   uint       seqIdx = subseqData[0].w * MAX_SEQUENCES;
    
    bLegendre = legendre(BASE, MM_P(mmPrime));
 
-   for ( ; SEQ_K(seqData, seqIdx) > 0; seqIdx++)
+   for ( ; ks[seqIdx] > 0; seqIdx++)
    {
       kcLegendre = legendre(kcCores[seqIdx], MM_P(mmPrime));
       
@@ -384,19 +421,20 @@ uint32_t  getShift0Subsequences(__global const ulong   *ks,
       
       if (usable == 1)
       {
-         ulong negCK = getNegCK(ks[seqIdx], (SEQ_C(seqData[seqIdx] == 1 ? 1 : -1), MM_P(mmPrime));
+         ulong negCK = getNegCK(ks[seqIdx], (SEQ_C(seqData, seqIdx) == 1 ? 1 : -1), MM_P(mmPrime));
          ulong resNegCK = mmmNToRes(negCK, mmPrime);
 
          uint minss = SEQ_MINSS(seqData, seqIdx);
          uint maxss = SEQ_MINSS(seqData, seqIdx);
    
-         for (uint ssIdx=minss; sIdx<=maxss; sIdx++)
+         for (uint ssIdx=minss; ssIdx<=maxss; ssIdx++)
          {
-            uint q = SUBSEQ_Q(subseqData[ssIdx]);
+            uint q = SUBSEQ_Q(subseqData, ssIdx);
                   
-            USABLE_SEQIDX(usable[j]) = seqIdx;
-            USABLE_Q(usable[j]) = q;
-            USABLE_BDCK(usable[j]) = mmmMulmod(resBD[q], recNegCK, mmPrime);
+            USABLE_SEQIDX(usableSubsequence, j) = seqIdx;
+            USABLE_SSIDX(usableSubsequence, j) = ssIdx;
+            USABLE_Q(usableSubsequence, j) = q;
+            USABLE_BDCK(usableSubsequence, j) = mmmMulmod(resBD[q], resNegCK, mmPrime);
                               
             j++;
          }
@@ -409,7 +447,7 @@ uint32_t  getShift0Subsequences(__global const ulong   *ks,
 uint  getShiftXSubsequences(__global const ulong   *ks,
                             __global const long    *kcCores,
                             __global const uint4   *seqData,
-                            __global const uint4   *subseqQs,
+                            __global const uint4   *subseqData,
                             __global const uint    *prlIndices,
                             __global const uint    *cssIndices,
                             __global const uint    *cssSubseqs,
@@ -417,8 +455,8 @@ uint  getShiftXSubsequences(__global const ulong   *ks,
                                            ulong4   mmPrime,
                                            ulong    pShift,
                                            uint     r,
-                                           ulong    resX,
-                                           ulong4  *usable)
+                                           ulong   *resX,
+                                           ulong4  *usableSubsequence)
 {
    short      kcLegendre;
    short      bLegendre = 0;
@@ -426,13 +464,13 @@ uint  getShiftXSubsequences(__global const ulong   *ks,
    uint       qr_mod, rIdx;
    uint       h, j = 0;
    uint       ssIdx, cssIdx;
-   uint       seqIdx = subseqData[0].w * SEQUENCES_PER_KERNEL;
+   uint       seqIdx = subseqData[0].w * MAX_SEQUENCES;
    
    rIdx = prlIndices[r];
    
    bLegendre = legendre(BASE, MM_P(mmPrime));
 
-   for ( ; SEQ_K(seqData, seqIdx) > 0; seqIdx++)
+   for ( ; ks[seqIdx] > 0; seqIdx++)
    {
       kcLegendre = legendre(kcCores[seqIdx], MM_P(mmPrime));
       
@@ -453,9 +491,9 @@ uint  getShiftXSubsequences(__global const ulong   *ks,
 
       if (usable == 1)
       {
-         ulong negCK = getNegCK(ks[seqIdx], (SEQ_C(seqData[seqIdx] == 1 ? 1 : -1), MM_P(mmPrime));
+         ulong negCK = getNegCK(ks[seqIdx], (SEQ_C(seqData, seqIdx) == 1 ? 1 : -1), MM_P(mmPrime));
          ulong resNegCK = mmmNToRes(negCK, mmPrime);
-         ulong resPowNegCK = mmmPowmod(resNegCK, pShift, mmPrime)
+         ulong resPowNegCK = mmmPowmod(resNegCK, pShift, mmPrime);
            
          resX[r] = resPowNegCK;
          
@@ -472,17 +510,18 @@ uint  getShiftXSubsequences(__global const ulong   *ks,
     
             if (cssIdx > 0 && cssIndices[cssIdx] > 0)
             {
-               uint32_t count = cssIndices[cssIdx];
+               uint count = cssIndices[cssIdx];
      
                // -ckb^d is an r-th power residue for at least one term (k*b^d)*(b^Q)^(n/Q)+c of this subsequence.
-               for (idx=0; idx<count; idx++)
+               for (uint idx=0; idx<count; idx++)
                {
                   uint ssIdx = cssSubseqs[cssIdx+idx];
-                  uint q = SUBSEQ_Q(subseqData[ssIdx]);
+                  uint q = SUBSEQ_Q(subseqData, ssIdx);
                   
-                  USABLE_SEQIDX(usable[j]) = seqIdx;
-                  USABLE_Q(usable[j]) = q;
-                  USABLE_BDCK(usable[j]) = mmmMulmod(resBD[q], recNegCK, mmPrime);
+                  USABLE_SEQIDX(usableSubsequence, j) = seqIdx;
+                  USABLE_SSIDX(usableSubsequence, j) = ssIdx;
+                  USABLE_Q(usableSubsequence, j) = q;
+                  USABLE_BDCK(usableSubsequence, j) = mmmMulmod(resBD[q], resNegCK, mmPrime);
                                     
                   j++;
                }
@@ -494,8 +533,12 @@ uint  getShiftXSubsequences(__global const ulong   *ks,
    return j;
 }
 
-ulong babySteps(ulong4 mmPrime, ulong resInvBase, uint bSteps,
-                ushort *h_table, ushort *h_olist, ulong *h_BJ64)
+ulong doBabySteps(ulong4 mmPrime,
+                  ulong  resInvBase,
+                  uint    bSteps,
+                  ushort *h_table,
+                  ushort *h_olist,
+                  ulong  *h_BJ64)
 {
    ulong    resInvBaseExpQ;
    ulong    resBJ;
@@ -503,15 +546,15 @@ ulong babySteps(ulong4 mmPrime, ulong resInvBase, uint bSteps,
    uint     j;
     
    // b <- inv_b^Q (mod p)
-   resInvBaseExpQ = mmmPowmod(resInvBase, BEST_Q, thePrime, _q, _one);
+   resInvBaseExpQ = mmmPowmod(resInvBase, BEST_Q, mmPrime);
   
-   firstResBJ = resBJ = mmmPowmod(resInvBaseExpQ, SIEVE_LOW, thePrime, _q, _one);
+   firstResBJ = resBJ = mmmPowmod(resInvBaseExpQ, SIEVE_LOW, mmPrime);
 
    for (j=0; j<bSteps; j++)
    { 
       hashInsert(resBJ, j, h_table, h_olist, h_BJ64);
       
-      resBJ = mmmMulmod(resBJ, resInvBaseExpQ, thePrime, _q);
+      resBJ = mmmMulmod(resBJ, resInvBaseExpQ, mmPrime);
             
       if (resBJ == firstResBJ)
          return j + 1;
@@ -541,14 +584,14 @@ inline ulong mmmOne(ulong _p)
 }
 
 // Compute the residual of 2^64 (mod p)
-inline ulong mmmR2(ulong4 p)
+inline ulong mmmR2(ulong4 mmPrime)
 {
-	ulong t = mmmAdd(MM_ONE(p), MM_ONE(p), MM_P(p));
+	ulong t = mmmAdd(MM_ONE(mmPrime), MM_ONE(mmPrime), MM_P(mmPrime));
    
-   t = mmmAdd(t, t, MM_P(p));   // 4
+   t = mmmAdd(t, t, MM_P(mmPrime));   // 4
    
 	for (size_t i=0; i<5; i++)
-      t = mmmMulmod(t, t, p);   // 4^{2^5} = 2^64
+      t = mmmMulmod(t, t, mmPrime);   // 4^{2^5} = 2^64
       
 	return t;
 }
@@ -566,9 +609,9 @@ inline ulong mmmSub(ulong a, ulong b, ulong _p)
 }
 
 // Compute the residual of n (mod p)
-inline ulong mmmNToRes(ulong n, ulong _p, ulong _q, ulong _r2)
+inline ulong mmmNToRes(ulong n, ulong4 mmPrime)
 {
-   return mmmMulmod(n, _r2, _p, _q);
+   return mmmMulmod(n, MM_R2(mmPrime), mmPrime);
 }
 
 ulong mmmMulmod(ulong a, ulong b, ulong4 mmPrime)
@@ -698,7 +741,7 @@ short  legendre(long a, ulong p)
    return sign;
 }
 
-ulong getNegCK(ulong k, int c, uint64_t p)
+ulong getNegCK(ulong k, int c, ulong p)
 {
    ulong negCK;
    
@@ -710,7 +753,7 @@ ulong getNegCK(ulong k, int c, uint64_t p)
    if (c > 0)
       negCK = p - negCK;
    
-   return ulong;
+   return negCK;
 }
    
 void hashInsert(ulong bj, uint j, ushort *h_table, ushort *h_olist, ulong *h_BJ64)

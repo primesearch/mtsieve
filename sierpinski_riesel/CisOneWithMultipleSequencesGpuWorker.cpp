@@ -63,7 +63,10 @@ void  CisOneWithMultipleSequencesGpuWorker::Prepare(uint64_t largestPrimeTested,
 void     CisOneWithMultipleSequencesGpuWorker::PopulateKernelArguments(void)
 {
    seq_t   *seqPtr = ip_FirstSequence;
-   uint32_t seqidx = 0, ssIdx = 0, seqCount = 0;
+   uint32_t seqidx = 0, ssIdx = 0, seqCount = 0, subseqCount = 0;
+   
+   ii_MaxSequences = 0;
+   ii_MaxSubsequences = 0;
    
    while (seqPtr != NULL)
    {
@@ -82,19 +85,30 @@ void     CisOneWithMultipleSequencesGpuWorker::PopulateKernelArguments(void)
          ii_SubseqData[4*ssIdx+2] = ip_Subsequences[idx].giantSteps;
         
          ssIdx++;
+         subseqCount++;
       }
       
       seqCount++;
       seqidx++;
 
-      // Create an empty entry
       if (seqCount == ii_SequencesPerKernel)
       {
+         ii_MaxSequences = seqCount;
+         
+         if (subseqCount > ii_MaxSubsequences)
+            ii_MaxSubsequences = subseqCount;
+            
          seqCount = 0;
-         seqidx++;
+         subseqCount = 0;
       }
-
+         
       seqPtr = (seq_t *) seqPtr->next;
+   }
+   
+   if (ii_MaxSequences == 0)
+   {
+      ii_MaxSequences = seqCount;
+      ii_MaxSubsequences = subseqCount;
    }
 }
 
@@ -116,9 +130,10 @@ void     CisOneWithMultipleSequencesGpuWorker::CreateKernel(void)
 
    snprintf(defines[defineCount++], 50, "#define BASE  %u", ii_Base);
    snprintf(defines[defineCount++], 50, "#define BEST_Q %u\n", ii_BestQ);
-   snprintf(defines[defineCount++], 50, "#define SIEVE_LOW   %u", sieveLow);
-   snprintf(defines[defineCount++], 50, "#define MAX_FACTORS %u", ii_MaxGpuFactors);
-   snprintf(defines[defineCount++], 50, "#define SEQUENCES_PER_KERNEL %u", ii_SequencesPerKernel);
+   snprintf(defines[defineCount++], 50, "#define SIEVE_LOW   %u\n", sieveLow);
+   snprintf(defines[defineCount++], 50, "#define MAX_FACTORS %u\n", ii_MaxGpuFactors);
+   snprintf(defines[defineCount++], 50, "#define MAX_SEQUENCES %u\n", ii_MaxSequences);
+   snprintf(defines[defineCount++], 50, "#define MAX_SUBSEQUENCES %u\n", ii_MaxSubsequences);
    snprintf(defines[defineCount++], 50, "#define HASH_ELEMENTS %u\n", elements);
    snprintf(defines[defineCount++], 50, "#define HASH_SIZE %u\n", hsize);
    snprintf(defines[defineCount++], 50, "#define POWER_RESIDUE_LCM %u\n", ip_CisOneHelper->GetPowerResidueLcm());
