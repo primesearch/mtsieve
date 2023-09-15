@@ -17,12 +17,13 @@
 #include "SierpinskiRieselApp.h"
 #include "AlgebraicFactorHelper.h"
 #include "../x86_asm/fpu-asm-x86.h"
+#include "../core/MpArith.h"
 
 #include "GenericSequenceHelper.h"
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.7.6"
+#define APP_VERSION     "1.7.7"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
@@ -1599,16 +1600,26 @@ void  SierpinskiRieselApp::CheckForLegendreSupport(void)
    // Legendre tables cannot be used.
    std::vector<uint64_t> primes;
    
-   primesieve::generate_n_primes(sqrt(il_MaxK) + 1, &primes);
+   primesieve::generate_primes(sqrt(ii_Base) + 1, &primes);
 
    // Note that GetSquareFreeFactor() must return a value >= 1
    ii_SquareFreeB = GetSquareFreeFactor(ii_Base, primes);
+   
+   primesieve::generate_primes(sqrt(il_MaxK) + 1, &primes);
    
    seqPtr = ip_FirstSequence;
    do
    {
       seqPtr->squareFreeK = GetSquareFreeFactor(seqPtr->k, primes);
-               
+
+      if (seqPtr->squareFreeK > PMAX_MAX_62BIT)
+      {
+         WriteToConsole(COT_OTHER, "Must use generic sieving logic because square free value of %" PRIu64" > 2^62", seqPtr->k);     
+         ib_CanUseCIsOneLogic = false;
+         ii_SquareFreeB = 1;
+         break;
+      }
+
       seqPtr->kcCore = -1 * seqPtr->c * seqPtr->squareFreeK;
 
       seqPtr = (seq_t *) seqPtr->next;
@@ -1678,15 +1689,13 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t theFactor, seq_t *seqPtr, ui
 
 void  SierpinskiRieselApp::VerifyFactor(uint64_t theFactor, seq_t *seqPtr, uint32_t n)
 {
-   uint64_t  rem;
-
-   fpu_push_1divp(theFactor);
+   MpArith mp(theFactor);
    
-   rem = fpu_powmod(ii_Base, n, theFactor);
-   rem = fpu_mulmod(rem, seqPtr->k, theFactor);
+   MpRes mmRem = mp.pow(mp.nToRes(ii_Base), n);
+   mmRem = mp.mul(mmRem, mp.nToRes(seqPtr->k));
 
-   fpu_pop();
-   
+   uint64_t rem = mp.resToN(mmRem);
+      
    if (seqPtr->c > 0)
       rem += seqPtr->c;
    else
@@ -1769,9 +1778,7 @@ uint64_t    SierpinskiRieselApp::GetSquareFreeFactor(uint64_t n, std::vector<uin
    uint64_t c = 1, q, r;
    
    std::vector<uint64_t>::iterator it = primes.begin();
-   
-   r = sqrt(n);
-   
+      
    while (it != primes.end())
    {
       q = *it;
