@@ -58,9 +58,9 @@ Worker  *CisOneWithMultipleSequencesHelper::CreateWorker(uint32_t id, bool gpuWo
    // only create the worker, but also start it.
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
-   if (gpuWorker)
-      theWorker = new CisOneWithMultipleSequencesGpuWorker(id, ip_App, this);
-   else
+   //if (gpuWorker)
+   //   theWorker = new CisOneWithMultipleSequencesGpuWorker(id, ip_App, this);
+   //else
 #endif
       theWorker = new CisOneWithMultipleSequencesWorker(id, ip_App, this);
       
