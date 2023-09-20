@@ -1,13 +1,19 @@
-2.5.4 - August 15, 2023
+2.5.4 - September 20, 2023
    framework:
       Fix issue where small primes might not be tested because the initial worker
       stops processing its chunk so that another worker can continue.
 
-   srsieve2/srsieve2cl: version 1.7.6
+   fkbnsieve: version 1.6
+      Remove x86 asm in factor validation.
+
+   srsieve2/srsieve2cl: version 1.7.7
       Fix a performance issue when starting with -i with tens of thousands of sequences.
       If you are sieving tens of thousands of sequences avoid using input files where
       k's are not in ascending sequence.  Performance for loading the sequences will
       take a noticeable hit if the input is not sorted by ascending k.
+      Fix memory usage upon startup when searching for square free part of k.
+      Remove x86 asm use so that it can run on ARM factors.
+      Enforce generic sieving for k > 2^63.
       
 2.5.3 - August 15, 2023
    framework:

@@ -16,7 +16,6 @@
 #include "../sieve/primesieve.hpp"
 #include "SierpinskiRieselApp.h"
 #include "AlgebraicFactorHelper.h"
-#include "../x86_asm/fpu-asm-x86.h"
 #include "../core/MpArith.h"
 
 #include "GenericSequenceHelper.h"
@@ -872,19 +871,24 @@ void SierpinskiRieselApp::RemoveN(void)
       }
     
       uint32_t d = seqPtr->d;
+
+      MpArith mp(d);
+
+      int64_t c = seqPtr->c;
       
-      fpu_push_1divp(d);
-         
-      uint64_t k = (seqPtr->k % d);
-      uint64_t b = (ii_Base % d);
-      int64_t c = (seqPtr->c % d);
-      uint64_t remB = fpu_powmod(b, ii_MinN, d);
-      uint64_t remKBN = fpu_mulmod(remB, k, d);
-      uint64_t rem;
-      
-      if (c < 0)
+      while (c < 0)
          c += d;
       
+      c %= d;
+      
+      MpRes mpK = mp.nToRes(seqPtr->k % d);
+      MpRes mpB = mp.nToRes(ii_Base % d);
+      MpRes mpRem = mp.pow(mpB, ii_MinN);
+      
+      mpRem = mp.mul(mpRem, mpK);
+      
+      uint64_t remKBN = mp.resToN(mpRem);
+      uint64_t rem;      
       uint32_t removed = 0;
       uint32_t n = ii_MinN;
       
@@ -909,11 +913,9 @@ void SierpinskiRieselApp::RemoveN(void)
             }
          }
          
-         remKBN = fpu_mulmod(remKBN, b, d);
+         remKBN = mp.mul(mpRem, mpB);
          n++;
       }
-      
-      fpu_pop();
 
       if (removed > 0)
          WriteToConsole(COT_OTHER, "Removed %u terms for (%" PRIu64"*%u^n%+" PRId64")/%u because gcd(%" PRIu64"*%u^n%+" PRId64", %u) != 0",
