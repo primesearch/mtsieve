@@ -15,8 +15,6 @@
 #include "Worker.h"
 #include "Clock.h"
 
-#include "../sieve/primesieve.hpp"
-
 #ifdef USE_X86
 #include "../x86_asm/fpu-asm-x86.h"
 #endif
