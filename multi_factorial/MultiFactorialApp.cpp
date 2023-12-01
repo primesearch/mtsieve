@@ -25,7 +25,7 @@
 #define APP_NAME        "mfsieve"
 #endif
 
-#define APP_VERSION     "2.2"
+#define APP_VERSION     "2.2.1"
 
 #define BIT(n)          ((n) - ii_MinN)
 
@@ -411,8 +411,9 @@ void MultiFactorialApp::ProcessInputTermsFile(bool haveBitMap)
    if (fgets(buffer, sizeof(buffer), fPtr) == NULL)
       FatalError("No data in input file %s", is_InputTermsFileName.c_str());
    
-  if (memcmp(buffer, "ABC $a#!$b", 9) && memcmp(buffer, "ABC $a!+$b", 10) &&
-      sscanf(buffer, "ABC $a!%u$b", &ii_MultiFactorial) != 1)
+  ii_MultiFactorial = 1;
+
+  if (memcmp(buffer, "ABC $a!$b", 9) && sscanf(buffer, "ABC $a!%u$b", &ii_MultiFactorial) != 1)
       FatalError("Line 1 is malformed in input file %s", is_InputTermsFileName.c_str());
 
    pos = strstr(buffer, "//");
@@ -504,7 +505,10 @@ void MultiFactorialApp::WriteOutputTermsFile(uint64_t largestPrime)
 
    ip_FactorAppLock->Lock();
    
-   fprintf(termsFile, "ABC $a!%d$b // Sieved to %" PRIu64"\n", ii_MultiFactorial, largestPrime);
+   if (ii_MultiFactorial == 1)
+      fprintf(termsFile, "ABC $a!$b // Sieved to %" PRIu64"\n", largestPrime);
+   else
+      fprintf(termsFile, "ABC $a!%d$b // Sieved to %" PRIu64"\n", ii_MultiFactorial, largestPrime);
 
    for (uint32_t n=ii_MinN; n<=ii_MaxN; n++)
    {
