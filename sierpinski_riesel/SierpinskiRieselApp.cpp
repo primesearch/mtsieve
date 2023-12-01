@@ -104,7 +104,7 @@ void SierpinskiRieselApp::Help(void)
    printf("-Q --showqcost        Output estimated effort for each q\n");
    printf("-q --useq=q           q to use for discrete log\n");
    printf("-r --removen          For sequences with d > 1, remove n where k*b^n+/-c mod d != 0\n");
-   printf("-R --remove=r         Remove sequence r\n");
+   printf("-R --remove=r         Remove single sequence r or sequences specified in file r\n");
    printf("-S --splitbybestq     Split sequences into a file based upon best q for each sequence\n");
    printf("-a --algebraic        Exit after generating algebraic factors\n");
    
