@@ -179,7 +179,7 @@ void TwinApp::ValidateOptions(void)
       if (it_TermType == TT_FACTORIAL)
          BuildFactorialTerms();
       
-      uint32_t termSize = (il_MaxK - il_MinK) + 1;
+      uint64_t termSize = (il_MaxK - il_MinK) + 1;
       
       if (ib_HalfK)
          termSize = (il_MaxK - il_MinK)/2 + 1;
