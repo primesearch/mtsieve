@@ -31,7 +31,7 @@ protected:
 private:
    void              TestSmallB(void);
    void              TestLargeB(void);
-   
+
    void              RemoveTermsSmallPrime(uint64_t prime, uint64_t k);
    void              RemoveTermsBigPrime(uint64_t prime, uint64_t k);
    void              VerifyFactor(uint64_t prime, uint64_t k, uint64_t bPowNModP);
@@ -40,11 +40,11 @@ private:
    uint32_t          EuclidExtendedGCD(uint32_t a, uint32_t base);
 
    FixedBNCApp      *ip_FixedBNCApp;
-   
+
    uint32_t         *ii_BaseInverses;
    uint64_t         *il_MyPrimeList;
    uint32_t         *ii_InverseList;
-   
+
    uint64_t          il_BpowN;
    uint64_t          il_MinK;
    uint64_t          il_MaxK;
