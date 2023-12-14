@@ -1,7 +1,7 @@
-/* AFSieveApp.h -- (C) Mark Rodenkirch, November 2016
+/* FixedKBNApp.h -- (C) Mark Rodenkirch, November 2016
 
    This class inherits from App.h and has the implementation for this project
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
@@ -31,31 +31,31 @@ public:
    void              ValidateOptions(void);
    bool              ApplyFactor(uint64_t theFactor, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength);
-   
+
    uint64_t          GetK(void) { return il_K; };
    uint32_t          GetBase(void) { return ii_Base; };
    uint32_t          GetN(void) { return ii_N; };
    int64_t           GetMinC(void) { return il_MinC; };
    int64_t           GetMaxC(void) { return il_MaxC; };
    uint64_t          GetTermCount(void) { return il_TermCount; };
-   
+
    bool              ReportFactor(uint64_t theFactor, int64_t c, bool verifyFactor);
 
 protected:
    void              PreSieveHook(void) {};
    bool              PostSieveHook(void) { return true; };
-   
+
    void              NotifyAppToRebuild(uint64_t largestPrimeTested) {};
-   
+
    void              ProcessInputTermsFile(bool haveBitMap);
    bool              IsWritingOutputTermsFile(void){ return true; };
    void              WriteOutputTermsFile(uint64_t largestPrime);
-   
+
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
-   
+
    void              VerifyFactor(uint64_t prime, int64_t c);
 
-private:   
+private:
    std::vector<bool> iv_Terms;
 
    std::string       is_Sequence;

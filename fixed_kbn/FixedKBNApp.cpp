@@ -16,7 +16,7 @@
 #include "../core/MpArith.h"
 
 #define APP_NAME        "fkbnsieve"
-#define APP_VERSION     "1.6"
+#define APP_VERSION     "1.6.1"
 
 // This is declared in App.h, but implemented here.  This means that App.h
 // can remain unchanged if using the mtsieve framework for other applications.
@@ -31,7 +31,7 @@ FixedKBNApp::FixedKBNApp() : FactorApp()
    SetLogFileName("fkbnsieve.log");
 
    is_Sequence = "";
-   
+
    il_MinC = 0;
    il_MaxC = 0;
 }
@@ -83,14 +83,14 @@ parse_t FixedKBNApp::ParseOption(int opt, char *arg, const char *source)
 }
 
 void FixedKBNApp::ValidateOptions(void)
-{   
+{
    if (is_InputTermsFileName.length() > 0)
    {
       ProcessInputTermsFile(false);
-      
+
       iv_Terms.resize(il_MaxC - il_MinC + 1);
       std::fill(iv_Terms.begin(), iv_Terms.end(), false);
-      
+
       ProcessInputTermsFile(true);
    }
    else
@@ -100,10 +100,10 @@ void FixedKBNApp::ValidateOptions(void)
 
       if (il_MaxC == 0)
          FatalError("cmax must be specified");
-      
+
       if (il_MaxC <= il_MinC)
          FatalError("cmax must be greater than cmin");
-      
+
       if (is_Sequence.length() == 0)
          FatalError("sequence must be specified");
 
@@ -115,29 +115,29 @@ void FixedKBNApp::ValidateOptions(void)
 
       if (ii_N < 1)
          FatalError("n must be greater than 0");
-     
+
       il_TermCount = il_MaxC - il_MinC + 1;
-      
+
       iv_Terms.resize(il_MaxC - il_MinC + 1);
       std::fill(iv_Terms.begin(), iv_Terms.end(), true);
    }
 
    char  fileName[30];
-   
+
    if (is_OutputTermsFileName.length() == 0)
    {
       snprintf(fileName, sizeof(fileName), "k%" PRIu64"_b%u_n%u.pfgw", il_K,ii_Base, ii_N);
       is_OutputTermsFileName = fileName;
    }
-   
+
    FactorApp::ParentValidateOptions();
 
    // Since the worker wants primes in groups of 4
    while (ii_CpuWorkSize % 4 != 0)
       ii_CpuWorkSize++;
 
-   // Allow only one worker to do work when processing small primes.  This allows us to avoid 
-   // locking when factors are reported, which significantly hurts performance as most terms 
+   // Allow only one worker to do work when processing small primes.  This allows us to avoid
+   // locking when factors are reported, which significantly hurts performance as most terms
    // will be removed due to small primes.
    SetMaxPrimeForSingleWorker(10000);
 }
@@ -166,17 +166,17 @@ void FixedKBNApp::ProcessInputTermsFile(bool haveBitMap)
 
    if (fgets(buffer, sizeof(buffer), fPtr) == NULL)
       FatalError("No data in input file %s", is_InputTermsFileName.c_str());
-   
+
    if (!haveBitMap)
       il_MinC = il_MaxC = 0;
-   
+
    if (!memcmp(buffer, "ABCD ", 5))
    {
       if (sscanf(buffer, "ABCD %" SCNu64"*%u^%d+$a  [%" SCNd64"] // Sieved to %" SCNu64"", &il_K, &ii_Base, &ii_N, &c, &lastPrime) != 5)
          FatalError("Line 1 is not a valid ABCD line in input file %s", is_InputTermsFileName.c_str());
-      
+
       SetMinPrime(lastPrime);
-      
+
       if (haveBitMap)
       {
          iv_Terms[c-il_MinC] = true;
@@ -187,7 +187,7 @@ void FixedKBNApp::ProcessInputTermsFile(bool haveBitMap)
    }
    else
       FatalError("Input file %s has unknown format", is_InputTermsFileName.c_str());
-   
+
    while (fgets(buffer, sizeof(buffer), fPtr) != NULL)
    {
       if (!StripCRLF(buffer))
@@ -195,9 +195,9 @@ void FixedKBNApp::ProcessInputTermsFile(bool haveBitMap)
 
       if (sscanf(buffer, "%" SCNu64 , &diff) != 1)
          FatalError("Line %s is malformed", buffer);
-      
+
       c += diff;
-      
+
       if (haveBitMap)
       {
          bit = BIT(c);
@@ -219,16 +219,16 @@ bool FixedKBNApp::ApplyFactor(uint64_t theFactor, const char *term)
    uint64_t k;
    uint32_t b, n;
    int64_t  c;
-   
+
    if (sscanf(term, "%" SCNu64"*%u^%u%" SCNd64"", &k, &b, &n, &c) != 4)
       FatalError("Could not parse term %s", term);
 
    if (b != ii_Base)
       FatalError("Expected base %u in factor but found base %u", ii_Base, b);
-   
+
    if (n != ii_N)
       FatalError("Expected n %u in factor but found %d", ii_N, n);
-   
+
    if (k != il_K)
       FatalError("Expected k %" PRIu64" in factor but found %" PRIu64"", il_K, k);
 
@@ -238,7 +238,7 @@ bool FixedKBNApp::ApplyFactor(uint64_t theFactor, const char *term)
    VerifyFactor(theFactor, c);
 
    uint64_t bit = c - il_MinC;
-   
+
    // No locking is needed because the Workers aren't running yet
    if (iv_Terms[bit])
    {
@@ -247,27 +247,27 @@ bool FixedKBNApp::ApplyFactor(uint64_t theFactor, const char *term)
 
       return true;
    }
-      
+
    return false;
 }
 
 void FixedKBNApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
    uint64_t termsCounted = 0;
-   
+
    ip_FactorAppLock->Lock();
-      
+
    int64_t c, previousC;
    uint64_t bit;
 
    c = il_MinC;
-   
+
    bit = BIT(c);
    for (; c<=il_MaxC; c++)
-   {      
+   {
       if (iv_Terms[bit])
          break;
-      
+
       bit++;
    }
 
@@ -275,18 +275,18 @@ void FixedKBNApp::WriteOutputTermsFile(uint64_t largestPrime)
       WriteToConsole(COT_OTHER, "No terms remaining therefore no output file was generated");
       return;
    }
-   
+
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
-   
+
    if (!termsFile)
       FatalError("Unable to open input file %s", is_OutputTermsFileName.c_str());
-   
+
    fprintf(termsFile, "ABCD %" PRIu64"*%u^%u+$a [%" PRId64"] // Sieved to %" PRIu64"\n", il_K, ii_Base, ii_N, c, largestPrime);
-   
+
    previousC = c;
    termsCounted = 1;
    c++;
-   
+
    bit = BIT(c);
    for (; c<=il_MaxC; c++)
    {
@@ -296,15 +296,15 @@ void FixedKBNApp::WriteOutputTermsFile(uint64_t largestPrime)
          previousC = c;
          termsCounted++;
       }
-      
+
       bit++;
    }
-   
+
    fclose(termsFile);
-   
+
    if (termsCounted != il_TermCount)
       FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termsCounted, il_TermCount);
-   
+
    ip_FactorAppLock->Release();
 }
 
@@ -314,52 +314,49 @@ void  FixedKBNApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t 
 }
 
 bool  FixedKBNApp::ReportFactor(uint64_t theFactor, int64_t c, bool verifyFactor)
-{   
+{
    bool     removedTerm = false;
-   
+
    if (c < il_MinC || c > il_MaxC)
       return false;
-   
+
    if (verifyFactor)
       VerifyFactor(theFactor, c);
-   
+
    if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
 
    int64_t bit = BIT(c);
-   
+
    if (iv_Terms[bit])
    {
       iv_Terms[bit] = false;
       removedTerm = true;
-            
+
       LogFactor(theFactor, "%" PRIu64"*%u^%u%+" PRId64"", il_K, ii_Base, ii_N, c);
-      
+
       il_FactorCount++;
       il_TermCount--;
    }
-   
+
    if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
-   
+
    return removedTerm;
 }
 
-void  FixedKBNApp::VerifyFactor(uint64_t prime, int64_t c)
+void  FixedKBNApp::VerifyFactor(uint64_t theFactor, int64_t c)
 {
-   MpArith mp(prime);
+   MpArith mp(theFactor);
 
-   MpRes mmRem = mp.pow(mp.nToRes(ii_Base), ii_N);
-   mmRem = mp.mul(mmRem, mp.nToRes(il_K));
+   MpRes rem = mp.pow(mp.nToRes(ii_Base), ii_N);
+   rem = mp.mul(rem, mp.nToRes(il_K));
 
-   uint64_t rem = mp.resToN(mmRem);
+   if (c > 0)
+      rem = mp.add(rem, mp.nToRes((uint64_t)c));
+   else if (c < 0)
+      rem = mp.sub(rem, mp.nToRes((uint64_t)(-c)));
 
-   if (c > 0 && rem == (prime - c))
-      return;
-   
-   if (c < 0 && rem == c)
-      return;
-   
-   if (rem != 0)
-      FatalError("%" PRIu64"*%u^%u%+" PRId64" mod %" PRIu64" = %" PRIu64"", il_K, ii_Base, ii_N, c, prime, rem);
+   if (rem != mp.zero())
+      FatalError("%" PRIu64"*%u^%u%+" PRId64" mod %" PRIu64" = %" PRIu64"", il_K, ii_Base, ii_N, c, theFactor, mp.resToN(rem));
 }
