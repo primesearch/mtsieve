@@ -18,19 +18,6 @@
 #define HASH_MINIMUM_ELTS  8
 #define HASH_MINIMUM_SHIFT 11
 
-#define PARAM_SEQUENCE        0
-#define PARAM_SUBSEQUENCE     1
-#define PARAM_SIEVE_RANGE     2
-#define PARAM_BABY_STEPS      3
-#define PARAM_GIANT_STEPS     4
-
-// These are only used by the Worker.  They are not used by the Kernel.
-#define PARAM_SUBSEQ_IDX     11
-#define PARAM_HASH_SIZE      12
-#define PARAM_HASH_ELEMENTS  13
-
-#define MAX_PARAMETERS       19
-
 GenericGpuWorker::GenericGpuWorker(uint32_t myId, App *theApp, AbstractSequenceHelper *appHelper) : AbstractWorker(myId, theApp, appHelper)
 {
    ib_GpuWorker = true;
@@ -143,9 +130,10 @@ void    GenericGpuWorker::PopulateKernelArguments(uint32_t sequencesPerKernel)
 GpuKernel *GenericGpuWorker::CreateKernel(uint32_t kIdx, uint32_t sequences, uint32_t subsequences)
 { 
    uint32_t r = ii_MaxN/ii_BestQ - ii_MinN/ii_BestQ + 1;
-   double babyStepFactor = ip_SierpinskiRieselApp->GetBabyStepFactor();
+   double   giantStepFactor = ip_SierpinskiRieselApp->GetGiantStepFactor();
 
-   uint32_t giantSteps = MAX(1, sqrt((double) r/subsequences/babyStepFactor));
+   // r = range of n, divided by Q
+   uint32_t giantSteps = MAX(1, sqrt((double) (giantStepFactor * r)/subsequences));
    uint32_t babySteps = MIN(r, ceil((double) r/giantSteps));
 
    if (babySteps > SMALL_HASH_MAX_ELTS)

@@ -77,8 +77,9 @@ void  GenericWorker::InitializeWorker(void)
 {
    uint32_t idx;   
    uint32_t r = ii_MaxN/ii_BestQ - ii_MinN/ii_BestQ + 1;
-   double babyStepFactor = ip_SierpinskiRieselApp->GetBabyStepFactor();
+   double   giantStepFactor = ip_SierpinskiRieselApp->GetGiantStepFactor();
 
+   // r = range of n, divided by Q
    // In the worst case we will do do one table insertion and one mulmod for ii_BabySteps
    // baby steps, then s table lookups and s mulmods for ii_GiantSteps giant steps. The
    // average case depends on how many solutions are found and how early in the loop they
@@ -86,7 +87,7 @@ void  GenericWorker::InitializeWorker(void)
    // to minimise ii_BabySteps + s*ii_GiantSteps subject to ii_BabySteps*ii_GiantSteps >= r
    // which is when ii_BabySteps = sqrt(s*r).
 
-   ii_GiantSteps = MAX(1, sqrt((double) r/ii_SubsequenceCount/babyStepFactor));
+   ii_GiantSteps = MAX(1, sqrt((double) (giantStepFactor * r)/ii_SubsequenceCount));
    ii_BabySteps = MIN(r, ceil((double) r/ii_GiantSteps));
 
    for (idx=0; idx<4; idx++)

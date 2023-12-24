@@ -10,7 +10,6 @@
 #include <stdint.h>
 
 #include "AbstractWorker.h"
-#include "../x86_asm/sse-asm-x86.h"
 
 AbstractWorker::AbstractWorker(uint32_t myId, App *theApp, AbstractSequenceHelper *appHelper) : Worker(myId, theApp)
 {

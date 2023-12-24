@@ -304,7 +304,7 @@ void   CisOneSequenceHelper::BuildLegendreTables()
       }
 
       if (!continueAllocating)
-         continue;
+         break;
 
       AssignMemoryToLegendreTable(legendrePtr, bytesUsed);
 

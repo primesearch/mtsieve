@@ -22,7 +22,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.7.7"
+#define APP_VERSION     "1.8"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
@@ -69,7 +69,7 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    ii_BaseMultipleMultiplier = 0;
    ii_PowerResidueLcmMulitplier = 0;
    ii_LimitBaseMultiplier = 0;
-   id_BabyStepFactor = 1.0;
+   id_GiantStepFactor = 1.0;
    ib_ShowQEffort = false;
    ii_UserBestQ = 0;
    ib_SplitByBestQ = false;
@@ -113,8 +113,8 @@ void SierpinskiRieselApp::Help(void)
    printf("-K --kernelcount=K        the number of kernels when splitting large numbers of sequences for the GPU (default %u)\n", ii_KernelCount);
 #endif
    
-   printf("-b --babystepfactor=b used when calculating number of baby steps and giant steps.\n");
-   printf("                      As b increases, so do the number of baby steps.  default %lf\n", id_BabyStepFactor);
+   printf("-g --giantstepfactor=g a multiplier used in the calculation giant steps.\n");
+   printf("                      As g increases, so do the number of giant steps.  default %lf\n", id_GiantStepFactor);
 
    printf("-U --bmmulitplier=U   multiplied by 2 to compute BASE_MULTIPLE (default %u for single %u for multi\n", 
             DEFAULT_BM_MULTIPLIER_SINGLE, DEFAULT_BM_MULTIPLIER_MULTI);
@@ -136,23 +136,23 @@ void  SierpinskiRieselApp::AddCommandLineOptions(std::string &shortOpts, struct 
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "an:N:s:f:l:L:Qq:rR:U:V:X:b:S";
+   shortOpts += "an:N:s:f:l:L:Qq:rR:U:V:X:g:S";
 
-   AppendLongOpt(longOpts, "nmin",           required_argument, 0, 'n');
-   AppendLongOpt(longOpts, "nmax",           required_argument, 0, 'N');
-   AppendLongOpt(longOpts, "sequence",       required_argument, 0, 's');
-   AppendLongOpt(longOpts, "format",         required_argument, 0, 'f');
-   AppendLongOpt(longOpts, "legendrebytes",  required_argument, 0, 'l');
-   AppendLongOpt(longOpts, "legendrefile",   required_argument, 0, 'L');
-   AppendLongOpt(longOpts, "useq",           required_argument, 0, 'q');
-   AppendLongOpt(longOpts, "showqcost",      required_argument, 0, 'Q');
-   AppendLongOpt(longOpts, "remove",         required_argument, 0, 'R');
-   AppendLongOpt(longOpts, "babystepfactor", required_argument, 0, 'b');
-   AppendLongOpt(longOpts, "basemultiple",   required_argument, 0, 'U');
-   AppendLongOpt(longOpts, "limitbase",      required_argument, 0, 'V');
-   AppendLongOpt(longOpts, "powerresidue",   required_argument, 0, 'X');
-   AppendLongOpt(longOpts, "splitbybestq",   no_argument,       0, 'S');
-   AppendLongOpt(longOpts, "algebraic",      no_argument,       0, 'a');
+   AppendLongOpt(longOpts, "nmin",            required_argument, 0, 'n');
+   AppendLongOpt(longOpts, "nmax",            required_argument, 0, 'N');
+   AppendLongOpt(longOpts, "sequence",        required_argument, 0, 's');
+   AppendLongOpt(longOpts, "format",          required_argument, 0, 'f');
+   AppendLongOpt(longOpts, "legendrebytes",   required_argument, 0, 'l');
+   AppendLongOpt(longOpts, "legendrefile",    required_argument, 0, 'L');
+   AppendLongOpt(longOpts, "useq",            required_argument, 0, 'q');
+   AppendLongOpt(longOpts, "showqcost",       required_argument, 0, 'Q');
+   AppendLongOpt(longOpts, "remove",          required_argument, 0, 'R');
+   AppendLongOpt(longOpts, "giantstepfactor", required_argument, 0, 'g');
+   AppendLongOpt(longOpts, "basemultiple",    required_argument, 0, 'U');
+   AppendLongOpt(longOpts, "limitbase",       required_argument, 0, 'V');
+   AppendLongOpt(longOpts, "powerresidue",    required_argument, 0, 'X');
+   AppendLongOpt(longOpts, "splitbybestq",    no_argument,       0, 'S');
+   AppendLongOpt(longOpts, "algebraic",       no_argument,       0, 'a');
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
    shortOpts += "M:K:";
@@ -238,8 +238,8 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
          status = P_SUCCESS;
          break;
 
-      case 'b':
-         sscanf(arg, "%lf", &id_BabyStepFactor);
+      case 'g':
+         sscanf(arg, "%lf", &id_GiantStepFactor);
          status = P_SUCCESS;
          break;
 

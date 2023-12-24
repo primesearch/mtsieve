@@ -140,7 +140,7 @@ void  CisOneWithMultipleSequencesWorker::TestMiniPrimeChunk(uint64_t *miniPrimeC
 void  CisOneWithMultipleSequencesWorker::TestSinglePrime(uint64_t p)
 {
    uint64_t invBase;
-   uint32_t k, orderOfB, ssCount;
+   uint32_t ussIdx, orderOfB, ssCount;
    uint32_t babySteps, giantSteps;
    uint32_t i, j;
    
@@ -167,18 +167,18 @@ void  CisOneWithMultipleSequencesWorker::TestSinglePrime(uint64_t p)
    giantSteps = ip_Subsequences[ssCount-1].giantSteps;
 
    orderOfB = BabySteps(mp, resBase, resInvBase, babySteps);
-     
+      
    if (orderOfB > 0)
    {
       // If orderOfB > 0, then this is all the information we need to
       // determine every solution for this p, so no giant steps are neede
-      for (k=0; k<ssCount; k++)
+      for (ussIdx=0; ussIdx<ssCount; ussIdx++)
       {
-          j = ip_HashTable->Lookup(ip_UsableSubsequences[k].resBDCK);
-
+          j = ip_HashTable->Lookup(ip_UsableSubsequences[ussIdx].resBDCK);
+          
           while (j < babySteps * giantSteps)
           {
-             ip_SierpinskiRieselApp->ReportFactor(p, ip_UsableSubsequences[k].seqPtr, N_TERM(ip_UsableSubsequences[k].q, 0, j), true);
+             ip_SierpinskiRieselApp->ReportFactor(p, ip_UsableSubsequences[ussIdx].seqPtr, N_TERM(ip_UsableSubsequences[ussIdx].q, 0, j), true);
              
              j += orderOfB;
           }
@@ -187,12 +187,12 @@ void  CisOneWithMultipleSequencesWorker::TestSinglePrime(uint64_t p)
    else
    {
       // First giant step
-      for (k=0; k<ssCount; k++)
+      for (ussIdx=0; ussIdx<ssCount; ussIdx++)
       {
-         j = ip_HashTable->Lookup(ip_UsableSubsequences[k].resBDCK);
-
+         j = ip_HashTable->Lookup(ip_UsableSubsequences[ussIdx].resBDCK);
+  
          if (j != HASH_NOT_FOUND)
-            ip_SierpinskiRieselApp->ReportFactor(p, ip_UsableSubsequences[k].seqPtr, N_TERM(ip_UsableSubsequences[k].q, 0, j), true);
+            ip_SierpinskiRieselApp->ReportFactor(p, ip_UsableSubsequences[ussIdx].seqPtr, N_TERM(ip_UsableSubsequences[ussIdx].q, 0, j), true);
       }
 
       // Remaining giant steps
@@ -202,14 +202,14 @@ void  CisOneWithMultipleSequencesWorker::TestSinglePrime(uint64_t p)
   
          for (i=1; i<giantSteps; i++)
          {
-            for (k=0; k<ssCount; k++)
+            for (ussIdx=0; ussIdx<ssCount; ussIdx++)
             {         
-               ip_UsableSubsequences[k].resBDCK = mp.mul(ip_UsableSubsequences[k].resBDCK, resBQM);
+               ip_UsableSubsequences[ussIdx].resBDCK = mp.mul(ip_UsableSubsequences[ussIdx].resBDCK, resBQM);
                
-               j = ip_HashTable->Lookup(ip_UsableSubsequences[k].resBDCK);
+               j = ip_HashTable->Lookup(ip_UsableSubsequences[ussIdx].resBDCK);
 
                if (j != HASH_NOT_FOUND)
-                  ip_SierpinskiRieselApp->ReportFactor(p, ip_UsableSubsequences[k].seqPtr, N_TERM(ip_UsableSubsequences[k].q, i, j), true);
+                  ip_SierpinskiRieselApp->ReportFactor(p, ip_UsableSubsequences[ussIdx].seqPtr, N_TERM(ip_UsableSubsequences[ussIdx].q, i, j), true);
             }
          }
       }
@@ -428,23 +428,22 @@ uint32_t  CisOneWithMultipleSequencesWorker::GetShiftXSubsequences(MpArith mp, u
 
             // -c/(k*b^n) is an r-power residue for at least one term k*b^n+c of this sequence.
             cssIdx = ip_CongruentSubseqIndices[cssIdx];
-  
-  
+
             if (cssIdx > 0 && ip_CongruentSubseqs[cssIdx] > 0)
             {
                uint32_t *subseqs = &ip_CongruentSubseqs[cssIdx];
                uint32_t count = *subseqs;
                subseqs++;
-     
+         
                // -ckb^d is an r-th power residue for at least one term (k*b^d)*(b^Q)^(n/Q)+c of this subsequence.
                for (idx=0; idx<count; idx++)
                {
                   ssIdx = subseqs[idx];
-                  
+   
                   ip_UsableSubsequences[j].seqPtr = seqPtr;
                   ip_UsableSubsequences[j].q = ip_Subsequences[ssIdx].q;
                   ip_UsableSubsequences[j].resBDCK = mp.mul(resBD[ip_Subsequences[ssIdx].q], resNegCK);
-                                    
+   
                   j++;
                }
             }
@@ -470,7 +469,7 @@ uint32_t  CisOneWithMultipleSequencesWorker::BabySteps(MpArith mp, MpRes resBase
    firstResBJ = resBJ = mp.pow(resInvBaseExpQ, ii_SieveLow);
 
    for (j=0; j<babySteps; j++)
-   { 
+   {
       ip_HashTable->Insert(resBJ, j);
       
       resBJ = mp.mul(resBJ, resInvBaseExpQ);

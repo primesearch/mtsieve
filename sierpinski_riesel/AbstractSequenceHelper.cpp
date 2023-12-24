@@ -243,10 +243,14 @@ void  AbstractSequenceHelper::ChooseSteps(uint32_t Q, uint32_t s, uint32_t &baby
    uint32_t m, M;
    int32_t  roundingMode = fegetround();
    uint32_t r = ii_MaxN/Q - ii_MinN/Q + 1;
+   
+   SierpinskiRieselApp *srApp = (SierpinskiRieselApp *) ip_App;
+   double   giantStepFactor = srApp->GetGiantStepFactor();
       
    fesetround(FE_TONEAREST);
    
-   // r = range of n, s = number of subsequences.
+   // r = range of n, divided by Q
+   // s = number of subsequences.
    // In the worst case we will do do one table insertion and one mulmod
    // for m baby steps, then s table lookups and s mulmods for M giant
    // steps. The average case depends on how many solutions are found
@@ -254,8 +258,8 @@ void  AbstractSequenceHelper::ChooseSteps(uint32_t Q, uint32_t s, uint32_t &baby
    // to analyse. However for the worst case we just want to minimise
    // m + s*M subject to m*M >= r, which is when m = sqrt(s*r).
 
-   M = MAX(1, rint(sqrt((double)r/s)));
-   m = MIN(r, ceil((double)r/M));
+   M = MAX(1, rint(sqrt((double) (giantStepFactor * r)/s)));
+   m = MIN(r, ceil((double) r/M));
 
    fesetround(roundingMode);
    

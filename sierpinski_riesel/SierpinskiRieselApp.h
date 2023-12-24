@@ -58,7 +58,7 @@ public:
    seq_t            *GetFirstSequenceAndSequenceCount(uint32_t &count) { count = ii_SequenceCount; return ip_FirstSequence; };
    uint32_t          GetSequenceCount(void) { return ii_SequenceCount; };
    
-   double            GetBabyStepFactor(void) { return id_BabyStepFactor; };
+   double            GetGiantStepFactor(void) { return id_GiantStepFactor; };
    uint32_t          GetBaseMultipleMulitplier(void) { return ii_BaseMultipleMultiplier; };
    uint32_t          GetPowerResidueLcmMultiplier(void) { return ii_PowerResidueLcmMulitplier; };
    uint32_t          GetLimitBaseMultiplier(void) { return ii_LimitBaseMultiplier; };
@@ -83,7 +83,7 @@ protected:
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
 
 private:
-   double            id_BabyStepFactor;
+   double            id_GiantStepFactor;
    uint32_t          ii_BaseMultipleMultiplier;
    uint32_t          ii_PowerResidueLcmMulitplier;
    uint32_t          ii_LimitBaseMultiplier;
