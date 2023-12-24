@@ -49,3 +49,16 @@ TinyHashTable::~TinyHashTable(void)
    xfree(htable);
 }
 
+void    TinyHashTable::DumpTables(uint64_t thePrime)
+{
+   uint32_t idx;
+   
+   for (idx=0; idx<hsize; idx++)
+      printf("%llu 1 %u %llu\n", thePrime, idx, (uint64_t) htable[idx]);
+   
+   for (idx=0; idx<=empty_slot; idx++)
+      printf("%llu 2 %u %llu\n", thePrime, idx, (uint64_t) BJ64[idx]);
+      
+   for (idx=0; idx<empty_slot; idx++)
+      printf("%llu 3 %u %llu\n", thePrime, idx, (uint64_t) olist[idx]);
+}

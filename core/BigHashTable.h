@@ -22,6 +22,8 @@ public:
    
    ~BigHashTable(void);
       
+   void DumpTables(uint64_t thePrime);
+   
    inline void Clear(void)
    {
       // hsize is always a power of 2

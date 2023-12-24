@@ -31,6 +31,8 @@ public:
    
    virtual uint32_t Lookup(uint64_t bj) = 0;
 
+   virtual void DumpTables(uint64_t thePrime) = 0;
+   
 protected:  
    uint64_t  il_Inserts;
    uint64_t  il_Conflicts;

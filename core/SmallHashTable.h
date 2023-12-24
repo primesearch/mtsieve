@@ -22,6 +22,8 @@ public:
    
    ~SmallHashTable(void);
 
+   void DumpTables(uint64_t thePrime);
+   
    inline void Clear(void)
    {
       // hsize is always a power of 2
@@ -30,9 +32,10 @@ public:
          htable[i] = empty_slot;
          htable[i+1] = empty_slot;
       }
-      
+
       // will never match a Lookup value
       BJ64[empty_slot] = UINT64_MAX;
+      il_Conflicts = 0;
    }
    
    inline uint64_t get(uint32_t x) { return BJ64[x]; };
