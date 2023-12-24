@@ -25,10 +25,11 @@ using namespace metal;
 #define BASE                    2
 #define BEST_Q                  5
 #define SIEVE_LOW               5
-#define MAX_SEQUENCES         100
-#define MAX_SUBSEQUENCES      100
+#define SEQUENCES             100
+#define SUBSEQUENCES          100
 #define HASH_ELEMENTS         500
-#define HASH_SIZE             500
+#define HASH_SIZE             256
+#define HASH_SIZE_M1          255
 #define POWER_RESIDUE_LCM     720
 #define DIM2                  120
 #define DIM3                  120
@@ -40,8 +41,9 @@ using namespace metal;
 #define MUL_HI          mul_hi
 
 void collectFactor(ulong   p,
-                   uint    ssIdx,
-                   uint    n,
+                   ulong    ssIdx,
+                   ulong    n,
+                   ulong    x,
  volatile __global uint   *factorCount,
           __global ulong4 *factors);
 #else
@@ -65,11 +67,11 @@ void collectFactor(ulong       p,
 #define MM_ONE(p)           (p.z)
 #define MM_R2(p)            (p.w)
 
-#define SEQ_PARITY(a,b)     (a[b].x)
-#define SEQ_MINSS(a,b)      (a[b].y)
-#define SEQ_MAXSS(a,b)      (a[b].z)
-#define SEQ_C(a,b)          (a[b].w)
-                            
+#define SEQ_SEQIDX(a,b)     (a[b].x)
+#define SEQ_PARITY(a,b)     (a[b].y)
+#define SEQ_MINSS(a,b)      (a[b].z)
+#define SEQ_MAXSS(a,b)      (a[b].w)
+
 #define SUBSEQ_Q(a,b)       (a[b].x)
 #define SUBSEQ_BS(a,b)      (a[b].y)
 #define SUBSEQ_GS(a,b)      (a[b].z)
@@ -103,7 +105,7 @@ uint      setupDiscreteLog(__global const ulong   *ks,
                            __global const uint4   *seqData,
                            __global const uint4   *subseqData,
                            __global const short   *divisorShifts,
-                           __global const uint    *prlIndices,
+                           __global const ushort  *prlIndices,
                            __global const uint    *cssIndices,
                            __global const uint    *cssSubseqs,
                                           ulong   *resBD,
@@ -124,7 +126,7 @@ uint  getShiftXSubsequences(__global const ulong   *ks,
                             __global const long    *kcCores,
                             __global const uint4   *seqData,
                             __global const uint4   *subseqData,
-                            __global const uint    *prlIndices,
+                            __global const ushort   *prlIndices,
                             __global const uint    *cssIndices,
                             __global const uint    *cssSubseqs,
                                            ulong   *resBD,
@@ -165,7 +167,7 @@ __kernel void cisonemultiple_kernel(__global const ulong   *primes,
                                     __global const uint4   *seqData,
                                     __global const uint4   *subseqData,
                                     __global const short   *divisorShifts,
-                                    __global const uint    *prlIndices,
+                                    __global const ushort  *prlIndices,
                                     __global const uint    *cssIndices,
                                     __global const uint    *cssSubseqs,
                                     __global const ushort  *ladders,
@@ -178,7 +180,7 @@ kernel void cisonemultiple_kernel(device const ulong   *primes,
                                   device const uint4   *seqData,
                                   device const uint4   *subseqData,
                                   device const short   *divisorShifts,
-                                  device const uint    *prlIndices,
+                                  device const ushort  *prlIndices,
                                   device const uint    *cssIndices,
                                   device const uint    *cssSubseqs,
                                   device const ushort  *ladders,
@@ -211,15 +213,23 @@ kernel void cisonemultiple_kernel(device const ulong   *primes,
    ushort  h_olist[HASH_ELEMENTS];
    ulong   h_BJ64[HASH_ELEMENTS+1];
 
-   ulong4  usableSubsequences[MAX_SUBSEQUENCES];
-   ulong   resBDCK[MAX_SUBSEQUENCES];
+   ulong4  usableSubsequences[SUBSEQUENCES];
+   ulong   resBDCK[SUBSEQUENCES];
    ulong   resBD[BEST_Q];
    ulong   resX[POWER_RESIDUE_LCM];
 
    ulong   resBexpQ;
-   ulong   k, ssCount;
+   ulong   ussIdx, ssCount;
    uint    babySteps, giantSteps;
-   uint    i, j;
+   uint    idx, i, j;
+
+   for (idx=0; idx<HASH_SIZE; idx++)
+      h_table[idx] = HASH_ELEMENTS;  
+      
+   for (idx=0; idx<HASH_ELEMENTS; idx++)
+      h_BJ64[idx] = 0;  
+   
+   h_BJ64[HASH_ELEMENTS] = ULONG_MAX;   
 
    // -ckb^d is an r-th power residue for at least one term (k*b^d)*(b^Q)^(n/Q)+c of this subsequence
    resBexpQ = climbLadder(ladders, mmPrime, resBase, resBD);
@@ -234,20 +244,20 @@ kernel void cisonemultiple_kernel(device const ulong   *primes,
    giantSteps = SUBSEQ_GS(subseqData, ssCount-1);
 
    ushort orderOfB = doBabySteps(mmPrime, resInvBase, babySteps, h_table, h_olist, h_BJ64);
-     
+  
    if (orderOfB > 0)
    {
       // If orderOfB > 0, then this is all the information we need to
       // determine every solution for this p, so no giant steps are neede
-      for (k=0; k<ssCount; k++)
+      for (ussIdx=0; ussIdx<ssCount; ussIdx++)
       {
-         j = hashLookup(USABLE_BDCK(usableSubsequences, k), h_table, h_olist, h_BJ64);
+         j = hashLookup(USABLE_BDCK(usableSubsequences, ussIdx), h_table, h_olist, h_BJ64);
 
          while (j < babySteps * giantSteps)
          {
-            uint q = USABLE_Q(usableSubsequences, k);
+            uint q = USABLE_Q(usableSubsequences, ussIdx);
              
-            collectFactor(thePrime, USABLE_SSIDX(usableSubsequences, k), N_TERM(q, 0, j), factorCount, factors);
+            collectFactor(thePrime, USABLE_SSIDX(usableSubsequences, ussIdx), N_TERM(q, 0, j), 0, factorCount, factors);
              
             j += orderOfB;
          }
@@ -256,15 +266,15 @@ kernel void cisonemultiple_kernel(device const ulong   *primes,
    else
    {
       // First giant step
-      for (k=0; k<ssCount; k++)
+      for (ussIdx=0; ussIdx<ssCount; ussIdx++)
       {
-         j = hashLookup(USABLE_BDCK(usableSubsequences, k), h_table, h_olist, h_BJ64);
-
+         j = hashLookup(USABLE_BDCK(usableSubsequences, ussIdx), h_table, h_olist, h_BJ64);
+   
          if (j != HASH_NOT_FOUND)
          {
-            uint q = USABLE_Q(usableSubsequences, k);
+            uint q = USABLE_Q(usableSubsequences, ussIdx);
             
-            collectFactor(thePrime, USABLE_SSIDX(usableSubsequences, k), N_TERM(q, 0, j), factorCount, factors);
+            collectFactor(thePrime, USABLE_SSIDX(usableSubsequences, ussIdx), N_TERM(q, 0, j), 0, factorCount, factors);
          }
       }
 
@@ -272,21 +282,20 @@ kernel void cisonemultiple_kernel(device const ulong   *primes,
       if (giantSteps > 1)
       {
          ulong resBQM = mmmPowmod(resBexpQ, babySteps, mmPrime);
-         
-  
+          
          for (i=1; i<giantSteps; i++)
          {
-            for (k=0; k<ssCount; k++)
+            for (ussIdx=0; ussIdx<ssCount; ussIdx++)
             {         
-               USABLE_BDCK(usableSubsequences, k) = mmmMulmod(USABLE_BDCK(usableSubsequences, k), resBQM, mmPrime);
+               USABLE_BDCK(usableSubsequences, ussIdx) = mmmMulmod(USABLE_BDCK(usableSubsequences, ussIdx), resBQM, mmPrime);
                
-               j = hashLookup(USABLE_BDCK(usableSubsequences, k), h_table, h_olist, h_BJ64);
+               j = hashLookup(USABLE_BDCK(usableSubsequences, ussIdx), h_table, h_olist, h_BJ64);
 
                if (j != HASH_NOT_FOUND)
                {
-                  uint q = USABLE_Q(usableSubsequences, k);
+                  uint q = USABLE_Q(usableSubsequences, ussIdx);
                   
-                  collectFactor(thePrime, USABLE_SSIDX(usableSubsequences, k), N_TERM(q, i, j), factorCount, factors);
+                  collectFactor(thePrime, USABLE_SSIDX(usableSubsequences, ussIdx), N_TERM(q, i, j), 0, factorCount, factors);
                }
             }
          }
@@ -333,7 +342,7 @@ uint      setupDiscreteLog(__global const ulong   *ks,
                            __global const uint4   *seqData,
                            __global const uint4   *subseqData,
                            __global const short   *divisorShifts,
-                           __global const uint    *prlIndices,
+                           __global const ushort  *prlIndices,
                            __global const uint    *cssIndices,
                            __global const uint    *cssSubseqs,
                                           ulong   *resBD,
@@ -396,11 +405,10 @@ uint      getShift0Subsequences(__global const ulong   *ks,
    short      bLegendre = 0;
    short      usable = 0;
    uint       j = 0;
-   uint       seqIdx = subseqData[0].w * MAX_SEQUENCES;
    
    bLegendre = legendre(BASE, MM_P(mmPrime));
 
-   for ( ; ks[seqIdx] > 0; seqIdx++)
+   for (uint seqIdx=0; seqIdx<SEQUENCES; seqIdx++)
    {
       kcLegendre = legendre(kcCores[seqIdx], MM_P(mmPrime));
       
@@ -421,13 +429,13 @@ uint      getShift0Subsequences(__global const ulong   *ks,
       
       if (usable == 1)
       {
-         ulong negCK = getNegCK(ks[seqIdx], (SEQ_C(seqData, seqIdx) == 1 ? 1 : -1), MM_P(mmPrime));
+         ulong negCK = getNegCK(ks[seqIdx], (kcCores[seqIdx] < 0 ? 1 : -1), MM_P(mmPrime));
          ulong resNegCK = mmmNToRes(negCK, mmPrime);
 
          uint minss = SEQ_MINSS(seqData, seqIdx);
-         uint maxss = SEQ_MINSS(seqData, seqIdx);
+         uint maxss = SEQ_MAXSS(seqData, seqIdx);
    
-         for (uint ssIdx=minss; ssIdx<=maxss; ssIdx++)
+         for (uint ssIdx=minss; ssIdx<maxss; ssIdx++)
          {
             uint q = SUBSEQ_Q(subseqData, ssIdx);
                   
@@ -448,7 +456,7 @@ uint  getShiftXSubsequences(__global const ulong   *ks,
                             __global const long    *kcCores,
                             __global const uint4   *seqData,
                             __global const uint4   *subseqData,
-                            __global const uint    *prlIndices,
+                            __global const ushort  *prlIndices,
                             __global const uint    *cssIndices,
                             __global const uint    *cssSubseqs,
                                            ulong   *resBD,
@@ -464,13 +472,12 @@ uint  getShiftXSubsequences(__global const ulong   *ks,
    uint       qr_mod, rIdx;
    uint       h, j = 0;
    uint       ssIdx, cssIdx;
-   uint       seqIdx = subseqData[0].w * MAX_SEQUENCES;
    
    rIdx = prlIndices[r];
    
    bLegendre = legendre(BASE, MM_P(mmPrime));
 
-   for ( ; ks[seqIdx] > 0; seqIdx++)
+   for (uint seqIdx=0; seqIdx<SEQUENCES; seqIdx++)
    {
       kcLegendre = legendre(kcCores[seqIdx], MM_P(mmPrime));
       
@@ -491,7 +498,7 @@ uint  getShiftXSubsequences(__global const ulong   *ks,
 
       if (usable == 1)
       {
-         ulong negCK = getNegCK(ks[seqIdx], (SEQ_C(seqData, seqIdx) == 1 ? 1 : -1), MM_P(mmPrime));
+         ulong negCK = getNegCK(ks[seqIdx], (kcCores[seqIdx] < 0 ? 1 : -1), MM_P(mmPrime));
          ulong resNegCK = mmmNToRes(negCK, mmPrime);
          ulong resPowNegCK = mmmPowmod(resNegCK, pShift, mmPrime);
            
@@ -500,29 +507,29 @@ uint  getShiftXSubsequences(__global const ulong   *ks,
          // Find h such that resX[h] = resX[r], i.e. (-ckb^h)^((p-1)/r)=1 (mod p), or h=r if not found
          for (h=0; resX[r] != resX[h]; h++)
             ;
-    
+  
          if (h < r)
          {
-            qr_mod = cssIdx = CSS_INDEX(seqIdx, rIdx, h);
+            qr_mod = cssIdx = CSS_INDEX(SEQ_SEQIDX(seqData, seqIdx), rIdx, h);
 
             // -c/(k*b^n) is an r-power residue for at least one term k*b^n+c of this sequence.
             cssIdx = cssIndices[cssIdx];
-    
-            if (cssIdx > 0 && cssIndices[cssIdx] > 0)
+   
+            if (cssIdx > 0 && cssSubseqs[cssIdx] > 0)
             {
-               uint count = cssIndices[cssIdx];
-     
+               uint count = cssSubseqs[cssIdx];
+        
                // -ckb^d is an r-th power residue for at least one term (k*b^d)*(b^Q)^(n/Q)+c of this subsequence.
-               for (uint idx=0; idx<count; idx++)
+               for (uint idx=1; idx<=count; idx++)
                {
                   uint ssIdx = cssSubseqs[cssIdx+idx];
                   uint q = SUBSEQ_Q(subseqData, ssIdx);
-                  
+                     
                   USABLE_SEQIDX(usableSubsequence, j) = seqIdx;
                   USABLE_SSIDX(usableSubsequence, j) = ssIdx;
                   USABLE_Q(usableSubsequence, j) = q;
                   USABLE_BDCK(usableSubsequence, j) = mmmMulmod(resBD[q], resNegCK, mmPrime);
-                                    
+                                                      
                   j++;
                }
             }
@@ -533,8 +540,8 @@ uint  getShiftXSubsequences(__global const ulong   *ks,
    return j;
 }
 
-ulong doBabySteps(ulong4 mmPrime,
-                  ulong  resInvBase,
+ulong doBabySteps(ulong4  mmPrime,
+                  ulong   resInvBase,
                   uint    bSteps,
                   ushort *h_table,
                   ushort *h_olist,
@@ -761,7 +768,7 @@ void hashInsert(ulong bj, uint j, ushort *h_table, ushort *h_olist, ulong *h_BJ6
    uint slot;
 
    h_BJ64[j] = bj;
-   slot = bj & (HASH_SIZE - 1);
+   slot = bj & HASH_SIZE_M1;
    if (h_table[slot] == HASH_ELEMENTS)
       h_table[slot] = j;
    else
@@ -776,7 +783,7 @@ uint hashLookup(ulong bj, ushort *h_table, ushort *h_olist, ulong *h_BJ64)
    uint   slot;
    ushort elt;
 
-   slot = bj & (HASH_SIZE - 1);
+   slot = bj & HASH_SIZE_M1;
    elt = h_table[slot];
 
    if (h_BJ64[elt & HASH_MASK2] == bj)
@@ -785,6 +792,8 @@ uint hashLookup(ulong bj, ushort *h_table, ushort *h_olist, ulong *h_BJ64)
    if ((elt & HASH_MASK1) == 0)
       return HASH_NOT_FOUND;
 
+   return HASH_NOT_FOUND;
+   
    elt &= HASH_MASK2;
    do
    {
@@ -799,8 +808,9 @@ uint hashLookup(ulong bj, ushort *h_table, ushort *h_olist, ulong *h_BJ64)
 
 #if defined(USE_OPENCL)
 void collectFactor(ulong   p,
-                   uint    ssIdx,
-                   uint    n,
+                   ulong    ssIdx,
+                   ulong    n,
+                   ulong   x,
  volatile __global uint   *factorCount,
           __global ulong4 *factors)
 #else
@@ -822,7 +832,8 @@ void collectFactor(ulong       p,
    if (old >= MAX_FACTORS)
       return;
    
-   factors[old].x = ssIdx;
-   factors[old].y = n;
-   factors[old].z = p;
+   factors[old].x = p;
+   factors[old].y = ssIdx;
+   factors[old].z = n;
+   factors[old].w = x;
 }
