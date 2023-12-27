@@ -223,19 +223,19 @@ kernel void cisonemultiple_kernel(device const ulong   *primes,
    uint    babySteps, giantSteps;
    uint    idx, i, j;
 
-   for (idx=0; idx<HASH_SIZE; idx++)
-      h_table[idx] = HASH_ELEMENTS;  
-      
-   for (idx=0; idx<HASH_ELEMENTS; idx++)
-      h_BJ64[idx] = 0;  
-   
+   for (idx=0; idx<HASH_SIZE; idx+=2)
+   {
+      h_table[idx+0] = HASH_ELEMENTS;  
+      h_table[idx+1] = HASH_ELEMENTS;  
+   }
+         
    h_BJ64[HASH_ELEMENTS] = ULONG_MAX;   
 
    // -ckb^d is an r-th power residue for at least one term (k*b^d)*(b^Q)^(n/Q)+c of this subsequence
    resBexpQ = climbLadder(ladders, mmPrime, resBase, resBD);
 
    ssCount = setupDiscreteLog(ks, kcCores, seqData, subseqData, divisorShifts, prlIndices, cssIndices, cssSubseqs, resBD, mmPrime, resInvBase, resX, usableSubsequences);
-
+   
    // If no subsequences for this p, then no factors, so return
    if (ssCount == 0)
       return;
@@ -244,7 +244,7 @@ kernel void cisonemultiple_kernel(device const ulong   *primes,
    giantSteps = SUBSEQ_GS(subseqData, ssCount-1);
 
    ushort orderOfB = doBabySteps(mmPrime, resInvBase, babySteps, h_table, h_olist, h_BJ64);
-  
+
    if (orderOfB > 0)
    {
       // If orderOfB > 0, then this is all the information we need to
@@ -792,8 +792,6 @@ uint hashLookup(ulong bj, ushort *h_table, ushort *h_olist, ulong *h_BJ64)
    if ((elt & HASH_MASK1) == 0)
       return HASH_NOT_FOUND;
 
-   return HASH_NOT_FOUND;
-   
    elt &= HASH_MASK2;
    do
    {
@@ -808,8 +806,8 @@ uint hashLookup(ulong bj, ushort *h_table, ushort *h_olist, ulong *h_BJ64)
 
 #if defined(USE_OPENCL)
 void collectFactor(ulong   p,
-                   ulong    ssIdx,
-                   ulong    n,
+                   ulong   ssIdx,
+                   ulong   n,
                    ulong   x,
  volatile __global uint   *factorCount,
           __global ulong4 *factors)
@@ -820,7 +818,7 @@ void collectFactor(ulong       p,
    volatile device atomic_int *factorCount,
             device ulong4     *factors)
 #endif
-{
+{   
 #if defined(USE_OPENCL)
    int old = atomic_inc(factorCount);
 #else
