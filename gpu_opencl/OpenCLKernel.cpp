@@ -23,6 +23,7 @@ OpenCLKernel::OpenCLKernel(GpuDevice *device, const char *kernelName, const char
    size_t    workGroupSizeMultiple;
    cl_ulong  deviceGlobalMemorySize;
    cl_ulong  deviceLocalMemorySize;
+   cl_ulong  deviceMaxConstantBufferSize;
    cl_ulong  localMemorySize;
    cl_ulong  privateMemorySize;
    char     *tempSource;
@@ -90,6 +91,9 @@ OpenCLKernel::OpenCLKernel(GpuDevice *device, const char *kernelName, const char
    status = clGetDeviceInfo(ip_OpenCLDevice->GetDeviceId(), CL_DEVICE_LOCAL_MEM_SIZE, sizeof(deviceLocalMemorySize), &deviceLocalMemorySize, NULL);
    OpenCLErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get CL_DEVICE_LOCAL_MEM_SIZE of device");
       
+   status = clGetDeviceInfo(ip_OpenCLDevice->GetDeviceId(), CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE, sizeof(deviceMaxConstantBufferSize), &deviceMaxConstantBufferSize, NULL);
+   OpenCLErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE of device");
+   
    // get a kernel object handle for a kernel with the given name
    im_OpenCLKernel = clCreateKernel(im_Program, kernelName, &status);
    OpenCLErrorChecker::ExitIfError("clCreateOpenCLKernel", status, "kernelName: %s", kernelName);
@@ -112,6 +116,7 @@ OpenCLKernel::OpenCLKernel(GpuDevice *device, const char *kernelName, const char
    
    ii_DeviceGlobalMemorySize = deviceGlobalMemorySize;
    ii_DeviceLocalMemorySize = deviceLocalMemorySize;
+   ii_DeviceMaxConstantBufferSize = deviceMaxConstantBufferSize;
    ii_LocalMemorySize = localMemorySize;
    ii_PrivateMemorySize = privateMemorySize;
    ii_WorkGroupSizeMultiple = workGroupSizeMultiple;
@@ -252,6 +257,7 @@ void OpenCLKernel::PrintStatistics(uint64_t bytesPerWorkGroup)
       theApp->WriteToConsole(COT_OTHER, "CL_DEVICE_MAX_COMPUTE_UNITS = %u", ip_OpenCLDevice->GetMaxComputeUnits());
       theApp->WriteToConsole(COT_OTHER, "CL_DEVICE_GLOBAL_MEM_SIZE = %u", ii_DeviceGlobalMemorySize);
       theApp->WriteToConsole(COT_OTHER, "CL_DEVICE_LOCAL_MEM_SIZE = %u", ii_DeviceLocalMemorySize);
+      theApp->WriteToConsole(COT_OTHER, "CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE = %u", ii_DeviceMaxConstantBufferSize);
       theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_WORK_GROUP_SIZE = %u", (uint32_t) ii_KernelWorkGroupSize);
       theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE = %u", ii_WorkGroupSizeMultiple);
       theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_LOCAL_MEM_SIZE = %u", ii_LocalMemorySize);

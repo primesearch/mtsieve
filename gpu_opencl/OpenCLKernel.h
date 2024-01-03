@@ -77,6 +77,7 @@ private:
 
    uint32_t          ii_DeviceGlobalMemorySize;
    uint32_t          ii_DeviceLocalMemorySize;
+   uint32_t          ii_DeviceMaxConstantBufferSize;
    uint32_t          ii_WorkGroupSizeMultiple;
    uint32_t          ii_LocalMemorySize;
    uint32_t          ii_PrivateMemorySize;
