@@ -63,8 +63,6 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    is_LegendreDirectoryName = "";
    is_SequencesToRemove = "";
    il_LegendreTableBytes = PMAX_MAX_62BIT;
-   ib_SetLegengreBytes = false;
-   ib_CanUseCIsOneLogic = true;
 
    ii_BaseMultipleMultiplier = 0;
    ii_PowerResidueLcmMulitplier = 0;
@@ -77,6 +75,7 @@ SierpinskiRieselApp::SierpinskiRieselApp() : FactorApp()
    ib_RemoveN = false;
    ib_Algebraic = false;
    ib_OnlyPrimeNs = false;
+   ib_UseGenericLogic = false;
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    ib_UseGPUWorkersUponRebuild = false;
@@ -113,8 +112,10 @@ void SierpinskiRieselApp::Help(void)
    printf("-K --kernelcount=K        the number of kernels when splitting large numbers of sequences for the GPU (default %u)\n", ii_KernelCount);
 #endif
    
-   printf("-g --giantstepfactor=g a multiplier used in the calculation giant steps.\n");
-   printf("                      As g increases, so do the number of giant steps.  default %lf\n", id_GiantStepFactor);
+   printf("-c --genericlogic     use generic logic even if abs(c) = 1 for all sequences\n");
+
+   printf("-F --giantstepfactor=F a multiplier used in the calculation giant steps\n");
+   printf("                      As F increases, so do the number of giant steps.  default %lf\n", id_GiantStepFactor);
 
    printf("-U --bmmulitplier=U   multiplied by 2 to compute BASE_MULTIPLE (default %u for single %u for multi\n", 
             DEFAULT_BM_MULTIPLIER_SINGLE, DEFAULT_BM_MULTIPLIER_MULTI);
@@ -136,7 +137,7 @@ void  SierpinskiRieselApp::AddCommandLineOptions(std::string &shortOpts, struct 
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "an:N:s:f:l:L:Qq:rR:U:V:X:g:S";
+   shortOpts += "acn:N:s:f:l:L:Qq:rR:U:V:X:F:S";
 
    AppendLongOpt(longOpts, "nmin",            required_argument, 0, 'n');
    AppendLongOpt(longOpts, "nmax",            required_argument, 0, 'N');
@@ -147,7 +148,7 @@ void  SierpinskiRieselApp::AddCommandLineOptions(std::string &shortOpts, struct 
    AppendLongOpt(longOpts, "useq",            required_argument, 0, 'q');
    AppendLongOpt(longOpts, "showqcost",       required_argument, 0, 'Q');
    AppendLongOpt(longOpts, "remove",          required_argument, 0, 'R');
-   AppendLongOpt(longOpts, "giantstepfactor", required_argument, 0, 'g');
+   AppendLongOpt(longOpts, "giantstepfactor", required_argument, 0, 'F');
    AppendLongOpt(longOpts, "basemultiple",    required_argument, 0, 'U');
    AppendLongOpt(longOpts, "limitbase",       required_argument, 0, 'V');
    AppendLongOpt(longOpts, "powerresidue",    required_argument, 0, 'X');
@@ -186,7 +187,6 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
          break;
 
       case 'l':
-         ib_SetLegengreBytes = true;
          status = Parser::Parse(arg, 0, PMAX_MAX_62BIT, il_LegendreTableBytes);
          break;
          
@@ -238,7 +238,7 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
          status = P_SUCCESS;
          break;
 
-      case 'g':
+      case 'F':
          sscanf(arg, "%lf", &id_GiantStepFactor);
          status = P_SUCCESS;
          break;
@@ -248,6 +248,11 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
          status = P_SUCCESS;
          break;
 
+      case 'c':
+         ib_UseGenericLogic = true;
+         status = P_SUCCESS;
+         break;
+      
       case 'S':
          ib_SplitByBestQ = true;
          status = P_SUCCESS;
@@ -1339,7 +1344,12 @@ void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
    uint64_t absc = abs(c);
 
    if (absc != 1)
-      ib_CanUseCIsOneLogic = false;
+   {
+      if (!ib_UseGenericLogic)
+         WriteToConsole(COT_OTHER, "Must use generic sieving logic because abs(c) != 1 for at least one sequence");
+
+      ib_UseGenericLogic = true;
+   }
    
    if (il_MaxK < k) il_MaxK = k;
    if (ii_MaxD < d) ii_MaxD = d;
@@ -1473,7 +1483,7 @@ void  SierpinskiRieselApp::MakeSubsequences(bool newSieve, uint64_t largestPrime
    CheckForLegendreSupport();
 
    // The constructors will make a copy of the sequences.
-   if (newSieve || il_MaxK > largestPrimeTested || !ib_CanUseCIsOneLogic)
+   if (newSieve || il_MaxK > largestPrimeTested || ib_UseGenericLogic)
    {
       ip_AppHelper = new GenericSequenceHelper(this, largestPrimeTested);
       ib_HaveGenericWorkers = true;
@@ -1566,39 +1576,13 @@ void  SierpinskiRieselApp::CheckForLegendreSupport(void)
    if (ii_SquareFreeB > 0)
       return;
 
-   if (il_LegendreTableBytes == 0)
+   if (ib_UseGenericLogic)
    {
-      WriteToConsole(COT_OTHER, "Must use generic sieving logic because no memory is allocated for Legendre tables");     
-      ib_CanUseCIsOneLogic = false;
       ii_SquareFreeB = 1;
       return;
    }
 
-   if (!ib_SetLegengreBytes && ii_SequenceCount > 1)
-   {
-      WriteToConsole(COT_OTHER, "Must use generic sieving logic because -l was not specified for mutiple sequences");     
-      ib_CanUseCIsOneLogic = false;
-      ii_SquareFreeB = 1;
-      return;
-   }
-
-   if (ii_SequenceCount > 1 && ib_SetLegengreBytes && il_LegendreTableBytes > 0 && GetGpuWorkerCount() > 0)
-   {
-      WriteToConsole(COT_OTHER, "Must use generic sieving logic because Legendre tables are not supported in GPU with multiple sequences");     
-      ib_CanUseCIsOneLogic = false;
-      ii_SquareFreeB = 1;
-      return;
-   }
-
-
-   if (!ib_CanUseCIsOneLogic)
-   {
-      WriteToConsole(COT_OTHER, "Must use generic sieving logic because abs(c) != 1 for at least one sequence");
-      ii_SquareFreeB = 1;
-      return;
-   }
-
-   // If we can use CisOne logic, then we need to compute squareFreeK and squareFreeB even if
+   // If not using generic logic, then we need to compute squareFreeK and squareFreeB even if
    // Legendre tables cannot be used.
    std::vector<uint64_t> primes;
    
@@ -1617,7 +1601,7 @@ void  SierpinskiRieselApp::CheckForLegendreSupport(void)
       if (seqPtr->squareFreeK > PMAX_MAX_62BIT)
       {
          WriteToConsole(COT_OTHER, "Must use generic sieving logic because square free value of %" PRIu64" > 2^62", seqPtr->k);     
-         ib_CanUseCIsOneLogic = false;
+         ib_UseGenericLogic = true;
          ii_SquareFreeB = 1;
          break;
       }

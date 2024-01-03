@@ -49,7 +49,7 @@ public:
 
    void              ReportFactor(uint64_t theFactor, seq_t *seqPtr, uint32_t n, bool verifyFactor);
 
-   bool              CanUseCIsOneLogic(void) { return ib_CanUseCIsOneLogic; };
+   bool              CanUseCIsOneLogic(void) { return !ib_UseGenericLogic; };
    uint64_t          GetMaxK(void) { return il_MaxK; };
    uint64_t          HasSingleC(void) { return ib_HaveSingleC; };
    uint64_t          GetLegendreTableBytes(void) { return il_LegendreTableBytes; };
@@ -91,7 +91,6 @@ private:
    seq_t            *ip_FirstSequence;
    AbstractSequenceHelper   *ip_AppHelper; 
    
-   bool              ib_SetLegengreBytes;
    uint64_t          il_LegendreTableBytes;
    std::string       is_LegendreDirectoryName;
    std::string       is_SequencesToRemove;
@@ -126,9 +125,7 @@ private:
    void              VerifyFactor(uint64_t theFactor, seq_t *seqPtr, uint32_t n);
    
    uint64_t          GetSquareFreeFactor(uint64_t n, std::vector<uint64_t> primes);
-   
-   bool              ib_CanUseCIsOneLogic;
-   
+      
 #if defined(USE_OPENCL) || defined(USE_METAL)
    bool              ib_UseGPUWorkersUponRebuild;
 #endif
@@ -140,6 +137,7 @@ private:
    bool              ib_HaveGenericWorkers;
    bool              ib_RemoveN;
    bool              ib_OnlyPrimeNs;
+   bool              ib_UseGenericLogic;
    format_t          it_Format;
    
    uint32_t          ii_Base;
