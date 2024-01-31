@@ -107,8 +107,10 @@ private:
    void              RemoveSequences(void);
    void              RemoveSequence(const char *sequence);
    void              RemoveSequence(uint64_t k, uint32_t b, int64_t c, uint32_t d);
-   
+
    void              RemoveSequencesWithNoTerms(void);
+   void              UpdateSequenceIndexes(void);
+   
    void              CheckForLegendreSupport(void);
    void              RemoveN(void);
    void              CheckForUnsievableSequences(void);

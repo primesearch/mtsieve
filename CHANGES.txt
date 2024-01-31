@@ -1,3 +1,20 @@
+2.5.5 - January 30, 2024
+   framework:
+      Added more output when using -H with OpenCL builds
+      
+   fkbnsieve: version 1.6.1
+      Replaced x86 asm with Montgomery logic so it can run on ARM CPUs.
+      Fix factor validation.
+
+   srsieve2/srsieve2cl: version 1.8.1
+      Got GPU variant of abc(c) = 1 code with multiple sequences working.
+      Change -b to -F and how it is used because it makes more sense to adjust
+      giant steps than it does to adjust baby steps.
+      Added -c to force generic logic even if abs(c) = 1 logic is possible.  This is
+      useful when the nubmer of sequences when running srsieve2cl is slower with the
+      abs(c) = 1 logic than with the generic logic.
+      Correctly handle removal of sequences when all n have a factor.
+   
 2.5.4 - September 20, 2023
    framework:
       Fix issue where small primes might not be tested because the initial worker

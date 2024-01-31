@@ -22,7 +22,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.8"
+#define APP_VERSION     "1.8.1"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
@@ -857,8 +857,24 @@ void  SierpinskiRieselApp::RemoveSequence(uint64_t k, uint32_t b, int64_t c, uin
       seqPtr = nextSeq;
    } while (seqPtr != NULL);
 
+   UpdateSequenceIndexes();
+   
    if (!found)
       WriteToConsole(COT_OTHER, "Sequence %s wasn't removed because it wasn't found", sequence);
+}
+
+void SierpinskiRieselApp::UpdateSequenceIndexes(void)
+{
+   uint32_t  ii_SequenceCount = 0;
+   seq_t    *seqPtr = ip_FirstSequence;
+   
+   do
+   {
+      ii_SequenceCount++;
+      seqPtr->seqIdx = ii_SequenceCount;
+      
+      seqPtr = (seq_t *) seqPtr->next;
+   } while (seqPtr != NULL);
 }
 
 void SierpinskiRieselApp::RemoveN(void)
@@ -1377,7 +1393,7 @@ void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
          ip_LastSequence = newPtr;
          ii_SequenceCount++;
          newPtr->seqIdx = ii_SequenceCount;
-         
+                  
          return;
       }
    }
@@ -1405,16 +1421,7 @@ void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
       seqPtr = (seq_t *) seqPtr->next;
    } while (seqPtr != NULL);
 
-   
-   ii_SequenceCount = 0;
-   seqPtr = ip_FirstSequence;
-   do
-   {
-      ii_SequenceCount++;
-      seqPtr->seqIdx = ii_SequenceCount;
-      
-      seqPtr = (seq_t *) seqPtr->next;
-   } while (seqPtr != NULL);
+   UpdateSequenceIndexes();
 }
 
 seq_t    *SierpinskiRieselApp::GetSequence(uint64_t k, int64_t c, uint32_t d, seq_t *startSeqPtr) 
@@ -1566,6 +1573,8 @@ void  SierpinskiRieselApp::RemoveSequencesWithNoTerms(void)
          seqPtr = (seq_t *) seqPtr->next;
       }
    } while (seqPtr != NULL);
+   
+   UpdateSequenceIndexes();
 }
 
 void  SierpinskiRieselApp::CheckForLegendreSupport(void)
