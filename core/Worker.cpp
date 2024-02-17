@@ -267,7 +267,7 @@ uint64_t Worker::ComputeOptimalWorkSize(uint64_t startTime, uint64_t endTime)
    {
       while (microSeconds < 1000000)
       {
-         microSeconds *= 5.0;
+         microSeconds *= 5;
          optimalWorkSize *= 5;
       }
 
