@@ -33,6 +33,7 @@ protected:
    virtual void      ProcessInputTermsFile(bool haveBitMap) = 0;
    virtual bool      IsWritingOutputTermsFile(void) = 0;
    virtual void      WriteOutputTermsFile(uint64_t largestPrime) = 0;
+   virtual void      OuptutAdditionalConsoleMessagesUponFinish(void) = 0;
    virtual bool      ApplyFactor(uint64_t theFactor, const char *term) = 0;
    virtual void      GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength) = 0;
    

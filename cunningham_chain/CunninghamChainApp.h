@@ -58,6 +58,7 @@ protected:
    void              ProcessInputTermsFile(bool haveBitMap);
    bool              IsWritingOutputTermsFile(void){ return true; };
    void              WriteOutputTermsFile(uint64_t largestPrime);
+   void              OuptutAdditionalConsoleMessagesUponFinish(void) {};
    
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
 

@@ -47,6 +47,7 @@ protected:
    void              ProcessInputTermsFile(bool haveBitMap);
    bool              IsWritingOutputTermsFile(void){ return true; };
    void              WriteOutputTermsFile(uint64_t largestPrime);
+   void              OuptutAdditionalConsoleMessagesUponFinish(void) {};
    
 private:
    bool              IsPrime(uint64_t theFactor, uint32_t n, int32_t c);

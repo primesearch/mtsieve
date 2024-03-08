@@ -202,6 +202,9 @@ void  FactorApp::ParentValidateOptions(void)
    if (ib_ApplyAndExit)
    {
       WriteOutputTermsFile(il_MinPrime);
+      
+      OuptutAdditionalConsoleMessagesUponFinish();
+
       exit(0);
    }
       
@@ -303,6 +306,10 @@ void  FactorApp::Finish(const char *finishMethod, uint64_t elapsedTimeUS, uint64
            
    WriteToLog("Sieve %s at p=%" PRIu64".  Primes tested %" PRIu64".  Found %" PRIu64" factors.  %" PRIu64" terms remaining.  Time %.2f seconds\n",
            finishMethod, largestPrimeTested, primesTested, factorCount, il_TermCount, elapsedSeconds);
+           
+           
+   if (IsWritingOutputTermsFile())
+      OuptutAdditionalConsoleMessagesUponFinish();
 }
 
 void  FactorApp::GetReportStats(char *reportStats, uint32_t maxStatsLength, double cpuUtilization)

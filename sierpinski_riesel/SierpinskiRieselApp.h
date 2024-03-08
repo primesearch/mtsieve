@@ -80,6 +80,7 @@ protected:
    void              ProcessInputTermsFile(bool haveBitMap);
    bool              IsWritingOutputTermsFile(void){ return true; };
    void              WriteOutputTermsFile(uint64_t largestPrime);
+   void              OuptutAdditionalConsoleMessagesUponFinish(void);
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
 
 private:
@@ -141,6 +142,7 @@ private:
    bool              ib_OnlyPrimeNs;
    bool              ib_UseGenericLogic;
    format_t          it_Format;
+   double            id_EstimatedPrimes;
    
    uint32_t          ii_Base;
    uint32_t          ii_SquareFreeB;    // product of squery free factors of the base

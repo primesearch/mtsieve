@@ -105,6 +105,7 @@ protected:
    void              ProcessInputTermsFile(bool haveBitMap);
    bool              IsWritingOutputTermsFile(void){ return true; };
    void              WriteOutputTermsFile(uint64_t largestPrime);
+   void              OuptutAdditionalConsoleMessagesUponFinish(void) {};
 
 private:
    void              SetInitialTerms(void);

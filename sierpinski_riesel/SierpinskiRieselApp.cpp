@@ -22,7 +22,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.8.1"
+#define APP_VERSION     "1.8.2"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
@@ -393,6 +393,9 @@ void SierpinskiRieselApp::ValidateOptions(void)
       
       if (it_Format == FF_BOINC)
       {
+         if (seqPtr->d != 1)
+            FatalError("When using BOINC format, all sequences must have d=1");
+         
          if (abs(seqPtr->c) != 1)
             FatalError("When using BOINC format, all sequences must have c=+1 or c=-1");
          
@@ -991,10 +994,17 @@ bool SierpinskiRieselApp::ApplyFactor(uint64_t theFactor, const char *term)
 
 void SierpinskiRieselApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
+   id_EstimatedPrimes = 0;
+   
    if (ib_SplitByBestQ)
       return;
    
    WriteOutputTermsFile(largestPrime, 0);
+}
+
+void SierpinskiRieselApp::OuptutAdditionalConsoleMessagesUponFinish(void)
+{
+   WriteToConsole(COT_OTHER, "%.0lf estimated primes", id_EstimatedPrimes);
 }
 
 void SierpinskiRieselApp::WriteOutputTermsFilesByQ(void)
@@ -1181,6 +1191,11 @@ uint32_t SierpinskiRieselApp::WriteABCDTermsFile(seq_t *seqPtr, uint64_t maxPrim
    uint32_t n, nCount = 0, previousN;
    uint32_t bit;
 
+   double dCalc = 1.781 * log(maxPrime);
+   double dBase = (double) log(ii_Base);
+   double dK = (double) log(seqPtr->k);
+   double dD = (double) log(seqPtr->d);
+  
    n = ii_MinN;
    
    bit = NBIT(n);
@@ -1196,9 +1211,15 @@ uint32_t SierpinskiRieselApp::WriteABCDTermsFile(seq_t *seqPtr, uint64_t maxPrim
       return 0;
    
    if (seqPtr->d == 1)
+   {
       fprintf(termsFile, "ABCD %" PRIu64"*%u^$a%+" PRId64" [%u] // Sieved to %" PRIu64"\n", seqPtr->k, ii_Base, seqPtr->c, n, maxPrime);
+      id_EstimatedPrimes += dCalc / (dBase * n + dK);
+   }
    else
+   {
       fprintf(termsFile, "ABCD (%" PRIu64"*%u^$a%+" PRId64")/%u [%u] // Sieved to %" PRIu64"\n", seqPtr->k, ii_Base, seqPtr->c, seqPtr->d, n, maxPrime);
+      id_EstimatedPrimes += dCalc / (dBase * n * dK - dD);
+   }
    
    previousN = n;
    nCount = 1;
@@ -1212,6 +1233,11 @@ uint32_t SierpinskiRieselApp::WriteABCDTermsFile(seq_t *seqPtr, uint64_t maxPrim
          fprintf(termsFile, "%u\n", n - previousN);
          previousN = n;
          nCount++;
+         
+         if (seqPtr->d == 1)
+            id_EstimatedPrimes += dCalc / (dBase * n + dK);
+         else
+            id_EstimatedPrimes += dCalc / (dBase * n + dK - dD);
       }
       
       bit++;
@@ -1225,11 +1251,16 @@ uint32_t SierpinskiRieselApp::WriteABCTermsFile(seq_t *seqPtr, uint64_t maxPrime
    uint32_t n, nCount = 0;
    uint32_t bit;
 
+   double dCalc = 1.781 * log(maxPrime);
+   double dBase = (double) log(ii_Base);
+   double dK = (double) log(seqPtr->k);
+   double dD = (double) log(seqPtr->d);
+
    if (seqPtr->d == 1)
       fprintf(termsFile, "ABC %" PRIu64"*%u^$a%+" PRId64" // Sieved to %" PRIu64"\n", seqPtr->k, ii_Base, seqPtr->c, maxPrime);
    else
       fprintf(termsFile, "ABC (%" PRIu64"*%u^$a%+" PRId64")/%u // Sieved to %" PRIu64"\n", seqPtr->k, ii_Base, seqPtr->c, seqPtr->d, maxPrime);
-      
+   
    n = ii_MinN;
    bit = NBIT(n);
 
@@ -1239,6 +1270,11 @@ uint32_t SierpinskiRieselApp::WriteABCTermsFile(seq_t *seqPtr, uint64_t maxPrime
       {
          fprintf(termsFile, "%u\n", n);
          nCount++;
+
+         if (seqPtr->d == 1)
+            id_EstimatedPrimes += dCalc / (dBase * n + dK);
+         else
+            id_EstimatedPrimes += dCalc / (dBase * n + dK - dD);
       }
       
       bit++;
@@ -1251,7 +1287,11 @@ uint32_t SierpinskiRieselApp::WriteBoincTermsFile(seq_t *seqPtr, uint64_t maxPri
 {
    uint32_t n, nCount = 0;
    uint32_t bit;
-      
+
+   double dCalc = 1.781 * log(maxPrime);
+   double dBase = (double) log(ii_Base);
+   double dK = (double) log(seqPtr->k);
+   
    n = ii_MinN;
    bit = NBIT(n);
 
@@ -1261,6 +1301,8 @@ uint32_t SierpinskiRieselApp::WriteBoincTermsFile(seq_t *seqPtr, uint64_t maxPri
       {
          fprintf(termsFile, "%" PRIu64" %u\n", seqPtr->k, n);
          nCount++;
+
+         id_EstimatedPrimes += dCalc / (dBase * n + dK);
       }
       
       bit++;
@@ -1274,6 +1316,11 @@ uint32_t SierpinskiRieselApp::WriteABCNumberPrimesTermsFile(seq_t *seqPtr, uint6
    uint32_t n, nCount = 0;
    uint32_t bit;
 
+   double dCalc = 1.781 * log(maxPrime);
+   double dBase = (double) log(ii_Base);
+   double dK = (double) log(seqPtr->k);
+   double dD = (double) log(seqPtr->d);
+
    n = ii_MinN;
    bit = NBIT(n);
 
@@ -1285,6 +1332,11 @@ uint32_t SierpinskiRieselApp::WriteABCNumberPrimesTermsFile(seq_t *seqPtr, uint6
             fprintf(termsFile, "%" PRIu64" %u %+" PRId64"\n", seqPtr->k, n, seqPtr->c);
          else
             fprintf(termsFile, "%" PRIu64" %u %+" PRId64" %u\n", seqPtr->k, n, seqPtr->c, seqPtr->d);
+         
+         if (seqPtr->d == 1)
+            id_EstimatedPrimes += dCalc / (dBase * n + dK);
+         else
+            id_EstimatedPrimes += dCalc / (dBase * n + dK - dD);
          
          nCount++;
       }

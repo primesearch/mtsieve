@@ -53,6 +53,7 @@ protected:
    void              ProcessInputTermsFile(bool haveBitMap);
    void              ProcessInputTermsFile(bool haveBitMap, FILE *fPtr, char *fileName, bool firstFile);
    void              WriteOutputTermsFile(uint64_t largestPrime);
+   void              OuptutAdditionalConsoleMessagesUponFinish(void) {};
    bool              IsWritingOutputTermsFile(void){ return !ib_TestTerms; };
    uint64_t          WriteABCDTermsFile(char *fileName, uint32_t minN, uint64_t maxPrime);
 

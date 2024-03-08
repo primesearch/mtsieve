@@ -46,6 +46,7 @@ protected:
    
    void              ProcessInputTermsFile(bool haveBitMap);
    void              WriteOutputTermsFile(uint64_t largestPrime);
+   void              OuptutAdditionalConsoleMessagesUponFinish(void) {};
    uint64_t          WriteABCDTermsFile(char *fileName, uint32_t minN, uint64_t maxPrime);
 
 private:  
