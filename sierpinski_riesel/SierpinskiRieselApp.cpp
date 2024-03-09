@@ -479,15 +479,32 @@ void  SierpinskiRieselApp::ValidateAndAddNewSequence(char *arg)
    uint32_t b;
    int64_t  c;
    uint32_t d;
-   
-   if (sscanf(arg, "(%" SCNu64"*%u^n%" SCNd64")/%u", &k, &b, &c, &d) != 4)
+   char     temp[500];
+
+   if (!StripCRLF(arg))
+      return;
+
+   if (sscanf(arg, "(%" SCNu64"*%u^n%" SCNd64")/%u", &k, &b, &c, &d) == 4)
+   {
+      snprintf(temp, sizeof(temp), "(%" PRIu64"*%u^n%" PRId64")/%u", k, b, c, d);
+   }
+   else if (sscanf(arg, "(%u^n%" SCNd64")/%u", &b, &c, &d) == 3)
+   {
+      k = 1;
+      
+      snprintf(temp, sizeof(temp), "(%u^n%" PRId64")/%u", b, c, d);
+   }
+   else if (sscanf(arg, "%" SCNu64"*%u^n%" SCNd64"", &k, &b, &c) == 3)
    {
       d = 1;
-      
-      if (sscanf(arg, "%" SCNu64"*%u^n%" SCNd64"", &k, &b, &c) != 3)         
-         FatalError("sequence %s must be in form k*b^n+c or (k*b^n+c)/d where you specify values for k, b, c, and d", arg);
+      snprintf(temp, sizeof(temp), "%" PRIu64"*%u^n%" PRId64"", k, b, c);
    }
+   else
+      FatalError("sequence %s must be in form k*b^n+c, (k*b^n+c)/d, or (b^n+c)/d where you specify values for k, b, c, and d", arg);
 
+   if (strcmp(arg, temp))
+      FatalError("Input sequence %s as extraneous trailing characters", arg);
+      
    if (ib_HaveNewSequences && b != ii_Base)
       FatalError("only one bsae can be specified");
    
@@ -1004,7 +1021,7 @@ void SierpinskiRieselApp::WriteOutputTermsFile(uint64_t largestPrime)
 
 void SierpinskiRieselApp::OuptutAdditionalConsoleMessagesUponFinish(void)
 {
-   WriteToConsole(COT_OTHER, "%.0lf estimated primes", id_EstimatedPrimes);
+   WriteToConsole(COT_OTHER, "%.02lf estimated primes", id_EstimatedPrimes);
 }
 
 void SierpinskiRieselApp::WriteOutputTermsFilesByQ(void)
@@ -1218,7 +1235,7 @@ uint32_t SierpinskiRieselApp::WriteABCDTermsFile(seq_t *seqPtr, uint64_t maxPrim
    else
    {
       fprintf(termsFile, "ABCD (%" PRIu64"*%u^$a%+" PRId64")/%u [%u] // Sieved to %" PRIu64"\n", seqPtr->k, ii_Base, seqPtr->c, seqPtr->d, n, maxPrime);
-      id_EstimatedPrimes += dCalc / (dBase * n * dK - dD);
+      id_EstimatedPrimes += dCalc / (dBase * n + dK - dD);
    }
    
    previousN = n;
