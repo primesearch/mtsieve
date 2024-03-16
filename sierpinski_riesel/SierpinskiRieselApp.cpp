@@ -486,24 +486,24 @@ void  SierpinskiRieselApp::ValidateAndAddNewSequence(char *arg)
 
    if (sscanf(arg, "(%" SCNu64"*%u^n%" SCNd64")/%u", &k, &b, &c, &d) == 4)
    {
-      snprintf(temp, sizeof(temp), "(%" PRIu64"*%u^n%" PRId64")/%u", k, b, c, d);
+      snprintf(temp, sizeof(temp), "(%" PRIu64"*%u^n%+" PRId64")/%u", k, b, c, d);
    }
    else if (sscanf(arg, "(%u^n%" SCNd64")/%u", &b, &c, &d) == 3)
    {
       k = 1;
       
-      snprintf(temp, sizeof(temp), "(%u^n%" PRId64")/%u", b, c, d);
+      snprintf(temp, sizeof(temp), "(%u^n%+" PRId64")/%u", b, c, d);
    }
    else if (sscanf(arg, "%" SCNu64"*%u^n%" SCNd64"", &k, &b, &c) == 3)
    {
       d = 1;
-      snprintf(temp, sizeof(temp), "%" PRIu64"*%u^n%" PRId64"", k, b, c);
+      snprintf(temp, sizeof(temp), "%" PRIu64"*%u^n%+" PRId64"", k, b, c);
    }
    else
       FatalError("sequence %s must be in form k*b^n+c, (k*b^n+c)/d, or (b^n+c)/d where you specify values for k, b, c, and d", arg);
 
    if (strcmp(arg, temp))
-      FatalError("Input sequence %s as extraneous trailing characters", arg);
+      FatalError("Input sequence %s has extraneous trailing characters", arg);
       
    if (ib_HaveNewSequences && b != ii_Base)
       FatalError("only one bsae can be specified");
@@ -555,7 +555,7 @@ Worker *SierpinskiRieselApp::CreateWorker(uint32_t id,  bool gpuWorker, uint64_t
 void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
 {
    FILE    *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
-   char     buffer[1000];
+   char     buffer[1000], *pos;
    uint32_t n, diff;
    uint64_t k, prevK = 0;
    int64_t  c, prevC = 0;
@@ -602,23 +602,30 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
       }
       else if (!memcmp(buffer, "ABCD ", 5))
       {
-         if (strstr(buffer, "Sieved") != NULL)
+         pos = strstr(buffer, "// Sieved to");
+         
+         if (pos != NULL)
          {
-            if (sscanf(buffer, "ABCD (%" SCNu64"*%u^$a%" SCNd64")/%u [%u] // Sieved to %" SCNu64"", &k, &ii_Base, &c, &d, &n, &lastPrime) != 6)
-            {
-               d = 1;
-               
-               if (sscanf(buffer, "ABCD %" SCNu64"*%u^$a%" SCNd64" [%u] // Sieved to %" SCNu64"", &k, &ii_Base, &c, &n, &lastPrime) != 5)
-                  FatalError("Line %u is not a valid ABCD line in input file %s", lineNumber, is_InputTermsFileName.c_str());
-            }
+            if (sscanf(pos, "// Sieved to %" SCNu64"", &lastPrime) != 1)
+               FatalError("Line %u is not a valid ABCD line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+            *pos = 0;
          }
-         else
+         
+         d = 1;
+         k = 1;
+         
+         // Either (k*b^$a+c)/d [n] or k*b^$a+c [n] or (b^a$+c)/d [n]
+         if (sscanf(buffer, "ABCD (%" SCNu64"*%u^$a%" SCNd64")/%u [%u]", &k, &ii_Base, &c, &d, &n) != 5)
          {
-            if (sscanf(buffer, "ABCD (%" SCNu64"*%u^$a%" SCNd64")/%u [%u]", &k, &ii_Base, &c, &d, &n) != 5)
+            d = 1;
+            k = 1;
+            
+            if (sscanf(buffer, "ABCD %" SCNu64"*%u^$a%" SCNd64" [%u]", &k, &ii_Base, &c, &n) != 4)
             {
                d = 1;
+               k = 1;
                
-               if (sscanf(buffer, "ABCD %" SCNu64"*%u^$a%" SCNd64" [%u]", &k, &ii_Base, &c, &n) != 4)
+               if (sscanf(buffer, "ABCD (%u^$a%" SCNd64")/%u [%u]", &ii_Base, &c, &d, &n) != 4)
                   FatalError("Line %u is not a valid ABCD line in input file %s", lineNumber, is_InputTermsFileName.c_str());
             }
          }
@@ -669,27 +676,34 @@ void SierpinskiRieselApp::ProcessInputTermsFile(bool haveBitMap)
       }
       else if (!memcmp(buffer, "ABC ", 4))
       {
-         if (strstr(buffer, "Sieved") != NULL)
+         pos = strstr(buffer, "// Sieved to");
+         
+         if (pos != NULL)
          {
-            if (sscanf(buffer, "ABC (%" SCNu64"*%u^$a%" SCNd64")/%u // Sieved to %" SCNu64"", &k, &ii_Base, &c, &d, &lastPrime) != 5)
-            {
-               d = 1;
-               
-               if (sscanf(buffer, "ABC %" SCNu64"*%u^$a%" SCNd64" // Sieved to %" SCNu64"", &k, &ii_Base, &c, &lastPrime) != 4)
-                  FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
-            }
-         }
-         else
-         {
-            if (sscanf(buffer, "ABC (%" SCNu64"*%u^$a%" SCNd64")/%u", &k, &ii_Base, &c, &d) != 4)
-            {
-               d = 1;
-               
-               if (sscanf(buffer, "ABC %" SCNu64"*%u^$a%" SCNd64"", &k, &ii_Base, &c) != 3)
-                  FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
-            }
+            if (sscanf(pos, "// Sieved to %" SCNu64"", &lastPrime) != 1)
+               FatalError("Line %u is not a valid ABCD line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+            *pos = 0;
          }
          
+         d = 1;
+         k = 1;
+         
+         // Either (k*b^$a+c)/d or k*b^$a+c or (b^a$+c)/d
+         if (sscanf(buffer, "ABC (%" SCNu64"*%u^$a%" SCNd64")/%u", &k, &ii_Base, &c, &d) != 4)
+         {
+            d = 1;
+            k = 1;
+            
+            if (sscanf(buffer, "ABC %" SCNu64"*%u^$a%" SCNd64"", &k, &ii_Base, &c) != 3)
+            {
+               d = 1;
+               k = 1;
+
+               if (sscanf(buffer, "ABC (%u^$a%" SCNd64")/%u", &ii_Base, &c, &d) != 3)
+                  FatalError("Line %u is not a valid ABC line in input file %s", lineNumber, is_InputTermsFileName.c_str());
+            }
+         }
+
          format = FF_ABC;
          
          if (k != prevK || c != prevC || d != prevD)
@@ -1229,13 +1243,22 @@ uint32_t SierpinskiRieselApp::WriteABCDTermsFile(seq_t *seqPtr, uint64_t maxPrim
    
    if (seqPtr->d == 1)
    {
+      // k is never 1 if d = 1
       fprintf(termsFile, "ABCD %" PRIu64"*%u^$a%+" PRId64" [%u] // Sieved to %" PRIu64"\n", seqPtr->k, ii_Base, seqPtr->c, n, maxPrime);
-      id_EstimatedPrimes += dCalc / (dBase * n + dK);
+      
+      if (n > 1)
+         id_EstimatedPrimes += dCalc / (dBase * n + dK);
    }
    else
    {
-      fprintf(termsFile, "ABCD (%" PRIu64"*%u^$a%+" PRId64")/%u [%u] // Sieved to %" PRIu64"\n", seqPtr->k, ii_Base, seqPtr->c, seqPtr->d, n, maxPrime);
-      id_EstimatedPrimes += dCalc / (dBase * n + dK - dD);
+      // k can be 1 if d > 1
+      if (seqPtr->k == 1)
+         fprintf(termsFile, "ABCD (%u^$a%+" PRId64")/%u [%u] // Sieved to %" PRIu64"\n", ii_Base, seqPtr->c, seqPtr->d, n, maxPrime);
+      else
+         fprintf(termsFile, "ABCD (%" PRIu64"*%u^$a%+" PRId64")/%u [%u] // Sieved to %" PRIu64"\n", seqPtr->k, ii_Base, seqPtr->c, seqPtr->d, n, maxPrime);
+         
+      if (n > 1)
+         id_EstimatedPrimes += dCalc / (dBase * n + dK - dD);
    }
    
    previousN = n;
@@ -1274,9 +1297,16 @@ uint32_t SierpinskiRieselApp::WriteABCTermsFile(seq_t *seqPtr, uint64_t maxPrime
    double dD = (double) log(seqPtr->d);
 
    if (seqPtr->d == 1)
+      // k is never 1 if d = 1
       fprintf(termsFile, "ABC %" PRIu64"*%u^$a%+" PRId64" // Sieved to %" PRIu64"\n", seqPtr->k, ii_Base, seqPtr->c, maxPrime);
    else
-      fprintf(termsFile, "ABC (%" PRIu64"*%u^$a%+" PRId64")/%u // Sieved to %" PRIu64"\n", seqPtr->k, ii_Base, seqPtr->c, seqPtr->d, maxPrime);
+   {
+      // k can be 1 if d > 1
+      if (seqPtr->k == 1)
+         fprintf(termsFile, "ABC (%u^$a%+" PRId64")/%u // Sieved to %" PRIu64"\n", ii_Base, seqPtr->c, seqPtr->d, maxPrime);
+      else
+         fprintf(termsFile, "ABC (%" PRIu64"*%u^$a%+" PRId64")/%u // Sieved to %" PRIu64"\n", seqPtr->k, ii_Base, seqPtr->c, seqPtr->d, maxPrime);
+   }
    
    n = ii_MinN;
    bit = NBIT(n);
@@ -1288,10 +1318,13 @@ uint32_t SierpinskiRieselApp::WriteABCTermsFile(seq_t *seqPtr, uint64_t maxPrime
          fprintf(termsFile, "%u\n", n);
          nCount++;
 
-         if (seqPtr->d == 1)
-            id_EstimatedPrimes += dCalc / (dBase * n + dK);
-         else
-            id_EstimatedPrimes += dCalc / (dBase * n + dK - dD);
+         if (n > 1)
+         {
+            if (seqPtr->d == 1)
+               id_EstimatedPrimes += dCalc / (dBase * n + dK);
+            else
+               id_EstimatedPrimes += dCalc / (dBase * n + dK - dD);
+         }
       }
       
       bit++;
@@ -1319,7 +1352,8 @@ uint32_t SierpinskiRieselApp::WriteBoincTermsFile(seq_t *seqPtr, uint64_t maxPri
          fprintf(termsFile, "%" PRIu64" %u\n", seqPtr->k, n);
          nCount++;
 
-         id_EstimatedPrimes += dCalc / (dBase * n + dK);
+         if (n > 1)
+            id_EstimatedPrimes += dCalc / (dBase * n + dK);
       }
       
       bit++;
@@ -1350,10 +1384,13 @@ uint32_t SierpinskiRieselApp::WriteABCNumberPrimesTermsFile(seq_t *seqPtr, uint6
          else
             fprintf(termsFile, "%" PRIu64" %u %+" PRId64" %u\n", seqPtr->k, n, seqPtr->c, seqPtr->d);
          
-         if (seqPtr->d == 1)
-            id_EstimatedPrimes += dCalc / (dBase * n + dK);
-         else
-            id_EstimatedPrimes += dCalc / (dBase * n + dK - dD);
+         if (n > 1)
+         {
+            if (seqPtr->d == 1)
+               id_EstimatedPrimes += dCalc / (dBase * n + dK);
+            else
+               id_EstimatedPrimes += dCalc / (dBase * n + dK - dD);
+         }
          
          nCount++;
       }
@@ -1367,25 +1404,62 @@ uint32_t SierpinskiRieselApp::WriteABCNumberPrimesTermsFile(seq_t *seqPtr, uint6
 void  SierpinskiRieselApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
    seq_t  *seqPtr;
-   int32_t minC = 0, maxC = 0;
+   uint64_t minK = 0, maxK = 0;
+   int64_t  minC = 0, maxC = 0;
+   uint32_t minD = 0, maxD = 0;
+   char theC[20], theK[20], theD[20];
    
    seqPtr = ip_FirstSequence;
    do
    {
+      if (minK == 0 || minK > seqPtr->k) minK = seqPtr->k;
+      if (maxK == 0 || maxK < seqPtr->k) maxK = seqPtr->k;
+      
       if (minC == 0 || minC > seqPtr->c) minC = seqPtr->c;
-      if (maxC == 0 || maxC > seqPtr->c) maxC = seqPtr->c;
+      if (maxC == 0 || maxC < seqPtr->c) maxC = seqPtr->c;
+      
+      if (minD == 0 || minD > seqPtr->d) minD = seqPtr->d;
+      if (maxD == 0 || maxD < seqPtr->d) maxD = seqPtr->d;
          
       seqPtr = (seq_t *) seqPtr->next;
    } while (seqPtr != NULL);
    
-   if (minC == maxC)
-      snprintf(extraText, maxTextLength, "%u <= n <= %u, k*%u^n%+d", ii_MinN, ii_MaxN, ii_Base, minC);
-   else if (maxC < 0)
-      snprintf(extraText, maxTextLength, "%u <= n <= %u, k*%u^n-c", ii_MinN, ii_MaxN, ii_Base);
-   else if (minC > 0)
-      snprintf(extraText, maxTextLength, "%u <= n <= %u, k*%u^n+c", ii_MinN, ii_MaxN, ii_Base);
+   if (minK == maxK)
+      snprintf(theK, sizeof(theK), "%" PRIu64"", minK);
    else
-      snprintf(extraText, maxTextLength, "%u <= n <= %u, k*%u^n+/-c", ii_MinN, ii_MaxN, ii_Base);
+      snprintf(theK, sizeof(theK), "k");
+
+   if (minC == maxC)
+      snprintf(theC, sizeof(theC), "%" PRId64"", minC);
+   else
+   {
+      if (minC > 0)
+         snprintf(theC, sizeof(theC), "+c");
+      else if (maxC < 0)
+         snprintf(theC, sizeof(theC), "-c");
+      else
+         snprintf(theC, sizeof(theC), "+/-c");
+   }
+
+   if (minD == maxD)
+      snprintf(theD, sizeof(theD), "%u", minD);
+   else
+      snprintf(theK, sizeof(theK), "d");
+   
+   if (maxD > 1)
+   {            
+      if (maxK > 1)
+         snprintf(extraText, maxTextLength, "%u <= n <= %u, (%s*%u^n%s)/%s", ii_MinN, ii_MaxN, theK, ii_Base, theC, theD);
+      else
+         snprintf(extraText, maxTextLength, "%u <= n <= %u, (%u^n%s)/%s", ii_MinN, ii_MaxN, ii_Base, theC, theD);
+   }
+   else
+   {
+      if (maxK > 1)
+         snprintf(extraText, maxTextLength, "%u <= n <= %u, %s*%u^n%s", ii_MinN, ii_MaxN, theK, ii_Base, theC);
+      else
+         snprintf(extraText, maxTextLength, "%u <= n <= %u, %u^n%s", ii_MinN, ii_MaxN, ii_Base, theC);
+   }
 }
 
 void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
@@ -1707,7 +1781,12 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t theFactor, seq_t *seqPtr, ui
       return;
 
    if (seqPtr->d > 1)
-      snprintf(buffer, sizeof(buffer), "(%" PRIu64"*%u^%u%+" PRId64")/%u", seqPtr->k, ii_Base, n, seqPtr->c, seqPtr->d);
+   {
+      if (seqPtr->k > 1)
+         snprintf(buffer, sizeof(buffer), "(%" PRIu64"*%u^%u%+" PRId64")/%u", seqPtr->k, ii_Base, n, seqPtr->c, seqPtr->d);
+      else
+         snprintf(buffer, sizeof(buffer), "(%u^%u%+" PRId64")/%u", ii_Base, n, seqPtr->c, seqPtr->d);
+   }
    else
       snprintf(buffer, sizeof(buffer), "%" PRIu64"*%u^%u%+" PRId64"", seqPtr->k, ii_Base, n, seqPtr->c);
    
