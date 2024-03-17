@@ -22,7 +22,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.8.2"
+#define APP_VERSION     "1.8.3"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
@@ -335,12 +335,24 @@ void SierpinskiRieselApp::ValidateOptions(void)
          
       AlgebraicFactorHelper *afh = new AlgebraicFactorHelper(this, ii_Base, ii_MinN, ii_MaxN);
       
+      seqPtr = ip_FirstSequence;
+      if ((seq_t *) seqPtr->next == NULL)
+      {
+         if (seqPtr->k == 1 && seqPtr->d > 1 && ii_Base == seqPtr->d+1)
+         {
+            if (ii_MinN == 2)
+               ii_MinN = 3;
+            
+            ib_OnlyPrimeNs = true;
+            WriteToConsole(COT_OTHER, "With GRUs, composite n will have factors, so removing them");
+         }
+      }
+      
       std::vector<uint64_t> primes;
    
       if (ib_OnlyPrimeNs)
          primesieve::generate_primes(ii_MinN, ii_MaxN, &primes);
       
-      seqPtr = ip_FirstSequence;
       do
       {
          seqPtr->nTerms.resize(ii_MaxN - ii_MinN + 1);
@@ -381,7 +393,7 @@ void SierpinskiRieselApp::ValidateOptions(void)
    
       MakeSubsequences(true, GetMinPrime());  
    }
-      
+
    seqPtr = ip_FirstSequence;
    int64_t firstC = seqPtr->c;
    ib_HaveSingleC = true;
