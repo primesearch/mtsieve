@@ -1,8 +1,12 @@
+2.5.7 - March 17, 2024
+   srsieve2/srsieve2cl: version 1.8.3
+      Add support for GRUs (generalized repunits) in the form (b^n-1)/(b-1).
+
 2.5.6 - March 8, 2024
    framework:
       Add method that can be used to output additional details after sieving completes.
    
-   srsieve2/srsieve2l: version 1.8.2
+   srsieve2/srsieve2cl: version 1.8.2
       Output expected number of primes when sieving is complete.
 
 2.5.5 - January 30, 2024
