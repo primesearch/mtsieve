@@ -16,7 +16,7 @@
 #include "../core/MpArith.h"
 
 #define APP_NAME        "fkbnsieve"
-#define APP_VERSION     "1.6.1"
+#define APP_VERSION     "1.6.2"
 
 // This is declared in App.h, but implemented here.  This means that App.h
 // can remain unchanged if using the mtsieve framework for other applications.
@@ -30,6 +30,7 @@ FixedKBNApp::FixedKBNApp() : FactorApp()
    SetBanner(APP_NAME " v" APP_VERSION ", a program to find factors of k*b^n+c numbers for fixed k, b, and n and variable c");
    SetLogFileName("fkbnsieve.log");
 
+   SetAppMinPrime(3);
    is_Sequence = "";
 
    il_MinC = 0;
@@ -120,6 +121,35 @@ void FixedKBNApp::ValidateOptions(void)
 
       iv_Terms.resize(il_MaxC - il_MinC + 1);
       std::fill(iv_Terms.begin(), iv_Terms.end(), true);
+
+      if ((il_K & 1) && (ii_Base & 1))
+      {
+         uint64_t c = il_MinC;
+         
+         // Remove all c that are odd if both k and b are odd since k*b^n+c will be divisible by 2.
+         if (!(c & 1))
+            c++;
+         
+         for (; c<=il_MaxC; c+=2)
+         {
+            iv_Terms[BIT(c)] = false;
+            il_TermCount--;
+         }
+      }
+      else
+      {
+         uint64_t c = il_MinC;
+         
+         // Remove all c that are even if both k and b are even since k*b^n+c will be divisible by 2.
+         if (c & 1)
+            c++;
+         
+         for (; c<=il_MaxC; c+=2)
+         {
+            iv_Terms[BIT(c)] = false;
+            il_TermCount--;
+         }
+      }
    }
 
    char  fileName[30];

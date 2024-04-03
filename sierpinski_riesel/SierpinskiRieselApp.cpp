@@ -22,7 +22,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.8.3"
+#define APP_VERSION     "1.8.4"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
@@ -154,6 +154,7 @@ void  SierpinskiRieselApp::AddCommandLineOptions(std::string &shortOpts, struct 
    AppendLongOpt(longOpts, "powerresidue",    required_argument, 0, 'X');
    AppendLongOpt(longOpts, "splitbybestq",    no_argument,       0, 'S');
    AppendLongOpt(longOpts, "algebraic",       no_argument,       0, 'a');
+   AppendLongOpt(longOpts, "genericlogic",    no_argument,       0, 'c');
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
    shortOpts += "M:K:";
@@ -914,13 +915,13 @@ void SierpinskiRieselApp::UpdateSequenceIndexes(void)
    uint32_t  ii_SequenceCount = 0;
    seq_t    *seqPtr = ip_FirstSequence;
    
-   do
+   while (seqPtr != NULL)
    {
       ii_SequenceCount++;
       seqPtr->seqIdx = ii_SequenceCount;
       
       seqPtr = (seq_t *) seqPtr->next;
-   } while (seqPtr != NULL);
+   };
 }
 
 void SierpinskiRieselApp::RemoveN(void)
@@ -1255,18 +1256,9 @@ uint32_t SierpinskiRieselApp::WriteABCDTermsFile(seq_t *seqPtr, uint64_t maxPrim
       return 0;
    
    if (seqPtr->d == 1)
-   {
-      // k is never 1 if d = 1
       fprintf(termsFile, "ABCD %" PRIu64"*%u^$a%+" PRId64" [%u] // Sieved to %" PRIu64"\n", seqPtr->k, ii_Base, seqPtr->c, n, maxPrime);
-   }
    else
-   {
-      // k can be 1 if d > 1
-      if (seqPtr->k == 1)
-         fprintf(termsFile, "ABCD (%u^$a%+" PRId64")/%u [%u] // Sieved to %" PRIu64"\n", ii_Base, seqPtr->c, seqPtr->d, n, maxPrime);
-      else
-         fprintf(termsFile, "ABCD (%" PRIu64"*%u^$a%+" PRId64")/%u [%u] // Sieved to %" PRIu64"\n", seqPtr->k, ii_Base, seqPtr->c, seqPtr->d, n, maxPrime);
-   }
+      fprintf(termsFile, "ABCD (%" PRIu64"*%u^$a%+" PRId64")/%u [%u] // Sieved to %" PRIu64"\n", seqPtr->k, ii_Base, seqPtr->c, seqPtr->d, n, maxPrime);
    
    if (n > 1)
    {
@@ -1311,16 +1303,9 @@ uint32_t SierpinskiRieselApp::WriteABCTermsFile(seq_t *seqPtr, uint64_t maxPrime
    double dLength, dTemp;
 
    if (seqPtr->d == 1)
-      // k is never 1 if d = 1
       fprintf(termsFile, "ABC %" PRIu64"*%u^$a%+" PRId64" // Sieved to %" PRIu64"\n", seqPtr->k, ii_Base, seqPtr->c, maxPrime);
    else
-   {
-      // k can be 1 if d > 1
-      if (seqPtr->k == 1)
-         fprintf(termsFile, "ABC (%u^$a%+" PRId64")/%u // Sieved to %" PRIu64"\n", ii_Base, seqPtr->c, seqPtr->d, maxPrime);
-      else
-         fprintf(termsFile, "ABC (%" PRIu64"*%u^$a%+" PRId64")/%u // Sieved to %" PRIu64"\n", seqPtr->k, ii_Base, seqPtr->c, seqPtr->d, maxPrime);
-   }
+      fprintf(termsFile, "ABC (%" PRIu64"*%u^$a%+" PRId64")/%u // Sieved to %" PRIu64"\n", seqPtr->k, ii_Base, seqPtr->c, seqPtr->d, maxPrime);
    
    n = ii_MinN;
    bit = NBIT(n);
@@ -1795,8 +1780,23 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t theFactor, seq_t *seqPtr, ui
       return;
 
    // We cannot verify these factors, so ignore them
-   if (seqPtr->d > 1 && gcd64(seqPtr->d, theFactor) > 1)
-      return;
+   if (seqPtr->d > 1)
+   {
+      if (gcd64(seqPtr->d, theFactor) > 1)
+      {
+         uint64_t fPower = theFactor;
+         
+         while (fPower < seqPtr->d)
+            fPower += theFactor;
+
+         // If d = theFactor^n for some integer n, then we can verify the factor.
+         // If not, then there is no way to verify the factor.
+         // For example if d = 9 then we can verify if theFactor = 3, but
+         // if d = 15, then we cannot verify if theFactor is 3 or 5.
+         if (fPower > seqPtr->d)
+           return;
+      }
+   }
 
    if (seqPtr->d > 1)
    {

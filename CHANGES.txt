@@ -1,3 +1,11 @@
+2.5.8 - April 3, 2024
+   srsieve2/srsieve2cl: version 1.8.4
+      If d = p^n for some integer n, then allow p as a factor of (k*b^n-c)/d.
+      Print k in the ABC/ABCD file even if 1 as llr requires it.
+   
+   fkbnsieve: version 1.6.2
+      Remove even c or odd c depending upon k and b as half of the terms will be even.
+      
 2.5.7 - March 17, 2024
    srsieve2/srsieve2cl: version 1.8.3
       Add support for GRUs (generalized repunits) in the form (b^n-1)/(b-1).
