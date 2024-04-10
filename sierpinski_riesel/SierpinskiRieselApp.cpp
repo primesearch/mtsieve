@@ -22,7 +22,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.8.4"
+#define APP_VERSION     "1.8.5"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
@@ -1782,12 +1782,12 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t theFactor, seq_t *seqPtr, ui
    // We cannot verify these factors, so ignore them
    if (seqPtr->d > 1)
    {
-      if (gcd64(seqPtr->d, theFactor) > 1)
-      {
+      if (gcd64(seqPtr->d, theFactor) > 1) 
+      {      
          uint64_t fPower = theFactor;
          
          while (fPower < seqPtr->d)
-            fPower += theFactor;
+            fPower *= theFactor;
 
          // If d = theFactor^n for some integer n, then we can verify the factor.
          // If not, then there is no way to verify the factor.
