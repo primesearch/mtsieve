@@ -1,6 +1,6 @@
 /* XYYXApp.cpp -- (C) Mark Rodenkirch, September 2012
 
-   XYYXSieve/Wall-Sun-Sun Search OpenCL application
+   XYYXSieve - sieve x^y+y^x or x^y-y^x
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
