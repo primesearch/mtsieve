@@ -59,7 +59,7 @@ LifchitzApp::LifchitzApp(void) : FactorApp()
 #if defined(USE_OPENCL) || defined(USE_METAL)
    ii_XChunks = 1;
    ii_YChunks = 1;
-   ii_MaxGpuFactors = GetGpuWorkGroups() * 100;
+   ii_MaxGpuFactors = GetGpuWorkGroups() * 10000;
 #endif
 }
 

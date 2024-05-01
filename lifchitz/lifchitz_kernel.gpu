@@ -10,16 +10,14 @@
 #pragma OPENCL EXTENSION cl_khr_int64_extended_atomics: enable
 #define MUL_HI          mul_hi
 
-void collectFactor(uint    x,
-                   uint    y,
-                   uint    sign,
+void collectFactor(ulong   idx,
+                   int     sign,
                    ulong   p,
  volatile __global uint   *factorCount,
           __global ulong4 *factors);
 #else
-void collectFactor(uint        x,
-                   uint        y,
-                   uint        sign,
+void collectFactor(ulong       idx,
+                   int         sign,
                    ulong       p,
    volatile device atomic_int *factorCount,
             device ulong4     *factors);
@@ -93,14 +91,13 @@ __kernel void lifchitz_kernel(__global const ulong  *primes,
       {
          // .z = 1 is for the + form, but we pass 1 back to the caller
          if (xPowX + yPowY == thePrime)
-            collectFactor(terms[idx].x, terms[idx].y, 1, thePrime, factorCount, factors);
+            collectFactor(idx, +1, thePrime, factorCount, factors);
       }
-      
-      if (terms[idx].w == 1)
+      else 
       {
          // .w = 1 is for the - form, but we pass 2 back to the caller
          if (xPowX == yPowY)
-            collectFactor(terms[idx].x, terms[idx].y, 2, thePrime, factorCount, factors);
+            collectFactor(idx, -1, thePrime, factorCount, factors);
       }
    }
 }
@@ -201,19 +198,17 @@ ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q)
 }
 
 #if defined(USE_OPENCL)
-void collectFactor(uint    x,
-                   uint    y,
-                   uint    sign,
+void collectFactor(ulong   idx,
+                   int     sign,
                    ulong   p,
  volatile __global uint   *factorCount,
           __global ulong4 *factors)
 #else
-void collectFactor(uint        x,
-                   uint        y,
-                   uint        sign,
+void collectFactor(ulong       idx,
+                   int         sign,
                    ulong       p,
    volatile device atomic_int *factorCount,
-            device long4      *factors)
+            device ulong      *factors)
 #endif
 {
 #if defined(USE_OPENCL)
@@ -226,8 +221,7 @@ void collectFactor(uint        x,
    if (old >= D_MAX_FACTORS)
       return;
    
-   factors[old].x = x;
-   factors[old].y = y;
-   factors[old].z = sign;
-   factors[old].w = p;
+   factors[old].x = idx;
+   factors[old].y = (sign == 1 ? 1 : 2);
+   factors[old].z = p;
 }

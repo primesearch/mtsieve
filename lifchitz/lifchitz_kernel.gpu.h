@@ -5,16 +5,14 @@ const char *lifchitz_kernel= \
 "#if defined(USE_OPENCL)\n" \
 "#pragma OPENCL EXTENSION cl_khr_int64_extended_atomics: enable\n" \
 "#define MUL_HI          mul_hi\n" \
-"void collectFactor(uint    x,\n" \
-"uint    y,\n" \
-"uint    sign,\n" \
+"void collectFactor(ulong   idx,\n" \
+"int     sign,\n" \
 "ulong   p,\n" \
 "volatile __global uint   *factorCount,\n" \
 "__global ulong4 *factors);\n" \
 "#else\n" \
-"void collectFactor(uint        x,\n" \
-"uint        y,\n" \
-"uint        sign,\n" \
+"void collectFactor(ulong       idx,\n" \
+"int         sign,\n" \
 "ulong       p,\n" \
 "volatile device atomic_int *factorCount,\n" \
 "device ulong4     *factors);\n" \
@@ -74,12 +72,12 @@ const char *lifchitz_kernel= \
 "if (terms[idx].z == 1)\n" \
 "{\n" \
 "if (xPowX + yPowY == thePrime)\n" \
-"collectFactor(terms[idx].x, terms[idx].y, 1, thePrime, factorCount, factors);\n" \
+"collectFactor(idx, +1, thePrime, factorCount, factors);\n" \
 "}\n" \
-"if (terms[idx].w == 1)\n" \
+"else\n" \
 "{\n" \
 "if (xPowX == yPowY)\n" \
-"collectFactor(terms[idx].x, terms[idx].y, 2, thePrime, factorCount, factors);\n" \
+"collectFactor(idx, -1, thePrime, factorCount, factors);\n" \
 "}\n" \
 "}\n" \
 "}\n" \
@@ -151,19 +149,17 @@ const char *lifchitz_kernel= \
 "return (ulong) r;\n" \
 "}\n" \
 "#if defined(USE_OPENCL)\n" \
-"void collectFactor(uint    x,\n" \
-"uint    y,\n" \
-"uint    sign,\n" \
+"void collectFactor(ulong   idx,\n" \
+"int     sign,\n" \
 "ulong   p,\n" \
 "volatile __global uint   *factorCount,\n" \
 "__global ulong4 *factors)\n" \
 "#else\n" \
-"void collectFactor(uint        x,\n" \
-"uint        y,\n" \
-"uint        sign,\n" \
+"void collectFactor(ulong       idx,\n" \
+"int         sign,\n" \
 "ulong       p,\n" \
 "volatile device atomic_int *factorCount,\n" \
-"device long4      *factors)\n" \
+"device ulong      *factors)\n" \
 "#endif\n" \
 "{\n" \
 "#if defined(USE_OPENCL)\n" \
@@ -173,10 +169,9 @@ const char *lifchitz_kernel= \
 "#endif\n" \
 "if (old >= D_MAX_FACTORS)\n" \
 "return;\n" \
-"factors[old].x = x;\n" \
-"factors[old].y = y;\n" \
-"factors[old].z = sign;\n" \
-"factors[old].w = p;\n" \
+"factors[old].x = idx;\n" \
+"factors[old].y = (sign == 1 ? 1 : 2);\n" \
+"factors[old].z = p;\n" \
 "}\n" \
 ;
 #endif

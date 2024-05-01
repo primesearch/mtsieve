@@ -14,18 +14,20 @@
 
 #include "../core/GpuKernel.h"
 
+// This maps to a uint4 in the GPU
 typedef struct {
    uint32_t    x;
    uint32_t    y;
-   uint32_t    plus;
-   uint32_t    minus;
+   uint32_t    sign;
+   uint32_t    unused;
 } gputerm_t;
 
+// This maps to a ulong4 in the GPU
 typedef struct {
-   uint64_t    x;
-   uint64_t    y;
+   uint64_t    termIdx;
    uint64_t    sign;
    uint64_t    factor;
+   uint64_t    unused;
 } factor_t;
 
 
@@ -66,7 +68,8 @@ protected:
    uint32_t        **ip_XBases;
    uint32_t        **ip_YBases;
    uint32_t        **ip_TermsInGroup;
-   gputerm_t      ***ip_GpuTerms;   
+   gputerm_t      ***ip_GpuTerms;
+   uint64_t       ***ip_TermIndexes;
 
    uint32_t          ii_MaxGpuFactors;
    
