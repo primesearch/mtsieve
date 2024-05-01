@@ -59,7 +59,7 @@ void  LifchitzWorker::TestMegaPrimeChunk(void)
       {
          BuildTerms();
       
-         il_NextTermsBuild = (ps[3] << 2);
+         il_NextTermsBuild = (ps[3] << 2);    
       }
 
       MpArithVec  mp(ps);
@@ -74,9 +74,7 @@ void  LifchitzWorker::TestMegaPrimeChunk(void)
          }
       }
 
-      uint64_t idx = 0;
-      
-      while (ip_Terms[idx].x > 0)
+      for (uint64_t idx=0; ip_Terms[idx].x>0; idx++)
       {
          for (uint32_t pIdx=0; pIdx<4; pIdx++)
          {
@@ -86,15 +84,15 @@ void  LifchitzWorker::TestMegaPrimeChunk(void)
             if (ip_Terms[idx].sign == -1)
             {
                if (xPowX == yPowY)
-                  ip_LifchitzApp->ReportFactor(ps[pIdx], ip_Terms[idx].x, ip_Terms[idx].y, -1);
+                  ip_LifchitzApp->ReportFactor(ps[pIdx], ip_Terms[idx].x, ip_Terms[idx].y, -1, idx);
             }
-            else {
+            
+            if (ip_Terms[idx].sign == +1)
+            {
                if (xPowX + yPowY == ps[pIdx])
-                  ip_LifchitzApp->ReportFactor(ps[pIdx], ip_Terms[idx].x, ip_Terms[idx].y, +1);
+                  ip_LifchitzApp->ReportFactor(ps[pIdx], ip_Terms[idx].x, ip_Terms[idx].y, +1, idx);
             }
          }
-         
-         idx++;
       }
       
       SetLargestPrimeTested(ps[3], 4);

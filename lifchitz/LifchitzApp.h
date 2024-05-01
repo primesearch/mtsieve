@@ -36,7 +36,7 @@ public:
    bool              ApplyFactor(uint64_t theFactor, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength);
    
-   bool              ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign);
+   bool              ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign, uint64_t termIdx);
 
    uint32_t          GetMinX(void) { return ii_MinX; };
    uint32_t          GetMaxX(void) { return ii_MaxX; };

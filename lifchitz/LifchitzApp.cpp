@@ -47,7 +47,7 @@ LifchitzApp::LifchitzApp(void) : FactorApp()
    SetBanner(APP_NAME " v" APP_VERSION ", a program to find factors numbers of the form x^x+y^y and x^x-y^y");
    SetLogFileName("lifsieve.log");
 
-   ii_MinX = 0;
+   ii_MinX = 20;
    ii_MaxX = 0;
    ii_MinY = 0;
    ii_MaxY = 0;
@@ -211,6 +211,10 @@ void LifchitzApp::ValidateOptions(void)
    }
    
    FactorApp::ParentValidateOptions();
+
+   // This will sieve beyond the limit, but we want to make sure that at least one prime
+   // larger than this limit is passed to the worker even if the worker does not test it.
+   SetMaxPrimeForSingleWorker(10000);
 }
 
 Worker *LifchitzApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested)
@@ -298,7 +302,8 @@ void LifchitzApp::ProcessInputTermsFile(bool haveBitMap)
 
 bool LifchitzApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
-   uint32_t x1, x2, y1, y2, idx;
+   uint32_t x1, x2, y1, y2;
+   uint64_t idx;
    char     c;
    int32_t  sign;
    
@@ -384,10 +389,10 @@ void  LifchitzApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t 
       ((ib_IsPlus & ib_IsMinus) ? "+/-" : (ib_IsPlus ? "+" : "-")));
 }
 
-bool LifchitzApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign)
+bool LifchitzApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign, uint64_t termIdx)
 {
    bool     removedTerm = false;
-   uint32_t idx = 0;
+   bool     needToLock = (theFactor > GetMaxPrimeForSingleWorker());
    
    if (x < ii_MinX || x > ii_MaxX)
       return false;
@@ -397,36 +402,31 @@ bool LifchitzApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32
    
    VerifyFactor(theFactor, x, y, sign);
    
-   ip_FactorAppLock->Lock();
+   if (needToLock)
+      ip_FactorAppLock->Lock();
    
-   for (idx=0; idx<il_StartingTermCount; idx++)
-   {
-      if (ip_Terms[idx].sign != sign)
-         continue;
+   if (ip_Terms[termIdx].x != x)
+      return false;
 
-      if (ip_Terms[idx].x != x)
-         continue;
-
-      if (ip_Terms[idx].y != y)
-         continue;
-      
-      break;
-   }
+   if (ip_Terms[termIdx].y != y)
+      return false;
    
-   if (ip_Terms[idx].sign == 0)
+   if (ip_Terms[termIdx].sign == 0)
    {
-      ip_FactorAppLock->Release();
+      if (needToLock)
+         ip_FactorAppLock->Release();
       return false;
    }
    
-   ip_Terms[idx].sign = 0;
+   ip_Terms[termIdx].sign = 0;
 
    il_TermCount--;
    il_FactorCount++;
    removedTerm = true;
    LogFactor(theFactor, "%u^%u%c%u^%u", x, x, ((sign == 1) ? '+' : '-'), y, y);
 
-   ip_FactorAppLock->Release();
+   if (needToLock)
+      ip_FactorAppLock->Release();
 
    return removedTerm;
 }
