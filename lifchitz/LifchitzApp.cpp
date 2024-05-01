@@ -123,7 +123,7 @@ parse_t LifchitzApp::ParseOption(int opt, char *arg, const char *source)
          break;
 
       case 'Y':
-         status = Parser::Parse(arg, 1, 1000000000, ii_MaxY);
+         status = Parser::Parse(arg, 2, 1000000000, ii_MaxY);
          break;
 		
       case 's':

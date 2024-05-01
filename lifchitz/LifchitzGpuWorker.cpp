@@ -103,11 +103,7 @@ void  LifchitzGpuWorker::AllocateMemory(void)
       yIdx = (terms[idx].y - ii_MinY) / ii_YBasesPerGroup;
       
       ip_TermsInGroup[xIdx][yIdx]++;
-      
-      // If the next term has the same x and y, we will skip instead of adding to groupSizes
-      if (terms[idx].x == terms[idx+1].x && terms[idx].x == terms[idx+1].y)
-         idx++;
-      
+
       idx++;
    }
    
@@ -122,13 +118,18 @@ void  LifchitzGpuWorker::AllocateMemory(void)
    }
    
    ip_GpuTerms = (gputerm_t ***) xmalloc(ii_XChunks * sizeof(gputerm_t **));
+   ip_TermIndexes = (uint64_t ***) xmalloc(ii_XChunks * sizeof(uint64_t **));
 
    for (xIdx=0; xIdx<ii_XChunks; xIdx++)
    {
       ip_GpuTerms[xIdx] = (gputerm_t **) xmalloc(ii_YChunks * sizeof(gputerm_t *));
+      ip_TermIndexes[xIdx] = (uint64_t **) xmalloc(ii_YChunks * sizeof(uint64_t *));
 
       for (yIdx=0; yIdx<ii_YChunks; yIdx++)
+      {
          ip_GpuTerms[xIdx][yIdx] = (gputerm_t *) xmalloc((1 + ii_TermsPerGroup) * sizeof(gputerm_t));
+         ip_TermIndexes[xIdx][yIdx] = (uint64_t *) xmalloc((1 + ii_TermsPerGroup) * sizeof(uint64_t));
+      }
    }
 }
 
@@ -167,13 +168,14 @@ void  LifchitzGpuWorker::TestMegaPrimeChunk(void)
          ip_Kernel->Execute(ii_PrimesInList);
 
          for (uint32_t fIdx=0; fIdx<ii_FactorCount[0]; fIdx++)
-         {            
-            uint32_t x = (uint32_t) ip_FactorList[fIdx].x;
-            uint32_t y = (uint32_t) ip_FactorList[fIdx].y;
-            int32_t sign = (ip_FactorList[fIdx].sign == 1 ? +1 : -1);
+         {
+            uint64_t tIdx =  ip_FactorList[fIdx].termIdx;
+            uint32_t x = (uint32_t) ip_TermList[tIdx].x;
+            uint32_t y = (uint32_t) ip_TermList[tIdx].y;
+            int32_t  sign = (ip_FactorList[fIdx].sign == 1 ? +1 : -1);
             uint64_t theFactor = ip_FactorList[fIdx].factor;
             
-            ip_LifchitzApp->ReportFactor(theFactor, x, y, sign);
+            ip_LifchitzApp->ReportFactor(theFactor, x, y, sign, ip_TermIndexes[xIdx][yIdx][tIdx]);
             
             if ((fIdx+1) == ii_MaxGpuFactors)
                break;
@@ -250,20 +252,12 @@ void   LifchitzGpuWorker::CreateTermGroups(void)
 
       ip_GpuTerms[xIdx][yIdx][tIdx].x = terms[idx].x;
       ip_GpuTerms[xIdx][yIdx][tIdx].y = terms[idx].y;
+      ip_TermIndexes[xIdx][yIdx][tIdx] = idx;
       
-      if (terms[idx].sign == +1) ip_GpuTerms[xIdx][yIdx][tIdx].plus = 1;
-      if (terms[idx].sign == -1) ip_GpuTerms[xIdx][yIdx][tIdx].minus = 1;
+      if (terms[idx].sign == +1) ip_GpuTerms[xIdx][yIdx][tIdx].sign = 1;
+      if (terms[idx].sign == -1) ip_GpuTerms[xIdx][yIdx][tIdx].sign = 2;
       
       ip_TermsInGroup[xIdx][yIdx]++;
-      
-      // If the next term has the same x and y, we will apply the sign instead of adding a new term to the group
-      if (terms[idx].x == terms[idx+1].x && terms[idx].x == terms[idx+1].y)
-      {
-         if (terms[idx+1].sign == +1) ip_GpuTerms[xIdx][yIdx][tIdx].plus = 1;
-         if (terms[idx+1].sign == -1) ip_GpuTerms[xIdx][yIdx][tIdx].minus = 1;
-         
-         idx++;
-      }
       
       idx++;
    }
