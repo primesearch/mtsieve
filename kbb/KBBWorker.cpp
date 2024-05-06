@@ -21,7 +21,7 @@ KBBWorker::KBBWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
    // Give a little extra space
    ii_BaseCount = ip_KBBApp->GetMaxB() - ip_KBBApp->GetMinB() + 10;
    
-   ip_Bases = (uint32_t *) xmalloc(ii_BaseCount * sizeof(uint32_t));
+   ip_Bases = (uint32_t *) xmalloc(ii_BaseCount, sizeof(uint32_t), "bases");
    
    il_NextBaseBuild = 0;
    

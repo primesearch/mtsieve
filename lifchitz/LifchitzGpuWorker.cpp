@@ -37,10 +37,10 @@ LifchitzGpuWorker::LifchitzGpuWorker(uint32_t myId, App *theApp) : Worker(myId, 
 
    AllocateMemory();
 
-   snprintf(defines[defineCount++], 50, "#define D_MAX_X_BASES %u", ii_XBasesPerGroup);
-   snprintf(defines[defineCount++], 50, "#define D_MAX_Y_BASES %u", ii_YBasesPerGroup);
+   snprintf(defines[defineCount++], 50, "#define D_MAX_X_BASES %u", ii_XPerChunk);
+   snprintf(defines[defineCount++], 50, "#define D_MAX_Y_BASES %u", ii_YPerChunk);
    snprintf(defines[defineCount++], 50, "#define D_MAX_FACTORS %u", ii_MaxGpuFactors);
-      
+
    for (idx=0; idx<defineCount; idx++)
       preKernelSources[idx] = defines[idx];
    
@@ -53,8 +53,8 @@ LifchitzGpuWorker::LifchitzGpuWorker(uint32_t myId, App *theApp) : Worker(myId, 
    ii_PrimesInList = ip_LifchitzApp->GetGpuPrimesPerWorker();
    
    il_PrimeList    = (uint64_t *)  ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t),  ii_PrimesInList);
-   ii_KernelXBases = (uint32_t *)  ip_Kernel->AddCpuArgument("xbases", sizeof(uint32_t),  ii_XBasesPerGroup);
-   ii_KernelYBases = (uint32_t *)  ip_Kernel->AddCpuArgument("ybases", sizeof(uint32_t),  ii_YBasesPerGroup);
+   ii_KernelXBases = (uint32_t *)  ip_Kernel->AddCpuArgument("xbases", sizeof(uint32_t),  ii_XPerChunk);
+   ii_KernelYBases = (uint32_t *)  ip_Kernel->AddCpuArgument("ybases", sizeof(uint32_t),  ii_YPerChunk);
    ip_TermList     = (gputerm_t *) ip_Kernel->AddCpuArgument("terms",  sizeof(gputerm_t), ii_TermsPerGroup);
    ii_FactorCount  = (uint32_t *)  ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 10);
    ip_FactorList   = (factor_t *)  ip_Kernel->AddGpuArgument("factorList", sizeof(factor_t), ii_MaxGpuFactors);
@@ -74,38 +74,64 @@ void  LifchitzGpuWorker::AllocateMemory(void)
 {
    uint32_t idx, xIdx, yIdx;
 
-   ii_XChunks = ip_LifchitzApp->GetXChunks();
-   ii_YChunks = ip_LifchitzApp->GetYChunks();
+   ii_XPerChunk = ip_LifchitzApp->GetXPerChunk();
+   ii_YPerChunk = ip_LifchitzApp->GetYPerChunk();
 
-   ii_XBasesPerGroup = 1 + ((1 + ii_MaxX - ii_MinX) / ii_XChunks);
-   ii_YBasesPerGroup = 1 + ((1 + ii_MaxY - ii_MinY) / ii_YChunks);
+   if (ii_XPerChunk > 1 + ii_MaxX - ii_MinX)
+   {
+      ii_XPerChunk = 1 + ii_MaxX - ii_MinX;
+      ii_XChunks = 1;
+   }
+   else
+   {
+      if (ii_XPerChunk == 1 + ii_MaxX - ii_MinX)
+         ii_XChunks = (1 + ii_MaxX - ii_MinX) / ii_XPerChunk;
+      else
+         ii_XChunks = 1 + (1 + ii_MaxX - ii_MinX) / ii_XPerChunk;
+   }
+   
+   if (ii_YPerChunk > 1 + ii_MaxY - ii_MinY)
+   {
+      ii_YPerChunk = 1 + ii_MaxY - ii_MinY;
+      ii_YChunks = 1;
+   }
+   else
+   {
+      if (ii_YPerChunk == 1 + ii_MaxY - ii_MinY)
+         ii_YChunks = (1 + ii_MaxY - ii_MinY) / ii_YPerChunk;
+      else
+         ii_YChunks = 1 + (1 + ii_MaxY - ii_MinY) / ii_YPerChunk;
+   }
 
-   ip_XBases = (uint32_t **) xmalloc(ii_XChunks * sizeof(uint32_t *));
-   ip_YBases = (uint32_t **) xmalloc(ii_YChunks * sizeof(uint32_t *));
+   ip_XBases = (uint32_t **) xmalloc(ii_XPerChunk, sizeof(uint32_t *), "xBases *");
+   ip_YBases = (uint32_t **) xmalloc(ii_YPerChunk, sizeof(uint32_t *), "yBases *");
 
    for (xIdx=0; xIdx<ii_XChunks; xIdx++)
-      ip_XBases[xIdx] = (uint32_t *) xmalloc(ii_XBasesPerGroup * sizeof(uint32_t));
+      ip_XBases[xIdx] = (uint32_t *) xmalloc(ii_XPerChunk, sizeof(uint32_t), "xBases");
    
    for (yIdx=0; yIdx<ii_YChunks; yIdx++)
-      ip_YBases[yIdx] = (uint32_t *) xmalloc(ii_YBasesPerGroup * sizeof(uint32_t));
+      ip_YBases[yIdx] = (uint32_t *) xmalloc(ii_YPerChunk, sizeof(uint32_t), "yBases");
 
-   ip_TermsInGroup = (uint32_t **) xmalloc(ii_XChunks * sizeof(uint32_t *));
+   ip_TermsInGroup = (uint32_t **) xmalloc(ii_XChunks, sizeof(uint32_t *), "termsInGrup **");
    
    for (xIdx=0; xIdx<ii_XChunks; xIdx++)
-      ip_TermsInGroup[xIdx] = (uint32_t *) xmalloc(ii_YChunks * sizeof(uint32_t));
+      ip_TermsInGroup[xIdx] = (uint32_t *) xmalloc(ii_YChunks, sizeof(uint32_t), "termsInGrup *");
    
    term_t *terms = ip_LifchitzApp->GetTerms();
    idx = 0;
 
    while (terms[idx].x > 0)
    {
-      xIdx = (terms[idx].x - ii_MinX) / ii_XBasesPerGroup;
-      yIdx = (terms[idx].y - ii_MinY) / ii_YBasesPerGroup;
+      xIdx = (terms[idx].x - ii_MinX) / ii_XPerChunk;
+      yIdx = (terms[idx].y - ii_MinY) / ii_YPerChunk;
       
       ip_TermsInGroup[xIdx][yIdx]++;
 
       idx++;
    }
+
+   if (ip_LifchitzApp->GetGpuWorkerCount() + ip_LifchitzApp->GetCpuWorkerCount() > 1)
+      xfree(terms);
    
    ii_TermsPerGroup = 0; 
    for (xIdx=0; xIdx<ii_XChunks; xIdx++)
@@ -116,19 +142,19 @@ void  LifchitzGpuWorker::AllocateMemory(void)
             ii_TermsPerGroup = ip_TermsInGroup[xIdx][yIdx];
       }
    }
-   
-   ip_GpuTerms = (gputerm_t ***) xmalloc(ii_XChunks * sizeof(gputerm_t **));
-   ip_TermIndexes = (uint64_t ***) xmalloc(ii_XChunks * sizeof(uint64_t **));
+      
+   ip_GpuTerms = (gputerm_t ***) xmalloc(ii_XChunks, sizeof(gputerm_t **), "gpuTerms **");
+   ip_TermIndexes = (uint64_t ***) xmalloc(ii_XChunks, sizeof(uint64_t **), "termIndexes **");
 
    for (xIdx=0; xIdx<ii_XChunks; xIdx++)
    {
-      ip_GpuTerms[xIdx] = (gputerm_t **) xmalloc(ii_YChunks * sizeof(gputerm_t *));
-      ip_TermIndexes[xIdx] = (uint64_t **) xmalloc(ii_YChunks * sizeof(uint64_t *));
+      ip_GpuTerms[xIdx] = (gputerm_t **) xmalloc(ii_YChunks, sizeof(gputerm_t *), "gpuTerms *");
+      ip_TermIndexes[xIdx] = (uint64_t **) xmalloc(ii_YChunks, sizeof(uint64_t *), "termIndexes *");
 
       for (yIdx=0; yIdx<ii_YChunks; yIdx++)
       {
-         ip_GpuTerms[xIdx][yIdx] = (gputerm_t *) xmalloc((1 + ii_TermsPerGroup) * sizeof(gputerm_t));
-         ip_TermIndexes[xIdx][yIdx] = (uint64_t *) xmalloc((1 + ii_TermsPerGroup) * sizeof(uint64_t));
+         ip_GpuTerms[xIdx][yIdx] = (gputerm_t *) xmalloc(1 + ii_TermsPerGroup, sizeof(gputerm_t), "gpuTerms");
+         ip_TermIndexes[xIdx][yIdx] = (uint64_t *) xmalloc(1 + ii_TermsPerGroup, sizeof(uint64_t), "termIndexes");
       }
    }
 }
@@ -159,8 +185,8 @@ void  LifchitzGpuWorker::TestMegaPrimeChunk(void)
             reportTime = time(NULL) + 60;
          }
           
-         memcpy(ii_KernelXBases, ip_XBases[xIdx], ii_XBasesPerGroup * sizeof(uint32_t));
-         memcpy(ii_KernelYBases, ip_YBases[xIdx], ii_YBasesPerGroup * sizeof(uint32_t));
+         memcpy(ii_KernelXBases, ip_XBases[xIdx], ii_XPerChunk * sizeof(uint32_t));
+         memcpy(ii_KernelYBases, ip_YBases[xIdx], ii_YPerChunk * sizeof(uint32_t));
          memcpy(ip_TermList,  ip_GpuTerms[xIdx][yIdx], ii_TermsPerGroup * sizeof(gputerm_t));
 
          ii_FactorCount[0] = 0;
@@ -204,21 +230,21 @@ void   LifchitzGpuWorker::CreateTermGroups(void)
    
    for (xIdx=0; xIdx<ii_XChunks; xIdx++)
    {
-      memset(ip_XBases[xIdx], 0x00, ii_XBasesPerGroup * sizeof(uint32_t));
+      memset(ip_XBases[xIdx], 0x00, ii_XPerChunk * sizeof(uint32_t));
       
       // Set the first base for this chunk so we can use as an offset for the array in the GPU.
       ip_XBases[xIdx][0] = minXForChunk;
-      minXForChunk += ii_XBasesPerGroup;
+      minXForChunk += ii_XPerChunk;
    }
       
    uint32_t minYForChunk = ii_MinY;
    for (yIdx=0; yIdx<ii_YChunks; yIdx++)
    {
-      memset(ip_YBases[yIdx], 0x00, ii_YBasesPerGroup * sizeof(uint32_t));
+      memset(ip_YBases[yIdx], 0x00, ii_YPerChunk * sizeof(uint32_t));
          
       // Set the first base for minYForChunk chunk so we can use as an offset for the array in the GPU.
       ip_YBases[yIdx][0] = minYForChunk;
-      minYForChunk += ii_YBasesPerGroup;
+      minYForChunk += ii_YPerChunk;
    }
    
    for (xIdx=0; xIdx<ii_XChunks; xIdx++)
@@ -236,8 +262,8 @@ void   LifchitzGpuWorker::CreateTermGroups(void)
 
    while (terms[idx].x > 0)
    {
-      xIdx = (terms[idx].x - ii_MinX) / ii_XBasesPerGroup;
-      yIdx = (terms[idx].y - ii_MinY) / ii_YBasesPerGroup;
+      xIdx = (terms[idx].x - ii_MinX) / ii_XPerChunk;
+      yIdx = (terms[idx].y - ii_MinY) / ii_YPerChunk;
  
       minXForChunk = ip_XBases[xIdx][0];
       minYForChunk = ip_YBases[yIdx][0];
@@ -252,13 +278,15 @@ void   LifchitzGpuWorker::CreateTermGroups(void)
 
       ip_GpuTerms[xIdx][yIdx][tIdx].x = terms[idx].x;
       ip_GpuTerms[xIdx][yIdx][tIdx].y = terms[idx].y;
+      ip_GpuTerms[xIdx][yIdx][tIdx].signs = terms[idx].signs;
+
       ip_TermIndexes[xIdx][yIdx][tIdx] = idx;
-      
-      if (terms[idx].sign == +1) ip_GpuTerms[xIdx][yIdx][tIdx].sign = 1;
-      if (terms[idx].sign == -1) ip_GpuTerms[xIdx][yIdx][tIdx].sign = 2;
-      
+            
       ip_TermsInGroup[xIdx][yIdx]++;
       
       idx++;
    }
+   
+   if (ip_LifchitzApp->GetGpuWorkerCount() + ip_LifchitzApp->GetCpuWorkerCount() > 1)
+      xfree(terms);;
 }

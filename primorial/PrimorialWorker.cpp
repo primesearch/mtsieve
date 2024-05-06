@@ -29,7 +29,7 @@ PrimorialWorker::PrimorialWorker(uint32_t myId, App *theApp) : Worker(myId, theA
    {
       uint32_t pIdx;
    
-      id_PrimorialPrimes = (double *) xmalloc((ii_NumberOfPrimorialPrimes + 1) * sizeof(double));
+      id_PrimorialPrimes = (double *) xmalloc((ii_NumberOfPrimorialPrimes + 1), sizeof(double), "primes");
       
       for (pIdx=0; pIdx<ii_NumberOfPrimorialPrimes; pIdx++)
          id_PrimorialPrimes[pIdx] = (double) ip_PrimorialPrimes[pIdx];

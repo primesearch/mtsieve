@@ -62,8 +62,8 @@ void  TwinWorker::NotifyPrimeListAllocated(uint32_t primesInList)
    
    if (ii_Base < 255256 && it_TermType == TT_BN)
    {
-      il_MyPrimeList = (uint64_t *) xmalloc((primesInList + 10) * sizeof(uint64_t));
-      ii_InverseList = (uint32_t *) xmalloc((primesInList + 10) * sizeof(uint32_t));
+      il_MyPrimeList = (uint64_t *) xmalloc(primesInList + 10, sizeof(uint64_t), "primeList");
+      ii_InverseList = (uint32_t *) xmalloc(primesInList + 10, sizeof(uint32_t), "inverseList");
    }
 }
 
@@ -323,7 +323,7 @@ void    TwinWorker::RemoveTermsBigPrime(uint64_t prime, uint64_t k, int32_t c)
 
 void    TwinWorker::BuildBaseInverses(void)
 {
-	ii_BaseInverses = (uint32_t *) xmalloc(ii_Base * sizeof(uint32_t));
+	ii_BaseInverses = (uint32_t *) xmalloc(ii_Base, sizeof(uint32_t), "baseInverses");
 
 	ii_BaseInverses[0] = 0;
 	ii_BaseInverses[1] = ii_Base-1;

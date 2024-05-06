@@ -154,8 +154,8 @@ void PrimorialApp::ValidateOptions(void)
    
    it = primes.begin();
 
-   ip_PrimorialPrimes = (uint32_t *) xmalloc((primesInRange + 2) * sizeof(uint32_t));
-   ip_PrimorialPrimeGaps = (uint16_t *) xmalloc((primesInRange + 2) * sizeof(uint16_t));
+   ip_PrimorialPrimes = (uint32_t *) xmalloc((primesInRange + 2), sizeof(uint32_t), "primes");
+   ip_PrimorialPrimeGaps = (uint16_t *) xmalloc((primesInRange + 2), sizeof(uint16_t), "primeGaps");
    
    ii_NumberOfPrimorialPrimes = 0;
    ii_BiggestGap = 0;

@@ -135,7 +135,7 @@ void  PrimorialGpuWorker::BuildPrimeGapGroups(void)
 
    ii_GroupCount = 1 + (primorialPrimeCount / ii_MaxGpuSteps);
 
-   ip_GapGroups = (uint16_t **) xmalloc(ii_GroupCount * sizeof(uint16_t *));
+   ip_GapGroups = (uint16_t **) xmalloc(ii_GroupCount, sizeof(uint16_t *), "groups *");
 
    remainingTerms = primorialPrimeCount;
 
@@ -143,7 +143,7 @@ void  PrimorialGpuWorker::BuildPrimeGapGroups(void)
    {
       termsInGroup = (ii_MaxGpuSteps > remainingTerms ? remainingTerms : ii_MaxGpuSteps);
       
-      ip_GapGroups[gIdx] = (uint16_t *) xmalloc((1 + ii_MaxGpuSteps) * sizeof(uint16_t));
+      ip_GapGroups[gIdx] = (uint16_t *) xmalloc((1 + ii_MaxGpuSteps), sizeof(uint16_t), "groups");
       memcpy(ip_GapGroups[gIdx], &primeGaps[gIdx * ii_MaxGpuSteps], termsInGroup * sizeof(uint16_t));
             
       remainingTerms -= termsInGroup;      

@@ -237,7 +237,7 @@ void   MultiFactorialApp::BuildTerms(void)
    primeIterator.skipto(1, ii_MinN);
    
    primeCount = primesieve::count_primes(1, ii_MinN);
-   primes = (uint64_t *) xmalloc(primeCount * sizeof(uint64_t));
+   primes = (uint64_t *) xmalloc(primeCount, sizeof(uint64_t), "primes");
    primeCount = 0;
    
    do
@@ -248,17 +248,17 @@ void   MultiFactorialApp::BuildTerms(void)
       primeCount++;
    } while (thePrime < ii_MinN);
    
-   ip_Terms = (terms_t *) xmalloc(ii_MultiFactorial * sizeof(terms_t));
+   ip_Terms = (terms_t *) xmalloc(ii_MultiFactorial, sizeof(terms_t), "terms");
    
    for (uint32_t mf=0; mf<ii_MultiFactorial; mf++)
    {
-      ip_Terms[mf].base = (uint64_t *) xmalloc((primeCount+1) * sizeof(uint64_t));
-      ip_Terms[mf].power = (uint32_t *) xmalloc((primeCount+1) * sizeof(uint32_t));
+      ip_Terms[mf].base = (uint64_t *) xmalloc((primeCount+1), sizeof(uint64_t), "bases");
+      ip_Terms[mf].power = (uint32_t *) xmalloc((primeCount+1), sizeof(uint32_t), "powers");
       
       memcpy(ip_Terms[mf].base, primes, primeCount * sizeof(uint64_t));
    }
 
-   uint64_t *allTerms = (uint64_t *) xmalloc(ii_MinN * sizeof(uint64_t));
+   uint64_t *allTerms = (uint64_t *) xmalloc(ii_MinN, sizeof(uint64_t), "allTerms");
    
    for (uint32_t f=1; f<ii_MinN; f++)
       allTerms[f] = f;

@@ -17,6 +17,8 @@ const char *lifchitz_kernel= \
 "volatile device atomic_int *factorCount,\n" \
 "device ulong4     *factors);\n" \
 "#endif\n" \
+"#define P_ONE     0x01\n" \
+"#define M_ONE     0x02\n" \
 "ulong mmmInvert(ulong _p);\n" \
 "ulong mmmOne(ulong _p);\n" \
 "ulong mmmR2(ulong _p, ulong _q, ulong _one);\n" \
@@ -69,12 +71,12 @@ const char *lifchitz_kernel= \
 "{\n" \
 "ulong xPowX = xRemainders[terms[idx].x - minX];\n" \
 "ulong yPowY = yRemainders[terms[idx].y - minY];\n" \
-"if (terms[idx].z == 1)\n" \
+"if (terms[idx].z & P_ONE)\n" \
 "{\n" \
 "if (xPowX + yPowY == thePrime)\n" \
 "collectFactor(idx, +1, thePrime, factorCount, factors);\n" \
 "}\n" \
-"else\n" \
+"if (terms[idx].z & M_ONE)\n" \
 "{\n" \
 "if (xPowX == yPowY)\n" \
 "collectFactor(idx, -1, thePrime, factorCount, factors);\n" \

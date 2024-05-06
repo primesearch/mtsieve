@@ -81,7 +81,7 @@ App::App(void)
    ib_SetMinPrimeFromCommandLine = false;
    ib_FixedCpuWorkSize = false;
 
-   ip_Workers = (Worker **) xmalloc((MAX_WORKERS + 1) * sizeof(Worker *));
+   ip_Workers = (Worker **) xmalloc(MAX_WORKERS + 1, sizeof(Worker *), "workers");
    
 #if defined(USE_OPENCL)
    ip_GpuDevice = new OpenCLDevice();
@@ -194,7 +194,7 @@ parse_t App::ParentParseOption(int opt, char *arg, const char *source)
             ib_FixedCpuWorkSize = true;
          }
          
-         status = Parser::Parse(arg, 10, 1000000000, ii_CpuWorkSize);
+         status = Parser::Parse(arg, 12, 1000000000, ii_CpuWorkSize);
          break;
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
@@ -233,7 +233,7 @@ void App::ParentValidateOptions(void)
    // Ensure that the number of primes is divisble by 32
    // Although not required by all CPU sieves, many of them optimize
    // with groups of 4, 16, or 32 primes.
-   while (ii_CpuWorkSize & 0x10)
+   while (ii_CpuWorkSize & 0x1f)
       ii_CpuWorkSize++;
    
    if (il_MinPrime >= il_MaxPrime)
@@ -446,7 +446,7 @@ void  App::Run(void)
 void  App::Sieve(void)
 {
    uint32_t th;
-   bool     useSingleThread;
+   bool     useSingleThread, workersUsedInFirstLoop;
    
    ResetFactorStats();
    
@@ -470,9 +470,13 @@ void  App::Sieve(void)
    
    ip_PrimeIterator.skipto(il_LargestPrimeSieved, il_MaxPrime);
    
+   workersUsedInFirstLoop = false;
+   
    // In the first loop, run until we no longer need to use a single worker or until we can switch to the GPU.
    while ((useSingleThread || il_LargestPrimeSieved < il_MinGpuPrime) && il_LargestPrimeSieved < il_MaxPrime && IsRunning())
    {
+      workersUsedInFirstLoop = true;
+      
       th = GetNextAvailableWorker(useSingleThread, il_LargestPrimeSieved);
 
       // Stop if we couldn't get a worker.  This should only happen if there is 
@@ -500,14 +504,17 @@ void  App::Sieve(void)
    
    uint32_t stoppedCount = 0;
    
-   uint64_t largestPrimeTestedNoGaps, largestPrimeTested, primesTested;
-   uint64_t workerCpuUS;
-   
-   // Get the largest prime tested without gaps in case workers stopped processing
-   // before reaching the of their chunk of work.
-   GetWorkerStats(workerCpuUS, largestPrimeTestedNoGaps, largestPrimeTested, primesTested);
-   
-   il_LargestPrimeSieved = largestPrimeTestedNoGaps;
+   if (workersUsedInFirstLoop)
+   {
+      uint64_t largestPrimeTestedNoGaps, largestPrimeTested, primesTested;
+      uint64_t workerCpuUS;
+      
+      // Get the largest prime tested without gaps in case workers stopped processing
+      // before reaching the of their chunk of work.
+      GetWorkerStats(workerCpuUS, largestPrimeTestedNoGaps, largestPrimeTested, primesTested);
+      
+      il_LargestPrimeSieved = largestPrimeTestedNoGaps;
+   }
    
    // In the second loop, run until we are done.  Hopefully this will do a better job at keeping
    // of the workers busy.
@@ -614,7 +621,7 @@ uint64_t  App::GetPrimesForWorker(uint32_t th)
    uint32_t  maxPrimesInList = ip_Workers[th]->GetMaxWorkSize();
    uint64_t *primeList = ip_Workers[th]->GetPrimeList();
    uint32_t  pIdx = 0;
-     
+
    if (il_MaxPrimeForSingleWorker > 0 && il_MaxPrimeForSingleWorker > il_LargestPrimeSieved)
    {
       while (pIdx < maxPrimesInList && il_LargestPrimeSieved < il_MaxPrimeForSingleWorker)

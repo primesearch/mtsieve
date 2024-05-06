@@ -33,7 +33,7 @@ CullenWoodallWorker::CullenWoodallWorker(uint32_t myId, App *theApp) : Worker(my
    ii_MaxTermCount = ip_CullenWoodallApp->GetMaxN() - ip_CullenWoodallApp->GetMinN() + 10;
 
    // Allocate enough memory to hold all of the terms.
-   ii_Terms = (uint32_t *) xmalloc(ii_MaxTermCount*sizeof(int32_t));
+   ii_Terms = (uint32_t *) xmalloc(ii_MaxTermCount, sizeof(int32_t), "terms");
 
 #ifdef USE_X86
    if (ip_CullenWoodallApp->UseAvxIfAvailable() && CpuSupportsAvx())

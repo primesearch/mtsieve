@@ -28,15 +28,15 @@ SmallHashTable::SmallHashTable(uint32_t elements) : HashTable()
 
    hsize_minus1 = hsize - 1;
 
-   htable = (uint16_t *) xmalloc(hsize*sizeof(uint16_t));
-   olist = (uint16_t *) xmalloc(elements*sizeof(uint16_t));
+   htable = (uint16_t *) xmalloc(hsize, sizeof(uint16_t), "htable");
+   olist = (uint16_t *) xmalloc(elements, sizeof(uint16_t), "olist");
 
    // The j values are all in the range 0 <= j < M, so we can use M as an
    // empty slot marker as long as we fill BJ[M] with a value that will never
    // match a real b^j value. Since b^j is always in the range 0 <= b^j < p
    // for some prime p, any value larger than all 32/64 bit primes will do.
    empty_slot = elements;
-   BJ64 = (uint64_t *) xmalloc((elements+1)*sizeof(uint64_t));
+   BJ64 = (uint64_t *) xmalloc(elements+1, sizeof(uint64_t), "BJ64");
    BJ64[empty_slot] = UINT64_MAX;
    
    Clear();

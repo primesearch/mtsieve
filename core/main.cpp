@@ -212,16 +212,11 @@ void  AppendLongOpt(struct option *longOpts, const char *name, int has_arg, int 
    longOpts->val = charSwitch;
 }
 
-void *xmalloc(size_t requestedSize)
-{
-   return xmallocNew(requestedSize, true, "N/A");
-}
-
-void *xmallocNew(size_t requestedSize, bool exitIfError, const char *what)
+void *xmalloc(uint64_t count, uint32_t size, const char *what)
 {
    void     *allocatedPtr;
    char     *currentPtr;
-   size_t    allocatedSize = requestedSize + 150;
+   size_t    bytesToAllocate = (size * count) + 128;
    uint64_t  temp;
 
    // Allocate extra memory because we need to align to a 64-byte boundary
@@ -229,23 +224,17 @@ void *xmallocNew(size_t requestedSize, bool exitIfError, const char *what)
    // put the original pointer for the allocated memory and the orignal size
    // for the allocated memory at the front of this and follow by 0xff to
    // verify that someone isn't running past the end of their allocated memory.
-   if ((allocatedPtr = malloc(allocatedSize)) == NULL)
-   {
-      if (exitIfError)
-         FatalError("Unable to allocate %" PRIu64" bytes of memory for %s", (uint64_t) requestedSize, what);
-      
-      printf("Unable to allocate %" PRIu64" bytes of memory for %s\n", (uint64_t) requestedSize, what);
-      return NULL;
-   }
+   if ((allocatedPtr = malloc(bytesToAllocate)) == NULL)
+      FatalError("Unable to allocate %" PRIu64" bytes of memory for %s.  %" PRIu64" bytes already allocated", (uint64_t) (size * count), what, cpuBytes);
 
-   cpuBytes += allocatedSize;
+   //printf("allocating %" PRIu64" bytes for %s\n", (size * count), what);
 
-   memset(allocatedPtr, 0x00, allocatedSize);
+   cpuBytes += bytesToAllocate;
+
+   memset(allocatedPtr, 0x00, bytesToAllocate);
    
    temp = (uint64_t) allocatedPtr;
-   
-   //printf("allocating %llu at %llu\n", allocatedSize, temp);
-   
+      
    // We want temp divisible by 64 and within the allocated area
    while (temp % 64 != 0)
       temp++;
@@ -257,13 +246,13 @@ void *xmallocNew(size_t requestedSize, bool exitIfError, const char *what)
    *(uint64_t *) currentPtr = (uint64_t) allocatedPtr;
       
    // Put the size of the  to what was actually allocated here
-   *(uint64_t *) (currentPtr + 8) = (uint64_t) allocatedSize;
+   *(uint64_t *) (currentPtr + 8) = (uint64_t) (size * count);
 
    // Get to the next boundary
    currentPtr += 64;
    
    // This will help us detect someone going past what they are supposed to
-   *(currentPtr + requestedSize) = 0xff;
+   *(currentPtr + (size * count)) = 0xff;
 
    return (void *) currentPtr;
 }
@@ -273,19 +262,17 @@ void xfree(void *memoryPtr)
    uint64_t  currentPtr;
    void     *allocatedPtr;
    size_t    allocatedSize;
-   uint64_t  temp;
       
-   temp = (uint64_t) memoryPtr;
-   
-   currentPtr = (uint64_t) (temp - 64);
-   
+   currentPtr = ((uint64_t) memoryPtr) - 64;
+     
    // Reduce by what we actually allocated
    allocatedSize = *((uint64_t *) (currentPtr + 8));
+   
    cpuBytes -= allocatedSize;
+
+   //printf("freeing %" PRIu64" bytes\n", allocatedSize);
    
    allocatedPtr =  (void *) *((uint64_t *) currentPtr);
-
-   //printf("freeing %llu at %llu\n", allocatedSize, currentPtr);
    
    free(allocatedPtr);
 }

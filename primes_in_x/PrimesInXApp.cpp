@@ -210,7 +210,7 @@ void PrimesInXApp::ProcessInputStringFile(void)
    
    // Assume that nobody will ever specify and lmax greater than 100000000
    // because those PRP tests would take many days.
-   buffer = (char *) xmalloc(100000000);
+   buffer = (char *) xmalloc(100000000, 1, "buffer");
 
    fPtr = fopen(is_StringFileName.c_str(), "r");
 
@@ -243,7 +243,7 @@ void PrimesInXApp::ProcessInputTermsFile(bool haveBitMap)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
 
    il_TermCount = 0;
-   buffer = (char *) xmalloc(10000100);
+   buffer = (char *) xmalloc(10000100, 1, "buffer");
 
    while (fgets(buffer, 10000100, fPtr) != NULL)
    {
@@ -313,11 +313,11 @@ void  PrimesInXApp::BuildTerms(char *inputTerm)
    char  *charTerms, *pos = inputTerm;
    uint32_t index = 0;
 
-   ii_e1Terms = (uint32_t *) xmalloc((size_t) (ii_MaxLength/1+32)*sizeof(uint32_t));
-   ii_e3Terms = (uint32_t *) xmalloc((size_t) (ii_MaxLength/3+32)*sizeof(uint32_t));
-   ii_e6Terms = (uint32_t *) xmalloc((size_t) (ii_MaxLength/6+32)*sizeof(uint32_t));
-   ii_e9Terms = (uint32_t *) xmalloc((size_t) (ii_MaxLength/9+32)*sizeof(uint32_t));
-   charTerms  = (char *) xmalloc((size_t) ii_MaxLength+10);
+   ii_e1Terms = (uint32_t *) xmalloc((ii_MaxLength/1+32), sizeof(uint32_t), "1Terms");
+   ii_e3Terms = (uint32_t *) xmalloc((ii_MaxLength/3+32), sizeof(uint32_t), "3Terms");
+   ii_e6Terms = (uint32_t *) xmalloc((ii_MaxLength/6+32), sizeof(uint32_t), "6Terms");
+   ii_e9Terms = (uint32_t *) xmalloc((ii_MaxLength/9+32), sizeof(uint32_t), "9Terms");
+   charTerms  = (char *) xmalloc(ii_MaxLength+10, 1, "charTerms");
 
    memset(ii_e3Terms, 0x00, (size_t) (ii_MaxLength/3+32)*sizeof(uint32_t));
    memset(ii_e3Terms, 0x00, (size_t) (ii_MaxLength/6+32)*sizeof(uint32_t));
@@ -377,7 +377,7 @@ uint32_t	*PrimesInXApp::Get3DigitTermsCopy(void)
 {
    uint32_t *ptr;
    
-   ptr = (uint32_t *) xmalloc((size_t) (ii_MaxLength/3+32)*sizeof(uint32_t));
+   ptr = (uint32_t *) xmalloc((ii_MaxLength/3+32), sizeof(uint32_t), "3TermsCopy");
    memcpy(ptr, ii_e3Terms, (size_t) (ii_MaxLength/3+32)*sizeof(uint32_t));
    
    return ptr;
@@ -387,7 +387,7 @@ uint32_t	*PrimesInXApp::Get6DigitTermsCopy(void)
 {
    uint32_t *ptr;
    
-   ptr = (uint32_t *) xmalloc((size_t) (ii_MaxLength/6+32)*sizeof(uint32_t));
+   ptr = (uint32_t *) xmalloc((ii_MaxLength/6+32), sizeof(uint32_t), "6TermsCopy");
    memcpy(ptr, ii_e6Terms, (size_t) (ii_MaxLength/6+32)*sizeof(uint32_t));
    
    return ptr;
@@ -397,7 +397,7 @@ uint32_t	*PrimesInXApp::Get9DigitTermsCopy(void)
 {
    uint32_t *ptr;
    
-   ptr = (uint32_t *) xmalloc((size_t) (ii_MaxLength/9+32)*sizeof(uint32_t));
+   ptr = (uint32_t *) xmalloc((ii_MaxLength/9+32), sizeof(uint32_t), "9TermsCopy");
    memcpy(ptr, ii_e9Terms, (size_t) (ii_MaxLength/9+32)*sizeof(uint32_t));
    
    return ptr;

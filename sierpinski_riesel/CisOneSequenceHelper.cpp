@@ -41,7 +41,7 @@ void  CisOneSequenceHelper::BuildDivisorShifts(void)
    uint32_t i, r;
    int32_t  shift, divide;
 
-   ip_DivisorShifts = (int16_t *) xmalloc(shifts * sizeof(int16_t));
+   ip_DivisorShifts = (int16_t *) xmalloc(shifts, sizeof(int16_t), "shifts");
 
    for (i=0; i<shifts; i++)
    {
@@ -69,7 +69,7 @@ void  CisOneSequenceHelper::BuildPowerResidueIndices(void)
    uint32_t r, prIdx = 1;
 
    ii_UsedPowerResidueIndices = 0;
-   ip_PowerResidueIndices = (uint16_t *) xmalloc((ii_PowerResidueLcm + 1) * sizeof(uint16_t));
+   ip_PowerResidueIndices = (uint16_t *) xmalloc(ii_PowerResidueLcm + 1, sizeof(uint16_t), "powerResidueIndices");
 
    for (r=1; r<ii_PowerResidueLcm; r++)
    {
@@ -233,7 +233,7 @@ void   CisOneSequenceHelper::BuildLegendreTables()
    legendreTableBytes = srApp->GetLegendreTableBytes();
 
    // seqIdx starts at 1
-   ip_Legendre = (legendre_t *) xmalloc((ii_SequenceCount+1) * sizeof(legendre_t));
+   ip_Legendre = (legendre_t *) xmalloc((ii_SequenceCount+1), sizeof(legendre_t), "legendre");
 
    seqPtr = ip_FirstSequence;
    bytesNeeded = 0;
@@ -277,7 +277,7 @@ void   CisOneSequenceHelper::BuildLegendreTables()
    else
       ii_LegendreBytes = bytesNeeded + 1;    // We are not using offset 0
    
-   ip_LegendreTable = (uint8_t *) xmalloc(ii_LegendreBytes * sizeof(uint8_t));
+   ip_LegendreTable = (uint8_t *) xmalloc(ii_LegendreBytes, sizeof(uint8_t), "legendre");
    
    if (ip_LegendreTable == NULL)
    {

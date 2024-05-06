@@ -65,8 +65,8 @@ void  CunninghamChainWorker::NotifyPrimeListAllocated(uint32_t primesInList)
    
    if (it_TermType == TT_BN && ii_Base > 2 && ii_Base < 255256)
    {
-      il_MyPrimeList = (uint64_t *) xmalloc((primesInList + 10) * sizeof(uint64_t));
-      ii_InverseList = (uint32_t *) xmalloc((primesInList + 10) * sizeof(uint32_t));
+      il_MyPrimeList = (uint64_t *) xmalloc((primesInList + 10), sizeof(uint64_t), "primes");
+      ii_InverseList = (uint32_t *) xmalloc((primesInList + 10), sizeof(uint32_t), "inverses");
    }
 }
 
@@ -336,7 +336,7 @@ void  CunninghamChainWorker::RemoveTerms(uint64_t thePrime, uint64_t k, uint32_t
 
 void    CunninghamChainWorker::BuildBaseInverses(void)
 {
-	ii_BaseInverses = (uint32_t *) xmalloc(ii_Base * sizeof(uint32_t));
+	ii_BaseInverses = (uint32_t *) xmalloc(ii_Base, sizeof(uint32_t), "baseInverses");
 
 	ii_BaseInverses[0] = 0;
 	ii_BaseInverses[1] = ii_Base-1;

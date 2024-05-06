@@ -42,7 +42,7 @@ XYYXWorker::XYYXWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
    if (ip_XYYXApp->UseAvxIfAvailable() && CpuSupportsAvx())
    {
       for (uint32_t i=0; i<=MAX_POWERS; i++)
-         ip_AvxPowers[i] = (double *) xmalloc(AVX_ARRAY_SIZE * sizeof(double));
+         ip_AvxPowers[i] = (double *) xmalloc(AVX_ARRAY_SIZE, sizeof(double), "avxPowers");
       
       // The AVX logic does not handle when gcd(x, prime) > 1 or gcd(y, prime) > 1
       if (ii_MaxX < ii_MaxY)

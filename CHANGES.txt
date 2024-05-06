@@ -1,3 +1,11 @@
+2.6.0 - May 6, 2024
+   framework:  Fix issue when restarting with multiple threads as it might only use one thread.
+               Change xmalloc() to take additional parameters so it is easier to identify
+               what it is trying to allocate if not enough memory.
+   
+   lifsieve/lifsievecl: 1.4
+      New sieve for x^x-y^y and x^x+y^y.
+
 2.5.8 - April 3, 2024
    srsieve2/srsieve2cl: version 1.8.4
       If d = p^n for some integer n, then allow p as a factor of (k*b^n-c)/d.

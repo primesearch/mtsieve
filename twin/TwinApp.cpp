@@ -587,7 +587,7 @@ void TwinApp::BuildPrimorialTerms(void)
    primeIterator.skipto(1, ii_N);
    
    uint32_t primeCount = primesieve::count_primes(1, ii_N);
-   ii_Primes = (uint32_t *) xmalloc((10 + primeCount) * sizeof(uint32_t));
+   ii_Primes = (uint32_t *) xmalloc(10 + primeCount, sizeof(uint32_t), "primes");
    primeCount = 0;
    
    while (true)
@@ -603,7 +603,7 @@ void TwinApp::BuildPrimorialTerms(void)
       primeCount++;
    }
    
-   il_Terms = (uint64_t *) xmalloc((10 + (primeCount / 3)) * sizeof(uint64_t));
+   il_Terms = (uint64_t *) xmalloc(10 + (primeCount / 3), sizeof(uint64_t), "terms");
    
    il_Terms[0] = 2;
    termIdx = 0;
@@ -628,7 +628,7 @@ void TwinApp::BuildFactorialTerms(void)
    primesieve::iterator   primeIterator;
    uint32_t termIdx = 0;
 
-   il_Terms = (uint64_t *) xmalloc((10 + (ii_N / 3)) * sizeof(uint64_t));
+   il_Terms = (uint64_t *) xmalloc(10 + (ii_N / 3), sizeof(uint64_t), "terms");
 
    for (uint32_t n=2; n<=ii_N; n++)
    {

@@ -116,7 +116,7 @@ void  Worker::AllocatePrimeList(void)
       return;
    
    // Get a little extra space because we want to use 0 to end the list.
-   il_PrimeList = (uint64_t *) xmalloc((ii_MaxWorkSize + 10) * sizeof(uint64_t));
+   il_PrimeList = (uint64_t *) xmalloc(ii_MaxWorkSize + 2, sizeof(uint64_t), "primeList");
 }
 
 // This is executed in a thread that is not the main thread

@@ -93,7 +93,7 @@ CPU_PROGS=cksieve dmdsieve gcwsieve fbncsieve fkbnsieve k1b2sieve kbbsieve lifsi
 endif
 
 ifeq ($(strip $(HAS_X86)),yes)
-OPENCL_PROGS=afsievecl cksievecl gcwsievecl gfndsievecl mfsievecl pixsievecl smsievecl srsieve2cl xyyxsievecl psievecl
+OPENCL_PROGS=afsievecl cksievecl gcwsievecl gfndsievecl lifsievecl mfsievecl pixsievecl smsievecl srsieve2cl xyyxsievecl psievecl
 else
 OPENCL_PROGS=cksievecl cwsievecl gcwsievecl gfndsievecl lifsievecl mfsieveclsmsievecl srsieve2cl psievecl
 endif
@@ -209,8 +209,8 @@ GPU_HEADERS=alternating_factorial/af_kernel.gpu.h cullen_woodall/cw_kernel.gpu.h
 ALL_OBJS=$(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(CPU_CORE_OBJS) $(OPENCL_CORE_OBJS) $(METAL_CORE_OBJS) \
    $(AF_OBJS) $(MF_OBJS) $(FBNC_OBJS) $(FKBN_OBJS) $(GFND_OBJS) $(CC_OBJS) $(CK_OBJS) \
    $(PIX_OBJS) $(XYYX_OBJS) $(KBB_OBJS) $(GCW_OBJS) $(PRIM_OBJS) $(TWIN_OBJS) \
-   $(DMD_OBJS) $(SR2_OBJS) $(K1B2_OBJS) $(SG_OBJS) $(PRIM_OPENCL_OBJS) $(LF_OBJS) \
-   $(LF_OPENCL_OBJS) $(LF_METAL_OBJS) \
+   $(DMD_OBJS) $(SR2_OBJS) $(K1B2_OBJS) $(SG_OBJS) $(PRIM_OPENCL_OBJS) $(LIF_OBJS) \
+   $(LIF_OPENCL_OBJS) $(LIF_METAL_OBJS) \
    $(AF_OPENCL_OBJS) $(GCW_OPENCL_OBJS) $(GFND_OPENCL_OBJS) $(MF_OPENCL_OBJS) $(PIX_OPENCL_OBJS) \
    $(XYYX_OPENCL_OBJS) $(SR2_OPENCL_OBJS) $(SM_OBJS) $(PRIM_METAL_OBJS) $(SM_OPENCL_OBJS) \
    $(CW_METAL_OBJS) $(MF_METAL_OBJS) $(SR2_METAL_OBJS) $(CK_OPENCL_OBJS)

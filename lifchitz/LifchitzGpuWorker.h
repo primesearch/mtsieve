@@ -18,7 +18,7 @@
 typedef struct {
    uint32_t    x;
    uint32_t    y;
-   uint32_t    sign;
+   uint32_t    signs;
    uint32_t    unused;
 } gputerm_t;
 
@@ -61,8 +61,8 @@ protected:
    
    uint32_t          ii_MaxBases;
    
-   uint32_t          ii_XBasesPerGroup;
-   uint32_t          ii_YBasesPerGroup;
+   uint32_t          ii_XPerChunk;
+   uint32_t          ii_YPerChunk;
    uint32_t          ii_TermsPerGroup;
    
    uint32_t        **ip_XBases;

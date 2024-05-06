@@ -50,11 +50,11 @@ void  CisOneWithMultipleSequencesWorker::Prepare(uint64_t largestPrimeTested, ui
    ii_BestQ = bestQ;   
    ii_SieveLow = ii_MinN / ii_BestQ;
 
-   resX = (MpRes *) xmalloc((ii_PowerResidueLcm+4) * sizeof(MpRes));
-   resBD = (MpRes *) xmalloc((ii_BestQ+4)*sizeof(MpRes));
-   resBJ = (MpRes *) xmalloc((ii_SubsequenceCount+4)*sizeof(MpRes));
+   resX = (MpRes *) xmalloc((ii_PowerResidueLcm+4), sizeof(MpRes), "resX");
+   resBD = (MpRes *) xmalloc((ii_BestQ+4), sizeof(MpRes), "resBD");
+   resBJ = (MpRes *) xmalloc((ii_SubsequenceCount+4), sizeof(MpRes), "resBJ");
    
-   ip_UsableSubsequences = (useable_subseq_t *) xmalloc(ii_SubsequenceCount*sizeof(useable_subseq_t));
+   ip_UsableSubsequences = (useable_subseq_t *) xmalloc(ii_SubsequenceCount, sizeof(useable_subseq_t), "usableSubsequences");
    
    ip_DivisorShifts = ip_CisOneHelper->GetDivisorShifts();
    ip_PowerResidueIndices = ip_CisOneHelper->GetPowerResidueIndices();

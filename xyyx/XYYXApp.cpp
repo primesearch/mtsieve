@@ -173,7 +173,7 @@ void XYYXApp::ValidateOptions(void)
       {
          // Otherwise we use a map
          ib_Sparse = true;
-         ip_Terms = (term_t *) xmalloc((1+il_TermCount) * sizeof(term_t));
+         ip_Terms = (term_t *) xmalloc(1 + il_TermCount, sizeof(term_t), "terms");
          il_InitialSparseTermCount = il_TermCount;
       }
          
@@ -608,7 +608,7 @@ void   XYYXApp::GetTerms(uint32_t fpuRemaindersCount, uint32_t avxRemaindersCoun
    
    ip_FactorAppLock->Lock();
 
-   bases->xPowY = xPowY = (base_t *) xmalloc((ii_MaxX - ii_MinX + 1) * sizeof(base_t));
+   bases->xPowY = xPowY = (base_t *) xmalloc(ii_MaxX - ii_MinX + 1, sizeof(base_t) , "xPowY");
    
    for (x=ii_MinX; x<=ii_MaxX; x++)
    {
@@ -627,15 +627,15 @@ void   XYYXApp::GetTerms(uint32_t fpuRemaindersCount, uint32_t avxRemaindersCoun
          
       if (powerCount > 0)
       {
-         xPowY[x - ii_MinX].powerIndices = (uint32_t *) xmalloc((ii_MaxY - ii_MinY + 1) * sizeof(uint32_t));
-         xPowY[x - ii_MinX].powersOfX = (powerofx_t *) xmalloc(powerCount * sizeof(powerofx_t));
+         xPowY[x - ii_MinX].powerIndices = (uint32_t *) xmalloc(ii_MaxY - ii_MinY + 1, sizeof(uint32_t), "yPowX");
+         xPowY[x - ii_MinX].powersOfX = (powerofx_t *) xmalloc(powerCount, sizeof(powerofx_t), "powers");
          
          // Allocate these only once for this x
          if (fpuRemaindersCount > 0)
-            fpuRemaindersPtr = (uint64_t *) xmalloc(powerCount * fpuRemaindersCount * sizeof(uint64_t));
+            fpuRemaindersPtr = (uint64_t *) xmalloc(powerCount * fpuRemaindersCount, sizeof(uint64_t), "fpuRemainders");
             
          if (avxRemaindersCount > 0)
-            avxRemaindersPtr = (double *) xmalloc(powerCount * avxRemaindersCount * sizeof(double));
+            avxRemaindersPtr = (double *) xmalloc(powerCount * avxRemaindersCount, sizeof(double), "avxRemainders");
 
          xPowY[x - ii_MinX].fpuRemaindersPtr = fpuRemaindersPtr;
          xPowY[x - ii_MinX].avxRemaindersPtr = avxRemaindersPtr;
@@ -672,7 +672,7 @@ void   XYYXApp::GetTerms(uint32_t fpuRemaindersCount, uint32_t avxRemaindersCoun
       }
    }  
 
-   bases->yPowX = yPowX = (base_t *) xmalloc((ii_MaxY - ii_MinY + 1) * sizeof(base_t));
+   bases->yPowX = yPowX = (base_t *) xmalloc(ii_MaxY - ii_MinY + 1, sizeof(base_t), "yPowX");
       
    for (y=ii_MinY; y<=ii_MaxY; y++)
    {
@@ -691,7 +691,7 @@ void   XYYXApp::GetTerms(uint32_t fpuRemaindersCount, uint32_t avxRemaindersCoun
       
       if (powerCount > 0)
       {
-         yPowX[y - ii_MinY].powersOfY = (powerofy_t *) xmalloc(powerCount * sizeof(powerofy_t));
+         yPowX[y - ii_MinY].powersOfY = (powerofy_t *) xmalloc(powerCount, sizeof(powerofy_t), "powers");
          
          powerIndex = 0;
          
@@ -727,7 +727,7 @@ term_t  *XYYXApp::GetSparseTerms(void)
 {
    ip_FactorAppLock->Lock();
    
-   term_t *terms = (term_t *) xmalloc((il_InitialSparseTermCount + 1) * sizeof(term_t));
+   term_t *terms = (term_t *) xmalloc(il_InitialSparseTermCount + 1, sizeof(term_t), "terms");
    
    uint32_t cIdx = 0;
    
@@ -872,7 +872,7 @@ gputerm_t *XYYXApp::GetSparseGroupedTerms(void)
    
    uint32_t groups = 1 + (il_InitialSparseTermCount / ii_MaxGpuSteps);
    
-   gputerm_t *terms = (gputerm_t *) xmalloc((1 + groups * ii_MaxGpuSteps) * sizeof(gputerm_t *));
+   gputerm_t *terms = (gputerm_t *) xmalloc(1 + groups * ii_MaxGpuSteps, sizeof(gputerm_t *), "terms");
    
    uint32_t cIdx = 0, termsInGroup = 0;
    

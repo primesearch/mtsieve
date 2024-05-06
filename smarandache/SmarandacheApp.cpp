@@ -166,10 +166,10 @@ Worker *SmarandacheApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t large
 
 terms_t *SmarandacheApp::GetTerms(void)
 {
-   terms_t *terms = (terms_t *) xmalloc(sizeof(terms_t));
+   terms_t *terms = (terms_t *) xmalloc(1, sizeof(terms_t), "terms *");
    uint64_t idx = 0;
    
-   terms->termList = (uint32_t *) xmalloc(il_TermCount * sizeof(uint32_t));
+   terms->termList = (uint32_t *) xmalloc(il_TermCount, sizeof(uint32_t), "terms");
    
    for (uint32_t n=ii_MinN; n<=ii_MaxN; n++)
    {      

@@ -57,7 +57,7 @@ uint32_t    GenericSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
    k = ComputePossibleQ(Q, R, S);
    
    R.resize(Q, false);
-   S = (choice_bc_t *) xmalloc(k*sizeof(choice_bc_t));
+   S = (choice_bc_t *) xmalloc(k, sizeof(choice_bc_t), "S");
 
    for (i = 0; i < k; i++)
       S[i].subseqs = 0;

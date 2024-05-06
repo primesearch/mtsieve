@@ -28,7 +28,8 @@ LifchitzWorker::LifchitzWorker(uint32_t myId, App *theApp) : Worker(myId, theApp
    iv_Bases.resize(1 + ii_MaxBase - ii_MinBase);
    std::fill(iv_Bases.begin(), iv_Bases.end(), false);
 
-   ip_Remainders = (MpResVec *) xmalloc((1 + ii_MaxBase - ii_MinBase) * sizeof(MpResVec));
+   ip_Terms = NULL;
+   ip_Remainders = (MpResVec *) xmalloc((1 + ii_MaxBase - ii_MinBase), sizeof(MpResVec), "remainders");
    
    il_NextTermsBuild = 0;
    
@@ -38,6 +39,9 @@ LifchitzWorker::LifchitzWorker(uint32_t myId, App *theApp) : Worker(myId, theApp
 void  LifchitzWorker::CleanUp(void)
 {
    xfree(ip_Remainders);
+
+   if (ip_Terms != NULL)
+      xfree(ip_Terms);
 }
 
 void  LifchitzWorker::TestMegaPrimeChunk(void)
@@ -81,13 +85,13 @@ void  LifchitzWorker::TestMegaPrimeChunk(void)
             uint64_t xPowX = ip_Remainders[BIT(ip_Terms[idx].x)][pIdx];
             uint64_t yPowY = ip_Remainders[BIT(ip_Terms[idx].y)][pIdx];
             
-            if (ip_Terms[idx].sign == -1)
+            if (ip_Terms[idx].signs & M_ONE)
             {
                if (xPowX == yPowY)
                   ip_LifchitzApp->ReportFactor(ps[pIdx], ip_Terms[idx].x, ip_Terms[idx].y, -1, idx);
             }
             
-            if (ip_Terms[idx].sign == +1)
+            if (ip_Terms[idx].signs & P_ONE)
             {
                if (xPowX + yPowY == ps[pIdx])
                   ip_LifchitzApp->ReportFactor(ps[pIdx], ip_Terms[idx].x, ip_Terms[idx].y, +1, idx);
@@ -99,6 +103,10 @@ void  LifchitzWorker::TestMegaPrimeChunk(void)
       
       if (ps[3] > maxPrime)
          break;
+
+      // Stop ASAP if the user hit ^C since each execution of this method can take a long time to complete.
+      if (ip_LifchitzApp->IsInterrupted())
+         break;
    }
 }
 
@@ -109,6 +117,14 @@ void  LifchitzWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 
 void   LifchitzWorker::BuildTerms(void)
 {
+   bool haveWorkerTerms = false;
+   
+   if (ip_LifchitzApp->GetGpuWorkerCount() + ip_LifchitzApp->GetCpuWorkerCount() > 1)
+      haveWorkerTerms = true;
+
+   if (haveWorkerTerms && ip_Terms != NULL)
+      xfree(ip_Terms);
+
    ip_Terms = ip_LifchitzApp->GetTerms();
    uint64_t idx = 0;
    

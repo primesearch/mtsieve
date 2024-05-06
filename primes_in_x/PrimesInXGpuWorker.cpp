@@ -140,7 +140,7 @@ uint32_t  *PrimesInXGpuWorker::BuildDigitList(void)
    uint32_t smallTermsInList = ip_PrimesInXApp->GetMaxLength();
    uint32_t smallGroupsNeeded = 2 + (smallTermsInList / ii_MaxSteps);
 
-   uint32_t *groupedDigitList = (uint32_t *) xmalloc(smallGroupsNeeded * ii_GroupSize * sizeof(uint32_t));
+   uint32_t *groupedDigitList = (uint32_t *) xmalloc(smallGroupsNeeded * ii_GroupSize, sizeof(uint32_t), "digitList");
    uint32_t groupIdx = 0;
    uint32_t dlIdx = 0;
    uint32_t termLength = 0;
@@ -191,7 +191,7 @@ uint32_t  *PrimesInXGpuWorker::BuildDigitList(uint32_t multiplier, uint32_t powe
    //                        smallGroupsNeeded = (2 * 4970) / 800 --> 8
    //    This means 7 calls to the kernel to evaluate all terms as the 8th entry is empty.
 
-   uint32_t *groupedDigitList = (uint32_t *) xmalloc((smallGroupsNeeded + bigGroupsNeeded) * ii_GroupSize * sizeof(uint32_t));
+   uint32_t *groupedDigitList = (uint32_t *) xmalloc((smallGroupsNeeded + bigGroupsNeeded) * ii_GroupSize, sizeof(uint32_t), "digitList");
    uint32_t groupIdx = 0;
    uint32_t dlIdx = 0;
    uint32_t termLength = 0;

@@ -31,7 +31,7 @@ XYYXGpuWorker::XYYXGpuWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
    ii_GroupSize = ip_XYYXApp->GetMaxGpuSteps();
    ii_MaxGpuFactors = ip_XYYXApp->GetMaxGpuFactors();
 
-   ii_Terms = (uint32_t *) xmalloc(ii_Groups * ii_GroupSize * sizeof(uint32_t));
+   ii_Terms = (uint32_t *) xmalloc(ii_Groups * ii_GroupSize, sizeof(uint32_t), "terms");
    
    if (ip_XYYXApp->IsPlus())
       snprintf(defines[defineCount++], 50, "#define IS_PLUS");

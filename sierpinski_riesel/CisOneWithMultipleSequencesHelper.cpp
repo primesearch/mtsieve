@@ -141,7 +141,7 @@ void  CisOneWithMultipleSequencesHelper::BuildCongruenceTables(void)
    ii_Dim2 = ii_Dim3 * ii_UsedPowerResidueIndices;
    ii_Dim1 = ii_Dim2 * (ii_SequenceCount + 2);
 
-   ip_CongruentSubseqIndices = (uint32_t *) xmalloc(ii_Dim1 * sizeof(uint32_t));
+   ip_CongruentSubseqIndices = (uint32_t *) xmalloc(ii_Dim1, sizeof(uint32_t), "conguentSubseqIndices");
 
    // In sr1sieve, the congruent q and ladders are handled via four dimensional arrays.
    // For srsieve2, we will use two one dimensional arrays, which will be easier to pass to the GPU.
@@ -152,9 +152,9 @@ void  CisOneWithMultipleSequencesHelper::BuildCongruenceTables(void)
    ii_MaxSubseqEntries = 1000;
    ii_UsedSubseqEntries = 1;
    
-   ip_CongruentSubseqs = (uint32_t *) xmalloc(ii_MaxSubseqEntries * sizeof(uint32_t));
+   ip_CongruentSubseqs = (uint32_t *) xmalloc(ii_MaxSubseqEntries, sizeof(uint32_t), "congruentSubseq");
 
-   tempSubseqs = (uint32_t *) xmalloc(ii_PowerResidueLcm * sizeof(uint32_t));
+   tempSubseqs = (uint32_t *) xmalloc(ii_PowerResidueLcm, sizeof(uint32_t), "tempSubseq");
       
    // Build tables sc_lists[i][r] of pointers to lists of subsequences
    // whose terms k*b^m+c satisfy m = j (mod r)
@@ -215,7 +215,7 @@ void  CisOneWithMultipleSequencesHelper::CopySubseqs(seq_t *seqPtr, uint32_t r, 
    if (ii_UsedSubseqEntries + ssListLen + 10 >= ii_MaxSubseqEntries)
    {
       uint32_t newMaxSubseqEntries = ii_MaxSubseqEntries + 1000;
-      uint32_t *temp = (uint32_t *) xmalloc(newMaxSubseqEntries * sizeof(uint32_t));
+      uint32_t *temp = (uint32_t *) xmalloc(newMaxSubseqEntries, sizeof(uint32_t), "congruentSubseqs");
 
       memcpy(temp, ip_CongruentSubseqs, ii_MaxSubseqEntries * sizeof(uint32_t));
       xfree(ip_CongruentSubseqs);
@@ -301,7 +301,7 @@ void   CisOneWithMultipleSequencesHelper::MakeLadder()
 
    assert(a <= ii_BestQ);
    
-   ip_AllLadders = (uint16_t *) xmalloc(a * sizeof(uint16_t));
+   ip_AllLadders = (uint16_t *) xmalloc(a, sizeof(uint16_t), "ladders");
    ii_LadderEntries = 1;
    
    j = 2;

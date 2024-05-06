@@ -88,7 +88,7 @@ void    *MetalKernel::AddSharedArgument(const char *name, uint32_t size, uint32_
 void  *MetalKernel::AddArgument(const char *name, uint32_t size, uint32_t count, void *cpuMemory)
 {
    if (cpuMemory == NULL)
-      cpuMemory = xmalloc(size * count + 1);
+      cpuMemory = xmalloc(count + 1, size, name);
 
    ip_GpuDevice->IncrementGpuBytes(size * count);
    

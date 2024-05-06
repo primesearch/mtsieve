@@ -23,6 +23,9 @@ void collectFactor(ulong       idx,
             device ulong4     *factors);
 #endif
 
+#define P_ONE     0x01
+#define M_ONE     0x02
+
 ulong mmmInvert(ulong _p);
 ulong mmmOne(ulong _p);
 ulong mmmR2(ulong _p, ulong _q, ulong _one);
@@ -87,13 +90,14 @@ __kernel void lifchitz_kernel(__global const ulong  *primes,
       ulong xPowX = xRemainders[terms[idx].x - minX];
       ulong yPowY = yRemainders[terms[idx].y - minY];
       
-      if (terms[idx].z == 1)
+      if (terms[idx].z & P_ONE)
       {
          // .z = 1 is for the + form, but we pass 1 back to the caller
          if (xPowX + yPowY == thePrime)
             collectFactor(idx, +1, thePrime, factorCount, factors);
       }
-      else 
+
+      if (terms[idx].z & M_ONE)
       {
          // .w = 1 is for the - form, but we pass 2 back to the caller
          if (xPowX == yPowY)

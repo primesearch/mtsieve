@@ -16,10 +16,13 @@
 
 #include "../core/FactorApp.h"
 
+#define P_ONE     0x01
+#define M_ONE     0x02
+
 typedef struct {
    uint32_t    x;
    uint32_t    y;
-   int8_t      sign;
+   uint8_t     signs;
 } term_t;
 
 class LifchitzApp : public FactorApp
@@ -46,8 +49,8 @@ public:
    term_t           *GetTerms(void);
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
-   uint32_t          GetXChunks(void) { return ii_XChunks; };
-   uint32_t          GetYChunks(void) { return ii_YChunks; };
+   uint32_t          GetXPerChunk(void) { return ii_XPerChunk; };
+   uint32_t          GetYPerChunk(void) { return ii_YPerChunk; };
    uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
 #endif
 
@@ -66,6 +69,7 @@ protected:
 
 private:
    void              SetInitialTerms(void);
+   void              CollapseTerms(void);
    void              VerifyFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign);
       
    bool              ib_IsPlus;
@@ -74,12 +78,13 @@ private:
    uint32_t          ii_MaxX;
    uint32_t          ii_MinY;
    uint32_t          ii_MaxY;
-   uint64_t          il_StartingTermCount;
+   uint64_t          il_TermArraySize;
+   
    term_t           *ip_Terms;
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
-   uint32_t          ii_XChunks;
-   uint32_t          ii_YChunks;
+   uint32_t          ii_XPerChunk;
+   uint32_t          ii_YPerChunk;
    uint32_t          ii_MaxGpuFactors;
 #endif
 };

@@ -32,10 +32,10 @@ SmarandacheGpuWorker::SmarandacheGpuWorker(uint32_t myId, App *theApp) : Worker(
    if (ii_MaxGpuSteps * ii_KernelCount < terms->termCount)
       ii_KernelCount++;
    
-   ii_AllTerms = (uint32_t **) xmalloc(ii_KernelCount * sizeof(uint32_t *));
+   ii_AllTerms = (uint32_t **) xmalloc(ii_KernelCount, sizeof(uint32_t *), "allTerms *");
    
    for (idx=0; idx<ii_KernelCount; idx++)
-      ii_AllTerms[idx] = (uint32_t *) xmalloc((ii_MaxGpuSteps+1) * sizeof(uint32_t));
+      ii_AllTerms[idx] = (uint32_t *) xmalloc(1 + ii_MaxGpuSteps, sizeof(uint32_t), "allTerms");
    
    snprintf(defines[defineCount++], 50, "#define D_MAX_FACTORS %d\n", ii_MaxGpuFactors);
 

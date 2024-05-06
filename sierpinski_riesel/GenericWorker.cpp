@@ -109,10 +109,10 @@ void  GenericWorker::InitializeWorker(void)
    if (ii_MaxN/ii_BestQ >= ii_SieveLow+ii_SieveRange)
       FatalError("ii_SieveRange was not computed correctly");
 
-   ssHash = (uint32_t *) xmalloc(ii_SubsequenceCount*sizeof(uint32_t *));
+   ssHash = (uint32_t *) xmalloc(ii_SubsequenceCount, sizeof(uint32_t *), "ssHash");
    
-   mBDCK = (MpResVec *) xmalloc(ii_SubsequenceCount*sizeof(MpResVec));
-   mBD = (MpResVec *) xmalloc(ii_BestQ*sizeof(MpResVec));
+   mBDCK = (MpResVec *) xmalloc(ii_SubsequenceCount, sizeof(MpResVec), "mBDCK");
+   mBD = (MpResVec *) xmalloc(ii_BestQ, sizeof(MpResVec), "mBD");
 }
 
 void  GenericWorker::TestMegaPrimeChunk(void)

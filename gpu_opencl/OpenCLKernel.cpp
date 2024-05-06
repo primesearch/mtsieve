@@ -30,13 +30,13 @@ OpenCLKernel::OpenCLKernel(GpuDevice *device, const char *kernelName, const char
    std::string    madEnable = "-cl-mad-enable";
    std::string    buildOptions = "";
 
-   tempSource = (char *) xmalloc(50000);
+   tempSource = (char *) xmalloc(500000, 1, "tempSource");
 
    sources[0] = tempSource;
    sources[1] = kernelSource;
    sources[2] = NULL;
    
-   snprintf(tempSource, 50000, "#define USE_OPENCL\n");
+   snprintf(tempSource, 500000, "#define USE_OPENCL\n");
    
    if (preOpenCLKernelSources != NULL)
    {
@@ -55,7 +55,7 @@ OpenCLKernel::OpenCLKernel(GpuDevice *device, const char *kernelName, const char
 
    ip_OpenCLDevice = (OpenCLDevice *) device;
    
-   ip_KernelArguments = (ka_t *) xmalloc(sizeof(ka_t) * MAX_KERNEL_ARGUMENTS);
+   ip_KernelArguments = (ka_t *) xmalloc(MAX_KERNEL_ARGUMENTS, sizeof(ka_t), "kernelArguments");
    is_KernelName = kernelName;
    ii_ArgumentCount = 0;
  
@@ -225,7 +225,7 @@ void  *OpenCLKernel::AddArgument(const char *name, uint32_t size, uint32_t count
    
    if (cpuMemory == NULL)
    {
-      ka->cpuBuffer = xmalloc(size * (count + 1));
+      ka->cpuBuffer = xmalloc(count + 1, size, name);
       ka->mustFreeCpuBuffer = true;
    }
    else

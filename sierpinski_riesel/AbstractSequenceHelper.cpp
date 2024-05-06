@@ -169,7 +169,7 @@ void        AbstractSequenceHelper::MakeSubsequencesForOldSieve(uint64_t expecte
 
 void      AbstractSequenceHelper::CreateEmptySubsequences(uint32_t subsequenceCount)
 {
-   ip_Subsequences = (subseq_t *) xmalloc(subsequenceCount * sizeof(subseq_t));
+   ip_Subsequences = (subseq_t *) xmalloc(subsequenceCount, sizeof(subseq_t), "subsequences");
    
    ii_SubsequenceCount = 0;
    ii_SubsequenceCapacity = subsequenceCount;

@@ -131,8 +131,8 @@ void  CisOneWithOneSequenceHelper::BuildCongruenceTables(void)
    ii_Dim2 = ii_Dim3 * ii_UsedPowerResidueIndices;
    ii_Dim1 = ii_Dim2 * SP_COUNT;
 
-   ip_CongruentQIndices = (uint32_t *) xmalloc(ii_Dim1 * sizeof(uint32_t));
-   ip_LadderIndices = (uint32_t *) xmalloc(ii_Dim1 * sizeof(uint32_t));
+   ip_CongruentQIndices = (uint32_t *) xmalloc(ii_Dim1, sizeof(uint32_t), "qIndices");
+   ip_LadderIndices = (uint32_t *) xmalloc(ii_Dim1, sizeof(uint32_t), "ladderIndices");
 
    // In sr1sieve, the congruent q and ladders are handled via four dimensional arrays.
    // For srsieve2, we will use two one dimensional arrays, which will be easier to pass to the GPU.
@@ -147,10 +147,10 @@ void  CisOneWithOneSequenceHelper::BuildCongruenceTables(void)
    ii_MaxQEntries = ii_MaxLadderEntries = ii_Dim1;
    
    // These will be resized as necessary
-   ip_AllQs = (uint16_t *) xmalloc(ii_MaxQEntries * sizeof(uint16_t));
-   ip_AllLadders = (uint16_t *) xmalloc(ii_MaxLadderEntries * sizeof(uint16_t));
+   ip_AllQs = (uint16_t *) xmalloc(ii_MaxQEntries, sizeof(uint16_t), "qs");
+   ip_AllLadders = (uint16_t *) xmalloc(ii_MaxLadderEntries, sizeof(uint16_t), "ladders");
    
-   ip_Scratch = (uint8_t *) xmalloc((ii_BestQ + 5) * sizeof(uint8_t));
+   ip_Scratch = (uint8_t *) xmalloc((ii_BestQ + 5), sizeof(uint8_t), "scratch");
    
    seqPtr = ip_FirstSequence;
    while (seqPtr != NULL)
@@ -178,7 +178,7 @@ void  CisOneWithOneSequenceHelper::BuildCongruenceTablesForSequence(seq_t *seqPt
    sp_t       parity = ip_FirstSequence->nParity;
    
    for (h=0; h<SP_COUNT; h++)
-      tempQs[h] = (uint16_t *) xmalloc(ii_PowerResidueLcm * sizeof(uint16_t));
+      tempQs[h] = (uint16_t *) xmalloc(ii_PowerResidueLcm, sizeof(uint16_t), "tempQs");
    
    
    for (r=1; r<=ii_PowerResidueLcm; r++)
@@ -244,7 +244,7 @@ void  CisOneWithOneSequenceHelper::CopyQsAndMakeLadder(seq_t *seqPtr, sp_t parit
    if (ii_UsedQEntries + ii_BestQ + 10 >= ii_MaxQEntries)
    {
       uint32_t newMaxQEntries = ii_MaxQEntries + (ii_BestQ * 10);
-      uint16_t *temp = (uint16_t *) xmalloc(newMaxQEntries * sizeof(uint16_t));
+      uint16_t *temp = (uint16_t *) xmalloc(newMaxQEntries, sizeof(uint16_t), "allQs");
 
       memcpy(temp, ip_AllQs, ii_MaxQEntries * sizeof(uint16_t));
       xfree(ip_AllQs);
@@ -257,7 +257,7 @@ void  CisOneWithOneSequenceHelper::CopyQsAndMakeLadder(seq_t *seqPtr, sp_t parit
    if (ii_UsedLadderEntries + ii_BestQ + 10 >= ii_MaxLadderEntries)
    {
       uint32_t newMaxLadderEntries = ii_MaxLadderEntries + (ii_BestQ * 10);
-      uint16_t *temp = (uint16_t *) xmalloc(newMaxLadderEntries * sizeof(uint16_t));
+      uint16_t *temp = (uint16_t *) xmalloc(newMaxLadderEntries, sizeof(uint16_t), "allLadders");
 
       memcpy(temp, ip_AllLadders, ii_MaxLadderEntries * sizeof(uint16_t));
       xfree(ip_AllLadders);

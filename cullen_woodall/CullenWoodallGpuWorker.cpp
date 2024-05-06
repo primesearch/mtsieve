@@ -29,7 +29,7 @@ CullenWoodallGpuWorker::CullenWoodallGpuWorker(uint32_t myId, App *theApp) : Wor
    groupCount = 1 + (ip_CullenWoodallApp->GetTermCount() / ii_MaxGpuSteps);
 
    // Allocate enough memory to hold all of the terms.
-   ii_Terms = (uint32_t *) xmalloc(groupCount*ii_MaxGpuSteps*sizeof(int32_t));
+   ii_Terms = (uint32_t *) xmalloc(groupCount*ii_MaxGpuSteps, sizeof(int32_t), "terms");
    
    snprintf(defines[defineCount++], 50, "#define BASE %d", ii_Base);
    

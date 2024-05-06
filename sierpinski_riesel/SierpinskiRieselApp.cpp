@@ -1501,7 +1501,7 @@ void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
    is_SequenceKs.insert(k);
    is_SequenceSet.insert(sequence);
    
-   seq_t *newPtr = (seq_t *) xmalloc(sizeof(seq_t));
+   seq_t *newPtr = (seq_t *) xmalloc(1, sizeof(seq_t), "seq");
    
    uint64_t absc = abs(c);
 

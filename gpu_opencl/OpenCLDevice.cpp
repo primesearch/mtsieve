@@ -123,12 +123,12 @@ void OpenCLDevice::GetPlatforms(void)
    cl_platform_id *platforms; 
    cl_uint     ii;
 
-   platforms = (cl_platform_id *) xmalloc(sizeof(cl_platform_id) * ii_PlatformCount);
+   platforms = (cl_platform_id *) xmalloc(ii_PlatformCount, sizeof(cl_platform_id), "platforms");
 
    status = clGetPlatformIDs(ii_PlatformCount, platforms, NULL);
    OpenCLErrorChecker::ExitIfError("clGetPlatformIDs", status, "Unable to get platforms");
 
-   ip_Platforms = (platform_t *) xmalloc(sizeof(platform_t) * ii_PlatformCount);
+   ip_Platforms = (platform_t *) xmalloc(ii_PlatformCount, sizeof(platform_t), "platforms");
 
    for (ii=0; ii<ii_PlatformCount; ii++)
    {
@@ -181,13 +181,13 @@ void OpenCLDevice::GetDevicesForPlatform(platform_t *thePlatform)
    if (deviceListSize == 0 || numDevices == 0)
       return;
 
-   devices = (cl_device_id *) xmalloc(deviceListSize);
+   devices = (cl_device_id *) xmalloc(deviceListSize, 1, "devices");
  
    status = clGetContextInfo(thePlatform->context, CL_CONTEXT_DEVICES, deviceListSize, devices, NULL);
    OpenCLErrorChecker::ExitIfError("clGetContextInfo", status, "Unable to get device list");
 
    thePlatform->deviceCount = numDevices;
-   thePlatform->devices = (device_t *) xmalloc(sizeof(device_t) * numDevices);
+   thePlatform->devices = (device_t *) xmalloc(numDevices, sizeof(device_t), "devices");
 
    ii_TotalDeviceCount += numDevices;
 

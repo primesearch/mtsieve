@@ -56,16 +56,16 @@ void    GenericGpuWorker::CreateKernels(uint32_t sequencesPerKernel)
    uint32_t seqCount = 0;
    uint32_t ssCount = 0;
    
-   ii_SubseqIdx   = (uint32_t  *) xmalloc(ii_KernelCount*sizeof(uint32_t));
-   ip_Kernel      = (GpuKernel **) xmalloc(ii_KernelCount*sizeof(GpuKernel *));
+   ii_SubseqIdx   = (uint32_t  *) xmalloc(ii_KernelCount, sizeof(uint32_t), "subseqIdx");
+   ip_Kernel      = (GpuKernel **) xmalloc(ii_KernelCount, sizeof(GpuKernel *), "kernel *");
    
-   il_Primes      = (uint64_t **) xmalloc(ii_KernelCount*sizeof(uint64_t *));
-   il_Ks          = (uint64_t **) xmalloc(ii_KernelCount*sizeof(uint64_t *));
-   il_Cs          = ( int64_t **) xmalloc(ii_KernelCount*sizeof( int64_t *));
-   ii_SeqIdxs     = (uint32_t **) xmalloc(ii_KernelCount*sizeof(uint32_t *));
-   ii_Qs          = (uint32_t **) xmalloc(ii_KernelCount*sizeof(uint32_t *));
-   ii_FactorCount = (uint32_t **) xmalloc(ii_KernelCount*sizeof(uint32_t *));
-   il_FactorList  = (uint64_t **) xmalloc(ii_KernelCount*sizeof(uint64_t *));
+   il_Primes      = (uint64_t **) xmalloc(ii_KernelCount, sizeof(uint64_t *), "primes *");
+   il_Ks          = (uint64_t **) xmalloc(ii_KernelCount, sizeof(uint64_t *), "ks *");
+   il_Cs          = ( int64_t **) xmalloc(ii_KernelCount, sizeof( int64_t *), "cs *");
+   ii_SeqIdxs     = (uint32_t **) xmalloc(ii_KernelCount, sizeof(uint32_t *), "seqIdxs *");
+   ii_Qs          = (uint32_t **) xmalloc(ii_KernelCount, sizeof(uint32_t *), "qs *");
+   ii_FactorCount = (uint32_t **) xmalloc(ii_KernelCount, sizeof(uint32_t *), "factorCount *");
+   il_FactorList  = (uint64_t **) xmalloc(ii_KernelCount, sizeof(uint64_t *), "factorList *");
    
    ii_SubseqIdx[kIdx] = seqPtr->ssIdxFirst;
    

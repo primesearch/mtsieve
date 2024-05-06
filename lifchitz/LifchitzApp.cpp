@@ -22,7 +22,7 @@
 #endif
 
 #define APP_NAME        "lifsieve"
-#define APP_VERSION     "1.2"
+#define APP_VERSION     "1.4"
 
 int sortByXY(const void *a, const void *b)
 {
@@ -30,9 +30,9 @@ int sortByXY(const void *a, const void *b)
    term_t *bPtr = (term_t *) b;
 
    if (aPtr->x == bPtr->x)
-      return ( aPtr->y - bPtr->y );
+      return (aPtr->y - bPtr->y);
    
-   return ( aPtr->x - bPtr->x );
+   return (aPtr->x - bPtr->x);
 }
 
 // This is declared in App.h, but implemented here.  This means that App.h
@@ -47,7 +47,7 @@ LifchitzApp::LifchitzApp(void) : FactorApp()
    SetBanner(APP_NAME " v" APP_VERSION ", a program to find factors numbers of the form x^x+y^y and x^x-y^y");
    SetLogFileName("lifsieve.log");
 
-   ii_MinX = 20;
+   ii_MinX = 0;
    ii_MaxX = 0;
    ii_MinY = 0;
    ii_MaxY = 0;
@@ -57,8 +57,8 @@ LifchitzApp::LifchitzApp(void) : FactorApp()
    SetAppMinPrime(3);
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
-   ii_XChunks = 1;
-   ii_YChunks = 1;
+   ii_XPerChunk = 1000000000;
+   ii_YPerChunk = 1000000000;
    ii_MaxGpuFactors = GetGpuWorkGroups() * 10000;
 #endif
 }
@@ -74,8 +74,8 @@ void LifchitzApp::Help(void)
    printf("-s --sign=+/-/b       sign to sieve for\n");
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
-   printf("-z --xchunks=z        number of chunks for splitting x per call to GPU (default %d)\n", ii_XChunks);
-   printf("-Z --ychunks=Z        number of chunks for splitting y per call to GPU (default %d)\n", ii_YChunks);
+   printf("-z --xperchunk=z      number of x per chunk per call to GPU (default %d)\n", ii_XPerChunk);
+   printf("-Z --yperchunk=Z      number of y per chunk per call to GPU (default %d)\n", ii_YPerChunk);
 
    printf("-M --maxfactors=M     max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
 #endif
@@ -140,11 +140,11 @@ parse_t LifchitzApp::ParseOption(int opt, char *arg, const char *source)
          
 #if defined(USE_OPENCL) || defined(USE_METAL)
       case 'z':
-         status = Parser::Parse(arg, 1, 1000000000, ii_XChunks);
+         status = Parser::Parse(arg, 1, 1000000000, ii_XPerChunk);
          break;
 
       case 'Z':
-         status = Parser::Parse(arg, 1, 1000000000, ii_YChunks);
+         status = Parser::Parse(arg, 1, 1000000000, ii_YPerChunk);
          break;
          
       case 'M':
@@ -165,22 +165,20 @@ void LifchitzApp::ValidateOptions(void)
    {
       ProcessInputTermsFile(false);
       
-      il_StartingTermCount = il_TermCount;
-   
-      ip_Terms = (term_t *) xmalloc(il_StartingTermCount * sizeof(term_t));
+      // This will be resized when after reading the file as multiple rows of
+      // input can be collapsed into a single entry in the array.
+      ip_Terms = (term_t *) xmalloc(il_TermCount, sizeof(term_t), "terms");
       
       il_TermCount = 0;
       
       ProcessInputTermsFile(true);
       
+      CollapseTerms();
    }
    else
    {
-      if (!ib_IsPlus && !ib_IsMinus)
-         FatalError("sign must be specified");
-
       if (ii_MinX == 0)
-         FatalError("min x has not been specified");
+         ii_MinX = 20;
 	  
       if (ii_MaxX == 0)
          FatalError("max x has not been specified");
@@ -200,21 +198,23 @@ void LifchitzApp::ValidateOptions(void)
       // Force x > y due to how searches are typically executed
       if (ii_MaxY > ii_MaxX)
          FatalError("max x must be greater than max y");
+
+      if (!ib_IsMinus && !ib_IsPlus)
+         ib_IsMinus = ib_IsPlus = true;
       
-      il_StartingTermCount = (ii_MaxX - ii_MinX + 1) * (ii_MaxY - ii_MinY + 1);
+      // Half of the terms are even, so we don't need to allocate memory for them.
+      il_TermCount = 10 + (ii_MaxX - ii_MinX + 1) * (ii_MaxY - ii_MinY + 1);
       
-      ip_Terms = (term_t *) xmalloc(il_StartingTermCount * sizeof(term_t));
+      ip_Terms = (term_t *) xmalloc(il_TermCount, sizeof(term_t), "terms");
       
       SetInitialTerms();
-      
-      il_StartingTermCount = il_TermCount;
    }
    
    FactorApp::ParentValidateOptions();
 
    // This will sieve beyond the limit, but we want to make sure that at least one prime
    // larger than this limit is passed to the worker even if the worker does not test it.
-   SetMaxPrimeForSingleWorker(10000);
+   SetMaxPrimeForSingleWorker(1000);
 }
 
 Worker *LifchitzApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested)
@@ -237,7 +237,7 @@ void LifchitzApp::ProcessInputTermsFile(bool haveBitMap)
    char     buffer[1000];
    uint32_t x, y;
    int32_t  sign;
-   uint64_t minPrime;
+   uint64_t minPrime, taIdx = 0;
    
    if (!fPtr)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
@@ -258,6 +258,9 @@ void LifchitzApp::ProcessInputTermsFile(bool haveBitMap)
       if (!StripCRLF(buffer))
          continue;
 
+      if (!memcmp(buffer, "ABC $a^$a$b*$c^$c //", 20))
+         continue;
+
       if (sscanf(buffer, "%u %d %u", &x, &sign, &y) != 3)
          FatalError("Line %s is malformed", buffer);
 
@@ -269,9 +272,12 @@ void LifchitzApp::ProcessInputTermsFile(bool haveBitMap)
          
       if (haveBitMap)
       {
-         ip_Terms[il_TermCount].x = x;
-         ip_Terms[il_TermCount].y = y;
-         ip_Terms[il_TermCount].sign = sign;
+         ip_Terms[taIdx].x = x;
+         ip_Terms[taIdx].y = y;
+         ip_Terms[taIdx].signs = 0;
+         if (sign == -1) ip_Terms[taIdx].signs |= M_ONE;
+         if (sign == +1) ip_Terms[taIdx].signs |= P_ONE;
+         taIdx++;
       }
       else
       {
@@ -291,21 +297,15 @@ void LifchitzApp::ProcessInputTermsFile(bool haveBitMap)
       il_TermCount++;
    }
 
-   if (haveBitMap)
-   {
-      // sort by ascending x then ascending y
-      qsort(ip_Terms, il_TermCount, sizeof(term_t), sortByXY);
-   }
-
    fclose(fPtr);
 }
 
 bool LifchitzApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
    uint32_t x1, x2, y1, y2;
-   uint64_t idx;
    char     c;
    int32_t  sign;
+   bool     canRemove = false;
    
    if (sscanf(term, "%u^%u%c%u^%u", &x1, &x2, &c, &y1, &y2) != 5)
       FatalError("Could not parse term %s\n", term);
@@ -329,22 +329,23 @@ bool LifchitzApp::ApplyFactor(uint64_t theFactor, const char *term)
    
    VerifyFactor(theFactor, x1, y1, sign);
    
-   for (idx=0; idx<il_StartingTermCount; idx++)
+   term_t key;
+   key.x = x1;
+   key.y = y1;
+
+   term_t *entry = (term_t *) bsearch(&key, ip_Terms, il_TermArraySize, sizeof(term_t), sortByXY);
+   
+   if (entry)
    {
-      if (ip_Terms[idx].sign != sign)
-         continue;
-
-      if (ip_Terms[idx].x != x1)
-         continue;
-
-      if (ip_Terms[idx].y != y1)
-         continue;
+      if (sign == -1 && entry->signs & M_ONE) canRemove = true;
+      if (sign == +1 && entry->signs & P_ONE) canRemove = true;
    }
 
-   if (ip_Terms[idx].sign == 0)
+   if (!canRemove)
       return false;
 
-   ip_Terms[idx].sign = 0;
+   if (sign == -1) entry->signs &= ~M_ONE;
+   if (sign == +1) entry->signs &= ~P_ONE;
 
    il_TermCount--;
    il_FactorCount++;
@@ -366,13 +367,19 @@ void LifchitzApp::WriteOutputTermsFile(uint64_t largestPrime)
    
    fprintf(fPtr, "ABC $a^$a$b*$c^$c // Sieved to %" PRIu64"\n", largestPrime);
 
-   for (uint32_t idx=0; idx<il_StartingTermCount; idx++)
-   {
-      if (ip_Terms[idx].sign == 0)
-         continue;
-      
-      fprintf(fPtr, "%u %+d %u\n", ip_Terms[idx].x, ip_Terms[idx].sign, ip_Terms[idx].y);
-      termsCounted++;
+   for (uint32_t idx=0; idx<il_TermArraySize; idx++)
+   {    
+      if (ip_Terms[idx].signs & M_ONE)
+      {
+         fprintf(fPtr, "%u -1 %u\n", ip_Terms[idx].x, ip_Terms[idx].y);
+         termsCounted++;
+      }
+
+      if (ip_Terms[idx].signs & P_ONE)
+      {
+         fprintf(fPtr, "%u +1 %u\n", ip_Terms[idx].x, ip_Terms[idx].y);
+         termsCounted++;
+      }
    }
 
    fclose(fPtr);
@@ -391,39 +398,59 @@ void  LifchitzApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t 
 
 bool LifchitzApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign, uint64_t termIdx)
 {
-   bool     removedTerm = false;
+   bool     removedTerm = false, canRemove = false;
    bool     needToLock = (theFactor > GetMaxPrimeForSingleWorker());
+   term_t  *entry;
    
    if (x < ii_MinX || x > ii_MaxX)
       return false;
    
    if (y < ii_MinY || y > ii_MaxY)
       return false;
-   
-   VerifyFactor(theFactor, x, y, sign);
-   
+      
    if (needToLock)
       ip_FactorAppLock->Lock();
    
-   if (ip_Terms[termIdx].x != x)
-      return false;
-
-   if (ip_Terms[termIdx].y != y)
-      return false;
+   VerifyFactor(theFactor, x, y, sign);
    
-   if (ip_Terms[termIdx].sign == 0)
+   // If there are mutliple workers, then we need to use a binary search to find
+   // the entry in ip_Terms, else we can use the passed in index.
+   if (needToLock && GetGpuWorkerCount() + GetCpuWorkerCount() > 1)
+   {
+      term_t key;
+      key.x = x;
+      key.y = y;
+
+      entry = (term_t *) bsearch(&key, ip_Terms, il_TermArraySize, sizeof(term_t), sortByXY);
+      
+      if (entry)
+      {
+         if (sign == -1 && entry->signs & M_ONE) canRemove = true;
+         if (sign == +1 && entry->signs & P_ONE) canRemove = true;
+      }
+   }
+   else
+   {
+      entry = &ip_Terms[termIdx];
+      
+      if (sign == -1 && entry->signs & M_ONE) canRemove = true;
+      if (sign == +1 && entry->signs & P_ONE) canRemove = true;
+   }
+
+   if (!canRemove)
    {
       if (needToLock)
          ip_FactorAppLock->Release();
       return false;
    }
    
-   ip_Terms[termIdx].sign = 0;
+   if (sign == -1) entry->signs &= ~M_ONE;
+   if (sign == +1) entry->signs &= ~P_ONE;
 
    il_TermCount--;
    il_FactorCount++;
    removedTerm = true;
-   LogFactor(theFactor, "%u^%u%c%u^%u", x, x, ((sign == 1) ? '+' : '-'), y, y);
+   LogFactor(theFactor, "%u^%u%c%u^%u", x, x, ((sign == +1) ? '+' : '-'), y, y);
 
    if (needToLock)
       ip_FactorAppLock->Release();
@@ -463,6 +490,7 @@ void  LifchitzApp::SetInitialTerms(void)
    uint32_t   yGTEx = 0;
    
    // Reset this
+   il_TermArraySize = 0;
    il_TermCount = 0;
 
    for (x=ii_MinX; x<=ii_MaxX; x++)
@@ -502,23 +530,30 @@ void  LifchitzApp::SetInitialTerms(void)
             continue;
          }
 
-         if (ib_IsMinus)
+         if (ib_IsMinus || ib_IsPlus)
          {
-            ip_Terms[il_TermCount].x = x;
-            ip_Terms[il_TermCount].y = y;
-            ip_Terms[il_TermCount].sign = -1;
-            il_TermCount++;
-         }
-         
-         if (ib_IsPlus)
-         {
-            ip_Terms[il_TermCount].x = x;
-            ip_Terms[il_TermCount].y = y;
-            ip_Terms[il_TermCount].sign = +1;
-            il_TermCount++;
+            ip_Terms[il_TermArraySize].x = x;
+            ip_Terms[il_TermArraySize].y = y;
+            ip_Terms[il_TermArraySize].signs = 0;
+
+            if (ib_IsMinus)
+            {
+               ip_Terms[il_TermArraySize].signs |= M_ONE;
+               il_TermCount++;
+            }
+            
+            if (ib_IsPlus)
+            {
+               ip_Terms[il_TermArraySize].signs |= P_ONE;
+               il_TermCount++;
+            }
+               
+            il_TermArraySize++;
          }
       }
    }
+
+   GetTerms();
 
    WriteToConsole(COT_OTHER, "Quick elimination of terms info (in order of check):");
    
@@ -527,23 +562,114 @@ void  LifchitzApp::SetInitialTerms(void)
    WriteToConsole(COT_OTHER, "    %u because x and y have a common divisor", commonDivisorCount);
 }
 
+void      LifchitzApp::CollapseTerms(void)
+{
+   uint64_t  newTermArraySize = 0, taIdx, newTermCount;
+   uint32_t  prevX = 0, prevY = 0;
+   term_t   *newTerms;
+
+   // sort by ascending x then ascending x then ascending y
+   qsort(ip_Terms, il_TermCount, sizeof(term_t), sortByXY);
+
+   for (uint64_t idx=0; idx<il_TermCount; idx++)
+   {
+      if (prevX == ip_Terms[idx].x && prevY == ip_Terms[idx].y)
+         continue;
+
+      newTermArraySize++;
+      prevX = ip_Terms[idx].x;
+      prevY = ip_Terms[idx].y;
+   }
+   
+   newTerms = (term_t *) xmalloc(1 + newTermArraySize, sizeof(term_t), "terms");
+
+   prevX = prevY = 0;
+   newTermCount = taIdx = 0;
+   
+   for (uint64_t idx=0; idx<il_TermCount; idx++)
+   {
+      if (prevX == ip_Terms[idx].x && prevY == ip_Terms[idx].y)
+      {
+         if (ip_Terms[idx].signs & M_ONE)
+         {
+            newTermCount++;
+            newTerms[taIdx-1].signs |= M_ONE;
+         }
+
+         if (ip_Terms[idx].signs & P_ONE)
+         {
+            newTermCount++;
+            newTerms[taIdx-1].signs |= P_ONE;
+         }
+         
+         continue;
+      }
+
+      newTermCount++;
+      newTerms[taIdx].x = ip_Terms[idx].x;
+      newTerms[taIdx].y = ip_Terms[idx].y;
+      newTerms[taIdx].signs = ip_Terms[idx].signs;
+      
+      taIdx++;
+      
+      prevX = ip_Terms[idx].x;
+      prevY = ip_Terms[idx].y;
+   }
+   
+   if (il_TermCount != newTermCount)
+      FatalError("Error encountered collapsing input terms.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", newTermCount, il_TermCount);
+
+   xfree(ip_Terms);
+   ip_Terms = newTerms;
+   il_TermArraySize = newTermArraySize;
+}
+
 term_t   *LifchitzApp::GetTerms(void)
 {
    ip_FactorAppLock->Lock();
    
-   uint64_t newTermCount = 0;
-   term_t *newTerms = (term_t *) xmalloc((il_TermCount + 1) * sizeof(term_t));
-      
-   for (uint64_t idx=0; idx<il_StartingTermCount; idx++)
+   uint64_t newTermCount, newTermArraySize = 0, taIdx;
+   bool     createWorkerTerms = false;
+   term_t  *workerTerms, *newTerms;
+   
+   for (uint64_t idx=0; idx<il_TermArraySize; idx++)
    {
       // 0 means that we found a factor since the previous re-build
-      if (ip_Terms[idx].sign == 0)
+      if (ip_Terms[idx].signs != 0)
+         newTermArraySize++;
+   }
+      
+   newTerms = (term_t *) xmalloc(1 + newTermArraySize, sizeof(term_t), "terms");
+   
+   if (GetGpuWorkerCount() + GetCpuWorkerCount() > 1)
+      createWorkerTerms = true;
+   
+   // If there is more than one thread, then we have to create a copy of the terms.
+   if (createWorkerTerms)
+      workerTerms = (term_t *) xmalloc(1 + newTermArraySize, sizeof(term_t), "worker terms");
+   
+   newTermCount = taIdx = 0;
+   
+   for (uint64_t idx=0; idx<il_TermArraySize; idx++)
+   {
+      if (ip_Terms[idx].signs == 0)
          continue;
 
-      newTerms[newTermCount].x = ip_Terms[idx].x;
-      newTerms[newTermCount].y = ip_Terms[idx].y;
-      newTerms[newTermCount].sign = ip_Terms[idx].sign;
-      newTermCount++;
+      if (ip_Terms[idx].signs & M_ONE) newTermCount++;
+      if (ip_Terms[idx].signs & P_ONE) newTermCount++;
+
+      newTerms[taIdx].x = ip_Terms[idx].x;
+      newTerms[taIdx].y = ip_Terms[idx].y;
+      newTerms[taIdx].signs = ip_Terms[idx].signs;
+
+      if (createWorkerTerms)
+      {
+         workerTerms[taIdx].x = ip_Terms[idx].x;
+         workerTerms[taIdx].y = ip_Terms[idx].y;
+         workerTerms[taIdx].signs = ip_Terms[idx].signs;
+      }
+   
+      taIdx++;
    }
    
    if (il_TermCount != newTermCount)
@@ -551,9 +677,12 @@ term_t   *LifchitzApp::GetTerms(void)
 
    xfree(ip_Terms);
    ip_Terms = newTerms;
-   il_StartingTermCount = il_TermCount;
+   il_TermArraySize = newTermArraySize;
 
    ip_FactorAppLock->Release();
+
+   if (createWorkerTerms)
+      return workerTerms;
 
    return ip_Terms;
 }
