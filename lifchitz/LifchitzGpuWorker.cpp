@@ -59,6 +59,8 @@ LifchitzGpuWorker::LifchitzGpuWorker(uint32_t myId, App *theApp) : Worker(myId, 
    ii_FactorCount  = (uint32_t *)  ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 10);
    ip_FactorList   = (factor_t *)  ip_Kernel->AddGpuArgument("factorList", sizeof(factor_t), ii_MaxGpuFactors);
 
+   ip_Kernel->PrintStatistics(0);
+
    // The thread can't start until initialization is done
    ib_Initialized = true;
 

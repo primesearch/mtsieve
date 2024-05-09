@@ -75,7 +75,8 @@ private:
    cl_kernel         im_OpenCLKernel;
    cl_command_queue  im_CommandQueue;
 
-   uint32_t          ii_DeviceGlobalMemorySize;
+   uint64_t          il_DeviceGlobalMemorySize;
+   uint64_t          il_DeviceMaxMemAllocSize;
    uint32_t          ii_DeviceLocalMemorySize;
    uint32_t          ii_DeviceMaxConstantBufferSize;
    uint32_t          ii_WorkGroupSizeMultiple;

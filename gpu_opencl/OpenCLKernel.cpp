@@ -22,6 +22,7 @@ OpenCLKernel::OpenCLKernel(GpuDevice *device, const char *kernelName, const char
    size_t    len;
    size_t    workGroupSizeMultiple;
    cl_ulong  deviceGlobalMemorySize;
+   cl_ulong  deviceMaxMemAllocSize;
    cl_ulong  deviceLocalMemorySize;
    cl_ulong  deviceMaxConstantBufferSize;
    cl_ulong  localMemorySize;
@@ -88,6 +89,9 @@ OpenCLKernel::OpenCLKernel(GpuDevice *device, const char *kernelName, const char
    status = clGetDeviceInfo(ip_OpenCLDevice->GetDeviceId(), CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(deviceGlobalMemorySize), &deviceGlobalMemorySize, NULL);
    OpenCLErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get CL_DEVICE_GLOBAL_MEM_SIZE of device");
    
+   status = clGetDeviceInfo(ip_OpenCLDevice->GetDeviceId(), CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(deviceMaxMemAllocSize), &deviceMaxMemAllocSize, NULL);
+   OpenCLErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get CL_DEVICE_MAX_MEM_ALLOC_SIZE of device");
+   
    status = clGetDeviceInfo(ip_OpenCLDevice->GetDeviceId(), CL_DEVICE_LOCAL_MEM_SIZE, sizeof(deviceLocalMemorySize), &deviceLocalMemorySize, NULL);
    OpenCLErrorChecker::ExitIfError("clGetDeviceInfo", status, "Unable to get CL_DEVICE_LOCAL_MEM_SIZE of device");
       
@@ -114,7 +118,8 @@ OpenCLKernel::OpenCLKernel(GpuDevice *device, const char *kernelName, const char
                                      sizeof(privateMemorySize), &privateMemorySize, NULL);
    OpenCLErrorChecker::ExitIfError("clGetKernelWorkGroupInfo", status, "kernelName: %s  argument CL_KERNEL_PRIVATE_MEM_SIZE", kernelName);
    
-   ii_DeviceGlobalMemorySize = deviceGlobalMemorySize;
+   il_DeviceGlobalMemorySize = deviceGlobalMemorySize;
+   il_DeviceMaxMemAllocSize = deviceMaxMemAllocSize;
    ii_DeviceLocalMemorySize = deviceLocalMemorySize;
    ii_DeviceMaxConstantBufferSize = deviceMaxConstantBufferSize;
    ii_LocalMemorySize = localMemorySize;
@@ -255,7 +260,8 @@ void OpenCLKernel::PrintStatistics(uint64_t bytesPerWorkGroup)
       uint64_t privateBytes = bytesPerWorkGroup;
       
       theApp->WriteToConsole(COT_OTHER, "CL_DEVICE_MAX_COMPUTE_UNITS = %u", ip_OpenCLDevice->GetMaxComputeUnits());
-      theApp->WriteToConsole(COT_OTHER, "CL_DEVICE_GLOBAL_MEM_SIZE = %u", ii_DeviceGlobalMemorySize);
+      theApp->WriteToConsole(COT_OTHER, "CL_DEVICE_GLOBAL_MEM_SIZE = %" PRIu64"", il_DeviceGlobalMemorySize);
+      theApp->WriteToConsole(COT_OTHER, "CL_DEVICE_MAX_MEM_ALLOC_SIZE = %" PRIu64"", il_DeviceMaxMemAllocSize);
       theApp->WriteToConsole(COT_OTHER, "CL_DEVICE_LOCAL_MEM_SIZE = %u", ii_DeviceLocalMemorySize);
       theApp->WriteToConsole(COT_OTHER, "CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE = %u", ii_DeviceMaxConstantBufferSize);
       theApp->WriteToConsole(COT_OTHER, "CL_KERNEL_WORK_GROUP_SIZE = %u", (uint32_t) ii_KernelWorkGroupSize);
@@ -284,8 +290,8 @@ void OpenCLKernel::Execute(uint32_t workSize)
 
    status = clEnqueueNDRangeKernel(im_CommandQueue, im_OpenCLKernel, 1, NULL, globalWorkGroupSize, NULL, 0, NULL, NULL);
 
-   OpenCLErrorChecker::ExitIfError("clEnqueueNDRangeOpenCLKernel", status, "kernelName: %s  globalworksize %u  localworksize %u", 
-                             is_KernelName.c_str(), (uint32_t) globalWorkGroupSize[0], (uint32_t) ii_KernelWorkGroupSize);
+   OpenCLErrorChecker::ExitIfError("clEnqueueNDRangeOpenCLKernel", status, "kernelName: %s  globalworksize %u  privatememsize %u", 
+                             is_KernelName.c_str(), (uint32_t) globalWorkGroupSize[0], (uint32_t) ii_PrivateMemorySize);
 
    GetGPUOutput();
    
