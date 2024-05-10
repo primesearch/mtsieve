@@ -22,7 +22,7 @@
 #endif
 
 #define APP_NAME        "lifsieve"
-#define APP_VERSION     "1.4"
+#define APP_VERSION     "1.5"
 
 int sortByXY(const void *a, const void *b)
 {
@@ -148,7 +148,7 @@ parse_t LifchitzApp::ParseOption(int opt, char *arg, const char *source)
          break;
          
       case 'M':
-         status = Parser::Parse(arg, 10, 1000000, ii_MaxGpuFactors);
+         status = Parser::Parse(arg, 10, 1000000000, ii_MaxGpuFactors);
          break;
 #endif
    }

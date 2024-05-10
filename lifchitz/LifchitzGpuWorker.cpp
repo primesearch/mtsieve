@@ -79,30 +79,20 @@ void  LifchitzGpuWorker::AllocateMemory(void)
    ii_XPerChunk = ip_LifchitzApp->GetXPerChunk();
    ii_YPerChunk = ip_LifchitzApp->GetYPerChunk();
 
-   if (ii_XPerChunk > 1 + ii_MaxX - ii_MinX)
+   uint32_t minXForChunk = ii_MinX;
+   uint32_t minYForChunk = ii_MinY;
+   
+   ii_XChunks = ii_YChunks = 0;
+   while (minXForChunk < ii_MaxX)
    {
-      ii_XPerChunk = 1 + ii_MaxX - ii_MinX;
-      ii_XChunks = 1;
-   }
-   else
-   {
-      if (ii_XPerChunk == 1 + ii_MaxX - ii_MinX)
-         ii_XChunks = (1 + ii_MaxX - ii_MinX) / ii_XPerChunk;
-      else
-         ii_XChunks = 1 + (1 + ii_MaxX - ii_MinX) / ii_XPerChunk;
+      ii_XChunks++;
+      minXForChunk += ii_XPerChunk;
    }
    
-   if (ii_YPerChunk > 1 + ii_MaxY - ii_MinY)
+   while (minYForChunk < ii_MaxY)
    {
-      ii_YPerChunk = 1 + ii_MaxY - ii_MinY;
-      ii_YChunks = 1;
-   }
-   else
-   {
-      if (ii_YPerChunk == 1 + ii_MaxY - ii_MinY)
-         ii_YChunks = (1 + ii_MaxY - ii_MinY) / ii_YPerChunk;
-      else
-         ii_YChunks = 1 + (1 + ii_MaxY - ii_MinY) / ii_YPerChunk;
+      ii_YChunks++;
+      minYForChunk += ii_YPerChunk;
    }
 
    ip_XBases = (uint32_t **) xmalloc(ii_XPerChunk, sizeof(uint32_t *), "xBases *");
@@ -139,7 +129,7 @@ void  LifchitzGpuWorker::AllocateMemory(void)
    for (xIdx=0; xIdx<ii_XChunks; xIdx++)
    {
       for (yIdx=0; yIdx<ii_YChunks; yIdx++)
-      {
+      {         
          if (ip_TermsInGroup[xIdx][yIdx] > ii_TermsPerGroup)
             ii_TermsPerGroup = ip_TermsInGroup[xIdx][yIdx];
       }
@@ -148,24 +138,37 @@ void  LifchitzGpuWorker::AllocateMemory(void)
    ip_GpuTerms = (gputerm_t ***) xmalloc(ii_XChunks, sizeof(gputerm_t **), "gpuTerms **");
    ip_TermIndexes = (uint64_t ***) xmalloc(ii_XChunks, sizeof(uint64_t **), "termIndexes **");
 
+   minXForChunk = ii_MinX;
    for (xIdx=0; xIdx<ii_XChunks; xIdx++)
    {
       ip_GpuTerms[xIdx] = (gputerm_t **) xmalloc(ii_YChunks, sizeof(gputerm_t *), "gpuTerms *");
       ip_TermIndexes[xIdx] = (uint64_t **) xmalloc(ii_YChunks, sizeof(uint64_t *), "termIndexes *");
+      minYForChunk = ii_MinY;
 
       for (yIdx=0; yIdx<ii_YChunks; yIdx++)
       {
-         ip_GpuTerms[xIdx][yIdx] = (gputerm_t *) xmalloc(1 + ii_TermsPerGroup, sizeof(gputerm_t), "gpuTerms");
-         ip_TermIndexes[xIdx][yIdx] = (uint64_t *) xmalloc(1 + ii_TermsPerGroup, sizeof(uint64_t), "termIndexes");
+         uint32_t maxXForChunk = minXForChunk + ii_XPerChunk;
+         
+         // Only allocate memory if we know there are going to be terms in the group
+         if (maxXForChunk > minYForChunk)
+         {
+            ip_GpuTerms[xIdx][yIdx] = (gputerm_t *) xmalloc(1 + ii_TermsPerGroup, sizeof(gputerm_t), "gpuTerms");
+            ip_TermIndexes[xIdx][yIdx] = (uint64_t *) xmalloc(1 + ii_TermsPerGroup, sizeof(uint64_t), "termIndexes");
+         }
+         
+         minYForChunk += ii_YPerChunk;
       }
+      
+      minXForChunk += ii_XPerChunk;
    }
 }
 
 void  LifchitzGpuWorker::TestMegaPrimeChunk(void)
 {
-   uint32_t  group = 0;
+   uint32_t  group = 0, groups = 0;
    uint32_t  xIdx, yIdx;
    time_t    reportTime = time(NULL) + 60;
+   uint32_t  minXForChunk, minYForChunk, maxXForChunk;
 
    // Every once in a while rebuild the term lists as it will have fewer entries
    // which will speed up testing for the next range of p.
@@ -177,24 +180,47 @@ void  LifchitzGpuWorker::TestMegaPrimeChunk(void)
    }
 
    for (xIdx=0; xIdx<ii_XChunks; xIdx++)
+   {
       for (yIdx=0; yIdx<ii_YChunks; yIdx++)
       {
-         group++;
+         minXForChunk = ip_XBases[xIdx][0];
+         minYForChunk = ip_YBases[yIdx][0];
+         maxXForChunk = minXForChunk + ii_XPerChunk;
+         
+         if (maxXForChunk < minYForChunk)
+            continue;
+         
+         groups++;
+      }
+   }
+         
+   for (xIdx=0; xIdx<ii_XChunks; xIdx++)
+   {
+      for (yIdx=0; yIdx<ii_YChunks; yIdx++)
+      {
+         minXForChunk = ip_XBases[xIdx][0];
+         minYForChunk = ip_YBases[yIdx][0];
+         maxXForChunk = minXForChunk + ii_XPerChunk;
+         
+         if (maxXForChunk < minYForChunk)
+            continue;
          
          if (ip_LifchitzApp->IsInterrupted() && time(NULL) > reportTime)
          {
-            ip_LifchitzApp->WriteToConsole(COT_SIEVE, "Thread %d was interrupted.  Completed %u of %u iterations", ii_MyId, group, ii_XChunks * ii_YChunks);
+            ip_LifchitzApp->WriteToConsole(COT_SIEVE, "Thread %d was interrupted.  Completed %u of %u iterations", ii_MyId, group, groups);
             reportTime = time(NULL) + 60;
          }
-          
+         
+         group++;
+         
          memcpy(ii_KernelXBases, ip_XBases[xIdx], ii_XPerChunk * sizeof(uint32_t));
-         memcpy(ii_KernelYBases, ip_YBases[xIdx], ii_YPerChunk * sizeof(uint32_t));
+         memcpy(ii_KernelYBases, ip_YBases[yIdx], ii_YPerChunk * sizeof(uint32_t));
          memcpy(ip_TermList,  ip_GpuTerms[xIdx][yIdx], ii_TermsPerGroup * sizeof(gputerm_t));
 
          ii_FactorCount[0] = 0;
          
          ip_Kernel->Execute(ii_PrimesInList);
-
+         
          for (uint32_t fIdx=0; fIdx<ii_FactorCount[0]; fIdx++)
          {
             uint64_t tIdx =  ip_FactorList[fIdx].termIdx;
@@ -211,8 +237,8 @@ void  LifchitzGpuWorker::TestMegaPrimeChunk(void)
 
          if (ii_FactorCount[0] >= ii_MaxGpuFactors)
             FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factors", ii_FactorCount[0], ii_MaxGpuFactors);
-
       }
+   }
    
    SetLargestPrimeTested(il_PrimeList[ii_PrimesInList-1], ii_PrimesInList);
 }
@@ -225,10 +251,11 @@ void  LifchitzGpuWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 void   LifchitzGpuWorker::CreateTermGroups(void)
 {
    uint32_t idx, xIdx, yIdx, tIdx;
-   uint32_t xOffset, yOffset;
+   uint32_t xOffset, yOffset, group = 0;
 
    // These arrays will have zeros where we don't need to compute x^x or y^y
    uint32_t minXForChunk = ii_MinX;
+   uint32_t minYForChunk = ii_MinY;
    
    for (xIdx=0; xIdx<ii_XChunks; xIdx++)
    {
@@ -239,7 +266,6 @@ void   LifchitzGpuWorker::CreateTermGroups(void)
       minXForChunk += ii_XPerChunk;
    }
       
-   uint32_t minYForChunk = ii_MinY;
    for (yIdx=0; yIdx<ii_YChunks; yIdx++)
    {
       memset(ip_YBases[yIdx], 0x00, ii_YPerChunk * sizeof(uint32_t));
@@ -248,17 +274,12 @@ void   LifchitzGpuWorker::CreateTermGroups(void)
       ip_YBases[yIdx][0] = minYForChunk;
       minYForChunk += ii_YPerChunk;
    }
-   
+
+   // Reset these to 0
    for (xIdx=0; xIdx<ii_XChunks; xIdx++)
-   {
-      // The last term for the group will have x = 0.
       for (yIdx=0; yIdx<ii_YChunks; yIdx++)
-      {
          ip_TermsInGroup[xIdx][yIdx] = 0;
-         memset(ip_GpuTerms[xIdx][yIdx], 0x00, (1 + ii_TermsPerGroup) * sizeof(gputerm_t));
-      }
-   }
-   
+      
    term_t *terms = ip_LifchitzApp->GetTerms();
    idx = 0;
 
@@ -287,6 +308,41 @@ void   LifchitzGpuWorker::CreateTermGroups(void)
       ip_TermsInGroup[xIdx][yIdx]++;
       
       idx++;
+   }
+   
+   if (ii_XChunks > 1 || ii_YChunks > 1)
+   {
+      if (il_NextTermsBuild == 0)
+         ip_LifchitzApp->WriteToConsole(COT_OTHER, "Building term groups");
+      else
+         ip_LifchitzApp->WriteToConsole(COT_OTHER, "Rebuilding term groups");
+   
+      for (xIdx=0; xIdx<ii_XChunks; xIdx++)
+      {
+         // The last term for the group will have x = 0.
+         for (yIdx=0; yIdx<ii_YChunks; yIdx++)
+         {
+            minXForChunk = ip_XBases[xIdx][0];
+            minYForChunk = ip_YBases[yIdx][0];
+            uint32_t maxXForChunk = minXForChunk + ii_XPerChunk;
+            uint32_t maxYForChunk = minYForChunk + ii_YPerChunk;
+            
+            if (maxXForChunk > minYForChunk)
+            {
+               group++;
+               
+               ip_LifchitzApp->WriteToConsole(COT_OTHER, "   Group %2u (%6u <= x < %6u) (%6u <= y < %6u) has %8u terms", 
+                  group, minXForChunk, maxXForChunk, minYForChunk, maxYForChunk, ip_TermsInGroup[xIdx][yIdx]);
+
+               tIdx = ip_TermsInGroup[xIdx][yIdx];
+               
+               // Make sure we have an "end of list"
+               ip_GpuTerms[xIdx][yIdx][tIdx].x = 0;
+               ip_GpuTerms[xIdx][yIdx][tIdx].y = 0;
+               ip_GpuTerms[xIdx][yIdx][tIdx].signs = 0;
+            }
+         }
+      }
    }
    
    if (ip_LifchitzApp->GetGpuWorkerCount() + ip_LifchitzApp->GetCpuWorkerCount() > 1)

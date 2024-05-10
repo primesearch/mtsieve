@@ -67,7 +67,7 @@ __kernel void lifchitz_kernel(__global const ulong  *primes,
          res = mmmPowmod(resBase, x, thePrime, _q, _one, _r2);
          xRemainders[x-minX] = mmmResToN(res, thePrime, _q);
       }
-         
+
       resBase = mmmAdd(resBase, _one, thePrime);
    }
    
@@ -81,7 +81,7 @@ __kernel void lifchitz_kernel(__global const ulong  *primes,
          res = mmmPowmod(resBase, y, thePrime, _q, _one, _r2);
          yRemainders[y-minY] = mmmResToN(res, thePrime, _q);
       }
-         
+      
       resBase = mmmAdd(resBase, _one, thePrime);
    }
    
@@ -226,6 +226,6 @@ void collectFactor(ulong       idx,
       return;
    
    factors[old].x = idx;
-   factors[old].y = (sign == 1 ? 1 : 2);
+   factors[old].y = sign;
    factors[old].z = p;
 }
