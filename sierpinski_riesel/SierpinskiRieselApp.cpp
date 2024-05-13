@@ -1433,7 +1433,7 @@ void  SierpinskiRieselApp::GetExtraTextForSieveStartedMessage(char *extraText, u
       snprintf(theK, sizeof(theK), "k");
 
    if (minC == maxC)
-      snprintf(theC, sizeof(theC), "%" PRId64"", minC);
+      snprintf(theC, sizeof(theC), "%+" PRId64"", minC);
    else
    {
       if (minC > 0)
