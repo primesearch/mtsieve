@@ -38,8 +38,7 @@ ulong mmmResToN(ulong res, ulong _p, ulong _q);
 
 __kernel void lifchitz_kernel(__global const ulong  *primes,
                               __global const uint   *xBases,
-                              __global const uint   *yBases,
-                              __global const uint4  *terms,
+                              __global const uint2  *terms,
                      volatile __global       uint   *factorCount,
                               __global       ulong4 *factors)
 {
@@ -52,10 +51,8 @@ __kernel void lifchitz_kernel(__global const ulong  *primes,
    ulong resBase, res = 0;
 
    ulong xRemainders[D_MAX_X_BASES];
-   ulong yRemainders[D_MAX_Y_BASES];
    
    uint  x, minX = xBases[0];
-   uint  y, minY = yBases[0];
    
    resBase = mmmNtoRes(minX, thePrime, _q, _r2);
 
@@ -71,38 +68,26 @@ __kernel void lifchitz_kernel(__global const ulong  *primes,
       resBase = mmmAdd(resBase, _one, thePrime);
    }
    
-   resBase = mmmNtoRes(minY, thePrime, _q, _r2);
+   uint y = 0;
+   ulong yPowY;
 
-   for (uint yIdx=0; yIdx<D_MAX_Y_BASES; yIdx++)
-   {
-      if (yBases[yIdx] > 0)
-      {
-         y = yBases[yIdx];
-         res = mmmPowmod(resBase, y, thePrime, _q, _one, _r2);
-         yRemainders[y-minY] = mmmResToN(res, thePrime, _q);
-      }
-      
-      resBase = mmmAdd(resBase, _one, thePrime);
-   }
-   
    for (uint idx=0; terms[idx].x>0; idx++)
    {
       ulong xPowX = xRemainders[terms[idx].x - minX];
-      ulong yPowY = yRemainders[terms[idx].y - minY];
-      
-      if (terms[idx].z & P_ONE)
-      {
-         // .z = 1 is for the + form, but we pass 1 back to the caller
-         if (xPowX + yPowY == thePrime)
-            collectFactor(idx, +1, thePrime, factorCount, factors);
-      }
 
-      if (terms[idx].z & M_ONE)
+      if (terms[idx].y != y)
       {
-         // .w = 1 is for the - form, but we pass 2 back to the caller
-         if (xPowX == yPowY)
-            collectFactor(idx, -1, thePrime, factorCount, factors);
+         y = terms[idx].y;
+         resBase = mmmNtoRes(y, thePrime, _q, _r2);
+         res = mmmPowmod(resBase, y, thePrime, _q, _one, _r2);
+         yPowY = mmmResToN(res, thePrime, _q);
       }
+      
+      if (xPowX + yPowY == thePrime)
+         collectFactor(idx, +1, thePrime, factorCount, factors);
+
+      if (xPowX == yPowY)
+         collectFactor(idx, -1, thePrime, factorCount, factors);
    }
 }
 

@@ -22,7 +22,18 @@
 #endif
 
 #define APP_NAME        "lifsieve"
-#define APP_VERSION     "1.5"
+#define APP_VERSION     "1.6"
+
+int sortByYX(const void *a, const void *b)
+{
+   term_t *aPtr = (term_t *) a;
+   term_t *bPtr = (term_t *) b;
+
+   if (aPtr->y == bPtr->y)
+      return (aPtr->x - bPtr->x);
+   
+   return (aPtr->y - bPtr->y);
+}
 
 int sortByXY(const void *a, const void *b)
 {
@@ -58,7 +69,6 @@ LifchitzApp::LifchitzApp(void) : FactorApp()
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    ii_XPerChunk = 1000000000;
-   ii_YPerChunk = 1000000000;
    ii_MaxGpuFactors = GetGpuWorkGroups() * 10000;
 #endif
 }
@@ -75,7 +85,6 @@ void LifchitzApp::Help(void)
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    printf("-z --xperchunk=z      number of x per chunk per call to GPU (default %d)\n", ii_XPerChunk);
-   printf("-Z --yperchunk=Z      number of y per chunk per call to GPU (default %d)\n", ii_YPerChunk);
 
    printf("-M --maxfactors=M     max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
 #endif
@@ -85,7 +94,7 @@ void  LifchitzApp::AddCommandLineOptions(string &shortOpts, struct option *longO
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "x:X:y:Y:s:z:Z:M:";
+   shortOpts += "x:X:y:Y:s:z:M:";
 
    AppendLongOpt(longOpts, "minx",              required_argument, 0, 'x');
    AppendLongOpt(longOpts, "maxx",              required_argument, 0, 'X');
@@ -95,7 +104,6 @@ void  LifchitzApp::AddCommandLineOptions(string &shortOpts, struct option *longO
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    AppendLongOpt(longOpts, "xchunks",           required_argument, 0, 'z');
-   AppendLongOpt(longOpts, "ychunks",           required_argument, 0, 'Z');
    AppendLongOpt(longOpts, "maxfactors",        required_argument, 0, 'M');
 #endif
 }
@@ -143,10 +151,6 @@ parse_t LifchitzApp::ParseOption(int opt, char *arg, const char *source)
          status = Parser::Parse(arg, 1, 1000000000, ii_XPerChunk);
          break;
 
-      case 'Z':
-         status = Parser::Parse(arg, 1, 1000000000, ii_YPerChunk);
-         break;
-         
       case 'M':
          status = Parser::Parse(arg, 10, 1000000000, ii_MaxGpuFactors);
          break;
@@ -333,7 +337,7 @@ bool LifchitzApp::ApplyFactor(uint64_t theFactor, const char *term)
    key.x = x1;
    key.y = y1;
 
-   term_t *entry = (term_t *) bsearch(&key, ip_Terms, il_TermArraySize, sizeof(term_t), sortByXY);
+   term_t *entry = (term_t *) bsearch(&key, ip_Terms, il_TermArraySize, sizeof(term_t), sortByYX);
    
    if (entry)
    {
@@ -364,11 +368,14 @@ void LifchitzApp::WriteOutputTermsFile(uint64_t largestPrime)
 
    if (!fPtr)
       FatalError("Unable to open input file %s", is_OutputTermsFileName.c_str());
+
+   // Sort by x then y for the output file
+   qsort(ip_Terms, il_TermArraySize, sizeof(term_t), sortByXY);
    
    fprintf(fPtr, "ABC $a^$a$b*$c^$c // Sieved to %" PRIu64"\n", largestPrime);
 
    for (uint32_t idx=0; idx<il_TermArraySize; idx++)
-   {    
+   {
       if (ip_Terms[idx].signs & M_ONE)
       {
          fprintf(fPtr, "%u -1 %u\n", ip_Terms[idx].x, ip_Terms[idx].y);
@@ -387,6 +394,9 @@ void LifchitzApp::WriteOutputTermsFile(uint64_t largestPrime)
    if (termsCounted != il_TermCount)
       FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termsCounted, il_TermCount);
 
+   // Sort by y then x for internal processing
+   qsort(ip_Terms, il_TermArraySize, sizeof(term_t), sortByYX);
+   
    ip_FactorAppLock->Release();
 }
 
@@ -421,7 +431,7 @@ bool LifchitzApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32
       key.x = x;
       key.y = y;
 
-      entry = (term_t *) bsearch(&key, ip_Terms, il_TermArraySize, sizeof(term_t), sortByXY);
+      entry = (term_t *) bsearch(&key, ip_Terms, il_TermArraySize, sizeof(term_t), sortByYX);
       
       if (entry)
       {
@@ -568,8 +578,8 @@ void      LifchitzApp::CollapseTerms(void)
    uint32_t  prevX = 0, prevY = 0;
    term_t   *newTerms;
 
-   // sort by ascending x then ascending x then ascending y
-   qsort(ip_Terms, il_TermCount, sizeof(term_t), sortByXY);
+   // sort by ascending y then ascending x then ascending x
+   qsort(ip_Terms, il_TermCount, sizeof(term_t), sortByYX);
 
    for (uint64_t idx=0; idx<il_TermCount; idx++)
    {

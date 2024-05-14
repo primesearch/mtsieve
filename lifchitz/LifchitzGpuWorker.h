@@ -18,8 +18,6 @@
 typedef struct {
    uint32_t    x;
    uint32_t    y;
-   uint32_t    signs;
-   uint32_t    unused;
 } gputerm_t;
 
 // This maps to a ulong4 in the GPU
@@ -53,29 +51,23 @@ protected:
    
    uint32_t          ii_MinX;
    uint32_t          ii_MaxX;
-   uint32_t          ii_MinY;
-   uint32_t          ii_MaxY;
    
    uint32_t          ii_XChunks;
-   uint32_t          ii_YChunks;
-   
-   uint32_t          ii_MaxBases;
-   
+      
    uint32_t          ii_XPerChunk;
-   uint32_t          ii_YPerChunk;
-   uint32_t          ii_TermsPerGroup;
+   uint32_t          ii_MaxTermsPerGroup;
    
    uint32_t        **ip_XBases;
-   uint32_t        **ip_YBases;
-   uint32_t        **ip_TermsInGroup;
-   gputerm_t      ***ip_GpuTerms;
-   uint64_t       ***ip_TermIndexes;
+   uint32_t         *ip_TermsInGroup;
+   gputerm_t       **ip_GpuTerms;
+   uint8_t         **ip_GpuSigns;
+   uint64_t        **ip_TermIndexes;
 
    uint32_t          ii_MaxGpuFactors;
    
    uint32_t         *ii_KernelXBases;
-   uint32_t         *ii_KernelYBases;
    gputerm_t        *ip_TermList;
+   uint8_t          *ip_SignList;
    uint32_t         *ii_FactorCount;
    factor_t         *ip_FactorList;
 

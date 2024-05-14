@@ -50,7 +50,6 @@ public:
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          GetXPerChunk(void) { return ii_XPerChunk; };
-   uint32_t          GetYPerChunk(void) { return ii_YPerChunk; };
    uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
 #endif
 
@@ -84,7 +83,6 @@ private:
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          ii_XPerChunk;
-   uint32_t          ii_YPerChunk;
    uint32_t          ii_MaxGpuFactors;
 #endif
 };
