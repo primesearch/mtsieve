@@ -84,6 +84,12 @@ void  LifchitzGpuWorker::AllocateMemory(void)
       minXForChunk += ii_XPerChunk;
    }
    
+   if (ii_XPerChunk > ii_MaxX - ii_MinX)
+   {
+      ii_XChunks = 1;
+      ii_XPerChunk = 1 + ii_MaxX - ii_MinX;
+   }
+   
    ip_XBases = (uint32_t **) xmalloc(ii_XPerChunk, sizeof(uint32_t *), "xBases *");
 
    for (xIdx=0; xIdx<ii_XChunks; xIdx++)
