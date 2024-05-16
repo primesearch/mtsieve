@@ -244,23 +244,26 @@ void   LifchitzGpuWorker::CreateTermGroups(void)
          ip_LifchitzApp->WriteToConsole(COT_OTHER, "Building term groups");
       else
          ip_LifchitzApp->WriteToConsole(COT_OTHER, "Rebuilding term groups");
+   }
    
-      for (xIdx=0; xIdx<ii_XChunks; xIdx++)
+   for (xIdx=0; xIdx<ii_XChunks; xIdx++)
+   {
+      // The last term for the group will have x = 0.
+      minXForChunk = ip_XBases[xIdx][0];
+      uint32_t maxXForChunk = minXForChunk + ii_XPerChunk;
+         
+      if (ii_XChunks > 1)
       {
-         // The last term for the group will have x = 0.
-         minXForChunk = ip_XBases[xIdx][0];
-         uint32_t maxXForChunk = minXForChunk + ii_XPerChunk;
-            
          ip_LifchitzApp->WriteToConsole(COT_OTHER, "   Group %2u (%6u <= x < %6u) has %8u terms", 
             xIdx+1, minXForChunk, maxXForChunk, ip_TermsInGroup[xIdx]);
-
-         tIdx = ip_TermsInGroup[xIdx];
-         
-         // Make sure we have an "end of list"
-         ip_GpuTerms[xIdx][tIdx].x = 0;
-         ip_GpuTerms[xIdx][tIdx].y = 0;
-         ip_GpuSigns[xIdx][tIdx] = 0;
       }
+
+      tIdx = ip_TermsInGroup[xIdx];
+      
+      // Make sure we have an "end of list"
+      ip_GpuTerms[xIdx][tIdx].x = 0;
+      ip_GpuTerms[xIdx][tIdx].y = 0;
+      ip_GpuSigns[xIdx][tIdx] = 0;
    }
    
    if (ip_LifchitzApp->GetGpuWorkerCount() + ip_LifchitzApp->GetCpuWorkerCount() > 1)

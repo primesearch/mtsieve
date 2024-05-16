@@ -22,7 +22,7 @@
 #endif
 
 #define APP_NAME        "lifsieve"
-#define APP_VERSION     "1.6"
+#define APP_VERSION     "1.6.1"
 
 int sortByYX(const void *a, const void *b)
 {
