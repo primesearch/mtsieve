@@ -22,10 +22,10 @@ typedef struct {
 
 // This maps to a ulong4 in the GPU
 typedef struct {
-   uint64_t    termIdx;
+   uint64_t    x;
+   uint64_t    y;
    uint64_t    sign;
    uint64_t    factor;
-   uint64_t    unused;
 } factor_t;
 
 
@@ -43,31 +43,16 @@ public:
 
 protected:
    void              NotifyPrimeListAllocated(uint32_t primesInList) {} 
-
-   void              AllocateMemory(void);
-   void              CreateTermGroups(void);
-
-   uint64_t          il_NextTermsBuild;
    
    uint32_t          ii_MinX;
    uint32_t          ii_MaxX;
-   
-   uint32_t          ii_XChunks;
-      
+   uint32_t          ii_MinY;
+   uint32_t          ii_MaxY;
+         
    uint32_t          ii_XPerChunk;
-   uint32_t          ii_MaxTermsPerGroup;
    
-   uint32_t        **ip_XBases;
-   uint32_t         *ip_TermsInGroup;
-   gputerm_t       **ip_GpuTerms;
-   uint8_t         **ip_GpuSigns;
-   uint64_t        **ip_TermIndexes;
-
    uint32_t          ii_MaxGpuFactors;
    
-   uint32_t         *ii_KernelXBases;
-   gputerm_t        *ip_TermList;
-   uint8_t          *ip_SignList;
    uint32_t         *ii_FactorCount;
    factor_t         *ip_FactorList;
 

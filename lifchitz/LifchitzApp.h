@@ -40,6 +40,7 @@ public:
    void              GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength);
    
    bool              ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign, uint64_t termIdx);
+   bool              ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign);
 
    uint32_t          GetMinX(void) { return ii_MinX; };
    uint32_t          GetMaxX(void) { return ii_MaxX; };
@@ -69,6 +70,7 @@ protected:
 private:
    void              SetInitialTerms(void);
    void              CollapseTerms(void);
+   bool              RemoveTerm(uint64_t theFactor, term_t *term, int32_t sign, bool logFactor);
    void              VerifyFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign);
       
    bool              ib_IsPlus;

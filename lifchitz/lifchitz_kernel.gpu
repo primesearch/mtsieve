@@ -10,13 +10,15 @@
 #pragma OPENCL EXTENSION cl_khr_int64_extended_atomics: enable
 #define MUL_HI          mul_hi
 
-void collectFactor(ulong   idx,
-                   int     sign,
+void collectFactor(uint    x,
+                   uint    y,
+                   ulong     sign,
                    ulong   p,
  volatile __global uint   *factorCount,
           __global ulong4 *factors);
 #else
-void collectFactor(ulong       idx,
+void collectFactor(uint        x,
+                   uint        y,
                    int         sign,
                    ulong       p,
    volatile device atomic_int *factorCount,
@@ -25,6 +27,9 @@ void collectFactor(ulong       idx,
 
 #define P_ONE     0x01
 #define M_ONE     0x02
+
+// HASH_SIZE is a power of 2
+#define HASH_SIZE_M1          (HASH_SIZE-1)
 
 ulong mmmInvert(ulong _p);
 ulong mmmOne(ulong _p);
@@ -37,58 +42,128 @@ ulong mmmNtoRes(ulong n, ulong _p, ulong _q, ulong _r2);
 ulong mmmResToN(ulong res, ulong _p, ulong _q);
 
 __kernel void lifchitz_kernel(__global const ulong  *primes,
-                              __global const uint   *xBases,
-                              __global const uint2  *terms,
                      volatile __global       uint   *factorCount,
                               __global       ulong4 *factors)
 {
-   uint   gid = get_global_id(0);
-   ulong  thePrime = primes[gid];
+   uint    gid = get_global_id(0);
+   ulong   thePrime = primes[gid];
 
-   ulong _q = mmmInvert(thePrime);
-   ulong _one = mmmOne(thePrime);
-   ulong _r2 = mmmR2(thePrime, _q, _one);
-   ulong resBase, res = 0;
+   ulong   _q = mmmInvert(thePrime);
+   ulong   _one = mmmOne(thePrime);
+   ulong   _r2 = mmmR2(thePrime, _q, _one);
+   ulong   resBase, resPow;
 
-   ulong xRemainders[D_MAX_X_BASES];
+   // HASH_SIZE is the smallest power of 2 greater than HASH_ELEMENTS
+   uint2   h_table[HASH_SIZE + HASH_ELEMENTS];
+   ulong   h_element[HASH_ELEMENTS+1];
    
-   uint  x, minX = xBases[0];
+   uint    y, slot, emptySlot, nextSlot, prevSlot;
+   uint    x = D_MIN_X, maxX, minX = D_MIN_X;
    
-   resBase = mmmNtoRes(minX, thePrime, _q, _r2);
-
-   for (uint xIdx=0; xIdx<D_MAX_X_BASES; xIdx++)
+   do
    {
-      if (xBases[xIdx] > 0)
+      for (slot=0; slot<HASH_SIZE+HASH_ELEMENTS; slot++)
       {
-         x = xBases[xIdx];
-         res = mmmPowmod(resBase, x, thePrime, _q, _one, _r2);
-         xRemainders[x-minX] = mmmResToN(res, thePrime, _q);
+         h_table[slot].x = INT_MAX;  
+         h_table[slot].y = INT_MAX;
       }
+        
+      for (slot=0; slot<HASH_ELEMENTS; slot++)
+         h_element[slot] = 0;  
+      
+      emptySlot = HASH_SIZE;
 
-      resBase = mmmAdd(resBase, _one, thePrime);
-   }
+      maxX = x + X_PER_CHUNK;
+      
+      if (maxX > D_MAX_X)
+         maxX = D_MAX_X + 1;
    
-   uint y = 0;
-   ulong yPowY;
-
-   for (uint idx=0; terms[idx].x>0; idx++)
-   {
-      ulong xPowX = xRemainders[terms[idx].x - minX];
-
-      if (terms[idx].y != y)
+      resBase = mmmNtoRes(x, thePrime, _q, _r2);
+            
+      for (; x<maxX; x++)
       {
-         y = terms[idx].y;
-         resBase = mmmNtoRes(y, thePrime, _q, _r2);
-         res = mmmPowmod(resBase, y, thePrime, _q, _one, _r2);
-         yPowY = mmmResToN(res, thePrime, _q);
+         resPow = mmmPowmod(resBase, x, thePrime, _q, _one, _r2);
+         
+         h_element[x-minX] = resPow;
+         
+         // We only want the lowest bits of the residue for choosing the slot
+         // so that it fits into h_table.
+         slot = resPow & HASH_SIZE_M1;
+
+         prevSlot = HASH_SIZE;
+         
+         if (h_table[slot].x == INT_MAX)
+            h_table[slot].x = x;
+         else
+         {
+            nextSlot = h_table[slot].y;
+            prevSlot = slot;
+            
+            while (nextSlot != INT_MAX)
+            {
+               prevSlot = nextSlot;
+               nextSlot = h_table[prevSlot].y;
+            }
+
+            nextSlot = emptySlot;
+            h_table[prevSlot].y = nextSlot;
+            h_table[nextSlot].x = x;
+            emptySlot++;
+         }
+         
+         resBase = mmmAdd(resBase, _one, thePrime);
       }
       
-      if (xPowX + yPowY == thePrime)
-         collectFactor(idx, +1, thePrime, factorCount, factors);
+      if (maxX == 0)
+         break;
+      
+      resBase = mmmNtoRes(D_MIN_Y, thePrime, _q, _r2);
+      
+      for (y=D_MIN_Y; y<=D_MAX_Y; y++)
+      {
+         resPow = mmmPowmod(resBase, y, thePrime, _q, _one, _r2);
 
-      if (xPowX == yPowY)
-         collectFactor(idx, -1, thePrime, factorCount, factors);
-   }
+         slot = resPow & HASH_SIZE_M1;
+                  
+         // We need to meet the following criteria to know we have a match:
+         //    h_table[slot].x is non-zero
+         //    x > y for that entry
+         //    elements[x] = resPow
+         if (h_table[slot].x != INT_MAX)
+         {
+            do
+            {
+               x = h_table[slot].x;
+               
+               if (x > y && h_element[x-minX] == resPow)
+                  collectFactor(x, y, -1, thePrime, factorCount, factors);
+               
+               slot = h_table[slot].y;
+            } while (slot != INT_MAX);
+         }
+
+         resPow = mmmSub(0, resPow, thePrime);
+
+         slot = resPow & HASH_SIZE_M1;
+         
+         if (h_table[slot].x != INT_MAX)
+         {
+            do
+            {
+               x = h_table[slot].x;
+               
+               if (x > y && h_element[x-minX] == resPow)
+                  collectFactor(x, y, +1, thePrime, factorCount, factors);
+               
+               slot = h_table[slot].y;
+            } while (slot != INT_MAX);
+         }
+            
+         resBase = mmmAdd(resBase, _one, thePrime);
+      }
+   
+      x = maxX;
+   } while (x <= D_MAX_X);
 }
 
 ulong mmmInvert(ulong _p)
@@ -187,13 +262,15 @@ ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q)
 }
 
 #if defined(USE_OPENCL)
-void collectFactor(ulong   idx,
-                   int     sign,
+void collectFactor(uint    x,
+                   uint    y,
+                   ulong     sign,
                    ulong   p,
  volatile __global uint   *factorCount,
           __global ulong4 *factors)
 #else
-void collectFactor(ulong       idx,
+void collectFactor(uint        x,
+                   uint        y,
                    int         sign,
                    ulong       p,
    volatile device atomic_int *factorCount,
@@ -210,7 +287,8 @@ void collectFactor(ulong       idx,
    if (old >= D_MAX_FACTORS)
       return;
    
-   factors[old].x = idx;
-   factors[old].y = sign;
-   factors[old].z = p;
+   factors[old].x = x;
+   factors[old].y = y;
+   factors[old].z = sign;
+   factors[old].w = p;
 }

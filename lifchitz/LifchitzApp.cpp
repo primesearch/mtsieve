@@ -22,18 +22,7 @@
 #endif
 
 #define APP_NAME        "lifsieve"
-#define APP_VERSION     "1.6.1"
-
-int sortByYX(const void *a, const void *b)
-{
-   term_t *aPtr = (term_t *) a;
-   term_t *bPtr = (term_t *) b;
-
-   if (aPtr->y == bPtr->y)
-      return (aPtr->x - bPtr->x);
-   
-   return (aPtr->y - bPtr->y);
-}
+#define APP_VERSION     "1.7"
 
 int sortByXY(const void *a, const void *b)
 {
@@ -309,7 +298,6 @@ bool LifchitzApp::ApplyFactor(uint64_t theFactor, const char *term)
    uint32_t x1, x2, y1, y2;
    char     c;
    int32_t  sign;
-   bool     canRemove = false;
    
    if (sscanf(term, "%u^%u%c%u^%u", &x1, &x2, &c, &y1, &y2) != 5)
       FatalError("Could not parse term %s\n", term);
@@ -337,24 +325,9 @@ bool LifchitzApp::ApplyFactor(uint64_t theFactor, const char *term)
    key.x = x1;
    key.y = y1;
 
-   term_t *entry = (term_t *) bsearch(&key, ip_Terms, il_TermArraySize, sizeof(term_t), sortByYX);
+   term_t *entry = (term_t *) bsearch(&key, ip_Terms, il_TermArraySize, sizeof(term_t), sortByXY);
    
-   if (entry)
-   {
-      if (sign == -1 && entry->signs & M_ONE) canRemove = true;
-      if (sign == +1 && entry->signs & P_ONE) canRemove = true;
-   }
-
-   if (!canRemove)
-      return false;
-
-   if (sign == -1) entry->signs &= ~M_ONE;
-   if (sign == +1) entry->signs &= ~P_ONE;
-
-   il_TermCount--;
-   il_FactorCount++;
-
-   return true;
+   return RemoveTerm(theFactor, entry, sign, false);
 }
 
 void LifchitzApp::WriteOutputTermsFile(uint64_t largestPrime)
@@ -368,9 +341,6 @@ void LifchitzApp::WriteOutputTermsFile(uint64_t largestPrime)
 
    if (!fPtr)
       FatalError("Unable to open input file %s", is_OutputTermsFileName.c_str());
-
-   // Sort by x then y for the output file
-   qsort(ip_Terms, il_TermArraySize, sizeof(term_t), sortByXY);
    
    fprintf(fPtr, "ABC $a^$a$b*$c^$c // Sieved to %" PRIu64"\n", largestPrime);
 
@@ -393,9 +363,6 @@ void LifchitzApp::WriteOutputTermsFile(uint64_t largestPrime)
    
    if (termsCounted != il_TermCount)
       FatalError("Something is wrong.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", termsCounted, il_TermCount);
-
-   // Sort by y then x for internal processing
-   qsort(ip_Terms, il_TermArraySize, sizeof(term_t), sortByYX);
    
    ip_FactorAppLock->Release();
 }
@@ -408,7 +375,7 @@ void  LifchitzApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t 
 
 bool LifchitzApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign, uint64_t termIdx)
 {
-   bool     removedTerm = false, canRemove = false;
+   bool     removedTerm;
    bool     needToLock = (theFactor > GetMaxPrimeForSingleWorker());
    term_t  *entry;
    
@@ -431,41 +398,70 @@ bool LifchitzApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32
       key.x = x;
       key.y = y;
 
-      entry = (term_t *) bsearch(&key, ip_Terms, il_TermArraySize, sizeof(term_t), sortByYX);
-      
-      if (entry)
-      {
-         if (sign == -1 && entry->signs & M_ONE) canRemove = true;
-         if (sign == +1 && entry->signs & P_ONE) canRemove = true;
-      }
+      entry = (term_t *) bsearch(&key, ip_Terms, il_TermArraySize, sizeof(term_t), sortByXY);
    }
    else
-   {
       entry = &ip_Terms[termIdx];
-      
-      if (sign == -1 && entry->signs & M_ONE) canRemove = true;
-      if (sign == +1 && entry->signs & P_ONE) canRemove = true;
-   }
 
-   if (!canRemove)
-   {
-      if (needToLock)
-         ip_FactorAppLock->Release();
-      return false;
-   }
-   
-   if (sign == -1) entry->signs &= ~M_ONE;
-   if (sign == +1) entry->signs &= ~P_ONE;
-
-   il_TermCount--;
-   il_FactorCount++;
-   removedTerm = true;
-   LogFactor(theFactor, "%u^%u%c%u^%u", x, x, ((sign == +1) ? '+' : '-'), y, y);
+   removedTerm = RemoveTerm(theFactor, entry, sign, true);
 
    if (needToLock)
       ip_FactorAppLock->Release();
 
    return removedTerm;
+}
+
+bool LifchitzApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign)
+{
+   bool     removedTerm;
+   term_t  *entry;
+   
+   if (x < ii_MinX || x > ii_MaxX)
+      return false;
+   
+   if (y < ii_MinY || y > ii_MaxY)
+      return false;
+      
+   ip_FactorAppLock->Lock();
+   
+   VerifyFactor(theFactor, x, y, sign);
+   
+   term_t key;
+   key.x = x;
+   key.y = y;
+
+   entry = (term_t *) bsearch(&key, ip_Terms, il_TermArraySize, sizeof(term_t), sortByXY);
+
+   removedTerm = RemoveTerm(theFactor, entry, sign, true);
+
+   ip_FactorAppLock->Release();
+
+   return removedTerm;
+}
+
+bool LifchitzApp::RemoveTerm(uint64_t theFactor, term_t *term, int32_t sign, bool logFactor)
+{
+   bool needFactor = false;
+
+   if (!term)
+      return false;
+
+   if (sign == -1 && term->signs & M_ONE) needFactor = true;
+   if (sign == +1 && term->signs & P_ONE) needFactor = true;
+
+   if (needFactor)
+   {
+      if (sign == -1) term->signs &= ~M_ONE;
+      if (sign == +1) term->signs &= ~P_ONE;
+
+      il_TermCount--;
+      il_FactorCount++;
+      
+      if (logFactor)
+         LogFactor(theFactor, "%u^%u%c%u^%u", term->x, term->x, ((sign == +1) ? '+' : '-'), term->y, term->y);
+   }
+   
+   return needFactor;
 }
 
 void  LifchitzApp::VerifyFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign)
@@ -578,8 +574,8 @@ void      LifchitzApp::CollapseTerms(void)
    uint32_t  prevX = 0, prevY = 0;
    term_t   *newTerms;
 
-   // sort by ascending y then ascending x then ascending x
-   qsort(ip_Terms, il_TermCount, sizeof(term_t), sortByYX);
+   // sort by ascending x then ascending x then ascending y
+   qsort(ip_Terms, il_TermCount, sizeof(term_t), sortByXY);
 
    for (uint64_t idx=0; idx<il_TermCount; idx++)
    {
