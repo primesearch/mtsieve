@@ -11,11 +11,16 @@
 
 #include "LifchitzApp.h"
 #include "../core/Worker.h"
-#include "../core/MpArithVector.h"
+#include "../core/MpArith.h"
 
 using namespace std;
 
 #define MAX_POWERS   50
+
+typedef struct {
+   uint32_t       x;
+   uint32_t       next;
+} hash_t;
 
 class LifchitzWorker : public Worker
 {
@@ -33,16 +38,18 @@ protected:
    
 private:
    LifchitzApp   *ip_LifchitzApp;
-   void           BuildTerms(void);
 
-   uint32_t       ii_MinBase;
-   uint32_t       ii_MaxBase;
-
-   std::vector<bool>  iv_Bases;
-   MpResVec      *ip_Remainders;
-   uint64_t       il_NextTermsBuild;
-
-   term_t        *ip_Terms;
+   uint32_t       ii_MinX;
+   uint32_t       ii_MaxX;
+   uint32_t       ii_MinY;
+   uint32_t       ii_MaxY;
+   
+   uint32_t       ii_HashSize;
+   uint32_t       ii_Elements;
+   uint32_t       ii_HashM1;
+   
+   hash_t        *ip_Hashes;
+   MpRes         *ip_Residues;
 };
 
 #endif

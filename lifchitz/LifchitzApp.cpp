@@ -22,7 +22,7 @@
 #endif
 
 #define APP_NAME        "lifsieve"
-#define APP_VERSION     "1.7"
+#define APP_VERSION     "1.7.1"
 
 int sortByXY(const void *a, const void *b)
 {
@@ -165,8 +165,6 @@ void LifchitzApp::ValidateOptions(void)
       il_TermCount = 0;
       
       ProcessInputTermsFile(true);
-      
-      CollapseTerms();
    }
    else
    {
@@ -203,6 +201,8 @@ void LifchitzApp::ValidateOptions(void)
       SetInitialTerms();
    }
    
+   CollapseTerms();
+
    FactorApp::ParentValidateOptions();
 
    // This will sieve beyond the limit, but we want to make sure that at least one prime
@@ -373,7 +373,7 @@ void  LifchitzApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t 
       ((ib_IsPlus & ib_IsMinus) ? "+/-" : (ib_IsPlus ? "+" : "-")));
 }
 
-bool LifchitzApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign, uint64_t termIdx)
+bool LifchitzApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign)
 {
    bool     removedTerm;
    bool     needToLock = (theFactor > GetMaxPrimeForSingleWorker());
@@ -385,46 +385,10 @@ bool LifchitzApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32
    if (y < ii_MinY || y > ii_MaxY)
       return false;
       
+   VerifyFactor(theFactor, x, y, sign);
+   
    if (needToLock)
       ip_FactorAppLock->Lock();
-   
-   VerifyFactor(theFactor, x, y, sign);
-   
-   // If there are mutliple workers, then we need to use a binary search to find
-   // the entry in ip_Terms, else we can use the passed in index.
-   if (needToLock && GetGpuWorkerCount() + GetCpuWorkerCount() > 1)
-   {
-      term_t key;
-      key.x = x;
-      key.y = y;
-
-      entry = (term_t *) bsearch(&key, ip_Terms, il_TermArraySize, sizeof(term_t), sortByXY);
-   }
-   else
-      entry = &ip_Terms[termIdx];
-
-   removedTerm = RemoveTerm(theFactor, entry, sign, true);
-
-   if (needToLock)
-      ip_FactorAppLock->Release();
-
-   return removedTerm;
-}
-
-bool LifchitzApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign)
-{
-   bool     removedTerm;
-   term_t  *entry;
-   
-   if (x < ii_MinX || x > ii_MaxX)
-      return false;
-   
-   if (y < ii_MinY || y > ii_MaxY)
-      return false;
-      
-   ip_FactorAppLock->Lock();
-   
-   VerifyFactor(theFactor, x, y, sign);
    
    term_t key;
    key.x = x;
@@ -433,8 +397,9 @@ bool LifchitzApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32
    entry = (term_t *) bsearch(&key, ip_Terms, il_TermArraySize, sizeof(term_t), sortByXY);
 
    removedTerm = RemoveTerm(theFactor, entry, sign, true);
-
-   ip_FactorAppLock->Release();
+      
+   if (needToLock)
+      ip_FactorAppLock->Release();
 
    return removedTerm;
 }
@@ -559,8 +524,6 @@ void  LifchitzApp::SetInitialTerms(void)
       }
    }
 
-   GetTerms();
-
    WriteToConsole(COT_OTHER, "Quick elimination of terms info (in order of check):");
    
    WriteToConsole(COT_OTHER, "    %u because y >= x", yGTEx);
@@ -628,67 +591,4 @@ void      LifchitzApp::CollapseTerms(void)
    xfree(ip_Terms);
    ip_Terms = newTerms;
    il_TermArraySize = newTermArraySize;
-}
-
-term_t   *LifchitzApp::GetTerms(void)
-{
-   ip_FactorAppLock->Lock();
-   
-   uint64_t newTermCount, newTermArraySize = 0, taIdx;
-   bool     createWorkerTerms = false;
-   term_t  *workerTerms, *newTerms;
-   
-   for (uint64_t idx=0; idx<il_TermArraySize; idx++)
-   {
-      // 0 means that we found a factor since the previous re-build
-      if (ip_Terms[idx].signs != 0)
-         newTermArraySize++;
-   }
-      
-   newTerms = (term_t *) xmalloc(1 + newTermArraySize, sizeof(term_t), "terms");
-   
-   if (GetGpuWorkerCount() + GetCpuWorkerCount() > 1)
-      createWorkerTerms = true;
-   
-   // If there is more than one thread, then we have to create a copy of the terms.
-   if (createWorkerTerms)
-      workerTerms = (term_t *) xmalloc(1 + newTermArraySize, sizeof(term_t), "worker terms");
-   
-   newTermCount = taIdx = 0;
-   
-   for (uint64_t idx=0; idx<il_TermArraySize; idx++)
-   {
-      if (ip_Terms[idx].signs == 0)
-         continue;
-
-      if (ip_Terms[idx].signs & M_ONE) newTermCount++;
-      if (ip_Terms[idx].signs & P_ONE) newTermCount++;
-
-      newTerms[taIdx].x = ip_Terms[idx].x;
-      newTerms[taIdx].y = ip_Terms[idx].y;
-      newTerms[taIdx].signs = ip_Terms[idx].signs;
-
-      if (createWorkerTerms)
-      {
-         workerTerms[taIdx].x = ip_Terms[idx].x;
-         workerTerms[taIdx].y = ip_Terms[idx].y;
-         workerTerms[taIdx].signs = ip_Terms[idx].signs;
-      }
-   
-      taIdx++;
-   }
-   
-   if (il_TermCount != newTermCount)
-      FatalError("Error encountered rebuilding terms.  Counted terms (%" PRIu64") != expected terms (%" PRIu64")", newTermCount, il_TermCount);
-
-   xfree(ip_Terms);
-   ip_Terms = newTerms;
-   il_TermArraySize = newTermArraySize;
-
-   ip_FactorAppLock->Release();
-
-   if (createWorkerTerms)
-      return workerTerms;
-
-   return ip_Terms;
 }

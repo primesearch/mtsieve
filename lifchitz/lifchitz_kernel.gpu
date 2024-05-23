@@ -57,65 +57,55 @@ __kernel void lifchitz_kernel(__global const ulong  *primes,
    uint2   h_table[HASH_SIZE + HASH_ELEMENTS];
    ulong   h_element[HASH_ELEMENTS+1];
    
-   uint    y, slot, emptySlot, nextSlot, prevSlot;
-   uint    x = D_MIN_X, maxX, minX = D_MIN_X;
+   uint    y, slot, emptySlot;
+   uint    x = D_MIN_X, minX, maxX;
    
    do
    {
-      for (slot=0; slot<HASH_SIZE+HASH_ELEMENTS; slot++)
-      {
-         h_table[slot].x = INT_MAX;  
-         h_table[slot].y = INT_MAX;
-      }
+      for (slot=0; slot<HASH_SIZE; slot++)
+         h_table[slot].x = 0;
         
       for (slot=0; slot<HASH_ELEMENTS; slot++)
          h_element[slot] = 0;  
       
       emptySlot = HASH_SIZE;
 
+      minX = x;
       maxX = x + X_PER_CHUNK;
       
       if (maxX > D_MAX_X)
          maxX = D_MAX_X + 1;
    
       resBase = mmmNtoRes(x, thePrime, _q, _r2);
-            
+
       for (; x<maxX; x++)
       {
          resPow = mmmPowmod(resBase, x, thePrime, _q, _one, _r2);
          
          h_element[x-minX] = resPow;
          
-         // We only want the lowest bits of the residue for choosing the slot
-         // so that it fits into h_table.
+         // We only want the lowest bits of the residue for choosing the slot so that it fits into h_table.
          slot = resPow & HASH_SIZE_M1;
-
-         prevSlot = HASH_SIZE;
          
-         if (h_table[slot].x == INT_MAX)
+         if (h_table[slot].x == 0)
+         {
             h_table[slot].x = x;
+            h_table[slot].y = 0;
+         }
          else
          {
-            nextSlot = h_table[slot].y;
-            prevSlot = slot;
+            // Create a change of x where we insert this x into the chain for this residue           
+            h_table[emptySlot].x = h_table[slot].x;
+            h_table[emptySlot].y = h_table[slot].y;
             
-            while (nextSlot != INT_MAX)
-            {
-               prevSlot = nextSlot;
-               nextSlot = h_table[prevSlot].y;
-            }
-
-            nextSlot = emptySlot;
-            h_table[prevSlot].y = nextSlot;
-            h_table[nextSlot].x = x;
+            h_table[slot].x = x;
+            h_table[slot].y = emptySlot;
+            
             emptySlot++;
          }
          
          resBase = mmmAdd(resBase, _one, thePrime);
       }
-      
-      if (maxX == 0)
-         break;
       
       resBase = mmmNtoRes(D_MIN_Y, thePrime, _q, _r2);
       
@@ -126,37 +116,37 @@ __kernel void lifchitz_kernel(__global const ulong  *primes,
          slot = resPow & HASH_SIZE_M1;
                   
          // We need to meet the following criteria to know we have a match:
-         //    h_table[slot].x is non-zero
+         //    h_table[slot].x is not 0
          //    x > y for that entry
-         //    elements[x] = resPow
-         if (h_table[slot].x != INT_MAX)
+         //    h_element[x] = resPow
+         while (h_table[slot].x > y)
          {
-            do
-            {
-               x = h_table[slot].x;
-               
-               if (x > y && h_element[x-minX] == resPow)
-                  collectFactor(x, y, -1, thePrime, factorCount, factors);
-               
-               slot = h_table[slot].y;
-            } while (slot != INT_MAX);
+            x = h_table[slot].x;
+            
+            if (h_element[x-minX] == resPow)
+               collectFactor(x, y, -1, thePrime, factorCount, factors);
+            
+            slot = h_table[slot].y;
+            
+            if (slot == 0)
+               break;
          }
 
          resPow = mmmSub(0, resPow, thePrime);
 
          slot = resPow & HASH_SIZE_M1;
          
-         if (h_table[slot].x != INT_MAX)
+         while (h_table[slot].x > y)
          {
-            do
-            {
-               x = h_table[slot].x;
-               
-               if (x > y && h_element[x-minX] == resPow)
-                  collectFactor(x, y, +1, thePrime, factorCount, factors);
-               
-               slot = h_table[slot].y;
-            } while (slot != INT_MAX);
+            x = h_table[slot].x;
+            
+            if (h_element[x-minX] == resPow)
+               collectFactor(x, y, +1, thePrime, factorCount, factors);
+            
+            slot = h_table[slot].y;
+            
+            if (slot == 0)
+               break;
          }
             
          resBase = mmmAdd(resBase, _one, thePrime);
