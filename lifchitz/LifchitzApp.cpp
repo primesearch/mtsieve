@@ -574,7 +574,12 @@ void      LifchitzApp::CollapseTerms(void)
          continue;
       }
 
-      newTermCount++;
+      if (ip_Terms[idx].signs & M_ONE)
+         newTermCount++;
+      
+      if (ip_Terms[idx].signs & P_ONE)
+         newTermCount++;
+      
       newTerms[taIdx].x = ip_Terms[idx].x;
       newTerms[taIdx].y = ip_Terms[idx].y;
       newTerms[taIdx].signs = ip_Terms[idx].signs;
