@@ -12,6 +12,7 @@
 #include "LifchitzApp.h"
 #include "../core/Worker.h"
 #include "../core/MpArith.h"
+#include "../core/MpArithVector.h"
 
 using namespace std;
 
@@ -38,6 +39,12 @@ protected:
    
 private:
    LifchitzApp   *ip_LifchitzApp;
+   void           TestInitialChunk(void);
+   void           TestLaterChunk(void);
+   void           BuildTerms(void);
+
+   uint32_t       ii_MinBase;
+   uint32_t       ii_MaxBase;
 
    uint32_t       ii_MinX;
    uint32_t       ii_MaxX;
@@ -48,6 +55,11 @@ private:
    uint32_t       ii_Elements;
    uint32_t       ii_HashM1;
    
+   std::vector<bool>  iv_Bases;
+   MpResVec      *ip_Remainders;
+   uint64_t       il_NextTermsBuild;
+   
+   term_t        *ip_Terms;
    hash_t        *ip_Hashes;
    MpRes         *ip_Residues;
 };
