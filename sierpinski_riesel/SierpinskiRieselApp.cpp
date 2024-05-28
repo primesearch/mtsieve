@@ -1793,7 +1793,7 @@ void     SierpinskiRieselApp::ReportFactor(uint64_t theFactor, seq_t *seqPtr, ui
          // If not, then there is no way to verify the factor.
          // For example if d = 9 then we can verify if theFactor = 3, but
          // if d = 15, then we cannot verify if theFactor is 3 or 5.
-         if (fPower > seqPtr->d)
+         if (fPower >= seqPtr->d)
            return;
       }
    }
