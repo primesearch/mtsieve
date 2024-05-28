@@ -22,7 +22,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.8.5"
+#define APP_VERSION     "1.8.6"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
@@ -97,7 +97,7 @@ void SierpinskiRieselApp::Help(void)
    printf("-n --nmin=n           Minimum n to search (append value with 'p' to limit to n that are prime)\n");
    printf("-N --nmax=N           Maximum n to search\n");
    printf("-s --sequence=s       Sequence in form k*b^n+c where k, b, and c are decimal values\n");
-   printf("-f --format=f         Format of output file (A=ABC, D=ABCD (default), B=BOINC, P=ABC with number_primes)\n");
+   printf("-f --format=f         Format of output file (A=ABC, D=ABCD (default), B=BOINC, P=ABC with number_primes, M=mfakt)\n");
    printf("-l --legendrebytes=l  Bytes to use for Legendre tables (only used if abs(c)=1 for all sequences)\n");
    printf("-L --legendrefile=L   Input/output diretory for Legendre tables (no files if -L not specified or -l0 is used)\n");
    printf("-Q --showqcost        Output estimated effort for each q\n");
@@ -198,7 +198,7 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
          
       case 'f':
          char value;
-         status = Parser::Parse(arg, "ABDP", value);
+         status = Parser::Parse(arg, "ABDPM", value);
          
          it_Format = FF_UNKNOWN;
    
@@ -210,6 +210,8 @@ parse_t SierpinskiRieselApp::ParseOption(int opt, char *arg, const char *source)
             it_Format = FF_ABCD;
          if (value == 'P')
             it_Format = FF_NUMBER_PRIMES;
+         if (value == 'M')
+            it_Format = FF_MFAKT;
          break;
          
       case 's':
@@ -416,6 +418,15 @@ void SierpinskiRieselApp::ValidateOptions(void)
             FatalError("When using BOINC format, cannot mix c=+1 and c=-1 sequences");
       }
 
+      if (it_Format == FF_MFAKT)
+      {
+         if (seqPtr->k != 1 || seqPtr->d == 1 || ii_Base != seqPtr->d+1 || seqPtr != ip_FirstSequence)
+            FatalError("MFAKT format is only support for GRUs");
+
+         if (ii_MinN < 50000)
+            FatalError("MAKTC format requires minN >= 50000");
+      }
+
       seqPtr = (seq_t *) seqPtr->next;
    } while (seqPtr != NULL);
 
@@ -431,6 +442,8 @@ void SierpinskiRieselApp::ValidateOptions(void)
          snprintf(fileName, sizeof(fileName), "b%u_n.boinc", ii_Base);
       if (it_Format == FF_NUMBER_PRIMES)
          snprintf(fileName, sizeof(fileName), "b%u_n.abcnp", ii_Base);
+      if (it_Format == FF_MFAKT)
+         snprintf(fileName, sizeof(fileName), "worktodo_b%u.txt", ii_Base);
       
       is_OutputTermsFileName = fileName;
    }
@@ -1212,6 +1225,9 @@ uint32_t SierpinskiRieselApp::WriteOutputTermsFile(uint64_t largestPrime, uint32
          
          if (it_Format == FF_NUMBER_PRIMES)
             termsCounted += WriteABCNumberPrimesTermsFile(seqPtr, largestPrime, termsFile, allSequencesHaveDEqual1);
+
+         if (it_Format == FF_MFAKT)
+            termsCounted += WriteMfaktTermsFile(seqPtr, largestPrime, termsFile);
       }
             
       seqPtr = (seq_t *) seqPtr->next;
@@ -1404,6 +1420,47 @@ uint32_t SierpinskiRieselApp::WriteABCNumberPrimesTermsFile(seq_t *seqPtr, uint6
    return nCount;
 }
 
+uint32_t  SierpinskiRieselApp::WriteMfaktTermsFile(seq_t *seqPtr, uint64_t maxPrime, FILE *termsFile)
+{
+   uint32_t n, nCount = 0;
+   uint32_t bit, bits;
+   
+   n = ii_MinN;
+   bit = NBIT(n);
+   
+   double dCalc = 1.781 * log(maxPrime);
+   double dBase = (double) log(ii_Base);
+   double dK = (double) log(seqPtr->k);
+   double dD = (double) log(seqPtr->d);
+   double dLength, dTemp;
+
+   bits = 0;
+   while (maxPrime > 1)
+   {
+      bits++;
+      maxPrime >>= 1;
+   }
+
+   for (; n<=ii_MaxN; n++)
+   {
+      if (seqPtr->nTerms[bit])
+      {
+         fprintf(termsFile, "Factor=base=%u,%u,%u,%u\n", ii_Base, n, bits, 50);
+         nCount++;
+
+         if (n > 1)
+         {
+            dLength = dBase * (double) n + dK - dD;
+            dTemp = dCalc / dLength;
+            id_EstimatedPrimes += (dTemp > 1.0 ? 1.0 : dTemp);
+         }
+      }
+      
+      bit++;
+   }
+   
+   return nCount;
+}
 void  SierpinskiRieselApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
    seq_t  *seqPtr;

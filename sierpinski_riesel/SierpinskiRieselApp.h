@@ -19,7 +19,7 @@
 
 #define NMAX_MAX (1 << 31)
 
-typedef enum { FF_UNKNOWN = 1, FF_ABCD, FF_ABC, FF_BOINC, FF_NUMBER_PRIMES } format_t;
+typedef enum { FF_UNKNOWN = 1, FF_ABCD, FF_ABC, FF_BOINC, FF_NUMBER_PRIMES, FF_MFAKT } format_t;
 
 class SierpinskiRieselApp : public FactorApp
 {
@@ -123,6 +123,7 @@ private:
    uint32_t          WriteABCTermsFile(seq_t *seqPtr, uint64_t maxPrime, FILE *termsFile);
    uint32_t          WriteBoincTermsFile(seq_t *seqPtr, uint64_t maxPrime, FILE *termsFile);
    uint32_t          WriteABCNumberPrimesTermsFile(seq_t *seqPtr, uint64_t maxPrime, FILE *termsFile, bool allSequencesHaveDEqual1);
+   uint32_t          WriteMfaktTermsFile(seq_t *seqPtr, uint64_t maxPrime, FILE *termsFile);
    
    bool              IsPrime(uint64_t p, seq_t *seqPtr, uint32_t n);
    void              VerifyFactor(uint64_t theFactor, seq_t *seqPtr, uint32_t n);
