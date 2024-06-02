@@ -22,7 +22,7 @@
 #include "CisOneWithOneSequenceHelper.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 
-#define APP_VERSION     "1.8.6"
+#define APP_VERSION     "1.8.7"
 
 #if defined(USE_OPENCL)
 #define APP_NAME        "srsieve2cl"
@@ -1588,17 +1588,16 @@ void  SierpinskiRieselApp::AddSequence(uint64_t k, int64_t c, uint32_t d)
       ip_LastSequence = newPtr;
       return;
    }
-   else
-   {      
-      if (ip_LastSequence->k <= newPtr->k)
-      {
-         ip_LastSequence->next = newPtr;
-         ip_LastSequence = newPtr;
-         ii_SequenceCount++;
-         newPtr->seqIdx = ii_SequenceCount;
-                  
-         return;
-      }
+   
+   ii_SequenceCount++;
+   
+   if (ip_LastSequence->k <= newPtr->k)
+   {
+      ip_LastSequence->next = newPtr;
+      ip_LastSequence = newPtr;
+      newPtr->seqIdx = ii_SequenceCount;
+               
+      return;
    }
 
    seqPtr = ip_FirstSequence;

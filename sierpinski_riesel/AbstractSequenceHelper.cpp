@@ -36,6 +36,7 @@ AbstractSequenceHelper::AbstractSequenceHelper(App *theApp, uint64_t largestPrim
    ip_Subsequences = 0;
    ii_SubsequenceCount = 0;
    ii_SubsequenceCapacity = 0;
+   ii_MaxSubsequenceCount = 0;
 }
 
 void     AbstractSequenceHelper::CleanUp(void)
@@ -93,6 +94,7 @@ void        AbstractSequenceHelper::MakeSubsequencesForOldSieve(uint64_t expecte
    ip_Subsequences = 0;
    ii_SubsequenceCount = 0;
    ii_SubsequenceCapacity = 0;
+   ii_MaxSubsequenceCount = 0;
    
    ii_BestQ = FindBestQ(expectedSubsequences);
    
