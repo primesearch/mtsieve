@@ -20,7 +20,7 @@
 #include "../x86_asm_ext/asm-ext-x86.h"
 
 #define APP_NAME        "dmdsieve"
-#define APP_VERSION     "1.3"
+#define APP_VERSION     "1.3.1"
 
 #define BIT(k)          ((k) - il_MinK)
 
@@ -140,7 +140,7 @@ void DMDivisorApp::ValidateOptions(void)
                         132049, 216091, 756839, 859433, 1257787, 1398269, 
                         2976221, 3021377, 6972593, 13466917, 20996011, 24036583, 
                         25964951, 30402457, 32582657, 37156667, 42643801, 43112609, 
-                        57885161, 74207281, 77232917, 82589933, 0};
+                        57885161, 74207281, 77232917, 82589933, 136279841, 0};
 
 #ifdef WIN32
    if (sizeof(unsigned long long) != sizeof(mp_limb_t))
