@@ -127,6 +127,9 @@ void  CullenWoodallWorker::TestSmallPrimes(uint64_t *ps)
    MpRes    powers[MAX_POWERS+1];
    MpRes    res, resCW;
    
+   if (ip_CullenWoodallApp->GetTermCount() == 0)
+      return;
+   
    maxIndex = 0;
    while (ii_Terms[maxIndex] > 0)
       maxIndex++;
@@ -220,6 +223,9 @@ void  CullenWoodallWorker::TestLargePrimes(uint64_t *ps, MpArithVec mp)
    MpResVec resC[MAX_POWERS+1];
    MpResVec resW[MAX_POWERS+1];
    MpResVec res, cullen, woodall;
+   
+   if (ip_CullenWoodallApp->GetTermCount() == 0)
+      return;
    
    // compute the inverse of b (mod p)
    powInv[0] = InvMod32(ii_Base, ps[0]);
@@ -345,6 +351,9 @@ void  CullenWoodallWorker::TestLargePrimesFPU(uint64_t *ps)
    uint64_t powers[MAX_POWERS+1][4];
    uint64_t rems[4];
    uint32_t power;
+   
+   if (ip_CullenWoodallApp->GetTermCount() == 0)
+      return;
    
    // compute the inverse of b (mod p)
    powinvs[0] = InvMod32(ii_Base, ps[0]);

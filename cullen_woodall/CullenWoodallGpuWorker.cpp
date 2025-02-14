@@ -90,6 +90,9 @@ void  CullenWoodallGpuWorker::TestMegaPrimeChunk(void)
 
    for (group=0; group<ii_Groups; group++)
    {
+      if (ii_Terms[group] == 0)
+         break;
+
       ii_FactorCount[0] = 0;
       idx = group * ii_GroupSize;
       
