@@ -48,6 +48,7 @@ protected:
 
    void           BuildCongruenceTables(void);
 
+   void           GetCongruentTerms(uint32_t ssIdx, uint32_t a, uint8_t *congruentTerms);
    void           CopySubseqs(seq_t *seqPtr, uint32_t r, uint32_t h, uint32_t *ssList, uint32_t ssListLen);
    void           MakeLadder(void);
 

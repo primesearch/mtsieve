@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <time.h>
 #include "../core/inline.h"
+#include "../core/MpArith.h"
 #include "SierpinskiRieselApp.h"
 #include "CisOneWithMultipleSequencesHelper.h"
 #include "CisOneWithMultipleSequencesWorker.h"
@@ -131,17 +132,29 @@ double    CisOneWithMultipleSequencesHelper::EstimateWork(uint32_t Q, uint32_t s
 
 void  CisOneWithMultipleSequencesHelper::BuildCongruenceTables(void)
 {
-   uint64_t  bytesNeeded;
-   seq_t    *seqPtr;
-   uint32_t  ssIdx, h, r, len;
-   uint32_t *tempSubseqs;
+   uint64_t   bytesNeeded;
+   seq_t     *seqPtr;
+   uint32_t   ssIdx, r, h, idx;
+   uint32_t **tempSubseqs;
+   uint32_t  *tempSubseqLengths;
+   uint8_t   *congruentTerms;
 
    // Unlike the CisOneWithOneSequence, there is only one parity for this code
    ii_Dim3 = ii_PowerResidueLcm;
    ii_Dim2 = ii_Dim3 * ii_UsedPowerResidueIndices;
    ii_Dim1 = ii_Dim2 * (ii_SequenceCount + 2);
-
+   
    ip_CongruentSubseqIndices = (uint32_t *) xmalloc(ii_Dim1, sizeof(uint32_t), "conguentSubseqIndices");
+   
+   h = 0;
+
+   for (r=1; r<=ii_PowerResidueLcm; r++)
+   {
+      if (ii_PowerResidueLcm % r != 0)
+         continue;
+      
+      h++;
+   }
 
    // In sr1sieve, the congruent q and ladders are handled via four dimensional arrays.
    // For srsieve2, we will use two one dimensional arrays, which will be easier to pass to the GPU.
@@ -149,13 +162,18 @@ void  CisOneWithMultipleSequencesHelper::BuildCongruenceTables(void)
    // qs is a list of qs for that parity, r, and h with the first entry the length of the list
    // for that parity, r, and h.  The relationship for the ladder is the same.
    
-   ii_MaxSubseqEntries = 1000;
+   ii_MaxSubseqEntries = h * 10 * ii_SubsequenceCount;
    ii_UsedSubseqEntries = 1;
    
    ip_CongruentSubseqs = (uint32_t *) xmalloc(ii_MaxSubseqEntries, sizeof(uint32_t), "congruentSubseq");
-
-   tempSubseqs = (uint32_t *) xmalloc(ii_PowerResidueLcm, sizeof(uint32_t), "tempSubseq");
       
+   tempSubseqs = (uint32_t **) xmalloc(ii_PowerResidueLcm, sizeof(uint32_t *), "tempSubseq");
+   tempSubseqLengths = (uint32_t *) xmalloc(ii_PowerResidueLcm, sizeof(uint32_t), "tempSubseqLengths");
+   congruentTerms = (uint8_t *) xmalloc(ii_PowerResidueLcm, sizeof(uint8_t), "congruentTerms");
+   
+   for (h=0; h<ii_PowerResidueLcm; h++)
+      tempSubseqs[h] = (uint32_t *) xmalloc(ii_PowerResidueLcm, sizeof(uint16_t), "tempSubseq");
+   
    // Build tables sc_lists[i][r] of pointers to lists of subsequences
    // whose terms k*b^m+c satisfy m = j (mod r)
    for (r=1; r<=ii_PowerResidueLcm; r++)
@@ -163,30 +181,41 @@ void  CisOneWithMultipleSequencesHelper::BuildCongruenceTables(void)
       if (ii_PowerResidueLcm % r != 0)
          continue;
 
-      for (h=0; h<r; h++)
+      seqPtr = ip_FirstSequence;
+      
+      while (seqPtr != NULL)
       {
-         seqPtr = ip_FirstSequence;
+         for (h=0; h<ii_PowerResidueLcm; h++)
+            memset(tempSubseqs[h], 0, ii_PowerResidueLcm);
          
-         while (seqPtr != NULL)
+         memset(tempSubseqLengths, 0, ii_PowerResidueLcm);
+         memset(congruentTerms, 0xff, ii_PowerResidueLcm);
+      
+         for (ssIdx=seqPtr->ssIdxFirst; ssIdx<=seqPtr->ssIdxLast; ssIdx++)
          {
-            len = 0;
+            GetCongruentTerms(ssIdx, r, congruentTerms);
             
-            // TODO : can any subsequence be added twice?
-            for (ssIdx=seqPtr->ssIdxFirst; ssIdx<=seqPtr->ssIdxLast; ssIdx++)
-            {
-               if (HasCongruentTerms(ssIdx, r, h))
+            for (h=0; h<r; h++)
+               if (congruentTerms[h] == 1)
                {
-                  tempSubseqs[len] = ssIdx;
-                  len++;
+                  idx = tempSubseqLengths[h] + 1;
+                  
+                  tempSubseqs[h][idx] = ssIdx;
+                  tempSubseqLengths[h] = idx;
                }
-            }
-
-            CopySubseqs(seqPtr, r, h, tempSubseqs,  len);
-            
-            seqPtr = (seq_t *) seqPtr->next;
          }
+         
+         for (h=0; h<ii_PowerResidueLcm; h++)
+            CopySubseqs(seqPtr, r, h, tempSubseqs[h], tempSubseqLengths[h]);
+            
+         seqPtr = (seq_t *) seqPtr->next;
       }
+      
+      printf("%u\n", r);
    }
+   
+   for (h=0; h<ii_PowerResidueLcm; h++)
+      xfree(tempSubseqs[h]);
    
    xfree(tempSubseqs);
    
@@ -206,8 +235,10 @@ void  CisOneWithMultipleSequencesHelper::CopySubseqs(seq_t *seqPtr, uint32_t r, 
    if (ssListLen == 0)
       return;
 
-   uint32_t rIdx = ip_PowerResidueIndices[r];
-   uint32_t cssIdx = CSS_INDEX(seqPtr->seqIdx, rIdx, h);
+   // Theres seems to be a memory leak in the compiler/linker on Windows, so use static
+   // until that memory leak is fixed.
+   static uint32_t rIdx = ip_PowerResidueIndices[r];
+   static uint32_t cssIdx = CSS_INDEX(seqPtr->seqIdx, rIdx, h);
       
    ip_CongruentSubseqIndices[cssIdx] = ii_UsedSubseqEntries;
 
@@ -453,5 +484,29 @@ void  CisOneWithMultipleSequencesHelper::BuildLegendreTableForSequence(legendre_
             }
          }
          break;
+   }
+}
+
+void  CisOneWithMultipleSequencesHelper::GetCongruentTerms(uint32_t ssIdx, uint32_t a, uint8_t *congruentTerms)
+{
+   uint32_t b, g, m;
+   MpArith mp(a);
+   
+   g = gcd32(a, ii_BestQ);
+
+   for (b=0; b<a; b++)
+      if (b % g == ip_Subsequences[ssIdx].q % g)
+         congruentTerms[b] = 0;
+
+   for (m=ii_MinM; m<=ii_MaxM; m++)
+   {
+      if (ip_Subsequences[ssIdx].mTerms[m-ii_MinM])
+      {
+         MpRes res = mp.nToRes(m*ii_BestQ + ip_Subsequences[ssIdx].q);
+         b = mp.resToN(res);
+         
+         if (congruentTerms[b] == 0)
+            congruentTerms[b] = 1;
+      }
    }
 }

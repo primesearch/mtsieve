@@ -108,6 +108,10 @@ parse_t  Parser::Parse(const char *str, uint64_t lo, uint64_t hi, uint64_t &valu
 
    expt = 0;
    errno = 0;
+
+   while (*str == '0')
+      str++;
+
    num = strtoull(str, &tail, 0);
 
    if (errno != 0 || num > hi)

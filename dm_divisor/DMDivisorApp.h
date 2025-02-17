@@ -56,7 +56,8 @@ private:
    void              CheckRedc(mp_limb_t *xp, uint32_t xn, uint32_t b, uint64_t k);
    void              VerifyFactor(uint64_t theFactor, uint64_t k);
    
-   std::vector<bool> iv_MMPTerms;
+   std::vector<bool> iv_MMPTerms0;
+   std::vector<bool> iv_MMPTerms1;
    
    std::string       is_InputFileName;
    std::string       is_OutputFileName;
@@ -66,7 +67,7 @@ private:
    uint32_t          ii_N;
    
    bool              ib_TestTerms;
-   uint64_t          il_KPerChunk;
+   uint64_t          il_RangeOfKPerChunk;
    
    uint64_t          il_MinKOriginal;
    uint64_t          il_MaxKOriginal;

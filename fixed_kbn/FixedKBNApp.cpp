@@ -16,7 +16,7 @@
 #include "../core/MpArith.h"
 
 #define APP_NAME        "fkbnsieve"
-#define APP_VERSION     "1.6.2"
+#define APP_VERSION     "1.6.3"
 
 // This is declared in App.h, but implemented here.  This means that App.h
 // can remain unchanged if using the mtsieve framework for other applications.
@@ -284,6 +284,11 @@ bool FixedKBNApp::ApplyFactor(uint64_t theFactor, const char *term)
 void FixedKBNApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
    uint64_t termsCounted = 0;
+
+   // Don't save until we reach this point.  The term count will not match because
+   // we are not locking the counters for small primes.
+   if (largestPrime < GetMaxPrimeForSingleWorker())
+      return;
 
    ip_FactorAppLock->Lock();
 

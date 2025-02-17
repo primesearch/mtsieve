@@ -23,7 +23,7 @@
 #define APP_NAME        "gcwsieve"
 #endif
 
-#define APP_VERSION     "1.5.3"
+#define APP_VERSION     "1.5.4"
 
 #define BIT(n)        ((n) - ii_MinN)
 

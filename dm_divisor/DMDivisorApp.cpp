@@ -20,9 +20,10 @@
 #include "../x86_asm_ext/asm-ext-x86.h"
 
 #define APP_NAME        "dmdsieve"
-#define APP_VERSION     "1.3.1"
+#define APP_VERSION     "1.4"
 
-#define BIT(k)          ((k) - il_MinK)
+#define BIT0(k)         (((k) - il_MinK) / 4)
+#define BIT1(k)         (((k-1) - il_MinK) / 4)
 
 // Set PRE_SQUARE=N to compute 2^2^n as (2^2^N)^2^(n-N), which saves N
 // sqrmods at a cost of more time in mpn_tdiv_qr().  N must satisfy 0 <= N <= 5.
@@ -67,11 +68,12 @@ DMDivisorApp::DMDivisorApp() : FactorApp()
    ii_N    = 0;
    
    ib_TestTerms = false;
-   il_KPerChunk = 10000000000L;
+   il_RangeOfKPerChunk = 10000000000L;
    il_TotalTerms = 0;
    il_TotalTermsEvaluated = 0;
    
-   iv_MMPTerms.clear();
+   iv_MMPTerms0.clear();
+   iv_MMPTerms1.clear();
 }
 
 void DMDivisorApp::Help(void)
@@ -108,11 +110,11 @@ parse_t DMDivisorApp::ParseOption(int opt, char *arg, const char *source)
    switch (opt)
    {
       case 'k':
-         status = Parser::Parse(arg, 1, KMAX_MAX, il_MinK);
+         status = Parser::Parse(arg, 5, KMAX_MAX, il_MinK);
          break;
 
       case 'K':
-         status = Parser::Parse(arg, 1, KMAX_MAX, il_MaxK);
+         status = Parser::Parse(arg, 5, KMAX_MAX, il_MaxK);
          break;
 
       case 'n':
@@ -125,7 +127,7 @@ parse_t DMDivisorApp::ParseOption(int opt, char *arg, const char *source)
          break;
          
       case 'X':
-         status = Parser::Parse(arg, 1000000000, KMAX_MAX, il_KPerChunk);
+         status = Parser::Parse(arg, 1000000000, KMAX_MAX, il_RangeOfKPerChunk);
          break;
    }
 
@@ -150,6 +152,10 @@ void DMDivisorApp::ValidateOptions(void)
      FatalError("GMP limb size is not 64 bits");
 #endif
 
+   // Create nice boundaries for k
+   while (il_RangeOfKPerChunk % 4 != 0)
+      il_RangeOfKPerChunk++;
+
    if (is_InputTermsFileName.length() > 0)
    {
       if (ib_TestTerms)
@@ -157,8 +163,10 @@ void DMDivisorApp::ValidateOptions(void)
 
       ProcessInputTermsFile(false);
 
-      iv_MMPTerms.resize(il_MaxK - il_MinK + 1);
-      std::fill(iv_MMPTerms.begin(), iv_MMPTerms.end(), false);
+      iv_MMPTerms0.resize((il_MaxK - il_MinK) / 4 + 1);
+      iv_MMPTerms1.resize((il_MaxK - il_MinK) / 4 + 1);
+      std::fill(iv_MMPTerms0.begin(), iv_MMPTerms0.end(), false);
+      std::fill(iv_MMPTerms1.begin(), iv_MMPTerms1.end(), false);
       
       ProcessInputTermsFile(true);
    }
@@ -174,7 +182,18 @@ void DMDivisorApp::ValidateOptions(void)
          FatalError("kmax must be greater than kmin");
             
       if (ii_N == 0)
-         FatalError("exponent must be specified"); 
+         FatalError("exponent must be specified");
+
+      // We want kmin where kmin % 4 == 0
+      while (il_MinK % 4 > 1)
+         il_MinK++;
+      
+      while (il_MinK % 4 != 0)
+         il_MinK--;
+      
+      // We want kmin where kmax % 4 == 1
+      while (il_MaxK % 4 != 1)
+         il_MaxK++;
    }
             
    if (is_OutputTermsFileName.length() == 0)
@@ -213,43 +232,68 @@ void DMDivisorApp::ValidateOptions(void)
 
 void  DMDivisorApp::PreSieveHook(void)
 {
-   il_TotalTerms = il_MaxK - il_MinK + 1;
+   uint64_t k, bit;
+   
+   il_TotalTerms = 0;
    
    if (is_InputTermsFileName.length() > 0)
       return;
    
    if (!ib_TestTerms)
-   {      
-      il_TermCount = il_TotalTerms;
+   {
+      iv_MMPTerms0.resize((il_MaxK - il_MinK) / 4 + 1);
+      iv_MMPTerms1.resize((il_MaxK - il_MinK) / 4 + 1);
       
-      iv_MMPTerms.resize(il_TermCount);
-      std::fill(iv_MMPTerms.begin(), iv_MMPTerms.end(), true);   
+      for (k=il_MinK; k<=il_MaxK; k+=4)
+      {
+         bit = BIT0(k);
+         
+         // Only terms where k % 4 == 0 or k % 4 == 1 can be a factor of a double-mersenne
+         iv_MMPTerms0[bit] = true;
+         iv_MMPTerms1[bit] = true;
+         
+         il_TotalTerms += 2;
+      }
+      
+      il_TermCount = il_TotalTerms;
 
       return;
    }
    
    if (il_MinKOriginal == 0)
    {      
-      iv_MMPTerms.resize(il_KPerChunk);
+      iv_MMPTerms0.resize(il_RangeOfKPerChunk / 4 + 1);
+      iv_MMPTerms1.resize(il_RangeOfKPerChunk / 4 + 1);
             
       il_MinKOriginal = il_MinK;
       il_MaxKOriginal = il_MaxK;
       il_MinKInChunk = il_MinK;
    }
   
-   std::fill(iv_MMPTerms.begin(), iv_MMPTerms.end(), true);   
+   for (k=il_MinKInChunk; k<il_MinKInChunk+il_RangeOfKPerChunk; k+=4)
+   {
+      bit = BIT0(k);
+      
+      // Only terms where k % 4 == 0 or k % 4 == 1 can be a factor of a double-mersenne
+      iv_MMPTerms0[bit] = true;
+      iv_MMPTerms1[bit] = true;
+      
+      il_TotalTerms += 2;
+   }
 
+   il_TermCount = il_TotalTerms;
+      
    // We want il_MinK and il_MaxK to be set to the correct range
    // of k before we start sieving.
    il_MinK = il_MinKInChunk;
-   il_MaxK = il_MinK + il_KPerChunk + 1;
+   il_MaxK = il_MinK + il_RangeOfKPerChunk;
    
-   uint64_t kInChunk = il_KPerChunk;
+   uint64_t kInChunk = il_RangeOfKPerChunk;
    
    if (il_MaxK > il_MaxKOriginal)
    {
       il_MaxK = il_MaxKOriginal;
-      kInChunk = il_MaxK - il_MinK + 1;
+      kInChunk = il_MaxK - il_MinK;
    }
    
    il_TotalTermsInChunk = il_TermCount = kInChunk;
@@ -310,7 +354,22 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
 
       if (haveBitMap)
       {
-         iv_MMPTerms[k-il_MinK] = true;
+         k = il_MinK;
+         
+         while (il_MinK % 4 != 0)
+            il_MinK--;
+
+         if (k % 4 == 0)
+         {
+            bit = BIT0(k);
+            iv_MMPTerms0[bit] = true;
+         }
+         else
+         {
+            bit = BIT1(k);
+            iv_MMPTerms1[bit] = true;
+         }
+         
          il_TermCount++;
       }
       else
@@ -338,14 +397,30 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
   
       if (haveBitMap)
       {
-         bit = BIT(k);
       
-         iv_MMPTerms[bit] = true;
+         if (k % 4 == 0)
+         {
+            bit = BIT0(k);
+            iv_MMPTerms0[bit] = true;
+         }
+         else
+         {
+            bit = BIT1(k);
+            iv_MMPTerms1[bit] = true;
+         }
+         
          il_TermCount++;
       }
       else
       {
-         if (il_MinK > k || il_MinK == 0) il_MinK = k;
+         if (il_MinK > k || il_MinK == 0)
+         {
+            while (k % 4 != 0)
+               k--;
+            
+            il_MinK = k;
+         }
+         
          if (il_MaxK < k) il_MaxK = k;
       }
    }
@@ -355,7 +430,7 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
 
 bool DMDivisorApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
-   uint64_t k;
+   uint64_t k, bit;
    uint32_t n;
       
    if (sscanf(term, "2*%" SCNu64"*(2^%u-1)+1", &k, &n) != 2)
@@ -369,15 +444,31 @@ bool DMDivisorApp::ApplyFactor(uint64_t theFactor, const char *term)
 
    VerifyFactor(theFactor, k);
       
-   uint64_t bit = k - il_MinK;
    
    // No locking is needed because the Workers aren't running yet
-   if (iv_MMPTerms[bit])
+   if (k % 4 == 0)
    {
-      iv_MMPTerms[bit] = false;
-      il_TermCount--;
+      bit = BIT0(k);
+   
+      if (iv_MMPTerms0[bit])
+      {
+         iv_MMPTerms0[bit] = false;
+         il_TermCount--;
 
-      return true;
+         return true;
+      }
+   }
+   else
+   {
+      bit = BIT1(k);
+      
+      if (iv_MMPTerms1[bit])
+      {
+         iv_MMPTerms1[bit] = false;
+         il_TermCount--;
+
+         return true;
+      }
    }
       
    return false;
@@ -393,16 +484,13 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    // the term count can change between opening and closing the file.
    if (IsRunning() && largestPrime < GetMaxPrimeForSingleWorker())
       return;   
-
-   k = il_MinK;
    
-   bit = BIT(k);
-   for (; k<=il_MaxK; k++)
-   {      
-      if (iv_MMPTerms[bit])
-         break;
+   for (k=il_MinK; k<=il_MaxK; k+=4)
+   {
+      bit = BIT0(k);
       
-      bit++;
+      if (iv_MMPTerms0[bit] || iv_MMPTerms1[bit])
+         break;
    }
 
    if (k > il_MaxK)
@@ -416,15 +504,20 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    ip_FactorAppLock->Lock();
 
    fprintf(termsFile, "ABC 2*$a*(2^%u-1)+1 // Sieved to %" SCNu64"\n", ii_N, largestPrime);
+   // There is no logic for writing ABCD files at this time.
    //fprintf(termsFile, "ABCD 2*$a*(2^%u-1)+1 [%" SCNu64"] // Sieved to %" SCNu64"\n", ii_N, k, largestPrime);
    
-   for (k=il_MinK; k<=il_MaxK; k++)
-   {
-      bit = BIT(k);
-   
-      if (iv_MMPTerms[bit])
+   for (k=il_MinK; k<=il_MaxK; k+=4)
+   {   
+      if (iv_MMPTerms0[BIT0(k)])
       {
          fprintf(termsFile, "%" PRIu64"\n", k);
+         termsCounted++;
+      }
+ 
+      if (iv_MMPTerms1[BIT1(k)])
+      {
+         fprintf(termsFile, "%" PRIu64"\n", k+1);
          termsCounted++;
       }
    }
@@ -450,9 +543,11 @@ bool  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFact
    if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
 
-   uint64_t bit = BIT(k);
+   uint64_t km4 = k % 4;
 
-   if (iv_MMPTerms[bit])
+   uint64_t bit = ((km4 == 0) ? BIT0(k) : BIT1(k));
+
+   if ((km4 == 0 && iv_MMPTerms0[bit]) || (km4 == 1 && iv_MMPTerms1[bit]))
    {
       if (ii_N == 13 && theFactor == 8191)
          return false;
@@ -472,7 +567,11 @@ bool  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFact
       if (verifyFactor)
          VerifyFactor(theFactor, k);
       
-      iv_MMPTerms[bit] = false;
+      if (km4 == 0)
+         iv_MMPTerms0[bit] = false;
+      else
+         iv_MMPTerms1[bit] = false;
+
       removedTerm = true;
       
       snprintf(kStr, sizeof(kStr), "%" PRIu64"", k);
@@ -516,17 +615,18 @@ void  DMDivisorApp::TestRemainingTerms(void)
    mpz_pow_ui(nTemp, nTemp, ii_N);
    mpz_sub_ui(nTemp, nTemp, 1);
    mpz_set_ui(mersenne, 2);
-
-   uint64_t bit = BIT(il_MinK);
       
-   for (uint64_t k=il_MinK; k<=il_MaxK; k++, bit++)
+   for (uint64_t k=il_MinK; k<=il_MaxK; k++)
    {
       il_TotalTermsEvaluated++;
       termsEvaluatedInChunk++;
       
-      if (!iv_MMPTerms[bit])
+      if (k%4 == 0 && !iv_MMPTerms0[BIT0(k)])
          continue;
 
+      if (k%4 == 1 && !iv_MMPTerms1[BIT1(k)])
+         continue;
+      
       termsTested++;
 
       if (time(NULL) > lastCheckPointTime + 60)

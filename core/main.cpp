@@ -227,7 +227,7 @@ void *xmalloc(uint64_t count, uint32_t size, const char *what)
    if ((allocatedPtr = malloc(bytesToAllocate)) == NULL)
       FatalError("Unable to allocate %" PRIu64" bytes of memory for %s.  %" PRIu64" bytes already allocated", (uint64_t) (size * count), what, cpuBytes);
 
-   //printf("allocating %" PRIu64" bytes for %s\n", (size * count), what);
+   //printf("%x allocating %" PRIu64" bytes for %s\n", (uint64_t) allocatedPtr, (size * count), what);
 
    cpuBytes += bytesToAllocate;
 
@@ -269,8 +269,9 @@ void xfree(void *memoryPtr)
    allocatedSize = *((uint64_t *) (currentPtr + 8));
    
    cpuBytes -= allocatedSize;
+   cpuBytes -= 128;
 
-   //printf("freeing %" PRIu64" bytes\n", allocatedSize);
+   //printf("%x freeing %" PRIu64" bytes\n", (uint64_t) currentPtr, allocatedSize);
    
    allocatedPtr =  (void *) *((uint64_t *) currentPtr);
    

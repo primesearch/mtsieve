@@ -87,10 +87,10 @@ void  DMDivisorWorker::TestMegaPrimeChunk(void)
       }
       else
       {
-         if (k1 <= il_MaxK) RemoveTermsBigPrime(ps[0], k1);
-         if (k2 <= il_MaxK) RemoveTermsBigPrime(ps[1], k2);
-         if (k3 <= il_MaxK) RemoveTermsBigPrime(ps[2], k3);
-         if (k4 <= il_MaxK) RemoveTermsBigPrime(ps[3], k4);
+         if (k1 <= il_MaxK && k1 % 4 < 2) RemoveTermsBigPrime(ps[0], k1);
+         if (k2 <= il_MaxK && k1 % 4 < 2) RemoveTermsBigPrime(ps[1], k2);
+         if (k3 <= il_MaxK && k1 % 4 < 2) RemoveTermsBigPrime(ps[2], k3);
+         if (k4 <= il_MaxK && k1 % 4 < 2) RemoveTermsBigPrime(ps[3], k4);
       }
 
       SetLargestPrimeTested(ps[3], 4);
@@ -127,9 +127,13 @@ void    DMDivisorWorker::RemoveTermsSmallPrime(uint64_t prime, uint64_t k)
    
    do
 	{
-      verifiedCount++;
-      
-      ip_DMDivisorApp->ReportFactor(prime, k, (verifiedCount < 5));
+      // Only k where k%4 < 2 are considered.
+      if (k % 4 < 2)
+      {
+         verifiedCount++;
+         
+         ip_DMDivisorApp->ReportFactor(prime, k, (verifiedCount < 5));
+      }
       
 		k += prime; 
 	} while (k <= il_MaxK);
