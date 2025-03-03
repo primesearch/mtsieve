@@ -85,17 +85,17 @@ endif
 
 ifeq ($(strip $(HAS_X86)),yes)
 CPU_PROGS=afsieve ccsieve cksieve dmdsieve gcwsieve gfndsieve fbncsieve fkbnsieve k1b2sieve kbbsieve lifsieve \
-   mfsieve pixsieve psieve sgsieve smsieve srsieve2 twinsieve xyyxsieve
+   mfsieve pixsieve psieve sgsieve smsieve smwsieve srsieve2 twinsieve xyyxsieve
 else
 # no non-x86 builds for afsieve, gfndsieve, pixsieve, and xyyxsieve
 CPU_PROGS=cksieve dmdsieve gcwsieve fbncsieve fkbnsieve k1b2sieve kbbsieve lifsieve \
-   mfsieve psieve sgsieve smsieve srsieve2 twinsieve 
+   mfsieve psieve sgsieve smsieve smwsieve srsieve2 twinsieve
 endif
 
 ifeq ($(strip $(HAS_X86)),yes)
-OPENCL_PROGS=afsievecl cksievecl gcwsievecl gfndsievecl lifsievecl mfsievecl pixsievecl smsievecl srsieve2cl xyyxsievecl psievecl
+OPENCL_PROGS=afsievecl cksievecl gcwsievecl gfndsievecl lifsievecl mfsievecl pixsievecl smsievecl smwsievecl srsieve2cl xyyxsievecl psievecl
 else
-OPENCL_PROGS=cksievecl cwsievecl gcwsievecl gfndsievecl lifsievecl mfsieveclsmsievecl srsieve2cl psievecl
+OPENCL_PROGS=cksievecl cwsievecl gcwsievecl gfndsievecl lifsievecl mfsievecl smsievecl smwsievecl srsieve2cl psievecl
 endif
 
 METAL_PROGS=cksievemtl cwsievemtl gcwsievemtl gfndsievemtl lifsievemtl mfsievemtl psievemtl smsievemtl srsieve2mtl
@@ -151,6 +151,7 @@ PRIM_OBJS=primorial/PrimorialApp_cpu.o primorial/PrimorialWorker_cpu.o
 TWIN_OBJS=twin/TwinApp.o twin/TwinWorker.o
 SG_OBJS=sophie_germain/SophieGermainApp.o sophie_germain/SophieGermainWorker.o
 SM_OBJS=smarandache/SmarandacheApp_cpu.o smarandache/SmarandacheWorker_cpu.o
+SMW_OBJS=smarandache_wellin/SmarandacheWellinApp_cpu.o smarandache_wellin/SmarandacheWellinWorker_cpu.o
 SR2_OBJS=sierpinski_riesel/SierpinskiRieselApp_cpu.o sierpinski_riesel/AlgebraicFactorHelper_cpu.o \
    sierpinski_riesel/AbstractSequenceHelper_cpu.o sierpinski_riesel/AbstractWorker_cpu.o \
    sierpinski_riesel/GenericSequenceHelper_cpu.o sierpinski_riesel/GenericWorker_cpu.o \
@@ -168,6 +169,7 @@ MF_OPENCL_OBJS=multi_factorial/MultiFactorialApp_opencl.o multi_factorial/MultiF
 PIX_OPENCL_OBJS=primes_in_x/PrimesInXApp_opencl.o primes_in_x/PrimesInXWorker_opencl.o primes_in_x/pixsieve.o primes_in_x/PrimesInXGpuWorker_opencl.o
 PRIM_OPENCL_OBJS=primorial/PrimorialApp_opencl.o primorial/PrimorialWorker_opencl.o primorial/PrimorialGpuWorker_opencl.o
 SM_OPENCL_OBJS=smarandache/SmarandacheApp_opencl.o smarandache/SmarandacheWorker_opencl.o smarandache/SmarandacheGpuWorker_opencl.o
+SMW_OPENCL_OBJS=smarandache_wellin/SmarandacheWellinApp_opencl.o smarandache_wellin/SmarandacheWellinWorker_opencl.o smarandache_wellin/SmarandacheWellinGpuWorker_opencl.o
 SR2_OPENCL_OBJS=sierpinski_riesel/SierpinskiRieselApp_opencl.o sierpinski_riesel/AlgebraicFactorHelper_opencl.o \
    sierpinski_riesel/AbstractSequenceHelper_opencl.o sierpinski_riesel/AbstractWorker_opencl.o \
    sierpinski_riesel/GenericSequenceHelper_opencl.o sierpinski_riesel/GenericWorker_opencl.o sierpinski_riesel/GenericGpuWorker_opencl.o \
@@ -183,6 +185,7 @@ LIF_METAL_OBJS=lifchitz/LifchitzApp_metal.o lifchitz/LifchitzWorker_metal.o
 MF_METAL_OBJS=multi_factorial/MultiFactorialApp_metal.o multi_factorial/MultiFactorialWorker_metal.o multi_factorial/MultiFactorialGpuWorker_metal.o
 PRIM_METAL_OBJS=primorial/PrimorialApp_metal.o primorial/PrimorialWorker_metal.o primorial/PrimorialGpuWorker_metal.o
 SM_METAL_OBJS=smarandache/SmarandacheApp_metal.o smarandache/SmarandacheWorker_metal.o smarandache/SmarandacheGpuWorker_metal.o
+SMW_METAL_OBJS=smarandache_wellin/SmarandacheWellinApp_metal.o smarandache_wellin/SmarandacheWellinWorker_metal.o smarandache_wellin/SmarandacheWellinGpuWorker_metal.o
 SR2_METAL_OBJS=sierpinski_riesel/SierpinskiRieselApp_metal.o sierpinski_riesel/AlgebraicFactorHelper_metal.o \
    sierpinski_riesel/AbstractSequenceHelper_metal.o sierpinski_riesel/AbstractWorker_metal.o \
    sierpinski_riesel/GenericSequenceHelper_metal.o sierpinski_riesel/GenericWorker_metal.o sierpinski_riesel/GenericGpuWorker_metal.o \
@@ -195,24 +198,24 @@ XYYX_METAL_OBJS=xyyx/XYYXApp_metal.o xyyx/XYYXWorker_metal.o xyyx/XYYXGpuWorker_
 AIR_LIBS=alternating_factorial/af_kernel.air cullen_woodall/cw_kernel.air gfn_divisor/gfn_kernel.air \
    multi_factorial/mf_kernel.air primes_in_x/pix_kernel.air primorial/primorial_kernel.air \
    sierpinski_riesel/cisonesingle_kernel.air sierpinski_riesel/generic_kernel.air \
-   smarandache/sm_kernel.air xyyx/xyyx_kernel.air
+   smarandache/sm_kernel.air smarandache_wellin/smw_kernel.air xyyx/xyyx_kernel.air
 METAL_LIBS=alternating_factorial/af_kernel.metallib cullen_woodall/cw_kernel.metallib gfn_divisor/gfn_kernel.metallib \
    multi_factorial/mf_kernel.metallib primes_in_x/pix_kernel.metallib primorial/primorial_kernel.metallib \
    sierpinski_riesel/cisonesingle_kernel.metallib sierpinski_riesel/generic_kernel.metallib \
-   smarandache/sm_kernel.metallib xyyx/xyyx_kernel.metallib lifchitz/lifchitz_kernel.metallib
+   smarandache/sm_kernel.metallib smarandache_wellin/smw_kernel.metallib xyyx/xyyx_kernel.metallib lifchitz/lifchitz_kernel.metallib
 GPU_HEADERS=alternating_factorial/af_kernel.gpu.h cullen_woodall/cw_kernel.gpu.h gfn_divisor/gfn_kernel.gpu.h \
    multi_factorial/mf_kernel.gpu.h primes_in_x/pix_kernel.gpu.h primorial/primorial_kernel.gpu.h \
    sierpinski_riesel/cisonesingle_kernel.gpu.h sierpinski_riesel/generic_kernel.gpu.h \
-   smarandache/sm_kernel.gpu.h xyyx/xyyx_kernel.gpu.h lifchitz/lifchitz_kernel.gpu.h
+   smarandache/sm_kernel.gpu.h smarandache_wellin/smw_kernel.gpu.h xyyx/xyyx_kernel.gpu.h lifchitz/lifchitz_kernel.gpu.h
 
 
 ALL_OBJS=$(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(CPU_CORE_OBJS) $(OPENCL_CORE_OBJS) $(METAL_CORE_OBJS) \
    $(AF_OBJS) $(MF_OBJS) $(FBNC_OBJS) $(FKBN_OBJS) $(GFND_OBJS) $(CC_OBJS) $(CK_OBJS) \
    $(PIX_OBJS) $(XYYX_OBJS) $(KBB_OBJS) $(GCW_OBJS) $(PRIM_OBJS) $(TWIN_OBJS) \
    $(DMD_OBJS) $(SR2_OBJS) $(K1B2_OBJS) $(SG_OBJS) $(PRIM_OPENCL_OBJS) $(LIF_OBJS) \
-   $(LIF_OPENCL_OBJS) $(LIF_METAL_OBJS) \
+   $(LIF_OPENCL_OBJS) $(LIF_METAL_OBJS) $(SM_OBJS) $(SMW_OBJS) \
    $(AF_OPENCL_OBJS) $(GCW_OPENCL_OBJS) $(GFND_OPENCL_OBJS) $(MF_OPENCL_OBJS) $(PIX_OPENCL_OBJS) \
-   $(XYYX_OPENCL_OBJS) $(SR2_OPENCL_OBJS) $(SM_OBJS) $(PRIM_METAL_OBJS) $(SM_OPENCL_OBJS) \
+   $(XYYX_OPENCL_OBJS) $(SR2_OPENCL_OBJS) $(PRIM_METAL_OBJS) $(SM_OPENCL_OBJS) \
    $(CW_METAL_OBJS) $(MF_METAL_OBJS) $(SR2_METAL_OBJS) $(CK_OPENCL_OBJS)
 
 ifeq ($(strip $(HAS_METAL)),yes)
@@ -292,6 +295,7 @@ sierpinski_riesel/CisOneWithMultipleSequencesGpuWorker_metal.o: sierpinski_riese
 sierpinski_riesel/CisOneWithOneSequenceGpuWorker_metal.o: sierpinski_riesel/cisonesingle_kernel.gpu.h sierpinski_riesel/cisonesingle_kernel.metallib
 sierpinski_riesel/GenericGpuWorker_metal.o: sierpinski_riesel/generic_kernel.gpu.h sierpinski_riesel/generic_kernel.metallib
 smarandache/SmarandacheGpuWorker_metal.o: smarandache/sm_kernel.gpu.h smarandache/sm_kernel.metallib
+smarandache_wellin/SmarandacheWellinGpuWorker_metal.o: smarandache_wellin/smw_kernel.gpu.h smarandache_wellin/smw_kernel.metallib
 xyyx/XYYXGpuWorker_metal.o: xyyx/xyyx_kernel.gpu.h xyyx/xyyx_kernel.metallib xyyx/xyyx_sparse_kernel.gpu.h xyyx/xyyx_sparse_kernel.metallib
 endif
 
@@ -307,6 +311,7 @@ sierpinski_riesel/CisOneWithMultipleSequencesGpuWorker_opencl.o: sierpinski_ries
 sierpinski_riesel/CisOneWithOneSequenceGpuWorker_opencl.o: sierpinski_riesel/cisonesingle_kernel.gpu.h
 sierpinski_riesel/GenericGpuWorker_opencl.o: sierpinski_riesel/generic_kernel.gpu.h
 smarandache/SmarandacheGpuWorker_opencl.o: smarandache/sm_kernel.gpu.h
+smarandache_wellin/SmarandacheWellinGpuWorker_opencl.o: smarandache_wellin/smw_kernel.gpu.h
 xyyx/XYYXGpuWorker_opencl.o: xyyx/xyyx_kernel.gpu.h xyyx/xyyx_sparse_kernel.gpu.h
 
 afsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(AF_OBJS)
@@ -400,6 +405,15 @@ smsievecl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(SM_OPENCL_OBJS)
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_OPENCL) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS_OPENCL) $(LD_FLAGS)
    
 smsievemtl: $(METAL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(SM_METAL_OBJS)
+	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_METAL) $(LD_FLAGS_METAL) -o $@ $^ $(LD_FLAGS_METAL) $(LD_FLAGS)
+   
+smwsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(SMW_OBJS)
+	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS)
+   
+smwsievecl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(SMW_OPENCL_OBJS)
+	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_OPENCL) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS_OPENCL) $(LD_FLAGS)
+   
+smwsievemtl: $(METAL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(SMW_METAL_OBJS)
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_METAL) $(LD_FLAGS_METAL) -o $@ $^ $(LD_FLAGS_METAL) $(LD_FLAGS)
    
 srsieve2: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(SR2_OBJS)
