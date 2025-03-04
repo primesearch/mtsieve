@@ -49,7 +49,7 @@ SmarandacheWellinApp::SmarandacheWellinApp() : FactorApp()
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    ii_MaxGpuSteps = 1000000;
-   ii_MaxGpuFactors = GetGpuWorkGroups() * 10;
+   ii_MaxGpuFactors = GetGpuWorkGroups() * 100;
 #endif
 }
 
@@ -119,6 +119,10 @@ void SmarandacheWellinApp::ValidateOptions(void)
    std::vector<uint64_t>  primes;
    std::vector<uint64_t>::iterator it;
 
+
+   if (is_InputTermsFileName.length() > 0)
+      ProcessInputTermsFile(false);
+   
    // Count the list of primes from 10 to maxN.  This is because we will start
    // with the first term > 2357, which is a Smarandache-Wellin prime
    uint32_t primesInRange = primesieve::count_primes(10, ii_MaxN + 1);
@@ -131,8 +135,12 @@ void SmarandacheWellinApp::ValidateOptions(void)
    it = primes.begin();
 
    ip_Primes = (uint32_t *) xmalloc((primesInRange + 2), sizeof(uint32_t), "primes");
+   ip_PrimeGaps = (uint16_t *) xmalloc((primesInRange + 2), sizeof(uint16_t), "primeGaps");
    
    ii_NumberOfPrimes = 0;
+
+   uint64_t prevPrime = 7;
+   ii_BiggestGap = 0;
 
    // Note that the max primorial is less than 2^32, so we can use a smaller datatype.
    while (it != primes.end())
@@ -144,25 +152,29 @@ void SmarandacheWellinApp::ValidateOptions(void)
          break;
       
       ip_Primes[ii_NumberOfPrimes] = thisPrime;
+      ip_PrimeGaps[ii_NumberOfPrimes] = (thisPrime - prevPrime);
+      
+      if ((thisPrime - prevPrime) > ii_BiggestGap)
+         ii_BiggestGap = (thisPrime - prevPrime);
+      
+      prevPrime = thisPrime;
       
       ii_NumberOfPrimes++;
-   }   
-   
+   }
+
    ip_Primes[ii_NumberOfPrimes] = 0;
    
    if (is_OutputTermsFileName.length() == 0)
    {
       char fileName[50];
       
-      snprintf(fileName, sizeof(fileName), "SmarandacheWellin.pfgw");
+      snprintf(fileName, sizeof(fileName), "smarandache-wellin.pfgw");
       
       is_OutputTermsFileName = fileName;
    }
    
    if (is_InputTermsFileName.length() > 0)
-   {
-      ProcessInputTermsFile(false);
-   
+   {   
       iv_Terms.resize(ii_MaxN - ii_MinN + 1);
       std::fill(iv_Terms.begin(), iv_Terms.end(), false);
       
@@ -189,7 +201,7 @@ void SmarandacheWellinApp::ValidateOptions(void)
       }
    }
 
-   SetMinGpuPrime(ii_MaxN + 1);
+   SetMinGpuPrime(10000);
 
    FactorApp::ParentValidateOptions();
 
@@ -257,6 +269,20 @@ void SmarandacheWellinApp::ProcessInputTermsFile(bool haveBitMap)
    }
 
    fclose(fPtr);
+}
+
+void  SmarandacheWellinApp::FillTerms(uint8_t *terms)
+{
+   memset(terms, 0, ii_NumberOfPrimes);
+   uint32_t term;
+
+   for (uint32_t idx=0; idx<ii_NumberOfPrimes; idx++)
+   {
+      term = ip_Primes[idx];
+      
+      if (term >= ii_MinN)
+         terms[idx] = (iv_Terms[BIT(term)] ? 1 : 0);
+   }
 }
 
 bool SmarandacheWellinApp::ApplyFactor(uint64_t thePrime, const char *term)

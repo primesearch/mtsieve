@@ -33,13 +33,14 @@ protected:
    uint32_t          ii_MinN;
    uint32_t          ii_MaxN;
    
-   uint32_t         *ip_Primes;
-   uint32_t          ii_NumberOfPrimes;
-   
+   uint64_t          il_NextTermsBuild;
+      
    uint32_t          ii_MaxGpuFactors;
    uint32_t          ii_MaxGpuSteps;
    
    uint32_t         *ii_KernelTerms;
+   uint16_t         *ii_KernelTermGaps;
+   uint8_t          *ii_RemainingTerms;
    uint32_t         *ii_FactorCount;
    uint64_t         *il_FactorList;
 

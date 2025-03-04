@@ -38,6 +38,7 @@ public:
    uint32_t          GetMaxN(void) { return ii_MaxN; };
 
    uint32_t         *GetPrimes(uint32_t &numberOfPrimes) { numberOfPrimes = ii_NumberOfPrimes; return ip_Primes; };
+   uint16_t         *GetPrimeGaps(uint16_t &biggestGap) { biggestGap = ii_BiggestGap; return ip_PrimeGaps; };   
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          GetMaxGpuSteps(void) { return ii_MaxGpuSteps; };
@@ -46,7 +47,7 @@ public:
 
    bool              ReportFactor(uint64_t theFactor, uint32_t n);
 
-   terms_t          *GetTerms(void);
+   void              FillTerms(uint8_t *terms);
    
 protected:
    void              PreSieveHook(void) {};
@@ -71,6 +72,9 @@ private:
 
    uint32_t         *ip_Primes;
    uint32_t          ii_NumberOfPrimes;
+
+   uint16_t         *ip_PrimeGaps;
+   uint16_t          ii_BiggestGap;
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          ii_MaxGpuSteps;

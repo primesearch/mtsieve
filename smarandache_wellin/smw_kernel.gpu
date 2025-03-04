@@ -55,6 +55,8 @@ ulong mmmResToN(ulong res, ulong _p, ulong _q);
 
 __kernel void smw_kernel(__global const  ulong  *primes,
                          __global const  uint   *terms,
+                         __global const  ushort *termGaps,
+                         __global const  uchar  *remainingTerms,
                 volatile __global        uint   *factorCount,
                          __global        ulong2 *factors)
 {
@@ -64,9 +66,10 @@ __kernel void smw_kernel(__global const  ulong  *primes,
 
    if (thePrime == 0) return;
    
+   ulong  resGaps[D_BIGGEST_GAP+1];
+   
    ulong _q = mmmInvert(thePrime);
    ulong pOne = mmmOne(thePrime);
-   ulong mOne = mmmSub(0, pOne, thePrime);
    ulong _r2 = mmmR2(thePrime, _q, pOne);
    
    ulong res = mmmNtoRes(2357, thePrime, _q, _r2);
@@ -81,7 +84,14 @@ __kernel void smw_kernel(__global const  ulong  *primes,
    
    uint   idx = 0;
    
-   while (terms[idx] > 0)
+   resGaps[0] = 0;
+   resGaps[2] = mmmNtoRes(2, thePrime, _q, _r2);
+   for (idx=4; idx<=D_BIGGEST_GAP; idx+=2)
+      resGaps[idx] = mmmAdd(resGaps[idx-2], resGaps[2], thePrime);
+   
+   // adder = thePrime
+   ulong adder = mmmNtoRes(7, thePrime, _q, _r2);
+   for (idx=0; terms[idx]>0; idx++)
    {
       if (terms[idx] < 100)
          res = mmmMulmod(res, mp1e2, thePrime, _q);
@@ -100,14 +110,17 @@ __kernel void smw_kernel(__global const  ulong  *primes,
       else if (terms[idx] < 1000000000)
          res = mmmMulmod(res, mp1e9, thePrime, _q);
       
-      ulong mmTerm = mmmNtoRes(terms[idx], thePrime, _q, _r2);
-      
-      res = mmmAdd(res, mmTerm, thePrime);
+      // Instead of using mmmNtoRes() for each term, just add the resGaps corresponding to this term.
+      // For example given the initial term of 7 (from 37) we have:
+      //    terms[0] = 11 -> termGap[0] = 4
+      //    terms[1] = 13 -> termGap[1] = 2
+      //    terms[2] = 17 -> termGap[1] = 4
+      adder = mmmAdd(adder, resGaps[termGaps[idx]], thePrime);
 
-      if (terms[idx] >= D_MIN_N && res == 0)
+      res = mmmAdd(res, adder, thePrime);
+
+      if (remainingTerms[idx] == 1 && res == 0)
          collect_factor(terms[idx], thePrime, factorCount, factors);
-
-      idx++;
    }   
 }
 
@@ -204,59 +217,6 @@ ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one)
 
    // Should never get here
    return 0;
-}
-
-ulong  invmod(ulong a, ulong p)
-{
-   ulong ps1, ps2, q, r, t, dividend, divisor;
-   uint parity;
-
-   if (a < 3)
-      return (a < 2) ? a : (p+1)/2;
-
-   q = p / a;
-   r = p % a;
-
-   dividend = a;
-   divisor = r;
-   ps1 = q;
-   ps2 = 1;
-   parity = 0;
-
-   while (divisor > 1)
-   {
-      r = dividend - divisor;
-      t = r - divisor;
-      if (r >= divisor) {
-         q += ps1; r = t; t -= divisor;
-         if (r >= divisor) {
-            q += ps1; r = t; t -= divisor;
-            if (r >= divisor) {
-               q += ps1; r = t; t -= divisor;
-               if (r >= divisor) {
-                  q += ps1; r = t; t -= divisor;
-                  if (r >= divisor) {
-                     q += ps1; r = t; t -= divisor;
-                     if (r >= divisor) {
-                        q += ps1; r = t; t -= divisor;
-                        if (r >= divisor) {
-                           q += ps1; r = t; t -= divisor;
-                           if (r >= divisor) {
-                              q += ps1; r = t;
-                              if (r >= divisor) {
-                                 q = dividend / divisor;
-                                 r = dividend % divisor;
-                                 q *= ps1;
-                              } } } } } } } } }
-      q += ps2;
-      parity = ~parity;
-      dividend = divisor;
-      divisor = r;
-      ps2 = ps1;
-      ps1 = q;
-   }
-
-   return (parity) ? ps1 : p - ps1;
 }
 
 #if defined(USE_OPENCL)

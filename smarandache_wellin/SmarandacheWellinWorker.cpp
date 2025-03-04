@@ -75,7 +75,7 @@ void  SmarandacheWellinWorker::TestMegaPrimeChunk(void)
             FatalError("How did this happen?  n is too large");
          
          res = mp.add(res, mp.nToRes(ip_Primes[i]));
-
+         
          if (res[0] == zero[0])
             ip_SmarandacheWellinApp->ReportFactor(ps[0], ip_Primes[i]);
          if (res[1] == zero[1])
