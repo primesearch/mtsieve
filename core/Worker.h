@@ -85,6 +85,7 @@ protected:
    
    virtual void      NotifyPrimeListAllocated(uint32_t primesInList) = 0;
    
+#if __has_builtin(__builtin_cpu_supports)
    // This function will return a boolean indicating if the CPU supports the instructions used
    // by the avx256_xxx.S assembler code which rely on the ymm registers.
    bool              CpuSupportsAvx(void) { return (__builtin_cpu_supports("avx") && __builtin_cpu_supports("fma")); };
@@ -92,6 +93,7 @@ protected:
    // This function will return a boolean indicating if the CPU supports the instructions used
    // by the avx512_xxx.S assembler code which rely on the zmm registers.
    bool              CpuSupportsAvx512(void) { return (__builtin_cpu_supports("avx512f") && __builtin_cpu_supports("avx512vl")); };
+#endif
    
    void              SetMiniChunkRange(uint64_t minPrimeForMiniChunkMode, uint64_t maxPrimeForMiniChunkMode, uint32_t chunkSize);
 

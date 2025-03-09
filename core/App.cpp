@@ -827,21 +827,21 @@ void  App::ReportStatus(void)
    GetWorkerStats(workerCpuUS, largestPrimeTestedNoGaps, largestPrimeTested, primesTested);
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
-   // Treat time spent in GPU as if spent in CPU
-
    gpuUS = ip_GpuDevice->GetGpuMicroseconds();
-
-   // TODO : figure out what we are usinga full CPU core (on Windows) when using the GPU.  I will assume
-   //        (for now) that this is a problem on other OSes so I will exclude the GPU utilization until
-   //        this is fully investigated.  This could be a problem with how this program executed the
-   //        kernel.  It could be a problem specific to Windows.  I just don't know at this time.
-   cpuUtilization = ((double) gpuUS) / ((double) elapsedTimeUS);
 #endif
 
-   // We might only have CPU Workers even if GPU Workers are supported, so use CPU time
-   // when we know that the GPU hasn't been used.
-   if (gpuUS == 0)
+   if (gpuUS > 0)
    {
+      // TODO : figure out what we are usinga full CPU core (on Windows) when using the GPU.  I will assume
+      //        (for now) that this is a problem on other OSes so I will exclude the GPU utilization until
+      //        this is fully investigated.  This could be a problem with how this program executed the
+      //        kernel.  It could be a problem specific to Windows.  I just don't know at this time.
+      cpuUtilization = ((double) gpuUS) / ((double) elapsedTimeUS);
+   }
+   else
+   {
+      // We might only have CPU Workers even if GPU Workers are supported, so use CPU time
+      // when we know that the GPU hasn't been used.
       uint64_t processCpuUS, sievingCpuUS;
       
       processCpuUS = Clock::GetProcessMicroseconds();
