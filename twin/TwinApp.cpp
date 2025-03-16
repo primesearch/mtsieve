@@ -16,7 +16,7 @@
 #include "TwinWorker.h"
 
 #define APP_NAME        "twinsieve"
-#define APP_VERSION     "1.6.3"
+#define APP_VERSION     "1.6.4"
 
 #define NMAX_MAX        (1 << 31)
 #define BMAX_MAX        (1 << 31)
@@ -484,6 +484,7 @@ void TwinApp::ProcessInputTermsFile(bool haveBitMap)
          if (sscanf(buffer, "ABC $a*%u^%d$b // Sieved to %" SCNu64"", &ii_Base, &ii_N, &lastPrime) != 3)
             FatalError("Line 1 is not a valid ABC line in input file %s", is_InputTermsFileName.c_str());
          
+         it_TermType = TT_BN;
          ib_OnlyTwins = false;
       }
       
