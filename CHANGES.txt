@@ -8,6 +8,9 @@
    smwsieve/smwsievecl: 1.0
       Initial release for sieving Smarandache-Wellin numbers.
 
+   twinsieve: 1.6.4
+      Fix issue when loading files with -i.
+
 2.6.1 - February 17, 2025
    framework:  Fix parsing to not error on parameters with leading zeros.
    
