@@ -152,7 +152,7 @@ void FixedKBNApp::ValidateOptions(void)
       }
    }
 
-   char  fileName[30];
+   char  fileName[50];
 
    if (is_OutputTermsFileName.length() == 0)
    {
