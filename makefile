@@ -1,4 +1,4 @@
-# Makefile for mtsieve applications. (C) Mark Rodenkirch, January 2017
+# Makefile for mtsieve applications. (C) Mark Rodenkirch
 #
 #   This program is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -84,21 +84,21 @@ endif
 # No changes should be needed below here.
 
 ifeq ($(strip $(HAS_X86)),yes)
-CPU_PROGS=afsieve ccsieve cksieve dmdsieve gcwsieve gfndsieve fbncsieve fkbnsieve k1b2sieve kbbsieve lifsieve \
+CPU_PROGS=afsieve ccsieve cksieve dmdsieve fbncsieve fkbnsieve gcwsieve gfndsieve hcwsieve k1b2sieve kbbsieve lifsieve \
    mfsieve pixsieve psieve sgsieve smsieve smwsieve srsieve2 twinsieve xyyxsieve
 else
 # no non-x86 builds for afsieve, gfndsieve, pixsieve, and xyyxsieve
-CPU_PROGS=cksieve dmdsieve gcwsieve fbncsieve fkbnsieve k1b2sieve kbbsieve lifsieve \
+CPU_PROGS=ccsieve cksieve dmdsieve fbncsieve fbncsieve fkbnsieve gcwsieve hcwsievek1b2sieve kbbsieve lifsieve \
    mfsieve psieve sgsieve smsieve smwsieve srsieve2 twinsieve
 endif
 
 ifeq ($(strip $(HAS_X86)),yes)
-OPENCL_PROGS=afsievecl cksievecl gcwsievecl gfndsievecl lifsievecl mfsievecl pixsievecl smsievecl smwsievecl srsieve2cl xyyxsievecl psievecl
+OPENCL_PROGS=afsievecl cksievecl gcwsievecl gfndsievecl hcwsievecl lifsievecl mfsievecl pixsievecl smsievecl smwsievecl srsieve2cl xyyxsievecl psievecl
 else
-OPENCL_PROGS=cksievecl cwsievecl gcwsievecl gfndsievecl lifsievecl mfsievecl smsievecl smwsievecl srsieve2cl psievecl
+OPENCL_PROGS=cksievecl cwsievecl gcwsievecl gfndsievecl hcwsievecl lifsievecl mfsievecl smsievecl smwsievecl srsieve2cl psievecl
 endif
 
-METAL_PROGS=cksievemtl cwsievemtl gcwsievemtl gfndsievemtl lifsievemtl mfsievemtl psievemtl smsievemtl srsieve2mtl
+METAL_PROGS=cksievemtl cwsievemtl gcwsievemtl gfndsievemtl hcwsievemtl lifsievemtl mfsievemtl psievemtl smsievemtl srsieve2mtl
 
 CPU_CORE_OBJS=core/App_cpu.o core/FactorApp_cpu.o core/AlgebraicFactorApp_cpu.o \
    core/Clock_cpu.o core/Parser_cpu.o core/Worker_cpu.o core/main_cpu.o core/SharedMemoryItem_cpu.o \
@@ -142,6 +142,7 @@ FBNC_OBJS=fixed_bnc/FixedBNCApp.o fixed_bnc/FixedBNCWorker.o
 FKBN_OBJS=fixed_kbn/FixedKBNApp.o fixed_kbn/FixedKBNWorker.o
 GCW_OBJS=cullen_woodall/CullenWoodallApp_cpu.o cullen_woodall/CullenWoodallWorker_cpu.o
 GFND_OBJS=gfn_divisor/GFNDivisorApp_cpu.o gfn_divisor/GFNDivisorTester_cpu.o gfn_divisor/GFNDivisorWorker_cpu.o
+HCW_OBJS=hyper_cullen_woodall/HyperCullenWoodallApp_cpu.o hyper_cullen_woodall/HyperCullenWoodallWorker_cpu.o
 K1B2_OBJS=k1b2/K1B2App.o k1b2/K1B2Worker.o
 KBB_OBJS=kbb/KBBApp.o kbb/KBBWorker.o
 LIF_OBJS=lifchitz/LifchitzApp_cpu.o lifchitz/LifchitzWorker_cpu.o
@@ -164,6 +165,7 @@ AF_OPENCL_OBJS=alternating_factorial/AlternatingFactorialApp_opencl.o alternatin
 CK_OPENCL_OBJS=carol_kynea/CarolKyneaApp_opencl.o carol_kynea/CarolKyneaWorker_opencl.o carol_kynea/CarolKyneaGpuWorker_opencl.o
 GCW_OPENCL_OBJS=cullen_woodall/CullenWoodallApp_opencl.o cullen_woodall/CullenWoodallWorker_opencl.o cullen_woodall/CullenWoodallGpuWorker_opencl.o
 GFND_OPENCL_OBJS=gfn_divisor/GFNDivisorApp_opencl.o gfn_divisor/GFNDivisorTester_opencl.o gfn_divisor/GFNDivisorWorker_opencl.o gfn_divisor/GFNDivisorGpuWorker_opencl.o
+HCW_OPENCL_OBJS=hyper_cullen_woodall/HyperCullenWoodallApp_opencl.o hyper_cullen_woodall/HyperCullenWoodallWorker_opencl.o hyper_cullen_woodall/HyperCullenWoodallGpuWorker_opencl.o
 LIF_OPENCL_OBJS=lifchitz/LifchitzApp_opencl.o lifchitz/LifchitzWorker_opencl.o lifchitz/LifchitzGpuWorker_opencl.o
 MF_OPENCL_OBJS=multi_factorial/MultiFactorialApp_opencl.o multi_factorial/MultiFactorialWorker_opencl.o multi_factorial/MultiFactorialGpuWorker_opencl.o
 PIX_OPENCL_OBJS=primes_in_x/PrimesInXApp_opencl.o primes_in_x/PrimesInXWorker_opencl.o primes_in_x/pixsieve.o primes_in_x/PrimesInXGpuWorker_opencl.o
@@ -181,6 +183,8 @@ XYYX_OPENCL_OBJS=xyyx/XYYXApp_opencl.o xyyx/XYYXWorker_opencl.o xyyx/XYYXGpuWork
 
 CK_METAL_OBJS=carol_kynea/CarolKyneaApp_metal.o carol_kynea/CarolKyneaWorker_metal.o carol_kynea/CarolKyneaGpuWorker_metal.o
 GCW_METAL_OBJS=cullen_woodall/CullenWoodallApp_metal.o cullen_woodall/CullenWoodallWorker_metal.o cullen_woodall/CullenWoodallGpuWorker_metal.o
+HCW_METAL_OBJS=hyper_cullen_woodall/HyperCullenWoodallApp_gpu.o hyper_cullen_woodall/HyperCullenWoodallWorker_metal.o \
+   hyper_cullen_woodall/HyperCullenWoodallSparseWorker_metal.o hyper_cullen_woodall/HyperCullenWoodallGpuWorker_metal.o hyper_cullen_woodall/HyperCullenWoodallSparseGpuWorker_metal.o
 LIF_METAL_OBJS=lifchitz/LifchitzApp_metal.o lifchitz/LifchitzWorker_metal.o
 MF_METAL_OBJS=multi_factorial/MultiFactorialApp_metal.o multi_factorial/MultiFactorialWorker_metal.o multi_factorial/MultiFactorialGpuWorker_metal.o
 PRIM_METAL_OBJS=primorial/PrimorialApp_metal.o primorial/PrimorialWorker_metal.o primorial/PrimorialGpuWorker_metal.o
@@ -214,6 +218,7 @@ ALL_OBJS=$(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(CPU_CORE_OBJS) $(OPENC
    $(PIX_OBJS) $(XYYX_OBJS) $(KBB_OBJS) $(GCW_OBJS) $(PRIM_OBJS) $(TWIN_OBJS) \
    $(DMD_OBJS) $(SR2_OBJS) $(K1B2_OBJS) $(SG_OBJS) $(PRIM_OPENCL_OBJS) $(LIF_OBJS) \
    $(LIF_OPENCL_OBJS) $(LIF_METAL_OBJS) $(SM_OBJS) $(SMW_OBJS) \
+   $(HCW_OBJS) $(HCW_OPENCL_OBJS) $(HCW_METAL_OBJS) \
    $(AF_OPENCL_OBJS) $(GCW_OPENCL_OBJS) $(GFND_OPENCL_OBJS) $(MF_OPENCL_OBJS) $(PIX_OPENCL_OBJS) \
    $(XYYX_OPENCL_OBJS) $(SR2_OPENCL_OBJS) $(PRIM_METAL_OBJS) $(SM_OPENCL_OBJS) \
    $(CW_METAL_OBJS) $(MF_METAL_OBJS) $(SR2_METAL_OBJS) $(CK_OPENCL_OBJS)
@@ -287,6 +292,7 @@ alternating_factorial/AlternatingFactorialGpuWorker_metal.o: alternating_factori
 carol_kynea/CarolKynealGpuWorker_metal.o: carol_kynea/ck_kernel.gpu.h carol_kynea/ck_kernel.metallib
 cullen_woodall/CullenWoodallGpuWorker_metal.o: cullen_woodall/cw_kernel.gpu.h cullen_woodall/cw_kernel.metallib
 gfn_divisor/GFNDivisorGpuWorker_metal.o: gfn_divisor/gfn_kernel.gpu.h gfn_divisor/gfn_kernel.metallib
+hyper_cullen_woodall/HyperCullenWoodallGpuWorker_metal.o: hyper_cullen_woodall/hcw_kernel.gpu.h hyper_cullen_woodall/hcw_kernel.metallib
 lifchitz/LitchitzGpuWorker_metal.o: lifchitz/lifchitz_kernel.gpu.h lifchitz/lifchitz_kernel.metallib
 multi_factorial/MultiFactorialGpuWorker_metal.o: multi_factorial/mf_kernel.gpu.h multi_factorial/mf_kernel.metallib
 primes_in_x/PrimesInXGpuWorker_metal.o: primes_in_x/pix_kernel.gpu.h primes_in_x/pix_kernel.metallib
@@ -303,6 +309,7 @@ alternating_factorial/AlternatingFactorialGpuWorker_opencl.o: alternating_factor
 carol_kynea/CarolKyneaGpuWorker_opencl.o: carol_kynea/ck_kernel.gpu.h
 cullen_woodall/CullenWoodallGpuWorker_opencl.o: cullen_woodall/cw_kernel.gpu.h
 gfn_divisor/GFNDivisorGpuWorker_opencl.o: gfn_divisor/gfn_kernel.gpu.h
+hyper_cullen_woodall/HyperCullenWoodallGpuWorker_opencl.o: hyper_cullen_woodall/hcw_kernel.gpu.h
 lifchitz/LifchitzGpuWorker_opencl.o: lifchitz/lifchitz_kernel.gpu.h
 multi_factorial/MultiFactorialGpuWorker_opencl.o: multi_factorial/mf_kernel.gpu.h
 primes_in_x/PrimesInXGpuWorker_opencl.o: primes_in_x/pix_kernel.gpu.h
@@ -356,6 +363,15 @@ gfndsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(GFN
 gfndsievecl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(GFND_OPENCL_OBJS)
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_OPENCL) $(LD_FLAGS_STDC) -o $@ $^  $(LD_FLAGS_GMP) $(LD_FLAGS_OPENCL) $(LD_FLAGS)
 
+hcwsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(HCW_OBJS)
+	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS)
+
+hcwsievecl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(HCW_OPENCL_OBJS)
+	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_OPENCL) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS_OPENCL) $(LD_FLAGS)
+
+hcwsievemtl: $(METAL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(HCW_METAL_OBJS)
+	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_METAL) $(LD_FLAGS_METAL) -o $@ $^ $(LD_FLAGS_METAL) $(LD_FLAGS)
+   
 k1b2sieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(K1B2_OBJS)
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS)
 
@@ -434,7 +450,7 @@ xyyxsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(XYYX_OBJS)
 xyyxsievecl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(XYYX_OPENCL_OBJS)
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_OPENCL) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS_OPENCL) $(LD_FLAGS)
 
-xyxsievemtl: $(METAL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(XYYX_METAL_OBJS)
+xyyxsievemtl: $(METAL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(XYYX_METAL_OBJS)
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_METAL) $(LD_FLAGS_METAL) -o $@ $^ $(LD_FLAGS_METAL) $(LD_FLAGS)
    
 clean_objs:
