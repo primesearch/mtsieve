@@ -133,7 +133,7 @@ public:
 	}
    
    // Compute the residual of n (mod p)
-   MpRes nToRes(uint64_t n)
+   MpRes nToRes(uint64_t n) const
    {
 #ifdef DEBUG_MP
       return n;
@@ -145,7 +145,7 @@ public:
 #endif
    }
 
-   uint64_t resToN(MpRes res)
+   uint64_t resToN(MpRes res) const
    {
 #ifdef DEBUG_MP
       return res;
