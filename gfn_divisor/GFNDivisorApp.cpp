@@ -11,13 +11,13 @@
 #include <cinttypes>
 #include <time.h>
 #include "../core/Parser.h"
+#include "../core/MpArith.h"
 #include "../core/MpArithVector.h"
 #include "../sieve/primesieve.hpp"
 #include "GFNDivisorApp.h"
 #include "GFNDivisorWorker.h"
-#include "../x86_asm/fpu-asm-x86.h"
 
-#define APP_VERSION     "2.3"
+#define APP_VERSION     "2.4"
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
 #include "GFNDivisorGpuWorker.h"
@@ -855,15 +855,13 @@ uint32_t GFNDivisorApp::GetSmallPrimeFactor(uint64_t k, uint32_t n)
 
 void  GFNDivisorApp::VerifyFactor(uint64_t theFactor, uint64_t k, uint32_t n)
 {
-   uint64_t rem;
+   const MpArith mp(theFactor);
 
-   fpu_push_1divp(theFactor);
-   
-   rem = fpu_powmod(2, n, theFactor);
+   MpRes res = mp.pow(mp.nToRes(2), n);
+ 
+   res = mp.mul(res, mp.nToRes(k));
 
-   rem = fpu_mulmod(rem, k, theFactor);
-   
-   fpu_pop();
+   const uint64_t rem = mp.resToN(res);
    
    if (rem == theFactor - 1)
       return;

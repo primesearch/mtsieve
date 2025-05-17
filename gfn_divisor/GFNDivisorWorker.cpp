@@ -9,7 +9,7 @@
 #include <cinttypes>
 
 #include "GFNDivisorWorker.h"
-#include "../x86_asm/fpu-asm-x86.h"
+#include "../core/MpArithVector.h"
 
 GFNDivisorWorker::GFNDivisorWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
 {
@@ -55,21 +55,25 @@ void  GFNDivisorWorker::TestMegaPrimeChunkSmall(void)
       p2 = ps[1] = il_PrimeList[pIdx+1];
       p3 = ps[2] = il_PrimeList[pIdx+2];
       p4 = ps[3] = il_PrimeList[pIdx+3];
-      
+
+      const MpArithVec psVec(ps);
+
       ks[0] = k1 = (1+p1) >> 1;
       ks[1] = k2 = (1+p2) >> 1;
       ks[2] = k3 = (1+p3) >> 1;
       ks[3] = k4 = (1+p4) >> 1;
-      
-      // Starting with k*2^n = 1 (mod p) 
+     
+      // Starting with k*2^n = 1 (mod p)
       //           --> k = (1/2)^n (mod p)
       //           --> k = inverse^n (mod p)
-      fpu_powmod_4b_1n_4p(ks, ii_MinN, ps);
-      
-      k1 = p1 - ks[0];
-      k2 = p2 - ks[1];
-      k3 = p3 - ks[2];
-      k4 = p4 - ks[3];
+      const MpResVec ksVec = psVec.nToRes(ks);
+      const MpResVec res = psVec.pow(ksVec, ii_MinN);
+      const MpResVec kToMinN = psVec.resToN(res);
+ 
+      k1 = p1 - kToMinN[0];
+      k2 = p2 - kToMinN[1];
+      k3 = p3 - kToMinN[2];
+      k4 = p4 - kToMinN[3];
 
       for (n=ii_MinN; n<=ii_MaxN; n++)
       {
@@ -115,21 +119,25 @@ void  GFNDivisorWorker::TestMegaPrimeChunkLarge(void)
       p3 = ps[2] = il_PrimeList[pIdx+2];
       p4 = ps[3] = il_PrimeList[pIdx+3];
       
+      const MpArithVec psVec(ps);
+
       ks[0] = k1 = (1+p1) >> 1;
       ks[1] = k2 = (1+p2) >> 1;
       ks[2] = k3 = (1+p3) >> 1;
       ks[3] = k4 = (1+p4) >> 1;
-      
-      // Starting with k*2^n = 1 (mod p) 
+
+      // Starting with k*2^n = 1 (mod p)
       //           --> k = (1/2)^n (mod p)
       //           --> k = inverse^n (mod p)
-      fpu_powmod_4b_1n_4p(ks, ii_MinN, ps);
-      
-      k1 = p1 - ks[0];
-      k2 = p2 - ks[1];
-      k3 = p3 - ks[2];
-      k4 = p4 - ks[3];
-      
+      const MpResVec ksVec = psVec.nToRes(ks);
+      const MpResVec res = psVec.pow(ksVec, ii_MinN);
+      const MpResVec kToMinN = psVec.resToN(res);
+
+      k1 = p1 - kToMinN[0];
+      k2 = p2 - kToMinN[1];
+      k3 = p3 - kToMinN[2];
+      k4 = p4 - kToMinN[3];
+     
       n1 = n2 = n3 = n4 = ii_MinN;
 
       while (n1 <= ii_MaxN)
