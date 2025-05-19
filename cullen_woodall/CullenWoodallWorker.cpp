@@ -273,29 +273,29 @@ void  CullenWoodallWorker::TestLargePrimes(uint64_t *ps, MpArithVec mp)
    resC[2] = mp.add(resC[1], resC[1]);
    resW[2] = mp.add(resW[1], resW[1]);
    
-   if (ii_Base & 1)
+   for (uint32_t idx=2; idx<MAX_POWERS+1; idx++)
    {
-      // If the base is odd, then all n must be even and thus the difference
+      // If the bsae is odd, then all n must be even and thus the difference
       // between any two remaining n for the base must also be even.
-      for (size_t idx=4; idx<MAX_POWERS+1; idx+=2)
+      if (idx > 2 && ii_Base & 1)
       {
-         powers[idx] = mp.mul(powers[idx-2], powers[2]);
+         if (idx & 1)
+            continue;
          
+         powers[idx] = mp.mul(powers[idx-2], powers[2]);
+
          resC[idx] = mp.add(resC[idx-2], resC[2]);
          resW[idx] = mp.add(resW[idx-2], resW[2]);
       }
-   }
-   else
-   {
-      for (size_t idx=3; idx<MAX_POWERS+1; idx+=2)
+      else 
       {
          powers[idx] = mp.mul(powers[idx-1], powers[1]);
-         
+
          resC[idx] = mp.add(resC[idx-1], resC[1]);
          resW[idx] = mp.add(resW[idx-1], resW[1]);
       }
    }
-   
+
    prevN = ii_Terms[0];
    
    // Note that the terms start at max N and decrease

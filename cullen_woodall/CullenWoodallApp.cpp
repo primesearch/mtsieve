@@ -23,7 +23,7 @@
 #define APP_NAME        "gcwsieve"
 #endif
 
-#define APP_VERSION     "1.5.4"
+#define APP_VERSION     "1.5.5"
 
 #define BIT(n)        ((n) - ii_MinN)
 
@@ -62,7 +62,7 @@ void CullenWoodallApp::Help(void)
    printf("-b --base=b           Base to search\n");
    printf("-n --min_n=n          Minimum n to search\n");
    printf("-N --max_n=N          Maximum N to search\n");
-   printf("-a --useavx           Use AVX routines (if availble)\n");
+   printf("-a --useavx           Use AVX routines (if available)\n");
    printf("-s --sign=+/-/b       Sign to sieve for (+ = Cullen, - = Woodall)\n");
    printf("-f --format=f         Format of output file (A=ABC (default), L=LLR\n");
 #if defined(USE_OPENCL) || defined(USE_METAL)
@@ -75,7 +75,7 @@ void  CullenWoodallApp::AddCommandLineOptions(std::string &shortOpts, struct opt
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "Db:n:N:s:f:";
+   shortOpts += "aDb:n:N:s:f:";
 
    AppendLongOpt(longOpts, "base",           required_argument, 0, 'b');
    AppendLongOpt(longOpts, "min_n",          required_argument, 0, 'n');
