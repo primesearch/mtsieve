@@ -12,15 +12,15 @@
 #pragma OPENCL EXTENSION cl_khr_int64_extended_atomics: enable
 #define MUL_HI          mul_hi
 
-void collectFactor(uint    x,
-                   uint    y,
+void collectFactor(uint    b,
+                   uint    n,
                    int     sign,
                    ulong   p,
  volatile __global uint   *factorCount,
           __global ulong4 *factors);
 #else
-void collectFactor(uint        x,
-                   uint        y,
+void collectFactor(uint        b,
+                   uint        n,
                    int         sign,
                    ulong       p,
    volatile device atomic_int *factorCount,
@@ -45,16 +45,16 @@ __kernel void hcw_kernel(__global const ulong  *primes,
    uint   gid = get_global_id(0);
 
    uint   termIndex;
-   uint   currentX;
-   uint   currentY, previousY;
+   uint   currentB;
+   uint   currentN, previousN;
    uint   pIndex;
 
    ulong  thePrime = primes[gid];
    ulong  magicNumber;
    ulong  magicShift;
-   ulong  resX, resY;
-   ulong  resXexpY, resXexpN;
-   ulong  resYexpX;
+   ulong  resB, resN;
+   ulong  resBexpN, resTemp;
+   ulong  resNexpB;
 
    ulong  resPowers[MAX_POWERS];
 
@@ -74,82 +74,82 @@ __kernel void hcw_kernel(__global const ulong  *primes,
 
    while (terms[termIndex] > 0)
    {
-      currentX = terms[termIndex];
-      resX = mmmNToRes(currentX, thePrime, _q, _r2);
+      currentB = terms[termIndex];
+      resB = mmmNToRes(currentB, thePrime, _q, _r2);
       termIndex++;
 
-      // If we have at least one y for this x
+      // If we have at least one n for this b
       if (terms[termIndex] > 0)
       {
-         currentY = terms[termIndex];
-         resY = mmmNToRes(currentY, thePrime, _q, _r2);
+         currentN = terms[termIndex];
+         resN = mmmNToRes(currentN, thePrime, _q, _r2);
                 
          resPowers[0] = _one;
-         resPowers[1] = resX;
+         resPowers[1] = resB;
          
-         // Multiply successive terms by x^2 (mod p)
+         // Multiply successive terms by b^2 (mod p)
          for (pIndex=2; pIndex<=MAX_POWERS; pIndex++)
-             resPowers[pIndex] = mmmMulmod(resPowers[pIndex-1], resX, thePrime, _q);
+             resPowers[pIndex] = mmmMulmod(resPowers[pIndex-1], resB, thePrime, _q);
          
-         resXexpY = mmmPowmod(resX, currentY, thePrime, _q, _one);
-         resYexpX = mmmPowmod(resY, currentX, thePrime, _q, _one);
+         resBexpN = mmmPowmod(resB, currentN, thePrime, _q, _one);
+         resNexpB = mmmPowmod(resN, currentB, thePrime, _q, _one);
             
-         ulong res = mmmMulmod(resXexpY, resYexpX, thePrime, _q);
+         ulong res = mmmMulmod(resBexpN, resNexpB, thePrime, _q);
 
 #ifdef IS_MINUS
-         // x^y * y^x - 1 = 0(mod p)
+         // b^n * n^b - 1 = 0(mod p)
          if (res == _one)
-            collectFactor(currentX, currentY, -1, thePrime, factorCount, factors);
+            collectFactor(currentB, currentN, -1, thePrime, factorCount, factors);
 #endif
 
 #ifdef IS_PLUS
-         // x^y * y^x + 1 == 0(mod p)
+         // b^n * n^b + 1 == 0(mod p)
          if (res == _pm1)
-            collectFactor(currentX, currentY, +1, thePrime, factorCount, factors);
+            collectFactor(currentB, currentN, +1, thePrime, factorCount, factors);
 #endif
 
-         previousY = currentY;
+         previousN = currentN;
   
-         //  The first y for this x
+         //  The first n for this x
          termIndex++;
          while (terms[termIndex] > 0)
          {
-            currentY = terms[termIndex];
+            currentN = terms[termIndex];
       
-            pIndex = currentY - previousY;
+            pIndex = currentN - previousN;
             
             if (pIndex > MAX_POWERS)
-               resXexpN = mmmPowmod(resX, currentY - previousY, thePrime, _q, _one);
+               resTemp = mmmPowmod(resB, currentN - previousN, thePrime, _q, _one);
             else
-               resXexpN = resPowers[pIndex];
+               resTemp = resPowers[pIndex];
 
-            // We have x^prevY (mod p).
-            // Now compute x^y (mod p) as (x^prevY * x^(y-prevY) (mod p)
-            resXexpY = mmmMulmod(resXexpY, resXexpN, thePrime, _q);
+            // We have b^prevN (mod p).
+            // Now compute b^n (mod p) as (b^prevN * b^(n-prevN) (mod p)
+            resBexpN = mmmMulmod(resBexpN, resTemp, thePrime, _q);
 
-            resY = mmmNToRes(currentY, thePrime, _q, _r2);
-            resYexpX = mmmPowmod(resY, currentX, thePrime, _q, _one);
+            resN = mmmNToRes(currentN, thePrime, _q, _r2);
+            resNexpB = mmmPowmod(resN, currentB, thePrime, _q, _one);
 
-            ulong res = mmmMulmod(resXexpY, resYexpX, thePrime, _q);
+            ulong res = mmmMulmod(resBexpN, resNexpB, thePrime, _q);
             
 #ifdef IS_MINUS
-            // x^y * y^x - 1 = 0(mod p)
+            // b^n * n^b - 1 = 0(mod p)
             if (res == _one)
-               collectFactor(currentX, currentY, -1, thePrime, factorCount, factors);
+               collectFactor(currentB, currentN, -1, thePrime, factorCount, factors);
 #endif
 
 #ifdef IS_PLUS
-            // x^y * y^x + 1 == 0(mod p)
+            // b^n * n^b + 1 = 0(mod p)
             if (res == _pm1)
-               collectFactor(currentX, currentY, +1, thePrime, factorCount, factors);
+               collectFactor(currentB, currentN, +1, thePrime, factorCount, factors);
 #endif
                
             termIndex++;
-            previousY = currentY;
+            previousN = currentN;
          }
       }
       
-      // Get the next x
+      // Get the next b
       termIndex++;
    };
 }
@@ -250,15 +250,15 @@ ulong   mmmPowmod(ulong resbase, ulong exp, ulong _p, ulong _q, ulong _one)
 }
 
 #if defined(USE_OPENCL)
-void collectFactor(uint    x,
-                   uint    y,
+void collectFactor(uint    b,
+                   uint    n,
                    int     sign,
                    ulong   p,
  volatile __global uint   *factorCount,
           __global ulong4 *factors)
 #else
-void collectFactor(uint        x,
-                   uint        y,
+void collectFactor(uint        b,
+                   uint        n,
                    int         sign,
                    ulong       p,
    volatile device atomic_int *factorCount,
@@ -275,8 +275,8 @@ void collectFactor(uint        x,
    if (old >= D_MAX_FACTORS)
       return;
    
-   factors[old].x = x;
-   factors[old].y = y;
+   factors[old].x = b;
+   factors[old].y = n;
    if (sign > 2)
       factors[old].z = sign;
    else

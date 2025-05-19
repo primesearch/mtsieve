@@ -42,23 +42,23 @@ public:
    bool              ApplyFactor(uint64_t theFactor, const char *term);
    void              GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength);
    
-   bool              ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign);
+   bool              ReportFactor(uint64_t theFactor, uint32_t b, uint32_t n, int32_t sign);
    
-   uint32_t          GetMinX(void) { return ii_MinX; };
-   uint32_t          GetMaxX(void) { return ii_MaxX; };
-   uint32_t          GetMinY(void) { return ii_MinY; };
-   uint32_t          GetMaxY(void) { return ii_MaxY; };
+   uint32_t          GetMinB(void) { return ii_MinB; };
+   uint32_t          GetMaxB(void) { return ii_MaxB; };
+   uint32_t          GetMinN(void) { return ii_MinN; };
+   uint32_t          GetMaxN(void) { return ii_MaxN; };
    uint64_t          GetTermCount(void) { return il_TermCount; }
-   uint32_t          GetXCount(void) { return (ii_MaxX - ii_MinX + 1); };
-   uint32_t          GetYCount(void) { return (ii_MaxY - ii_MinY + 1); };
+   uint32_t          GetBCount(void) { return (ii_MaxB - ii_MinB + 1); };
+   uint32_t          GetNCount(void) { return (ii_MaxN - ii_MinN + 1); };
 
    void              BuildTerms(void);
    
    bool              IsPlus(void) { return ib_IsPlus; };
    bool              IsMinus(void) { return ib_IsMinus; };
 
-   base_t           *GetXTerms(void) { return ip_xTerms; };
-   base_t           *GetYTerms(void) { return ip_yTerms; };
+   base_t           *GetBTerms(void) { return ip_bTerms; };
+   base_t           *GetNTerms(void) { return ip_nTerms; };
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    void              FreeGpuGroupsOfTerms(gpugroup_t *gPtr);
@@ -83,20 +83,25 @@ protected:
 
 private:
    void              SetInitialTerms(void);
-   void              VerifyFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign);
+   void              VerifyFactor(uint64_t theFactor, uint32_t b, uint32_t n, int32_t sign);
    
    std::vector<bool> iv_PlusTerms;
    std::vector<bool> iv_MinusTerms;
       
    bool              ib_IsPlus;
    bool              ib_IsMinus;
-   uint32_t          ii_MinX;
-   uint32_t          ii_MaxX;
-   uint32_t          ii_MinY;
-   uint32_t          ii_MaxY;
+   uint32_t          ii_MinB;
+   uint32_t          ii_MaxB;
+   uint32_t          ii_MinN;
+   uint32_t          ii_MaxN;
 
-   base_t           *ip_xTerms;
-   base_t           *ip_yTerms;
+   bool              ib_SplitTerms;
+   uint32_t          ii_SplitB;
+   uint32_t          ii_SplitN;
+   uint64_t          il_SplitLargestPrimeTested;
+
+   base_t           *ip_bTerms;
+   base_t           *ip_nTerms;
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          ii_MaxGpuSteps;

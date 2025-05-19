@@ -22,9 +22,9 @@
 #endif
 
 #define APP_NAME        "hcwsieve"
-#define APP_VERSION     "1.0"
+#define APP_VERSION     "1.1"
 
-#define BIT(x, y)       ((((x) - ii_MinX) * GetYCount()) + ((y) - ii_MinY))
+#define BIT(b, n)       ((((b) - ii_MinB) * GetNCount()) + ((n) - ii_MinN))
 
 // This is declared in App.h, but implemented here.  This means that App.h
 // can remain unchanged if using the GPUSieve framework for other applications.
@@ -35,19 +35,22 @@ App *get_app(void)
 
 HyperCullenWoodallApp::HyperCullenWoodallApp(void) : FactorApp()
 {
-   SetBanner(APP_NAME " v" APP_VERSION ", a program to find factors numbers of the form x^y*y^x+1 and/or x^y*y^x-1");
+   SetBanner(APP_NAME " v" APP_VERSION ", a program to find factors numbers of the form b^n*n^b+1 and/or b^n*n^b-1");
    SetLogFileName("hcwsieve.log");
 
-   ii_MinX = 0;
-   ii_MaxX = 0;
-   ii_MinY = 0;
-   ii_MaxY = 0;
+   ii_MinB = 0;
+   ii_MaxB = 0;
+   ii_MinN = 0;
+   ii_MaxN = 0;
    ii_CpuWorkSize = 10000;
    ib_IsPlus = false;
    ib_IsMinus = false;
    SetAppMinPrime(3);
-   ip_xTerms = NULL;
-   ip_yTerms = NULL;
+   ip_bTerms = NULL;
+   ip_nTerms = NULL;
+   ib_SplitTerms = false;
+   ii_SplitB = 0;
+   ii_SplitN = 0;
       
 #if defined(USE_OPENCL) || defined(USE_METAL)
    ii_MaxGpuSteps = 100000;
@@ -58,11 +61,13 @@ void HyperCullenWoodallApp::Help(void)
 {
    FactorApp::ParentHelp();
 
-   printf("-x --minx=x           minimum x to search\n");
-   printf("-X --maxx=X           maximum x to search\n");
-   printf("-y --miny=y           minimum y to search\n");
-   printf("-Y --maxy=Y           maximum y to search\n");
+   printf("-b --minb=b           minimum b to search\n");
+   printf("-B --maxb=B           maximum b to search\n");
+   printf("-n --minn=n           minimum n to search\n");
+   printf("-N --maxn=N           maximum n to search\n");
    printf("-s --sign=+/-         sign to sieve for\n");
+   printf("-t --splitterms       split terms lower than b and n\n");
+
 #if defined(USE_OPENCL) || defined(USE_METAL)
    printf("-S --step=S           max steps iterated per call to GPU (default %d)\n", ii_MaxGpuSteps);
    printf("-M --maxfactors=M     max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
@@ -71,24 +76,25 @@ void HyperCullenWoodallApp::Help(void)
 
 HyperCullenWoodallApp::~HyperCullenWoodallApp(void)
 {
-    if (ip_xTerms != NULL)
-      delete ip_xTerms;
+    if (ip_bTerms != NULL)
+      delete ip_bTerms;
    
-    if (ip_yTerms != NULL)
-      delete ip_yTerms;
+    if (ip_nTerms != NULL)
+      delete ip_nTerms;
 }
 
 void  HyperCullenWoodallApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "x:X:y:Y:s:S:M:";
+   shortOpts += "b:B:N:n:s:S:M:t";
 
-   AppendLongOpt(longOpts, "minx",              required_argument, 0, 'x');
-   AppendLongOpt(longOpts, "maxx",              required_argument, 0, 'X');
-   AppendLongOpt(longOpts, "miny",              required_argument, 0, 'y');
+   AppendLongOpt(longOpts, "MinB",              required_argument, 0, 'b');
+   AppendLongOpt(longOpts, "MinN",              required_argument, 0, 'B');
+   AppendLongOpt(longOpts, "minn",              required_argument, 0, 'n');
+   AppendLongOpt(longOpts, "maxn",              required_argument, 0, 'N');
    AppendLongOpt(longOpts, "sign",              required_argument, 0, 's');
-   AppendLongOpt(longOpts, "sign",              required_argument, 0, 's');
+   AppendLongOpt(longOpts, "splitterms",        no_argument, 0, 't');
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    AppendLongOpt(longOpts, "steps",             required_argument, 0, 'S');
@@ -107,19 +113,19 @@ parse_t HyperCullenWoodallApp::ParseOption(int opt, char *arg, const char *sourc
    switch (opt)
    {
       case 'x':
-         status = Parser::Parse(arg, 2, 1000000000, ii_MinX);
+         status = Parser::Parse(arg, 2, 1000000000, ii_MinB);
          break;
 
       case 'X':
-         status = Parser::Parse(arg, 1, 1000000000, ii_MaxX);
+         status = Parser::Parse(arg, 2, 1000000000, ii_MaxB);
          break;
 		 
       case 'y':
-         status = Parser::Parse(arg, 2, 1000000000, ii_MinY);
+         status = Parser::Parse(arg, 3, 1000000000, ii_MinN);
          break;
 
       case 'Y':
-         status = Parser::Parse(arg, 1, 1000000000, ii_MaxY);
+         status = Parser::Parse(arg, 3, 1000000000, ii_MaxN);
          break;
          
       case 's':
@@ -129,6 +135,11 @@ parse_t HyperCullenWoodallApp::ParseOption(int opt, char *arg, const char *sourc
          
          ib_IsPlus = (value == '+' || value == 'b');
          ib_IsMinus = (value == '-' || value == 'b');
+         break;
+
+       case 't':
+         ib_SplitTerms = true;
+         status = P_SUCCESS;
          break;
          
 #if defined(USE_OPENCL) || defined(USE_METAL)
@@ -152,42 +163,65 @@ void HyperCullenWoodallApp::ValidateOptions(void)
 
    if (is_InputTermsFileName.length() > 0)
    {
+      if (ib_SplitTerms)
+      {
+         if (ii_MinB == 0 && ii_MinN == 0)
+            FatalError("x and y must be specified if splitting terms");
+         
+         ii_SplitB = ii_MinB;
+         ii_SplitN = ii_MinN;
+         ii_MinB = ii_MinN = 0;
+      }
+
       ProcessInputTermsFile(false);
 
-      iv_PlusTerms.resize(GetXCount() * GetYCount());
+      iv_PlusTerms.resize(GetBCount() * GetNCount());
       std::fill(iv_PlusTerms.begin(), iv_PlusTerms.end(), false);
       
-      iv_MinusTerms.resize(GetXCount() * GetYCount());
+      iv_MinusTerms.resize(GetBCount() * GetNCount());
       std::fill(iv_MinusTerms.begin(), iv_MinusTerms.end(), false);
          
       il_TermCount = 0;
       
       ProcessInputTermsFile(true);      
+
+      if (ib_SplitTerms)
+      {
+         WriteOutputTermsFile(il_SplitLargestPrimeTested);
+         WriteToConsole(COT_OTHER, "Write %" PRIu64" terms to %s", il_TermCount, is_InputTermsFileName.c_str());
+         exit(0);
+      }
    }
    else
    {
       if (!ib_IsPlus && !ib_IsMinus)
          FatalError("sign must be specified");
 
-      if (ii_MinX == 0)
-         FatalError("min x has not been specified");
+      if (ii_MinB == 0)
+         FatalError("min b has not been specified");
 	  
-      if (ii_MaxX == 0)
-         FatalError("max x has not been specified");
+      if (ii_MaxB == 0)
+         FatalError("max b has not been specified");
 
-      if (ii_MinY == 0)
-         FatalError("min y has not been specified");
+      if (ii_MinN == 0)
+         FatalError("min n has not been specified");
 
-      if (ii_MaxY == 0)
-         FatalError("max y has not been specified");
+      if (ii_MaxN == 0)
+         FatalError("max n has not been specified");
 
-      if (ii_MinX > ii_MaxX)
-         FatalError("min x must be less than or equal to max x");
+      if (ii_MinB > ii_MaxB)
+         FatalError("min b must be less than or equal to max b");
 
-      if (ii_MinY > ii_MaxY)
-         FatalError("min y must be less than or equal to max y");
+      if (ii_MinN > ii_MaxN)
+         FatalError("min n must be less than or equal to max n");
 
-      il_TermCount = GetXCount() * GetYCount();
+      if (ii_MinN <= ii_MinB)
+         FatalError("min n must be greater than min b");
+
+      if (ii_MaxN <= ii_MaxB)
+         FatalError("max n must be greater than max n");         
+
+      il_TermCount = GetBCount() * GetNCount();
       
       if (iv_PlusTerms.max_size() < il_TermCount)
          FatalError("Not enough memory to hold the terms");
@@ -195,7 +229,7 @@ void HyperCullenWoodallApp::ValidateOptions(void)
       iv_PlusTerms.resize(il_TermCount);
       std::fill(iv_PlusTerms.begin(), iv_PlusTerms.end(), false);
                
-      iv_MinusTerms.resize(GetXCount() * GetYCount());
+      iv_MinusTerms.resize(GetBCount() * GetNCount());
       std::fill(iv_MinusTerms.begin(), iv_MinusTerms.end(), false);
       
       SetInitialTerms();
@@ -222,32 +256,38 @@ Worker *HyperCullenWoodallApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_
 
 void  HyperCullenWoodallApp::SetInitialTerms(void)
 {
-   uint32_t   x, y;
+   uint32_t   b, n;
    uint64_t   bit;
+   uint32_t   xgtxCount = 0;
    uint32_t   evenCount = 0;
    uint32_t   algebraicCount = 0;
    
    // Reset this
    il_TermCount = 0;
 
-   for (x=ii_MinX; x<=ii_MaxX; x++)
+   for (b=ii_MinB; b<=ii_MaxB; b++)
    {
-      for (y=ii_MinY; y<=ii_MaxY; y++)
+      for (n=ii_MinN; n<=ii_MaxN; n++)
       {
          boolean includeMinus = true;
 
-         // If x and y are both odd, then both x^y*y^x+1 and x^y*y^x-1 are even
-         // so we don't need to add them
-         if (x & 1 && y & 1)
+         if (n <= b)
+         {
+            if (ib_IsPlus) xgtxCount++;
+            if (ib_IsMinus) xgtxCount++;
+            continue;
+         }
+         
+         // If b and n are both odd, then all terms are even
+         if (b & 1 && n & 1)
          {
             if (ib_IsPlus) evenCount++;
             if (ib_IsMinus) evenCount++;
             continue;
          }
          
-         // If x and y are both even, then x^y*y^x-1 has an algebraic factor
-         // so we don't need to add them
-         if (!(x & 1) && !(y & 1))
+         // If b and n are both even, then -1 terms have an algebraic factor
+         if (!(b & 1) && !(n & 1))
          {
             if (ib_IsMinus)
             {
@@ -256,7 +296,7 @@ void  HyperCullenWoodallApp::SetInitialTerms(void)
             }
          }
 
-         bit = BIT(x, y);
+         bit = BIT(b, n);
    
          iv_PlusTerms[bit] = true;            
          il_TermCount++;
@@ -270,6 +310,7 @@ void  HyperCullenWoodallApp::SetInitialTerms(void)
    }
 
    WriteToConsole(COT_OTHER, "Quick elimination of terms info (in order of check):");
+   WriteToConsole(COT_OTHER, "    %u because n <= b", xgtxCount);
    WriteToConsole(COT_OTHER, "    %u because the term is even", evenCount);
    WriteToConsole(COT_OTHER, "    %u because the term has an algebraic factor", algebraicCount);
 }
@@ -277,10 +318,12 @@ void  HyperCullenWoodallApp::SetInitialTerms(void)
 void HyperCullenWoodallApp::ProcessInputTermsFile(bool haveBitMap)
 {
    FILE    *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
+   FILE    *stPtr = NULL;
    char     buffer[1000];
-   uint32_t x, y;
+   uint32_t b, n;
    int32_t  sign;
    uint64_t minPrime;
+   uint32_t splitCount = 0;
    
    if (!fPtr)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
@@ -307,18 +350,34 @@ void HyperCullenWoodallApp::ProcessInputTermsFile(bool haveBitMap)
       if (!StripCRLF(buffer))
          continue;
 
-      if (sscanf(buffer, "%u %u %d", &x, &y, &sign) != 3)
+      if (sscanf(buffer, "%u %u %d", &b, &n, &sign) != 3)
          FatalError("Line %s is malformed", buffer);
 
       if (sign != +1 && sign != -1)
          FatalError("Only +1 or -1 is supported");
 
+      if (ib_SplitTerms && b <= ii_SplitB && n <= ii_SplitN)
+      {
+         if (!haveBitMap)
+         {
+            if (stPtr == NULL)
+            {
+               stPtr = fopen("split_hcw.pfgw", "w");
+               fprintf(stPtr, "ABC $a^$b*$b^$a$c // Sieved to %" PRIu64"\n", minPrime);         
+            }
+            
+            fprintf(stPtr, "%s\n", buffer);
+            splitCount++;
+         }
+         continue;
+      }
+
       if (haveBitMap)
       {
          if (sign == +1)
-            iv_PlusTerms[BIT(x, y)] = true;
+            iv_PlusTerms[BIT(b, n)] = true;
          else
-            iv_MinusTerms[BIT(x, y)] = true;
+            iv_MinusTerms[BIT(b, n)] = true;
       }
       else
       {
@@ -328,46 +387,57 @@ void HyperCullenWoodallApp::ProcessInputTermsFile(bool haveBitMap)
          if (sign == -1)
             ib_IsMinus = true;
          
-         if (ii_MinX == 0 || x < ii_MinX)
-            ii_MinX = x;
+         if (ii_MinB == 0 || b < ii_MinB)
+            ii_MinB = b;
 
-         if (x > ii_MaxX)
-            ii_MaxX = x;
+         if (b > ii_MaxB)
+            ii_MaxB = b;
 
-         if (ii_MinY == 0 || y < ii_MinY)
-            ii_MinY = y;
+         if (ii_MinN == 0 || n < ii_MinN)
+            ii_MinN = n;
 
-         if (y > ii_MaxY)
-            ii_MaxY = y;
+         if (n > ii_MaxN)
+            ii_MaxN = n;
       }
          
       il_TermCount++;
    }
 
    fclose(fPtr);
+
+   if (ib_SplitTerms)
+   {
+      if (splitCount > 0)
+      {
+         fclose(stPtr);
+         WriteToConsole(COT_OTHER, "Split off %u terms to split_hcw.pfgw", splitCount);
+      }
+
+      il_SplitLargestPrimeTested = minPrime;
+   }
 }
 
 bool HyperCullenWoodallApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
-   uint32_t x1, x2, y1, y2;
+   uint32_t b1, b2, n1, n2;
    int32_t  sign;
    
-   if (sscanf(term, "%u^%u*%u^%u%d", &x1, &y1, &y2, &x2, &sign) != 5)
+   if (sscanf(term, "%u^%u*%u^%u%d", &b1, &n1, &n2, &b2, &sign) != 5)
       FatalError("Could not parse term %s\n", term);
 
-   if (x1 != x2)
-      FatalError("x values for term %s do not match (%u != %u)\n", term, x1, x2);
+   if (b1 != b2)
+      FatalError("x values for term %s do not match (%u != %u)\n", term, b1, b2);
    
-   if (y1 != y2)
-      FatalError("y values for term %s do not match (%u != %u)\n", term, y1, y2);
+   if (n1 != n2)
+      FatalError("y values for term %s do not match (%u != %u)\n", term, n1, n2);
 
    if (sign != +1 && sign != -1)
       FatalError("sign term %s must be +1 or -1\n", term);
    
-   if (x1 < ii_MinX || x1 > ii_MaxX)
+   if (b1 < ii_MinB || b1 > ii_MaxB)
       return false;
    
-   if (y1 < ii_MinY || y1 > ii_MaxY)
+   if (n1 < ii_MinN || n1 > ii_MaxN)
       return false;
 
    if (!ib_IsMinus && sign != +1)
@@ -376,9 +446,9 @@ bool HyperCullenWoodallApp::ApplyFactor(uint64_t theFactor, const char *term)
    if (!ib_IsPlus && sign != -1)
       FatalError("+/- for term %s is not the expected value\n", term);
 
-   VerifyFactor(theFactor, x1, y1, sign);
+   VerifyFactor(theFactor, b1, n1, sign);
 
-   uint64_t bit = BIT(x1, y1);
+   uint64_t bit = BIT(b1, n1);
    bool haveTerm = false;
    
    // No locking is needed because the Workers aren't running yet
@@ -404,7 +474,7 @@ bool HyperCullenWoodallApp::ApplyFactor(uint64_t theFactor, const char *term)
 void HyperCullenWoodallApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
    FILE    *fPtr;
-   uint32_t x, y;
+   uint32_t b, n;
    uint64_t bit, termsCounted = 0;
    
    ip_FactorAppLock->Lock();
@@ -416,21 +486,21 @@ void HyperCullenWoodallApp::WriteOutputTermsFile(uint64_t largestPrime)
    
    fprintf(fPtr, "ABC $a^$b*$b^$a$c // Sieved to %" PRIu64"\n", largestPrime);
 
-   for (x=ii_MinX; x<=ii_MaxX; x++)
+   for (b=ii_MinB; b<=ii_MaxB; b++)
    {
-      for (y=ii_MinY; y<=ii_MaxY; y++)
+      for (n=ii_MinN; n<=ii_MaxN; n++)
       {
-         bit = BIT(x, y);
+         bit = BIT(b, n);
          
          if (iv_PlusTerms[bit])
          {
-            fprintf(fPtr, "%u %u +1\n", x, y);
+            fprintf(fPtr, "%u %u +1\n", b, n);
             termsCounted++;
          }
          
          if (iv_MinusTerms[bit])
          {
-            fprintf(fPtr, "%u %u -1\n", x, y);
+            fprintf(fPtr, "%u %u -1\n", b, n);
             termsCounted++;
          }
       }
@@ -447,22 +517,22 @@ void HyperCullenWoodallApp::WriteOutputTermsFile(uint64_t largestPrime)
 void  HyperCullenWoodallApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {   
    if (!ib_IsMinus)
-      snprintf(extraText, maxTextLength, "%d <= x <= %d, %d <= y <= %d (+1 only)",ii_MinX, ii_MaxX, ii_MinY, ii_MaxY);
+      snprintf(extraText, maxTextLength, "%d <= b <= %d, %d <= n <= %d (+1 only)",ii_MinB, ii_MaxB, ii_MinN, ii_MaxN);
    else if (!ib_IsPlus)
-      snprintf(extraText, maxTextLength, "%d <= x <= %d, %d <= y <= %d (-1 only)",ii_MinX, ii_MaxX, ii_MinY, ii_MaxY);
+      snprintf(extraText, maxTextLength, "%d <= b <= %d, %d <= n <= %d (-1 only)",ii_MinB, ii_MaxB, ii_MinN, ii_MaxN);
    else
-      snprintf(extraText, maxTextLength, "%d <= x <= %d, %d <= y <= %d (both +1 and -1)",ii_MinX, ii_MaxX, ii_MinY, ii_MaxY);
+      snprintf(extraText, maxTextLength, "%d <= b <= %d, %d <= n <= %d (both +1 and -1)",ii_MinB, ii_MaxB, ii_MinN, ii_MaxN);
 }
 
-bool HyperCullenWoodallApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign)
+bool HyperCullenWoodallApp::ReportFactor(uint64_t theFactor, uint32_t b, uint32_t n, int32_t sign)
 {
    uint64_t bit;
    bool     removedTerm = false;
    
-   if (x < ii_MinX || x > ii_MaxX)
+   if (b < ii_MinB || b > ii_MaxB)
       return false;
    
-   if (y < ii_MinY || y > ii_MaxY)
+   if (n < ii_MinN || n > ii_MaxN)
       return false;
    
    if (sign != -1 && sign != +1)
@@ -474,11 +544,11 @@ bool HyperCullenWoodallApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_
    if (sign == -1 && !ib_IsMinus)
       return false;
    
-   VerifyFactor(theFactor, x, y, sign);
+   VerifyFactor(theFactor, b, n, sign);
    
    ip_FactorAppLock->Lock();
 
-   bit = BIT(x, y);
+   bit = BIT(b, n);
    
    bool haveTerm = false;
 
@@ -498,7 +568,7 @@ bool HyperCullenWoodallApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_
       il_TermCount--;
       il_FactorCount++;
       removedTerm = true;
-      LogFactor(theFactor, "%u^%u*%u^%u%+d", x, y, y, x, sign);
+      LogFactor(theFactor, "%u^%u*%u^%u%+d", b, n, n, b, sign);
    }
    
    ip_FactorAppLock->Release();
@@ -506,17 +576,17 @@ bool HyperCullenWoodallApp::ReportFactor(uint64_t theFactor, uint32_t x, uint32_
    return removedTerm;
 }
 
-void  HyperCullenWoodallApp::VerifyFactor(uint64_t theFactor, uint32_t x, uint32_t y, int32_t sign)
+void  HyperCullenWoodallApp::VerifyFactor(uint64_t theFactor, uint32_t b, uint32_t n, int32_t sign)
 {
    bool     isValid = true;
    
    MpArith  mp(theFactor);
-   MpRes    resXY = mp.pow(mp.nToRes(x), y);
-   MpRes    resYX = mp.pow(mp.nToRes(y), x);
+   MpRes    resBN = mp.pow(mp.nToRes(b), n);
+   MpRes    resNB = mp.pow(mp.nToRes(n), b);
    
-   resXY = mp.mul(resXY, resYX);
+   resBN = mp.mul(resBN, resNB);
 
-   uint64_t res = mp.resToN(resXY);
+   uint64_t res = mp.resToN(resBN);
    
    if (sign > 0 && res != theFactor - 1)
       isValid = false;
@@ -527,7 +597,7 @@ void  HyperCullenWoodallApp::VerifyFactor(uint64_t theFactor, uint32_t x, uint32
    if (isValid)
       return;
    
-   FatalError("%" PRIu64" does not divide %u^%u*%u^%u%+d", theFactor, x, y, y, x, sign);
+   FatalError("%" PRIu64" does not divide %u^%u*%u^%u%+d", theFactor, b, n, n, b, sign);
 }
 
 void  HyperCullenWoodallApp::BuildTerms(void)
@@ -538,79 +608,79 @@ void  HyperCullenWoodallApp::BuildTerms(void)
    // is significant.  That will be left as a future task for anyone intested in doing it.
    ip_FactorAppLock->Lock();
 
-   if (ip_xTerms == NULL)
-      ip_xTerms = (base_t *) xmalloc(ii_MaxX - ii_MinX + 2, sizeof(base_t) , "xTerms");
+   if (ip_bTerms == NULL)
+      ip_bTerms = (base_t *) xmalloc(ii_MaxB - ii_MinB + 2, sizeof(base_t) , "bTerms");
 
-   base_t *xTerm = ip_xTerms;
+   base_t *bTerm = ip_bTerms;
 
-   for (uint32_t x=ii_MinX; x<=ii_MaxX; x++)
+   for (uint32_t b=ii_MinB; b<=ii_MaxB; b++)
    {      
-      xTerm->base = x;
-      xTerm->powerCount = 0;
-      xTerm->indexedByPower = false;
+      bTerm->base = b;
+      bTerm->powerCount = 0;
+      bTerm->indexedByPower = false;
 
-      for (uint32_t y=ii_MinY; y<=ii_MaxY; y++)
+      for (uint32_t n=ii_MinN; n<=ii_MaxN; n++)
       {
-         bit = BIT(x, y);
+         bit = BIT(b, n);
 
          if (iv_PlusTerms[bit] || iv_MinusTerms[bit])
-            xTerm->powerCount++;
+            bTerm->powerCount++;
       }
 
-      xTerm->powers.resize(xTerm->powerCount);
-      xTerm->residues.resize(xTerm->powerCount);
+      bTerm->powers.resize(bTerm->powerCount);
+      bTerm->residues.resize(bTerm->powerCount);
       
-      xTerm->powerCount = 0;
+      bTerm->powerCount = 0;
 
-      for (uint32_t y=ii_MinY; y<=ii_MaxY; y++)
+      for (uint32_t n=ii_MinN; n<=ii_MaxN; n++)
       {
-         bit = BIT(x, y);
+         bit = BIT(b, n);
 
          if (iv_PlusTerms[bit] || iv_MinusTerms[bit])
          {
-            xTerm->powers[xTerm->powerCount] = y;
-            xTerm->powerCount++;
+            bTerm->powers[bTerm->powerCount] = n;
+            bTerm->powerCount++;
          }
       }
 
-      xTerm++;
+      bTerm++;
    }
 
-   if (ip_yTerms == NULL)
-      ip_yTerms = (base_t *) xmalloc(ii_MaxY - ii_MinY + 2, sizeof(base_t) , "yTerms");
+   if (ip_nTerms == NULL)
+      ip_nTerms = (base_t *) xmalloc(ii_MaxN - ii_MinN + 2, sizeof(base_t) , "nTerms");
    
-   base_t *yTerm = ip_yTerms;
+   base_t *nTerm = ip_nTerms;
    
-   for (uint32_t y=ii_MinY; y<=ii_MaxY; y++)
+   for (uint32_t n=ii_MinN; n<=ii_MaxN; n++)
    {
-      yTerm->base = y;
+      nTerm->base = n;
 
-      for (uint32_t x=ii_MinX; x<=ii_MaxX; x++)
+      for (uint32_t b=ii_MinB; b<=ii_MaxB; b++)
       {
-         bit = BIT(x, y);
+         bit = BIT(b, n);
 
          if (iv_PlusTerms[bit] || iv_MinusTerms[bit])
-            yTerm->powerCount++;
+            nTerm->powerCount++;
       }
 
-      yTerm->powers.resize(yTerm->powerCount);
-      yTerm->residues.resize(ii_MaxX - ii_MinX + 1);
-      yTerm->indexedByPower = true;
+      nTerm->powers.resize(nTerm->powerCount);
+      nTerm->residues.resize(ii_MaxB - ii_MinB + 1);
+      nTerm->indexedByPower = true;
 
-      yTerm->powerCount = 0;
+      nTerm->powerCount = 0;
 
-      for (uint32_t x=ii_MinX; x<=ii_MaxX; x++)
+      for (uint32_t b=ii_MinB; b<=ii_MaxB; b++)
       {
-         bit = BIT(x, y);
+         bit = BIT(b, n);
 
          if (iv_PlusTerms[bit] || iv_MinusTerms[bit])
          {
-            yTerm->powers[yTerm->powerCount] = x;
-            yTerm->powerCount++;
+            nTerm->powers[nTerm->powerCount] = b;
+            nTerm->powerCount++;
          }
       }
       
-      yTerm++;
+      nTerm++;
    }
 
    ip_FactorAppLock->Release();
@@ -632,21 +702,21 @@ void     HyperCullenWoodallApp::FreeGpuGroupsOfTerms(gpugroup_t *gPtr)
 }
    
 // Build terms in groups.  Each group will have:
-//   x1 x1y1 x1y2 ... x1yn 0
-//   x2 x2y1 x2y2 ... x2yn 0
+//   b1 b1n1 b1n2 ... b1yn 0
+//   b2 b2n1 b2n2 ... b2yn 0
 //    ... ... ... ... ...
-//   xm xmy1 xmy2 ... xmyn 0
+//   xm xmn1 xmn2 ... xmyn 0
 //   0
 // Each group of terms for x will end with a 0 indicating that the next term
 // after the 0 is for the next x.  Two 0s in a row indicates end of the group.
 gpugroup_t  *HyperCullenWoodallApp::GetGpuGroupsOfTerms(void)
 {
-   uint32_t    bit, x, y;
-   uint32_t    termsForX = 0;
+   uint32_t    bit, b, n;
+   uint32_t    termsForB = 0;
    gpugroup_t *fgPtr = NULL;
    gpugroup_t *cgPtr = NULL;
    uint32_t    index;
-   uint32_t    distinctXY = 0;
+   uint32_t    distinctBN = 0;
    uint32_t   *terms;
    int         groups = 1;
    
@@ -654,7 +724,7 @@ gpugroup_t  *HyperCullenWoodallApp::GetGpuGroupsOfTerms(void)
 
    index = 0;
 
-   x = ii_MinX;
+   b = ii_MinB;
    
    fgPtr = (gpugroup_t *) xmalloc(1, sizeof(gpugroup_t), "terms");
    fgPtr->terms = (uint32_t *) xmalloc(ii_MaxGpuSteps, sizeof(uint32_t), "steps");
@@ -665,24 +735,24 @@ gpugroup_t  *HyperCullenWoodallApp::GetGpuGroupsOfTerms(void)
    terms = fgPtr->terms;
    do
    {
-      termsForX = 0;
+      termsForB = 0;
       
-      for (y=ii_MinY; y<=ii_MaxY; y++)
+      for (n=ii_MinN; n<=ii_MaxN; n++)
       {
-         bit = BIT(x, y);
+         bit = BIT(b, n);
          
          if (iv_PlusTerms[bit] || iv_MinusTerms[bit])
-            termsForX++;
+            termsForB++;
       }
 
-      if (termsForX == 0)
+      if (termsForB == 0)
          continue;
 
       // If not enough space for all y for this x, then put this x into the next group.
-      if ((termsForX + index) >= (ii_MaxGpuSteps - 2))
+      if ((termsForB + index) >= (ii_MaxGpuSteps - 2))
       {
          if (index == 0)
-            FatalError("-S must be at least %u", termsForX+2);
+            FatalError("-S must be at least %u", termsForB+2);
 
          // Signal that there are no more x for this group
          terms[index] = 0;
@@ -697,31 +767,31 @@ gpugroup_t  *HyperCullenWoodallApp::GetGpuGroupsOfTerms(void)
          groups++;
       }
       
-      terms[index] = x;
+      terms[index] = b;
       index++;
 
-      for (y=ii_MinY; y<=ii_MaxY; y++)
+      for (n=ii_MinN; n<=ii_MaxN; n++)
       {
-         bit = BIT(x, y);
+         bit = BIT(b, n);
          
          if (iv_PlusTerms[bit] || iv_MinusTerms[bit])
          {
-            terms[index] = y;
+            terms[index] = n;
             index++;
-            distinctXY++;
+            distinctBN++;
          }
       }
 
-      // Signal that there are no more y for this x
+      // Signal that there are no more n for this b
       terms[index] = 0;
       index++;
       
-      x++;
-   } while (x <= ii_MaxX);
+      b++;
+   } while (b <= ii_MaxB);
 
    ip_FactorAppLock->Release();
 
-   WriteToConsole(COT_OTHER, "After building GPU groups.  %u groups are needed to hold %u distinct x/y for %llu terms", groups, distinctXY, il_TermCount);
+   WriteToConsole(COT_OTHER, "%u GPU group%s needed to hold %u distinct b/n for %llu terms", groups, (groups > 1 ? "s are" : " is"), distinctBN, il_TermCount);
    return fgPtr;
 }
 #endif

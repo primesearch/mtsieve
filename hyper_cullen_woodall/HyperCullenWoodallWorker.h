@@ -36,19 +36,19 @@ private:
    
    HyperCullenWoodallApp       *ip_HyperCullenWoodallApp;
 
-   uint32_t       ii_MinX;
-   uint32_t       ii_MaxX;
-   uint32_t       ii_MinY;
-   uint32_t       ii_MaxY;
-   uint32_t       ii_XCount;
-   uint32_t       ii_YCount;
+   uint32_t       ii_MinB;
+   uint32_t       ii_MaxB;
+   uint32_t       ii_MinN;
+   uint32_t       ii_MaxN;
+   uint32_t       ii_BCount;
+   uint32_t       ii_NCount;
 
    bool           ib_IsPlus;
    bool           ib_IsMinus;
 
    uint64_t       il_NextTermsBuild;
-   base_t        *ip_xTerms;
-   base_t        *ip_yTerms;
+   base_t        *ip_bTerms;
+   base_t        *ip_nTerms;
 };
 
 #endif

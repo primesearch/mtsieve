@@ -11,8 +11,8 @@
 
 #include "HyperCullenWoodallWorker.h"
 
-#define X_INDEX(x)  ((x) - ii_MinX)
-#define Y_INDEX(y)  ((y) - ii_MinY)
+#define X_INDEX(x)  ((x) - ii_MinB)
+#define Y_INDEX(y)  ((y) - ii_MinN)
 
 #define MAX_POWERS   10
 
@@ -23,13 +23,13 @@ HyperCullenWoodallWorker::HyperCullenWoodallWorker(uint32_t myId, App *theApp) :
    ib_IsPlus = ip_HyperCullenWoodallApp->IsPlus();
    ib_IsMinus = ip_HyperCullenWoodallApp->IsMinus();
    
-   ii_MinX = ip_HyperCullenWoodallApp->GetMinX();
-   ii_MaxX = ip_HyperCullenWoodallApp->GetMaxX();
-   ii_MinY = ip_HyperCullenWoodallApp->GetMinY();
-   ii_MaxY = ip_HyperCullenWoodallApp->GetMaxY();
+   ii_MinB = ip_HyperCullenWoodallApp->GetMinB();
+   ii_MaxB = ip_HyperCullenWoodallApp->GetMaxB();
+   ii_MinN = ip_HyperCullenWoodallApp->GetMinN();
+   ii_MaxN = ip_HyperCullenWoodallApp->GetMaxN();
 
-   ii_XCount = ip_HyperCullenWoodallApp->GetXCount();
-   ii_YCount = ip_HyperCullenWoodallApp->GetYCount();
+   ii_BCount = ip_HyperCullenWoodallApp->GetBCount();
+   ii_NCount = ip_HyperCullenWoodallApp->GetNCount();
    
    il_NextTermsBuild = 0;
   
@@ -44,8 +44,8 @@ void  HyperCullenWoodallWorker::TestMegaPrimeChunk(void)
 {
    uint64_t ps[4];
    uint64_t maxPrime = ip_App->GetMaxPrime();
-   uint32_t idx, x, y;
-   MpResVec xyRes, yxRes;
+   uint32_t idx, b, n;
+   MpResVec bnRes, nbRes;
    
    for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx+=4)
    {
@@ -60,8 +60,8 @@ void  HyperCullenWoodallWorker::TestMegaPrimeChunk(void)
       {
          ip_HyperCullenWoodallApp->BuildTerms();
          
-         ip_xTerms = ip_HyperCullenWoodallApp->GetXTerms();
-         ip_yTerms = ip_HyperCullenWoodallApp->GetYTerms();
+         ip_bTerms = ip_HyperCullenWoodallApp->GetBTerms();
+         ip_nTerms = ip_HyperCullenWoodallApp->GetNTerms();
                
          il_NextTermsBuild = (ps[3] << 2);
       }
@@ -71,40 +71,40 @@ void  HyperCullenWoodallWorker::TestMegaPrimeChunk(void)
       MpResVec   mpPm1 = mp.sub(mp.zero(), mp.one());
       
       // Compute x^y for all x and y
-      ComputeResidues(mp, ip_xTerms, ii_MinY);
+      ComputeResidues(mp, ip_bTerms, ii_MinN);
       
       // Compute y^x for all x and y
-      ComputeResidues(mp, ip_yTerms, ii_MinX);
+      ComputeResidues(mp, ip_nTerms, ii_MinB);
       
-      base_t *xPtr = ip_xTerms;
-      base_t *yPtr;
+      base_t *bPtr = ip_bTerms;
+      base_t *nPtr;
 
-      while (xPtr->base > 0)
+      while (bPtr->base > 0)
       {
-         x = xPtr->base;
+         b = bPtr->base;
          
-         for (idx=0; idx<xPtr->powerCount; idx++)
+         for (idx=0; idx<bPtr->powerCount; idx++)
          {
-            y = xPtr->powers[idx];
-            xyRes = xPtr->residues[idx];
+            n = bPtr->powers[idx];
+            bnRes = bPtr->residues[idx];
             
-            yPtr = &ip_yTerms[y-ii_MinY];
+            nPtr = &ip_nTerms[n-ii_MinN];
 
-            yxRes = yPtr->residues[x-ii_MinX];
+            nbRes = nPtr->residues[b-ii_MinB];
             
-            MpResVec res = mp.mul(xyRes, yxRes);
+            MpResVec res = mp.mul(bnRes, nbRes);
             
             for (size_t k = 0; k < VECTOR_SIZE; ++k)
             {
                if (res[k] == mpOne[k])
-                  ip_HyperCullenWoodallApp->ReportFactor(ps[k], x, y, -1);
+                  ip_HyperCullenWoodallApp->ReportFactor(ps[k], b, n, -1);
                   
                if (res[k] == mpPm1[k]) 
-                  ip_HyperCullenWoodallApp->ReportFactor(ps[k], x, y, +1);
+                  ip_HyperCullenWoodallApp->ReportFactor(ps[k], b, n, +1);
             }
          }
          
-         xPtr++;
+         bPtr++;
       }
 
       SetLargestPrimeTested(ps[3], 4);
