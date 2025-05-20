@@ -3,7 +3,7 @@
       Replaced x86 FPU code with MpArith/MpArithVector.
 
    gcwsieve/gcwsievecl:  1.5.5
-      Fixed non-FPU code in the worker as it was missing factors.
+      Fixed non-FPU code for CPU workers as it was missing factors.
    
    hcwsieve/hcwsievecl: 1.1
       Iniitial release for sieving Hyper-Cullen and Hyper-Woodall primes.
