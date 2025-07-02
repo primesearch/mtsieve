@@ -112,19 +112,19 @@ parse_t HyperCullenWoodallApp::ParseOption(int opt, char *arg, const char *sourc
 
    switch (opt)
    {
-      case 'x':
+      case 'b':
          status = Parser::Parse(arg, 2, 1000000000, ii_MinB);
          break;
 
-      case 'X':
+      case 'B':
          status = Parser::Parse(arg, 2, 1000000000, ii_MaxB);
          break;
 		 
-      case 'y':
+      case 'n':
          status = Parser::Parse(arg, 3, 1000000000, ii_MinN);
          break;
 
-      case 'Y':
+      case 'N':
          status = Parser::Parse(arg, 3, 1000000000, ii_MaxN);
          break;
          
