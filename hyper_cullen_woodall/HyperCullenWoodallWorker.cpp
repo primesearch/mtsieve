@@ -33,6 +33,9 @@ HyperCullenWoodallWorker::HyperCullenWoodallWorker(uint32_t myId, App *theApp) :
    
    il_NextTermsBuild = 0;
   
+	ip_bTerms = NULL;
+	ip_nTerms = NULL;
+  
    ib_Initialized = true;
 }
 
