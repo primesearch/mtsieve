@@ -22,7 +22,7 @@
 #endif
 
 #define APP_NAME        "hcwsieve"
-#define APP_VERSION     "1.1"
+#define APP_VERSION     "1.2"
 
 #define BIT(b, n)       ((((b) - ii_MinB) * GetNCount()) + ((n) - ii_MinN))
 
@@ -46,8 +46,6 @@ HyperCullenWoodallApp::HyperCullenWoodallApp(void) : FactorApp()
    ib_IsPlus = false;
    ib_IsMinus = false;
    SetAppMinPrime(3);
-   ip_bTerms = NULL;
-   ip_nTerms = NULL;
    ib_SplitTerms = false;
    ii_SplitB = 0;
    ii_SplitN = 0;
@@ -76,11 +74,6 @@ void HyperCullenWoodallApp::Help(void)
 
 HyperCullenWoodallApp::~HyperCullenWoodallApp(void)
 {
-    if (ip_bTerms != NULL)
-      delete ip_bTerms;
-   
-    if (ip_nTerms != NULL)
-      delete ip_nTerms;
 }
 
 void  HyperCullenWoodallApp::AddCommandLineOptions(string &shortOpts, struct option *longOpts)
@@ -600,7 +593,7 @@ void  HyperCullenWoodallApp::VerifyFactor(uint64_t theFactor, uint32_t b, uint32
    FatalError("%" PRIu64" does not divide %u^%u*%u^%u%+d", theFactor, b, n, n, b, sign);
 }
 
-void  HyperCullenWoodallApp::BuildTerms(void)
+void  HyperCullenWoodallApp::BuildTerms(base_t **bTermsPtr, base_t **nTermsPtr)
 {
    uint32_t bit;
 
@@ -608,11 +601,12 @@ void  HyperCullenWoodallApp::BuildTerms(void)
    // is significant.  That will be left as a future task for anyone intested in doing it.
    ip_FactorAppLock->Lock();
 
-   if (ip_bTerms == NULL)
-      ip_bTerms = (base_t *) xmalloc(ii_MaxB - ii_MinB + 2, sizeof(base_t) , "bTerms");
-
-   base_t *bTerm = ip_bTerms;
-
+   *bTermsPtr = (base_t *) xmalloc(ii_MaxB - ii_MinB + 2, sizeof(base_t) , "bTerms");
+   *nTermsPtr = (base_t *) xmalloc(ii_MaxN - ii_MinN + 2, sizeof(base_t) , "nTerms");
+   
+   base_t *bTerm = *bTermsPtr;
+   base_t *nTerm = *nTermsPtr;
+   
    for (uint32_t b=ii_MinB; b<=ii_MaxB; b++)
    {      
       bTerm->base = b;
@@ -645,11 +639,6 @@ void  HyperCullenWoodallApp::BuildTerms(void)
 
       bTerm++;
    }
-
-   if (ip_nTerms == NULL)
-      ip_nTerms = (base_t *) xmalloc(ii_MaxN - ii_MinN + 2, sizeof(base_t) , "nTerms");
-   
-   base_t *nTerm = ip_nTerms;
    
    for (uint32_t n=ii_MinN; n<=ii_MaxN; n++)
    {

@@ -38,6 +38,11 @@ HyperCullenWoodallWorker::HyperCullenWoodallWorker(uint32_t myId, App *theApp) :
 
 void  HyperCullenWoodallWorker::CleanUp(void)
 {
+	if (ip_bTerms != NULL)
+	{
+		xfree(ip_bTerms);
+		xfree(ip_nTerms);
+	}
 }
 
 void  HyperCullenWoodallWorker::TestMegaPrimeChunk(void)
@@ -58,10 +63,13 @@ void  HyperCullenWoodallWorker::TestMegaPrimeChunk(void)
       // which will speed up testing for the next range of p.
       if (ps[0] > il_NextTermsBuild)
       {
-         ip_HyperCullenWoodallApp->BuildTerms();
-         
-         ip_bTerms = ip_HyperCullenWoodallApp->GetBTerms();
-         ip_nTerms = ip_HyperCullenWoodallApp->GetNTerms();
+			if (ip_bTerms != NULL)
+			{
+				xfree(ip_bTerms);
+				xfree(ip_nTerms);
+			}
+
+         ip_HyperCullenWoodallApp->BuildTerms(&ip_bTerms, &ip_nTerms);
                
          il_NextTermsBuild = (ps[3] << 2);
       }

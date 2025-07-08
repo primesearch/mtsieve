@@ -52,13 +52,10 @@ public:
    uint32_t          GetBCount(void) { return (ii_MaxB - ii_MinB + 1); };
    uint32_t          GetNCount(void) { return (ii_MaxN - ii_MinN + 1); };
 
-   void              BuildTerms(void);
+   void              BuildTerms(base_t **bTermsPtr, base_t **nTermsPtr);
    
    bool              IsPlus(void) { return ib_IsPlus; };
    bool              IsMinus(void) { return ib_IsMinus; };
-
-   base_t           *GetBTerms(void) { return ip_bTerms; };
-   base_t           *GetNTerms(void) { return ip_nTerms; };
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    void              FreeGpuGroupsOfTerms(gpugroup_t *gPtr);
@@ -99,9 +96,6 @@ private:
    uint32_t          ii_SplitB;
    uint32_t          ii_SplitN;
    uint64_t          il_SplitLargestPrimeTested;
-
-   base_t           *ip_bTerms;
-   base_t           *ip_nTerms;
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
    uint32_t          ii_MaxGpuSteps;
