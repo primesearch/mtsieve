@@ -269,7 +269,7 @@ void  HyperCullenWoodallApp::SetInitialTerms(void)
    {
       for (n=ii_MinN; n<=ii_MaxN; n++)
       {
-         boolean includeMinus = true;
+         bool includeMinus = true;
 
          if (n <= b)
          {
