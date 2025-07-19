@@ -718,6 +718,8 @@ void  App::CreateWorkers(uint64_t largestPrimeTested)
    
    ip_Workers[0] = NULL;
    
+   largestPrimeTested--;
+   
    if (ii_CpuWorkerCount == 0 && largestPrimeTested < il_MinGpuPrime)
    {
       // Worker "0" is only created if all of the following conditions are met:

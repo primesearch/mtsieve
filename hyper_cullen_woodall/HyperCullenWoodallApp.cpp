@@ -22,7 +22,7 @@
 #endif
 
 #define APP_NAME        "hcwsieve"
-#define APP_VERSION     "1.2"
+#define APP_VERSION     "1.3"
 
 #define BIT(b, n)       ((((b) - ii_MinB) * GetNCount()) + ((n) - ii_MinN))
 
@@ -621,8 +621,8 @@ void  HyperCullenWoodallApp::BuildTerms(base_t **bTermsPtr, base_t **nTermsPtr)
             bTerm->powerCount++;
       }
 
-      bTerm->powers.resize(bTerm->powerCount);
-      bTerm->residues.resize(bTerm->powerCount);
+      bTerm->powers.resize(bTerm->powerCount + 1);
+      bTerm->residues.resize(bTerm->powerCount + 1);
       
       bTerm->powerCount = 0;
 
@@ -637,22 +637,14 @@ void  HyperCullenWoodallApp::BuildTerms(base_t **bTermsPtr, base_t **nTermsPtr)
          }
       }
 
-      bTerm++;
+      if (bTerm->powerCount > 0)
+         bTerm++;
    }
    
    for (uint32_t n=ii_MinN; n<=ii_MaxN; n++)
    {
       nTerm->base = n;
-
-      for (uint32_t b=ii_MinB; b<=ii_MaxB; b++)
-      {
-         bit = BIT(b, n);
-
-         if (iv_PlusTerms[bit] || iv_MinusTerms[bit])
-            nTerm->powerCount++;
-      }
-
-      nTerm->powers.resize(nTerm->powerCount);
+      nTerm->powers.resize(ii_MaxB - ii_MinB + 1);
       nTerm->residues.resize(ii_MaxB - ii_MinB + 1);
       nTerm->indexedByPower = true;
 
@@ -735,7 +727,10 @@ gpugroup_t  *HyperCullenWoodallApp::GetGpuGroupsOfTerms(void)
       }
 
       if (termsForB == 0)
+      {
+         b++;
          continue;
+      }
 
       // If not enough space for all y for this x, then put this x into the next group.
       if ((termsForB + index) >= (ii_MaxGpuSteps - 2))

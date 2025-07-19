@@ -70,26 +70,31 @@ void  HyperCullenWoodallWorker::TestMegaPrimeChunk(void)
 			{
 				xfree(ip_bTerms);
 				xfree(ip_nTerms);
+            
+            ip_bTerms = NULL;
+            ip_nTerms = NULL;
 			}
 
          ip_HyperCullenWoodallApp->BuildTerms(&ip_bTerms, &ip_nTerms);
-               
+
+         printf("end building %llu\n", ps[3]);
+         
          il_NextTermsBuild = (ps[3] << 2);
       }
       
       MpArithVec mp(ps);
       MpResVec   mpOne = mp.one();
       MpResVec   mpPm1 = mp.sub(mp.zero(), mp.one());
-      
+            
       // Compute x^y for all x and y
       ComputeResidues(mp, ip_bTerms, ii_MinN);
       
       // Compute y^x for all x and y
       ComputeResidues(mp, ip_nTerms, ii_MinB);
-      
+            
       base_t *bPtr = ip_bTerms;
       base_t *nPtr;
-
+      
       while (bPtr->base > 0)
       {
          b = bPtr->base;
@@ -135,6 +140,12 @@ void  HyperCullenWoodallWorker::ComputeResidues(MpArithVec mp, base_t *terms, ui
    
    while (bPtr->base > 0)
    {
+      if (bPtr->powerCount == 0)
+      {
+         bPtr++;
+         continue;
+      }
+
       mpBase = mp.nToRes(bPtr->base);
       
       mpPowers[0] = mp.one();
