@@ -77,8 +77,6 @@ void  HyperCullenWoodallWorker::TestMegaPrimeChunk(void)
 
          ip_HyperCullenWoodallApp->BuildTerms(&ip_bTerms, &ip_nTerms);
 
-         printf("end building %llu\n", ps[3]);
-         
          il_NextTermsBuild = (ps[3] << 2);
       }
       
