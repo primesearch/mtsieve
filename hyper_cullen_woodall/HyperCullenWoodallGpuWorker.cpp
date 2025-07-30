@@ -99,7 +99,7 @@ void  HyperCullenWoodallGpuWorker::TestMegaPrimeChunk(void)
    {
       if (ip_HyperCullenWoodallApp->IsInterrupted() && time(NULL) > reportTime)
       {
-         ip_HyperCullenWoodallApp->WriteToConsole(COT_SIEVE, "Thread %d has completed %d pf %d iterations", ii_MyId, group, groups);
+         ip_HyperCullenWoodallApp->WriteToConsole(COT_SIEVE, "Thread %d has completed %d of %d iterations", ii_MyId, group, groups);
          reportTime = time(NULL) + 60;
       }
             
