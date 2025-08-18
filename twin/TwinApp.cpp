@@ -16,7 +16,7 @@
 #include "TwinWorker.h"
 
 #define APP_NAME        "twinsieve"
-#define APP_VERSION     "1.6.4"
+#define APP_VERSION     "1.6.5"
 
 #define NMAX_MAX        (1 << 31)
 #define BMAX_MAX        (1 << 31)
@@ -367,6 +367,8 @@ void TwinApp::ValidateOptions(void)
       is_OutputTermsFileName = fileName;
    }
 
+   if (ib_HalfK)
+      SetAppMinPrime(3);
 
    FactorApp::ParentValidateOptions();
 
@@ -909,7 +911,6 @@ void  TwinApp::ReportFactor(uint64_t theFactor, uint64_t k, int32_t c)
          return;
    }
    
-      
    // If the first term is valid, then the rest are valid.  In other words 
    // k*x (mod p) = (k+p)*x (mod p) = ... = (k+n*p)*x (mod p)
    VerifyFactor(theFactor, k, c);
