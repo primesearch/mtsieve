@@ -348,7 +348,7 @@ void TwinApp::ValidateOptions(void)
          
    if (is_OutputTermsFileName.length() == 0)
    {
-      char  fileName[30];
+      char  fileName[50];
       
       if (it_TermType == TT_BN)
       {
