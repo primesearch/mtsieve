@@ -110,11 +110,11 @@ parse_t DMDivisorApp::ParseOption(int opt, char *arg, const char *source)
    switch (opt)
    {
       case 'k':
-         status = Parser::Parse(arg, 5, KMAX_MAX, il_MinK);
+         status = Parser::Parse(arg, 4, KMAX_MAX, il_MinK);
          break;
 
       case 'K':
-         status = Parser::Parse(arg, 5, KMAX_MAX, il_MaxK);
+         status = Parser::Parse(arg, 4, KMAX_MAX, il_MaxK);
          break;
 
       case 'n':
@@ -515,7 +515,7 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
          termsCounted++;
       }
  
-      if (iv_MMPTerms1[BIT1(k)])
+      if (iv_MMPTerms1[BIT1(k+1)])
       {
          fprintf(termsFile, "%" PRIu64"\n", k+1);
          termsCounted++;
