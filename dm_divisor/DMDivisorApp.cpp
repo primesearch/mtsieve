@@ -20,7 +20,7 @@
 #include "../x86_asm_ext/asm-ext-x86.h"
 
 #define APP_NAME        "dmdsieve"
-#define APP_VERSION     "1.4"
+#define APP_VERSION     "1.4.1"
 
 #define BIT0(k)         (((k) - il_MinK) / 4)
 #define BIT1(k)         (((k-1) - il_MinK) / 4)
