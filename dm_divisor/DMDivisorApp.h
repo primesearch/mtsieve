@@ -34,6 +34,7 @@ public:
    uint64_t          GetMinK(void) { return il_MinK; };
    uint64_t          GetMaxK(void) { return il_MaxK; };
    uint32_t          GetN(void) { return ii_N; };
+   uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
    
    bool              ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFactor);
 
@@ -68,6 +69,7 @@ private:
    
    bool              ib_TestTerms;
    uint64_t          il_RangeOfKPerChunk;
+   uint32_t          ii_MaxGpuFactors;
    
    uint64_t          il_MinKOriginal;
    uint64_t          il_MaxKOriginal;

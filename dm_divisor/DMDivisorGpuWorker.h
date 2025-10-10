@@ -1,4 +1,4 @@
-/* DMDivisorWorker.h -- (C) Mark Rodenkirch, September 2018
+/* DMDivisorWorker.h -- (C) Mark Rodenkirch, October 2025
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6,20 +6,20 @@
    (at your option) any later version.
 */
 
-#ifndef _DMDivisorWorker_H
-#define _DMDivisorWorker_H
+#ifndef _DMDivisorGpuWorker_H
+#define _DMDivisorGpuWorker_H
 
 #include "DMDivisorApp.h"
 #include "../core/Worker.h"
 
-using namespace std;
+#include "../core/GpuKernel.h"
 
-class DMDivisorWorker : public Worker
+class DMDivisorGpuWorker : public Worker
 {
 public:
-   DMDivisorWorker(uint32_t myId, App *theApp);
+   DMDivisorGpuWorker(uint32_t myId, App *theApp);
 
-   ~DMDivisorWorker(void) {};
+   ~DMDivisorGpuWorker(void) {};
 
    void              TestMegaPrimeChunk(void);
    void              TestMiniPrimeChunk(uint64_t *miniPrimeChunk);
@@ -29,13 +29,17 @@ protected:
    void              NotifyPrimeListAllocated(uint32_t primesInList) {}
 
 private:
-   void              RemoveTermsSmallPrime(uint64_t prime, uint64_t k);
-   
    DMDivisorApp     *ip_DMDivisorApp;
       
+   GpuKernel        *ip_Kernel;
+   
    uint64_t          il_MinK;
    uint64_t          il_MaxK;
    uint32_t          ii_N;
+   uint32_t          ii_MaxGpuFactors;
+   
+   uint32_t         *ii_FactorCount;
+   uint64_t         *il_FactorList;
 };
 
 #endif

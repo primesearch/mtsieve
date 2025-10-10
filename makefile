@@ -88,12 +88,12 @@ CPU_PROGS=afsieve ccsieve cksieve dmdsieve fbncsieve fkbnsieve gcwsieve gfndsiev
    mfsieve pixsieve psieve sgsieve smsieve smwsieve srsieve2 twinsieve xyyxsieve
 else
 # no non-x86 builds for afsieve, gfndsieve, pixsieve, and xyyxsieve
-CPU_PROGS=ccsieve cksieve dmdsieve fbncsieve fbncsieve fkbnsieve gcwsieve hcwsievek1b2sieve kbbsieve lifsieve \
+CPU_PROGS=ccsieve cksieve fbncsieve fbncsieve fkbnsieve gcwsieve hcwsievek1b2sieve kbbsieve lifsieve \
    mfsieve psieve sgsieve smsieve smwsieve srsieve2 twinsieve
 endif
 
 ifeq ($(strip $(HAS_X86)),yes)
-OPENCL_PROGS=afsievecl cksievecl gcwsievecl gfndsievecl hcwsievecl lifsievecl mfsievecl pixsievecl smsievecl smwsievecl srsieve2cl xyyxsievecl psievecl
+OPENCL_PROGS=afsievecl cksievecl dmdsievecl gcwsievecl gfndsievecl hcwsievecl lifsievecl mfsievecl pixsievecl smsievecl smwsievecl srsieve2cl xyyxsievecl psievecl
 else
 OPENCL_PROGS=cksievecl cwsievecl gcwsievecl gfndsievecl hcwsievecl lifsievecl mfsievecl smsievecl smwsievecl srsieve2cl psievecl
 endif
@@ -163,6 +163,7 @@ XYYX_OBJS=xyyx/XYYXApp_cpu.o xyyx/XYYXWorker_cpu.o xyyx/XYYXSparseWorker_cpu.o
 
 AF_OPENCL_OBJS=alternating_factorial/AlternatingFactorialApp_opencl.o alternating_factorial/AlternatingFactorialWorker_opencl.o alternating_factorial/afsieve.o alternating_factorial/AlternatingFactorialGpuWorker_opencl.o
 CK_OPENCL_OBJS=carol_kynea/CarolKyneaApp_opencl.o carol_kynea/CarolKyneaWorker_opencl.o carol_kynea/CarolKyneaGpuWorker_opencl.o
+DM_OPENCL_OBJS=dm_divisor/DMDivisorApp_opencl.o dm_divisor/DMDivisorWorker_opencl.o dm_divisor/DMDivisorGpuWorker_opencl.o
 GCW_OPENCL_OBJS=cullen_woodall/CullenWoodallApp_opencl.o cullen_woodall/CullenWoodallWorker_opencl.o cullen_woodall/CullenWoodallGpuWorker_opencl.o
 GFND_OPENCL_OBJS=gfn_divisor/GFNDivisorApp_opencl.o gfn_divisor/GFNDivisorTester_opencl.o gfn_divisor/GFNDivisorWorker_opencl.o gfn_divisor/GFNDivisorGpuWorker_opencl.o
 HCW_OPENCL_OBJS=hyper_cullen_woodall/HyperCullenWoodallApp_opencl.o hyper_cullen_woodall/HyperCullenWoodallWorker_opencl.o hyper_cullen_woodall/HyperCullenWoodallGpuWorker_opencl.o
@@ -182,6 +183,7 @@ SR2_OPENCL_OBJS=sierpinski_riesel/SierpinskiRieselApp_opencl.o sierpinski_riesel
 XYYX_OPENCL_OBJS=xyyx/XYYXApp_opencl.o xyyx/XYYXWorker_opencl.o xyyx/XYYXGpuWorker_opencl.o xyyx/XYYXSparseWorker_opencl.o xyyx/XYYXSparseGpuWorker_opencl.o
 
 CK_METAL_OBJS=carol_kynea/CarolKyneaApp_metal.o carol_kynea/CarolKyneaWorker_metal.o carol_kynea/CarolKyneaGpuWorker_metal.o
+DM_METAL_OBJS=dm_divisor/DMDivisorApp_metal.o dm_divisor/DMDivisorWorker_metal.o dm_divisor/DMDivisorGpuWorker_metal.o
 GCW_METAL_OBJS=cullen_woodall/CullenWoodallApp_metal.o cullen_woodall/CullenWoodallWorker_metal.o cullen_woodall/CullenWoodallGpuWorker_metal.o
 HCW_METAL_OBJS=hyper_cullen_woodall/HyperCullenWoodallApp_gpu.o hyper_cullen_woodall/HyperCullenWoodallWorker_metal.o \
    hyper_cullen_woodall/HyperCullenWoodallSparseWorker_metal.o hyper_cullen_woodall/HyperCullenWoodallGpuWorker_metal.o hyper_cullen_woodall/HyperCullenWoodallSparseGpuWorker_metal.o
@@ -199,15 +201,15 @@ SR2_METAL_OBJS=sierpinski_riesel/SierpinskiRieselApp_metal.o sierpinski_riesel/A
    sierpinski_riesel/CisOneWithMultipleSequencesGpuWorker_metal.o
 XYYX_METAL_OBJS=xyyx/XYYXApp_metal.o xyyx/XYYXWorker_metal.o xyyx/XYYXGpuWorker_metal.o xyyx/XYYXSparseWorker_metal.o xyyx/XYYXSparseGpuWorker_metal.o
 
-AIR_LIBS=alternating_factorial/af_kernel.air cullen_woodall/cw_kernel.air gfn_divisor/gfn_kernel.air \
+AIR_LIBS=alternating_factorial/af_kernel.air cullen_woodall/cw_kernel.air dm_divisor/dm_divisor.air gfn_divisor/gfn_kernel.air \
    multi_factorial/mf_kernel.air primes_in_x/pix_kernel.air primorial/primorial_kernel.air \
    sierpinski_riesel/cisonesingle_kernel.air sierpinski_riesel/generic_kernel.air \
    smarandache/sm_kernel.air smarandache_wellin/smw_kernel.air xyyx/xyyx_kernel.air
-METAL_LIBS=alternating_factorial/af_kernel.metallib cullen_woodall/cw_kernel.metallib gfn_divisor/gfn_kernel.metallib \
-   multi_factorial/mf_kernel.metallib primes_in_x/pix_kernel.metallib primorial/primorial_kernel.metallib \
-   sierpinski_riesel/cisonesingle_kernel.metallib sierpinski_riesel/generic_kernel.metallib \
-   smarandache/sm_kernel.metallib smarandache_wellin/smw_kernel.metallib xyyx/xyyx_kernel.metallib lifchitz/lifchitz_kernel.metallib
-GPU_HEADERS=alternating_factorial/af_kernel.gpu.h cullen_woodall/cw_kernel.gpu.h gfn_divisor/gfn_kernel.gpu.h \
+METAL_LIBS=alternating_factorial/af_kernel.metallib cullen_woodall/cw_kernel.metallib dm_divisor/dm_divisor.metallib \
+   gfn_divisor/gfn_kernel.metallib multi_factorial/mf_kernel.metallib primes_in_x/pix_kernel.metallib \
+   primorial/primorial_kernel.metallib sierpinski_riesel/cisonesingle_kernel.metallib sierpinski_riesel/generic_kernel.metallib \
+   smarandache/sm_kernel.metallib smarandache_wellin/smw_kernel.metallib xyyx/xyyx_kernel.metallib lifchitz/lifchitz_kernel.metallib 
+GPU_HEADERS=alternating_factorial/af_kernel.gpu.h cullen_woodall/cw_kernel.gpu.h dm_divisor/dm_kernel.gpu.h gfn_divisor/gfn_kernel.gpu.h \
    multi_factorial/mf_kernel.gpu.h primes_in_x/pix_kernel.gpu.h primorial/primorial_kernel.gpu.h \
    sierpinski_riesel/cisonesingle_kernel.gpu.h sierpinski_riesel/generic_kernel.gpu.h \
    smarandache/sm_kernel.gpu.h smarandache_wellin/smw_kernel.gpu.h xyyx/xyyx_kernel.gpu.h lifchitz/lifchitz_kernel.gpu.h
@@ -218,7 +220,7 @@ ALL_OBJS=$(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(CPU_CORE_OBJS) $(OPENC
    $(PIX_OBJS) $(XYYX_OBJS) $(KBB_OBJS) $(GCW_OBJS) $(PRIM_OBJS) $(TWIN_OBJS) \
    $(DMD_OBJS) $(SR2_OBJS) $(K1B2_OBJS) $(SG_OBJS) $(PRIM_OPENCL_OBJS) $(LIF_OBJS) \
    $(LIF_OPENCL_OBJS) $(LIF_METAL_OBJS) $(SM_OBJS) $(SMW_OBJS) \
-   $(HCW_OBJS) $(HCW_OPENCL_OBJS) $(HCW_METAL_OBJS) \
+   $(HCW_OBJS) $(HCW_OPENCL_OBJS) $(HCW_METAL_OBJS) $(DM_METAL_OBJS) $(DM_OPENCL_OBJS) \
    $(AF_OPENCL_OBJS) $(GCW_OPENCL_OBJS) $(GFND_OPENCL_OBJS) $(MF_OPENCL_OBJS) $(PIX_OPENCL_OBJS) \
    $(XYYX_OPENCL_OBJS) $(SR2_OPENCL_OBJS) $(PRIM_METAL_OBJS) $(SM_OPENCL_OBJS) \
    $(CW_METAL_OBJS) $(MF_METAL_OBJS) $(SR2_METAL_OBJS) $(CK_OPENCL_OBJS)
@@ -291,6 +293,7 @@ ifeq ($(strip $(HAS_METAL)),yes)
 alternating_factorial/AlternatingFactorialGpuWorker_metal.o: alternating_factorial/af_kernel.gpu.h alternating_factorial/af_kernel.metallib
 carol_kynea/CarolKynealGpuWorker_metal.o: carol_kynea/ck_kernel.gpu.h carol_kynea/ck_kernel.metallib
 cullen_woodall/CullenWoodallGpuWorker_metal.o: cullen_woodall/cw_kernel.gpu.h cullen_woodall/cw_kernel.metallib
+dm_divisor/DMDivisorGpuWorker_metal.o: dm_divisor/dm_kernel.gpu.h dm_divisor/dm_kernel.metallib
 gfn_divisor/GFNDivisorGpuWorker_metal.o: gfn_divisor/gfn_kernel.gpu.h gfn_divisor/gfn_kernel.metallib
 hyper_cullen_woodall/HyperCullenWoodallGpuWorker_metal.o: hyper_cullen_woodall/hcw_kernel.gpu.h hyper_cullen_woodall/hcw_kernel.metallib
 lifchitz/LitchitzGpuWorker_metal.o: lifchitz/lifchitz_kernel.gpu.h lifchitz/lifchitz_kernel.metallib
@@ -308,6 +311,7 @@ endif
 alternating_factorial/AlternatingFactorialGpuWorker_opencl.o: alternating_factorial/af_kernel.gpu.h
 carol_kynea/CarolKyneaGpuWorker_opencl.o: carol_kynea/ck_kernel.gpu.h
 cullen_woodall/CullenWoodallGpuWorker_opencl.o: cullen_woodall/cw_kernel.gpu.h
+dm_divisor/DMDivisorGpuWorker_opencl.o: dm_divisor/dm_kernel.gpu.h
 gfn_divisor/GFNDivisorGpuWorker_opencl.o: gfn_divisor/gfn_kernel.gpu.h
 hyper_cullen_woodall/HyperCullenWoodallGpuWorker_opencl.o: hyper_cullen_woodall/hcw_kernel.gpu.h
 lifchitz/LifchitzGpuWorker_opencl.o: lifchitz/lifchitz_kernel.gpu.h
@@ -337,10 +341,16 @@ cksievecl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(CK_OPENCL_OBJS)
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_OPENCL) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS_OPENCL) $(LD_FLAGS)
 
 cksievemtl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(CK_METAL_OBJS)
-	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_OPENMTL) $(LD_FLAGS_OPENMTL) -o $@ $^ $(LD_FLAGS_OPENMTL) $(LD_FLAGS)
+	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_METAL) $(LD_FLAGS_METAL) -o $@ $^ $(LD_FLAGS_METAL) $(LD_FLAGS)
    
 dmdsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(DMD_OBJS)
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS_GMP) $(LD_FLAGS)
+
+dmdsievecl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(DM_OPENCL_OBJS)
+	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_OPENCL) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS_OPENCL) $(LD_FLAGS_GMP) $(LD_FLAGS)
+   
+dmdsievemtl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(DM_METAL_OBJS)
+	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_METAL) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS_OPENCL) $(LD_FLAGS_GMP) $(LD_FLAGS)
    
 fbncsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(FBNC_OBJS)
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS)
@@ -355,7 +365,7 @@ gcwsievecl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(GCW_OPENCL_OBJS
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_OPENCL) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS_OPENCL) $(LD_FLAGS)
 
 gcwsievemtl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(GCW_METAL_OBJS)
-	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_OPENMTL) $(LD_FLAGS_OPENMTL) -o $@ $^ $(LD_FLAGS_OPENMTL) $(LD_FLAGS)
+	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_METAL) $(LD_FLAGS_METAL) -o $@ $^ $(LD_FLAGS_METAL) $(LD_FLAGS)
    
 gfndsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(GFND_OBJS)
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(LD_FLAGS_STDC) -o $@ $^  $(LD_FLAGS_GMP) $(LD_FLAGS)

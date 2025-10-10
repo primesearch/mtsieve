@@ -87,10 +87,10 @@ void  DMDivisorWorker::TestMegaPrimeChunk(void)
       }
       else
       {
-         if (k1 <= il_MaxK && k1 % 4 < 2) RemoveTermsBigPrime(ps[0], k1);
-         if (k2 <= il_MaxK && k1 % 4 < 2) RemoveTermsBigPrime(ps[1], k2);
-         if (k3 <= il_MaxK && k1 % 4 < 2) RemoveTermsBigPrime(ps[2], k3);
-         if (k4 <= il_MaxK && k1 % 4 < 2) RemoveTermsBigPrime(ps[3], k4);
+         if (k1 >= il_MinK && k1 <= il_MaxK && k1 % 4 < 2) ip_DMDivisorApp->ReportFactor(prime, k1, true)
+         if (k2 >= il_MinK && k2 <= il_MaxK && k2 % 4 < 2) ip_DMDivisorApp->ReportFactor(prime, k2, true)
+         if (k3 >= il_MinK && k3 <= il_MaxK && k3 % 4 < 2) ip_DMDivisorApp->ReportFactor(prime, k3, true)
+         if (k4 >= il_MinK && k4 <= il_MaxK && k4 % 4 < 2) ip_DMDivisorApp->ReportFactor(prime, k4, true)
       }
 
       SetLargestPrimeTested(ps[3], 4);
@@ -137,14 +137,4 @@ void    DMDivisorWorker::RemoveTermsSmallPrime(uint64_t prime, uint64_t k)
       
 		k += prime; 
 	} while (k <= il_MaxK);
-}
-
-// Using this bypasses a number of if checks that can be done when prime > il_MaxK.
-void    DMDivisorWorker::RemoveTermsBigPrime(uint64_t prime, uint64_t k)
-{         
-   // Make sure that k >= il_MinK
-   if (k < il_MinK)
-      return;
-   
-   ip_DMDivisorApp->ReportFactor(prime, k, true);
 }

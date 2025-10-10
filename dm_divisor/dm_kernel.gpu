@@ -1,0 +1,271 @@
+/* dm_kernel.cl -- (C) Mark Rodenkirch, October 2025
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 3 of the License, or
+   (at your option) any later version.
+ */
+
+#if !defined(USE_OPENCL) && !defined(USE_METAL)
+#define MEED_METALLIB
+#endif
+
+
+#ifdef USE_METAL
+#include <metal_stdlib>
+#include <metal_atomic>
+using namespace metal;
+#endif
+
+// If we have to generate a metallib (which is only done to verify that the code below
+// compiles, then add these #defines.  If not generating a metallib, then the
+// code that includes this file will prepend the #defines that the kernel uses.
+#ifdef MEED_METALLIB
+#define THE_N                 1000
+#define K_MIN                 1000
+#define K_MAX                 2000
+#define D_MAX_FACTORS         1000
+#endif
+
+#if defined(USE_OPENCL)
+#pragma OPENCL EXTENSION cl_khr_int64_extended_atomics: enable
+#define MUL_HI          mul_hi
+void  collectFactor(ulong   k,
+                    ulong   p, 
+  volatile __global uint   *factorCount,
+           __global ulong2 *factors);
+
+#else
+#define MUL_HI          mulhi
+void  collectFactor(ulong       k,
+                    ulong       p, 
+    volatile device atomic_int *factorCount,
+             device ulong2     *factors);
+#endif
+
+ulong invmod(ulong a, ulong p);
+
+ulong mmmInvert(ulong _p);
+ulong mmmOne(ulong _p);
+ulong mmmR2(ulong _p, ulong _q, ulong _one);
+ulong mmmAdd(ulong a, ulong b, ulong _p);
+ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q);
+ulong mmmNtoRes(ulong n, ulong _p, ulong _q, ulong _r2);
+ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one, ulong _r2);
+ulong mmmResToN(ulong res, ulong _p, ulong _q);
+
+// Note that primes[gid] > K_MAX is a requirement when using these kernels
+
+
+#if defined(USE_OPENCL)
+__kernel void dm_kernel(__global const ulong  *primes,
+               volatile __global       uint   *factorCount,
+                        __global       ulong2 *factors)
+#else
+kernel void dm_kernel(device const ulong  *primes,
+             volatile device       uint   *factorCount,
+                      device       ulong2 *factors,
+                                   uint    tpid [[thread_position_in_grid]])
+#endif
+{
+   int    gid = get_global_id(0);
+   ulong  thePrime = primes[gid];
+
+   ulong _q = mmmInvert(thePrime);
+   ulong _one = mmmOne(thePrime);
+   ulong _two = mmmAdd(_one, _one, thePrime);
+   ulong _r2 = mmmR2(thePrime, _q, _one);
+   
+   // Compute 2^THE_N-1 (mod p)
+   ulong mpRem = mmmPowmod(_two, THE_N, thePrime, _q, _one, _r2);
+   
+   ulong rem = mmmResToN(mpRem, thePrime, _q);
+   
+   // Compute the inverse of b (mod p)
+   // We are looking for k such that 2*k*bs+1 (mod p) = 0
+   ulong k = invmod(rem-1, thePrime);
+
+   // 2*k*bs+1 = 0 (mod p) --> 2*k = -invbs (mod p)
+   
+   // Now ensure that invbs is positive
+   k = thePrime - k;
+   
+   // We need invbs to be even so that we can divide by 2
+   if (k & 1)
+      k += thePrime;
+   
+   k >>= 1;
+   
+   // We have now solved for k, but only consider where k%4 < 2
+   if (k >= K_MIN && k <= K_MAX && k%4 < 2) collectFactor(k, thePrime, factorCount, factors);
+}
+
+ulong  invmod(ulong a, ulong p)
+{
+   ulong ps1, ps2, q, r, t, dividend, divisor;
+   uint parity;
+
+   if (a < 3)
+      return (a < 2) ? a : (p+1)/2;
+
+   q = p / a;
+   r = p % a;
+
+   dividend = a;
+   divisor = r;
+   ps1 = q;
+   ps2 = 1;
+   parity = 0;
+
+   while (divisor > 1)
+   {
+      r = dividend - divisor;
+      t = r - divisor;
+      if (r >= divisor) {
+         q += ps1; r = t; t -= divisor;
+         if (r >= divisor) {
+            q += ps1; r = t; t -= divisor;
+            if (r >= divisor) {
+               q += ps1; r = t; t -= divisor;
+               if (r >= divisor) {
+                  q += ps1; r = t; t -= divisor;
+                  if (r >= divisor) {
+                     q += ps1; r = t; t -= divisor;
+                     if (r >= divisor) {
+                        q += ps1; r = t; t -= divisor;
+                        if (r >= divisor) {
+                           q += ps1; r = t; t -= divisor;
+                           if (r >= divisor) {
+                              q += ps1; r = t;
+                              if (r >= divisor) {
+                                 q = dividend / divisor;
+                                 r = dividend % divisor;
+                                 q *= ps1;
+                              } } } } } } } } }
+      q += ps2;
+      parity = ~parity;
+      dividend = divisor;
+      divisor = r;
+      ps2 = ps1;
+      ps1 = q;
+   }
+
+   return (parity) ? ps1 : p - ps1;
+}
+
+ulong mmmInvert(ulong _p)
+{
+   ulong p_inv = 1;
+   ulong prev = 0;
+
+   while (p_inv != prev)
+   {
+      prev = p_inv;
+      p_inv *= (2 - _p * p_inv);
+   }
+
+   return p_inv;
+}
+
+// Compute the residual of 1 (mod p)
+ulong mmmOne(ulong _p)
+{
+   return ((-_p) % _p);
+}
+
+// Compute the residual of 2^64 (mod p)
+ulong mmmR2(ulong _p, ulong _q, ulong _one)
+{
+	ulong t = mmmAdd(_one, _one, _p);
+   
+   t = mmmAdd(t, t, _p);   // 4
+	for (size_t i=0; i<5; i++)
+      t = mmmMulmod(t, t, _p, _q);   // 4^{2^5} = 2^64
+      
+	return t;
+}
+
+ulong mmmAdd(ulong a, ulong b, ulong _p)
+{
+   ulong c = (a >= _p - b) ? _p : 0;
+   return a + b - c;
+}
+
+ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q)
+{
+   ulong lo = a * b;
+   ulong hi = MUL_HI(a, b);
+   
+   ulong m = lo * _q;
+   
+   ulong hi2 = MUL_HI(m, _p);
+   long r = (long) hi - (long) hi2;
+
+   if (r < 0)
+      return (ulong) (r + _p);
+      
+   return (ulong) r;
+}
+
+// Compute the residual of n (mod p)
+ulong mmmNtoRes(ulong n, ulong _p, ulong _q, ulong _r2)
+{
+   return mmmMulmod(n, _r2, _p, _q);
+}
+
+// Convert a residual back to n
+ulong mmmResToN(ulong res, ulong _p, ulong _q)
+{
+   return mmmMulmod(res, 1, _p, _q);
+}
+
+// Compute the residual of b ^ n (mod p)
+ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one, ulong _r2)
+{
+   ulong x = resB;
+   ulong y = _one;
+
+   while (true)
+   {
+      if (exp & 1)
+         y = mmmMulmod(x, y, _p, _q);
+
+      exp >>= 1;
+
+      if (!exp)
+         return y;
+
+      x = mmmMulmod(x, x, _p, _q);
+   }
+
+   // Should never get here
+   return 0;
+}
+
+#if defined(USE_OPENCL)
+void  collectFactor(ulong   k,
+                    ulong   p, 
+  volatile __global uint   *factorCount,
+           __global ulong2 *factors)
+
+#else
+void  collectFactor(ulong       k,
+                    ulong       p, 
+    volatile device atomic_int *factorCount,
+             device ulong2     *factors)
+#endif
+{
+#if defined(USE_OPENCL)
+   int old = atomic_inc(factorCount);
+#else
+   int old = atomic_fetch_add_explicit(factorCount, 1, memory_order_relaxed);
+#endif
+
+   // If we reach the end, stop adding to the buffer.  The CPU code will end
+   // with an error as the buffer is not large enough to capture all factors.
+   if (old >= D_MAX_FACTORS)
+      return;
+
+   factors[old].x = k;
+   factors[old].y = p;
+}

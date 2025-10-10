@@ -14,13 +14,20 @@
 #include "../core/inline.h"
 #include "../core/Parser.h"
 #include "../core/Clock.h"
+#include "../core/MpArith.h"
 #include "DMDivisorApp.h"
 #include "DMDivisorWorker.h"
-#include "../x86_asm/fpu-asm-x86.h"
+#include "DMDivisorWorker.h"
 #include "../x86_asm_ext/asm-ext-x86.h"
 
+#if defined(USE_OPENCL) || defined(USE_METAL)
+#include "DMDivisorGpuWorker.h"
+#define APP_NAME        "dmdsievecl"
+#else
 #define APP_NAME        "dmdsieve"
-#define APP_VERSION     "1.4.1"
+#endif
+
+#define APP_VERSION     "1.5"
 
 #define BIT0(k)         (((k) - il_MinK) / 4)
 #define BIT1(k)         (((k-1) - il_MinK) / 4)
@@ -74,6 +81,10 @@ DMDivisorApp::DMDivisorApp() : FactorApp()
    
    iv_MMPTerms0.clear();
    iv_MMPTerms1.clear();
+
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   ii_MaxGpuFactors = GetGpuWorkGroups() * 1000;
+#endif
 }
 
 void DMDivisorApp::Help(void)
@@ -85,6 +96,10 @@ void DMDivisorApp::Help(void)
    printf("-n --exp=n            Exponent to search\n");
    printf("-x --testterms        test remaining terms for DM divisibility\n");
    printf("-X --kperchunk=X      when using -x, number of k to sieve at a time (default 1e10)\n");
+   
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   printf("-M --maxfactors=M        max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
+#endif
 }
 
 void  DMDivisorApp::AddCommandLineOptions(std::string &shortOpts, struct option *longOpts)
@@ -98,6 +113,12 @@ void  DMDivisorApp::AddCommandLineOptions(std::string &shortOpts, struct option 
    AppendLongOpt(longOpts, "exp",               required_argument, 0, 'n');
    AppendLongOpt(longOpts, "testterms",         no_argument,       0, 'x');
    AppendLongOpt(longOpts, "termsperchunk",     required_argument, 0, 'X');
+   
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   shortOpts += "M:";
+   
+   AppendLongOpt(longOpts, "maxfactors",        required_argument, 0, 'M');
+#endif
 }
 
 parse_t DMDivisorApp::ParseOption(int opt, char *arg, const char *source)
@@ -129,6 +150,12 @@ parse_t DMDivisorApp::ParseOption(int opt, char *arg, const char *source)
       case 'X':
          status = Parser::Parse(arg, 1000000000, KMAX_MAX, il_RangeOfKPerChunk);
          break;
+
+#if defined(USE_OPENCL) || defined(USE_METAL)
+      case 'M':
+         status = Parser::Parse(arg, 1, 100000000, ii_MaxGpuFactors);
+         break;
+#endif
    }
 
    return status;
@@ -224,6 +251,9 @@ void DMDivisorApp::ValidateOptions(void)
    while (ii_CpuWorkSize % 4 != 0)
       ii_CpuWorkSize++;
    
+   // The GPU kernel doesn't have separate small k logic
+   SetMinGpuPrime(il_MaxK);
+
    // Allow only one worker to do work when processing small primes.  This allows us to avoid 
    // locking when factors are reported, which significantly hurts performance as most terms 
    // will be removed due to small primes.
@@ -321,6 +351,11 @@ bool  DMDivisorApp::PostSieveHook(void)
 Worker *DMDivisorApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested)
 {
    Worker *theWorker;
+
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   if (gpuWorker)
+      return new DMDivisorGpuWorker(id, this);
+#endif
 
    // Note that MMP inherits from Worker.  This will not
    // only create the worker, but also start it.
@@ -443,7 +478,6 @@ bool DMDivisorApp::ApplyFactor(uint64_t theFactor, const char *term)
       return false;
 
    VerifyFactor(theFactor, k);
-      
    
    // No locking is needed because the Workers aren't running yet
    if (k % 4 == 0)
@@ -885,26 +919,20 @@ void  DMDivisorApp::CheckRedc(mp_limb_t *xp, uint32_t xn, uint32_t b, uint64_t k
 
 void  DMDivisorApp::VerifyFactor(uint64_t theFactor, uint64_t k)
 {
-   uint64_t rem;
+   const MpArith mp(theFactor);
 
-   fpu_push_1divp(theFactor);
-      
-   rem = fpu_powmod(2, ii_N, theFactor);
+   MpRes res = mp.pow(mp.nToRes(2), ii_N);
    
-   if (rem == 0)
-      rem = theFactor - 1;
-   else
-      rem--;
+   res = mp.sub(res, mp.one());
+   res = mp.mul(res, mp.nToRes(2*k));
    
-   rem = fpu_mulmod(rem, k, theFactor);
+   uint64_t rem = mp.resToN(res);
 
-   rem <<= 1;
    rem++;
    
+   // Now we have 2*k*2^(n-1)+1   
    if (rem >= theFactor)
       rem -= theFactor;
-   
-   fpu_pop();
    
    if (rem == 0)
       return;
