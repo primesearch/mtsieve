@@ -87,10 +87,10 @@ void  DMDivisorWorker::TestMegaPrimeChunk(void)
       }
       else
       {
-         if (k1 >= il_MinK && k1 <= il_MaxK && k1 % 4 < 2) ip_DMDivisorApp->ReportFactor(prime, k1, true)
-         if (k2 >= il_MinK && k2 <= il_MaxK && k2 % 4 < 2) ip_DMDivisorApp->ReportFactor(prime, k2, true)
-         if (k3 >= il_MinK && k3 <= il_MaxK && k3 % 4 < 2) ip_DMDivisorApp->ReportFactor(prime, k3, true)
-         if (k4 >= il_MinK && k4 <= il_MaxK && k4 % 4 < 2) ip_DMDivisorApp->ReportFactor(prime, k4, true)
+         if (k1 >= il_MinK && k1 <= il_MaxK && k1 % 4 < 2) ip_DMDivisorApp->ReportFactor(ps[0], k1, true);
+         if (k2 >= il_MinK && k2 <= il_MaxK && k2 % 4 < 2) ip_DMDivisorApp->ReportFactor(ps[1], k2, true);
+         if (k3 >= il_MinK && k3 <= il_MaxK && k3 % 4 < 2) ip_DMDivisorApp->ReportFactor(ps[2], k3, true);
+         if (k4 >= il_MinK && k4 <= il_MaxK && k4 % 4 < 2) ip_DMDivisorApp->ReportFactor(ps[3], k4, true);
       }
 
       SetLargestPrimeTested(ps[3], 4);
