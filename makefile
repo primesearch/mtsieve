@@ -88,17 +88,17 @@ CPU_PROGS=afsieve ccsieve cksieve dmdsieve fbncsieve fkbnsieve gcwsieve gfndsiev
    mfsieve pixsieve psieve sgsieve smsieve smwsieve srsieve2 twinsieve xyyxsieve
 else
 # no non-x86 builds for afsieve, gfndsieve, pixsieve, and xyyxsieve
-CPU_PROGS=ccsieve cksieve fbncsieve fbncsieve fkbnsieve gcwsieve hcwsievek1b2sieve kbbsieve lifsieve \
+CPU_PROGS=ccsieve cksieve dmdsieve fbncsieve fbncsieve fkbnsieve gcwsieve hcwsievek1b2sieve kbbsieve lifsieve \
    mfsieve psieve sgsieve smsieve smwsieve srsieve2 twinsieve
 endif
 
 ifeq ($(strip $(HAS_X86)),yes)
 OPENCL_PROGS=afsievecl cksievecl dmdsievecl gcwsievecl gfndsievecl hcwsievecl lifsievecl mfsievecl pixsievecl smsievecl smwsievecl srsieve2cl xyyxsievecl psievecl
 else
-OPENCL_PROGS=cksievecl cwsievecl gcwsievecl gfndsievecl hcwsievecl lifsievecl mfsievecl smsievecl smwsievecl srsieve2cl psievecl
+OPENCL_PROGS=cksievecl dmdsievecl gcwsievecl gfndsievecl hcwsievecl lifsievecl mfsievecl smsievecl smwsievecl srsieve2cl psievecl
 endif
 
-METAL_PROGS=cksievemtl cwsievemtl gcwsievemtl gfndsievemtl hcwsievemtl lifsievemtl mfsievemtl psievemtl smsievemtl srsieve2mtl
+METAL_PROGS=cksievemtl cwsievemtl dmdsievemtl gcwsievemtl gfndsievemtl hcwsievemtl lifsievemtl mfsievemtl psievemtl smsievemtl srsieve2mtl
 
 CPU_CORE_OBJS=core/App_cpu.o core/FactorApp_cpu.o core/AlgebraicFactorApp_cpu.o \
    core/Clock_cpu.o core/Parser_cpu.o core/Worker_cpu.o core/main_cpu.o core/SharedMemoryItem_cpu.o \
@@ -343,14 +343,14 @@ cksievecl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(CK_OPENCL_OBJS)
 cksievemtl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(CK_METAL_OBJS)
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_METAL) $(LD_FLAGS_METAL) -o $@ $^ $(LD_FLAGS_METAL) $(LD_FLAGS)
    
-dmdsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(DMD_OBJS)
+dmdsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(DMD_OBJS)
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS_GMP) $(LD_FLAGS)
 
-dmdsievecl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(DM_OPENCL_OBJS)
+dmdsievecl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(DM_OPENCL_OBJS)
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_OPENCL) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS_OPENCL) $(LD_FLAGS_GMP) $(LD_FLAGS)
    
-dmdsievemtl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(ASM_EXT_OBJS) $(DM_METAL_OBJS)
-	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_METAL) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS_OPENCL) $(LD_FLAGS_GMP) $(LD_FLAGS)
+dmdsievemtl: $(OPENCL_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(DM_METAL_OBJS)
+	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_METAL) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS_METAL) $(LD_FLAGS_GMP) $(LD_FLAGS)
    
 fbncsieve: $(CPU_CORE_OBJS) $(PRIMESIEVE_OBJS) $(ASM_OBJS) $(FBNC_OBJS)
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(LD_FLAGS_STDC) -o $@ $^ $(LD_FLAGS)

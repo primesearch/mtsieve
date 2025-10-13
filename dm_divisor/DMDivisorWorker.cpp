@@ -10,7 +10,7 @@
 #include <stdint.h>
 
 #include "DMDivisorWorker.h"
-#include "../x86_asm/fpu-asm-x86.h"
+#include "../core/MpArithVector.h"
 
 DMDivisorWorker::DMDivisorWorker(uint32_t myId, App *theApp) : Worker(myId, theApp)
 {
@@ -43,13 +43,17 @@ void  DMDivisorWorker::TestMegaPrimeChunk(void)
             
       bs[0] = bs[1] = bs[2] = bs[3] = 2;
       
-      fpu_powmod_4b_1n_4p(bs, ii_N, ps);
+      MpArithVec mp(ps);
+      MpResVec   two = mp.nToRes(2);
+      MpResVec   res = mp.pow(two, ii_N);
+      
+      res = mp.resToN(res);
 
       // Now bs = 2^exp-1 (mod p)
-      bs[0]--;
-      bs[1]--;
-      bs[2]--;
-      bs[3]--;
+      bs[0] = res[0] - 1;
+      bs[1] = res[1] - 1;
+      bs[2] = res[2] - 1;
+      bs[3] = res[3] - 1;
       
       // We are looking for k such that 2*k*bs+1 (mod p) = 0
       k1 = InvMod64(bs[0], ps[0]);

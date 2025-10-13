@@ -39,22 +39,19 @@ public:
    bool              ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFactor);
 
 protected:
-   void              PreSieveHook(void);
-   bool              PostSieveHook(void);
+   void              PreSieveHook(void) {};
+   bool              PostSieveHook(void) { return true; };
    
    void              NotifyAppToRebuild(uint64_t largestPrimeTested) {};
    
    void              ProcessInputTermsFile(bool haveBitMap);
+   bool              IsWritingOutputTermsFile(void){ return true; };
    void              WriteOutputTermsFile(uint64_t largestPrime);
    void              OuptutAdditionalConsoleMessagesUponFinish(void) {};
-   bool              IsWritingOutputTermsFile(void){ return !ib_TestTerms; };
    
    Worker           *CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested);
 
 private:
-   void              TestRemainingTerms(void);
-   bool              IsDoubleMersenneDivisor(uint64_t k);
-   void              CheckRedc(mp_limb_t *xp, uint32_t xn, uint32_t b, uint64_t k);
    void              VerifyFactor(uint64_t theFactor, uint64_t k);
    
    std::vector<bool> iv_MMPTerms0;
@@ -67,18 +64,7 @@ private:
    uint64_t          il_MaxK;
    uint32_t          ii_N;
    
-   bool              ib_TestTerms;
-   uint64_t          il_RangeOfKPerChunk;
    uint32_t          ii_MaxGpuFactors;
-   
-   uint64_t          il_MinKOriginal;
-   uint64_t          il_MaxKOriginal;
-   uint64_t          il_MinKInChunk;
-      
-   uint64_t          il_StartSievingUS;
-   uint64_t          il_TotalTerms;
-   uint64_t          il_TotalTermsEvaluated;
-   uint64_t          il_TotalTermsInChunk;
 };
 
 #endif
