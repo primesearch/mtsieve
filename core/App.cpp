@@ -459,7 +459,7 @@ void  App::Sieve(void)
    ip_AppStatus->SetValueNoLock(AS_RUNNING);
    ip_SievingStatus->SetValueNoLock(SS_SIEVING);
    
-   il_LargestPrimeSieved = il_MinPrime - 1;
+   il_LargestPrimeSieved = il_MinPrime;
    il_StartSievingProcessUS = Clock::GetProcessMicroseconds();
    il_StartSievingUS = Clock::GetCurrentMicrosecond();
 
@@ -468,7 +468,7 @@ void  App::Sieve(void)
    
    useSingleThread = (il_LargestPrimeSieved < il_MaxPrimeForSingleWorker);
    
-   ip_PrimeIterator.skipto(il_LargestPrimeSieved, il_MaxPrime);
+   ip_PrimeIterator.jump_to(il_LargestPrimeSieved, il_MaxPrime);
    
    workersUsedInFirstLoop = false;
    
@@ -530,7 +530,7 @@ void  App::Sieve(void)
       {
          il_LargestPrimeSieved = PauseSievingAndRebuild();
          
-         ip_PrimeIterator.skipto(il_LargestPrimeSieved, il_MaxPrime);
+         ip_PrimeIterator.jump_to(il_LargestPrimeSieved, il_MaxPrime);
       }
       
       stoppedCount = 0;

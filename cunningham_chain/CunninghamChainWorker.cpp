@@ -218,6 +218,8 @@ void  CunninghamChainWorker::TestSmallB(void)
       count++;
    }
 
+   ps[0] = ps[1] = ps[2] = ps[3] = 0;
+
    for (idx=0; idx<count; idx+=4)
    {
       ps[0] = il_MyPrimeList[idx+0];

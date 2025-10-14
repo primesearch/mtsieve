@@ -39,6 +39,8 @@ void  KBBWorker::TestMegaPrimeChunk(void)
    uint64_t maxPrime = ip_App->GetMaxPrime();
    uint32_t idx;
 
+   ps[0] = ps[1] = ps[2] = ps[3] = 0;
+
    for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx+=4)
    {
       ps[0] = il_PrimeList[pIdx+0];

@@ -13,7 +13,7 @@
 #include "../core/Parser.h"
 #include "../core/MpArith.h"
 #include "../core/MpArithVector.h"
-#include "../sieve/primesieve.hpp"
+#include "../primesieve/include/primesieve.hpp"
 #include "GFNDivisorApp.h"
 #include "GFNDivisorWorker.h"
 

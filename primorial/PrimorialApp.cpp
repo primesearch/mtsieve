@@ -14,7 +14,7 @@
 
 #include "../core/Parser.h"
 #include "../core/MpArith.h"
-#include "../sieve/primesieve.hpp"
+#include "../primesieve/include/primesieve.hpp"
 
 #if defined(USE_OPENCL)
 #include "PrimorialGpuWorker.h"

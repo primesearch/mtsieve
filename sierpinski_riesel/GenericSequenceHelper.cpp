@@ -111,15 +111,12 @@ uint32_t    GenericSequenceHelper::FindBestQ(uint32_t &expectedSubsequences)
 
 uint32_t GenericSequenceHelper::ComputePossibleQ(uint32_t Q, std::vector<bool> R, choice_bc_t *S)
 {
-   uint32_t A[9], P[9], M[9], i, k, t;
+   uint32_t P[9], M[9], i, k, t;
 
    k = FindMultiplicities(Q, P, M);
 
    for (i = 0, t = 1; i < k; i++)
-   {
-      A[i] = 0;
       t *= (M[i]+1);
-   }
 
    return t;
 }

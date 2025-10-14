@@ -13,7 +13,7 @@
 #include "MultiFactorialWorker.h"
 #include "../core/Parser.h"
 #include "../core/MpArith.h"
-#include "../sieve/primesieve.hpp"
+#include "../primesieve/include/primesieve.hpp"
 
 #if defined(USE_OPENCL)
 #include "MultiFactorialGpuWorker.h"
@@ -234,7 +234,7 @@ void   MultiFactorialApp::BuildTerms(void)
    uint32_t  primeCount, mfIdx;
    primesieve::iterator   primeIterator;
    
-   primeIterator.skipto(1, ii_MinN);
+   primeIterator.jump_to(2, ii_MinN);
    
    primeCount = primesieve::count_primes(1, ii_MinN);
    primes = (uint64_t *) xmalloc(primeCount, sizeof(uint64_t), "primes");

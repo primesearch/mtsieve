@@ -12,7 +12,7 @@
 #include "../core/Parser.h"
 #include "../core/Clock.h"
 #include "../core/MpArith.h"
-#include "../sieve/primesieve.hpp"
+#include "../primesieve/include/primesieve.hpp"
 #include "CunninghamChainApp.h"
 #include "CunninghamChainWorker.h"
 
@@ -406,8 +406,8 @@ void CunninghamChainApp::ProcessInputTermsFile(bool haveBitMap, FILE *fPtr, char
 {
    char       buffer[1000], *pos;
    int32_t    c = 2;
-   uint32_t   base = 0, n = 0, chainLength;
-   chainkind_t chainKind;
+   uint32_t   base = 0, n = 0, chainLength, ck;
+   chainkind_t chainKind = CCT_UNKNOWN;
    termtype_t  termType = TT_UNKNOWN;
    uint64_t   k, lastPrime;
    format_t   format = FF_UNKNOWN;
@@ -424,20 +424,26 @@ void CunninghamChainApp::ProcessInputTermsFile(bool haveBitMap, FILE *fPtr, char
          SetMinPrime(lastPrime);
    }
    
-   if (sscanf(buffer, "CC %u,%u,$a*%u^%u%d", &chainKind, &chainLength, &base, &n, &c) == 5)
+   if (sscanf(buffer, "CC %u,%u,$a*%u^%u%d", &ck, &chainLength, &base, &n, &c) == 5)
    {
       format = FF_CC;
       termType = TT_BN;
+      if (ck == CCT_FIRSTKIND) chainKind = CCT_FIRSTKIND;
+      if (ck == CCT_SECONDKIND) chainKind = CCT_SECONDKIND;
    }
-   else if (sscanf(buffer, "CC %u,%u,$a*%u#%d", &chainKind, &chainLength, &n, &c) == 4)
+   else if (sscanf(buffer, "CC %u,%u,$a*%u#%d", &ck, &chainLength, &n, &c) == 4)
    {
       format = FF_CC;
       termType = TT_PRIMORIAL;
+      if (ck == CCT_FIRSTKIND) chainKind = CCT_FIRSTKIND;
+      if (ck == CCT_SECONDKIND) chainKind = CCT_SECONDKIND;
    }
-   else if (sscanf(buffer, "CC %u,%u,$a*%u!%d", &chainKind, &chainLength, &ii_N, &c) == 4)
+   else if (sscanf(buffer, "CC %u,%u,$a*%u!%d", &ck, &chainLength, &ii_N, &c) == 4)
    {
       format = FF_CC;
       termType = TT_FACTORIAL;
+      if (ck == CCT_FIRSTKIND) chainKind = CCT_FIRSTKIND;
+      if (ck == CCT_SECONDKIND) chainKind = CCT_SECONDKIND;
    }
    else if (sscanf(buffer, "%" SCNu64":S:0:%u:74", &lastPrime, &base) == 2)
    {
@@ -571,7 +577,7 @@ void CunninghamChainApp::BuildPrimorialTerms(void)
    primesieve::iterator   primeIterator;
    uint32_t termIdx = 0;
    
-   primeIterator.skipto(1, ii_N);
+   primeIterator.jump_to(2, ii_N);
    
    uint32_t primeCount = primesieve::count_primes(1, ii_N);
    ii_Primes = (uint32_t *) xmalloc((10 + primeCount), sizeof(uint32_t), "primes");

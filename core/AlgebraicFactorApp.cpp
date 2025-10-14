@@ -15,7 +15,7 @@
 #include "Clock.h"
 #include "AlgebraicFactorApp.h"
 
-#include "../sieve/primesieve.hpp"
+#include "../primesieve/include/primesieve.hpp"
 
 #define SMALL_PRIME_COUNT  100000
 

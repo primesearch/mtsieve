@@ -13,7 +13,7 @@
 #include "../core/Parser.h"
 #include "../core/Clock.h"
 #include "../core/BigHashTable.h"
-#include "../sieve/primesieve.hpp"
+#include "../primesieve/include/primesieve.hpp"
 #include "SierpinskiRieselApp.h"
 #include "AlgebraicFactorHelper.h"
 #include "../core/MpArith.h"

@@ -14,7 +14,7 @@
 #include "AlgebraicFactorHelper.h"
 
 #include "../core/inline.h"
-#include "../sieve/primesieve.hpp"
+#include "../primesieve/include/primesieve.hpp"
 
 #define SMALL_PRIME_COUNT  100000
 

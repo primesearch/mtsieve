@@ -587,7 +587,7 @@ void TwinApp::BuildPrimorialTerms(void)
    primesieve::iterator   primeIterator;
    uint32_t termIdx = 0;
    
-   primeIterator.skipto(1, ii_N);
+   primeIterator.jump_to(2, ii_N);
    
    uint32_t primeCount = primesieve::count_primes(1, ii_N);
    ii_Primes = (uint32_t *) xmalloc(10 + primeCount, sizeof(uint32_t), "primes");

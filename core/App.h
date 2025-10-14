@@ -37,7 +37,7 @@ class App;
 #include "Worker.h"
 #include "SharedMemoryItem.h"
 
-#include "../sieve/primesieve.hpp"
+#include "../primesieve/include/primesieve.hpp"
 
 // Console output types
 typedef enum { COT_OTHER = 1, COT_SIEVE } cotype_t;

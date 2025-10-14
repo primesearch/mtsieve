@@ -21,7 +21,7 @@ PERL=perl
 
 PERL_FLAGS=cltoh.pl
 
-CPP_FLAGS=-Isieve -m64 -Wall
+CPP_FLAGS=-Iprimesieve/include -m64 -Wall
 CPP_FLAGS_OPENCL=-DUSE_OPENCL
 CPP_FLAGS_METAL=-DUSE_METAL
 CPP_FLAGS_GMP=
@@ -129,10 +129,10 @@ ifeq ($(strip $(HAS_X86)),yes)
       x86_asm_ext/redc.o
 endif
 
-PRIMESIEVE_OBJS=sieve/Erat.o sieve/EratBig.o sieve/EratMedium.o sieve/EratSmall.o sieve/PreSieve.o \
-   sieve/CpuInfo.o sieve/MemoryPool.o sieve/PrimeGenerator.o sieve/PrimeSieve.o \
-   sieve/IteratorHelper.o sieve/LookupTables.o sieve/popcount.o sieve/nthPrime.o sieve/CountPrintPrimes.o \
-   sieve/ParallelSieve.o sieve/iterator.o sieve/api.o sieve/SievingPrimes.o
+PRIMESIEVE_OBJS=primesieve/src/Erat.o primesieve/src/EratBig.o primesieve/src/EratMedium.o primesieve/src/EratSmall.o primesieve/src/PreSieve.o \
+   primesieve/src/CpuInfo.o primesieve/src/MemoryPool.o primesieve/src/PrimeGenerator.o primesieve/src/PrimeSieveClass.o \
+   primesieve/src/IteratorHelper.o primesieve/src/LookupTables.o primesieve/src/popcount.o primesieve/src/nthPrime.o primesieve/src/CountPrintPrimes.o \
+   primesieve/src/ParallelSieve.o primesieve/src/RiemannR.o primesieve/src/iterator.o primesieve/src/api.o primesieve/src/SievingPrimes.o
 
 AF_OBJS=alternating_factorial/AlternatingFactorialApp_cpu.o alternating_factorial/AlternatingFactorialWorker_cpu.o alternating_factorial/afsieve.o
 CC_OBJS=cunningham_chain/CunninghamChainApp.o cunningham_chain/CunninghamChainWorker.o
@@ -241,7 +241,7 @@ endif
 %.o: %.cpp
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) -c -o $@ $< 
 
-sieve/%.o: sieve/%.cpp
+primesieve/src/%.o: primesieve/src/%.cpp
 	$(CC) $(CPP_FLAGS) $(OPT_CPP_FLAGS) $(CPP_FLAGS_SIEVE) -c -o $@ $< 
    
 ifeq ($(OS),Windows_NT)
