@@ -1,7 +1,7 @@
 /* DMDivisorApp.cpp -- (C) Mark Rodenkirch, September 2018
 
    Sieve for 2*k*M+1 where M = is a Mersenne Prime.  The remaining terms,
-   if prime, might be divisors of 2^(2^p-1)-1.
+   if prime, might be divisors of 2^(2^n-1)-1.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,11 +25,79 @@
 #define APP_NAME        "dmdsieve"
 #endif
 
-#define APP_VERSION     "1.6"
+#define APP_VERSION     "1.7"
 
-#define BIT0(k)         (((k) - il_MinK) / 4)
-#define BIT1(k)         (((k-1) - il_MinK) / 4)
+#define MERSENNE_PRIMES 52
 
+#define BIT_EK(k)         (((k) - il_MinK) / 4)
+#define BIT_OK(k)         (((k-1) - il_MinK) / 4)
+
+typedef struct {
+   uint32_t n;
+   uint32_t factorsPerSecond;
+   uint32_t secodsPerFactor;
+   uint32_t minutesForAverage;
+} dmd_t;
+
+// Eventually this program will calculate optimal removal rate on the fly
+// rather than being hard-coded in this table.
+dmd_t  dmdList[MERSENNE_PRIMES] = {
+   {        2,      0,    0,    0},
+   {        3,      0,    0,    0},
+   {        5,      0,    0,    0},
+   {        7,      0,    0,    0},
+   {       13,      0,    0,    0},
+   {       17,      0,    0,    0},
+   {       18,      0,    0,    0},
+   {       31,      0,    0,    0},
+   {       61,      0,    0,    0},
+   {       89,      0,    0,    0},
+   {      107,      0,    0,    0},
+   {      127,      0,    0,    0}, 
+   {      521, 200000,    0,    1},
+   {      607,  90000,    0,    1},
+   {     1279,  18000,    0,    1},
+   {     2203,   5000,    0,    1},
+   {     2281,   4000,    0,    1},
+   {     3217,   1700,    0,    1},
+   {     4253,    800,    0,    1},
+   {     4423,    700,    0,    1},
+   {     9689,    100,    0,    1},
+   {     9941,     90,    0,    1},
+   {    11213,     80,    0,    1},
+   {    19937,     15,    0,    1},
+   {    21701,     10,    0,    1},
+   {    23209,      5,    0,    1},
+   {    44497,      3,    0,    1},
+
+// Potential divisors for MMs here and below should be sieved with dmdsieve, but PRP tested
+// with external software (such as pfgw) before doing any MM divisibility testing with pfgw.
+   {    86243,      0,    2,    5},
+   {   110503,      0,    3,    6}, 
+   {   132049,      0,    5,    7},
+   {   216091,      0,    8,   10},
+   {   756839,      0,   25,  100},
+   {   859433,      0,   40,  200},
+   {  1257787,      0,   80,  400},
+   {  1398269,      0,   95,  500},
+   {  2976221,      0,  200, 1000},
+   {  3021377,      0,    0,    0},
+   {  6972593,      0,    0,    0},
+   { 13466917,      0,    0,    0},
+   { 20996011,      0,    0,    0},
+   { 24036583,      0,    0,    0},
+   { 25964951,      0,    0,    0},
+   { 30402457,      0,    0,    0},
+   { 32582657,      0,    0,    0},
+   { 37156667,      0,    0,    0},
+   { 42643801,      0,    0,    0},
+   { 43112609,      0,    0,    0},
+   { 57885161,      0,    0,    0},
+   { 74207281,      0,    0,    0},
+   { 77232917,      0,    0,    0},
+   { 82589933,      0,    0,    0},
+   {136279841,      0,    0,    0}
+};
 
 // This is declared in App.h, but implemented here.  This means that App.h
 // can remain unchanged if using the mtsieve framework for other applications.
@@ -40,14 +108,16 @@ App *get_app(void)
 
 DMDivisorApp::DMDivisorApp() : FactorApp()
 {
-   SetBanner(APP_NAME " v" APP_VERSION ", a program to find terms that are potential factors of 2^(2^p-1)-1");
+   SetBanner(APP_NAME " v" APP_VERSION ", a program to find terms that are potential factors of 2^(2^n-1)-1");
    SetLogFileName("dmdsieve.log");
    
    SetAppMinPrime(3);
    il_MinK = 0;
    il_MaxK = 0;
    ii_N    = 0;
-      
+
+   ib_TestTerms = false;
+   
    iv_MMPTerms0.clear();
    iv_MMPTerms1.clear();
 
@@ -63,6 +133,7 @@ void DMDivisorApp::Help(void)
    printf("-k --kmin=k           Minimum k to search\n");
    printf("-K --kmax=K           Maximum k to search\n");
    printf("-n --exp=n            Exponent to search\n");
+   printf("-x --testterms        test remaining terms for DM divisibility\n");
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    printf("-M --maxfactors=M        max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
@@ -73,11 +144,12 @@ void  DMDivisorApp::AddCommandLineOptions(std::string &shortOpts, struct option 
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "k:K:b:n:f:";
+   shortOpts += "k:K:b:n:f:x";
 
    AppendLongOpt(longOpts, "kmin",              required_argument, 0, 'k');
    AppendLongOpt(longOpts, "kmax",              required_argument, 0, 'K');
    AppendLongOpt(longOpts, "exp",               required_argument, 0, 'n');
+   AppendLongOpt(longOpts, "testterms",         no_argument,       0, 'x');
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    shortOpts += "M:";
@@ -107,6 +179,11 @@ parse_t DMDivisorApp::ParseOption(int opt, char *arg, const char *source)
          status = Parser::Parse(arg, 1, NMAX_MAX, ii_N);
          break;
 
+      case 'x':
+         ib_TestTerms = true;
+         status = P_SUCCESS;
+         break;
+         
 #if defined(USE_OPENCL) || defined(USE_METAL)
       case 'M':
          status = Parser::Parse(arg, 1, 100000000, ii_MaxGpuFactors);
@@ -119,14 +196,6 @@ parse_t DMDivisorApp::ParseOption(int opt, char *arg, const char *source)
 
 void DMDivisorApp::ValidateOptions(void)
 {
-   uint32_t mList[] = { 2, 3, 5, 7, 13, 17, 19, 31, 61, 89, 107, 127, 521, 
-                        607, 1279, 2203, 2281, 3217, 4253, 4423, 9689, 9941, 
-                        11213, 19937, 21701, 23209, 44497, 86243, 110503, 
-                        132049, 216091, 756839, 859433, 1257787, 1398269, 
-                        2976221, 3021377, 6972593, 13466917, 20996011, 24036583, 
-                        25964951, 30402457, 32582657, 37156667, 42643801, 43112609, 
-                        57885161, 74207281, 77232917, 82589933, 136279841, 0};
-
 #ifdef WIN32
    if (sizeof(unsigned long long) != sizeof(mp_limb_t))
      FatalError("GMP limb size is not 64 bits");
@@ -178,7 +247,7 @@ void DMDivisorApp::ValidateOptions(void)
       
       for (uint64_t k=il_MinK; k<=il_MaxK; k+=4)
       {
-         uint32_t bit = BIT0(k);
+         uint32_t bit = BIT_EK(k);
          
          // Only terms where k % 4 == 0 or k % 4 == 1 can be a factor of a double-mersenne
          iv_MMPTerms0[bit] = true;
@@ -196,29 +265,36 @@ void DMDivisorApp::ValidateOptions(void)
       
       is_OutputTermsFileName = fileName;
    }
-
+      
    uint32_t i = 0;
-   while (mList[i] != 0 && mList[i] != ii_N)
+   while (i != MERSENNE_PRIMES && dmdList[i].n != ii_N)
       i++;
    
-   if (mList[i] == 0)
+   if (i == MERSENNE_PRIMES)
    {
       WriteToConsole(COT_OTHER, "Known Mersenne Primes (as of 2025) are:");
-      for (i=0; mList[i+1] > 0; i++)
+      for (i=0; i<MERSENNE_PRIMES-1; i++)
       {
-         printf(" %u,", mList[i]);
+         printf(" %u,", dmdList[i].n);
          if (i > 0 && i % 8 == 0)
             printf("\n");
       }
-      printf(" %u\n", mList[i]);
+      printf(" %u\n", dmdList[i].n);
       
       FatalError("exponent must be for a Mersenne Prime");
    }
 
-   if (ii_N < 13)
+   if (ii_N <= 7)
       FatalError("MM%u is a known prime", ii_N);
+   else if (ii_N <= 19)
+      WriteToConsole(COT_OTHER, "MM%u should be factored with ECM", ii_N);
+   else if (ii_N <= 127)
+      WriteToConsole(COT_OTHER, "MM%u should be tested with mmff", ii_N);
  
    FactorApp::ParentValidateOptions();
+
+   if (ib_TestTerms && ii_N > 100000)
+      WriteToConsole(COT_OTHER, "It is recommended to use PRP test remaining candidates before testing for DM divisibility");
 
    // Since the worker wants primes in groups of 4
    while (ii_CpuWorkSize % 4 != 0)
@@ -226,6 +302,38 @@ void DMDivisorApp::ValidateOptions(void)
    
    // The GPU kernel doesn't have separate small k logic
    SetMinGpuPrime(il_MaxK);
+
+   for (uint32_t i=0; i<MERSENNE_PRIMES; i++)
+   {
+      if (dmdList[i].n == ii_N)
+      {
+         if (dmdList[i].minutesForAverage > 0)
+         {
+            if (dmdList[i].factorsPerSecond > 0 && id_FPSTarget == 0.0)
+            {
+               id_FPSTarget = (double) dmdList[i].factorsPerSecond;
+               
+               // At this time FactorApp only supports 1 minute averages for factors per second.
+               // We won't change it because FactorApp won't work correctly if ii_MinutesForStatus 
+               // is modified when computing factors per second.
+               
+               WriteToConsole(COT_OTHER, "Will stop sieving after averaging fewer than %d factors per second for %u minute",
+                  dmdList[i].factorsPerSecond, 1);
+            }
+
+            if (dmdList[i].secodsPerFactor > 0 && id_SPFTarget == 0.0)
+            {
+               id_SPFTarget = (double) dmdList[i].secodsPerFactor;
+               
+               if (ii_MinutesForStatus == MAX_FACTOR_REPORT_COUNT)
+                  ii_MinutesForStatus = dmdList[i].minutesForAverage;
+            
+               WriteToConsole(COT_OTHER, "Will stop sieving after averaging more than %d second per factor for %u minutes",
+                  dmdList[i].secodsPerFactor, ii_MinutesForStatus);
+            }
+         }
+      }
+   }
 
    // Allow only one worker to do work when processing small primes.  This allows us to avoid 
    // locking when factors are reported, which significantly hurts performance as most terms 
@@ -281,12 +389,12 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
 
          if (k % 4 == 0)
          {
-            bit = BIT0(k);
+            bit = BIT_EK(k);
             iv_MMPTerms0[bit] = true;
          }
          else
          {
-            bit = BIT1(k);
+            bit = BIT_OK(k);
             iv_MMPTerms1[bit] = true;
          }
          
@@ -320,12 +428,12 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
       
          if (k % 4 == 0)
          {
-            bit = BIT0(k);
+            bit = BIT_EK(k);
             iv_MMPTerms0[bit] = true;
          }
          else
          {
-            bit = BIT1(k);
+            bit = BIT_OK(k);
             iv_MMPTerms1[bit] = true;
          }
          
@@ -367,7 +475,7 @@ bool DMDivisorApp::ApplyFactor(uint64_t theFactor, const char *term)
    // No locking is needed because the Workers aren't running yet
    if (k % 4 == 0)
    {
-      bit = BIT0(k);
+      bit = BIT_EK(k);
    
       if (iv_MMPTerms0[bit])
       {
@@ -379,7 +487,7 @@ bool DMDivisorApp::ApplyFactor(uint64_t theFactor, const char *term)
    }
    else
    {
-      bit = BIT1(k);
+      bit = BIT_OK(k);
       
       if (iv_MMPTerms1[bit])
       {
@@ -399,6 +507,9 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    uint64_t k;
    uint64_t bit;
 
+   if (ib_TestTerms)
+      return;
+   
    // With super large ranges, wait until we can lock because without locking
    // the term count can change between opening and closing the file.
    if (IsRunning() && largestPrime < GetMaxPrimeForSingleWorker())
@@ -406,7 +517,7 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    
    for (k=il_MinK; k<=il_MaxK; k+=4)
    {
-      bit = BIT0(k);
+      bit = BIT_EK(k);
       
       if (iv_MMPTerms0[bit] || iv_MMPTerms1[bit])
          break;
@@ -428,13 +539,13 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    
    for (k=il_MinK; k<=il_MaxK; k+=4)
    {   
-      if (iv_MMPTerms0[BIT0(k)])
+      if (iv_MMPTerms0[BIT_EK(k)])
       {
          fprintf(termsFile, "%" PRIu64"\n", k);
          termsCounted++;
       }
  
-      if (iv_MMPTerms1[BIT1(k+1)])
+      if (iv_MMPTerms1[BIT_OK(k+1)])
       {
          fprintf(termsFile, "%" PRIu64"\n", k+1);
          termsCounted++;
@@ -464,7 +575,7 @@ bool  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFact
 
    uint64_t km4 = k % 4;
 
-   uint64_t bit = ((km4 == 0) ? BIT0(k) : BIT1(k));
+   uint64_t bit = ((km4 == 0) ? BIT_EK(k) : BIT_OK(k));
 
    if ((km4 == 0 && iv_MMPTerms0[bit]) || (km4 == 1 && iv_MMPTerms1[bit]))
    {
@@ -528,4 +639,134 @@ void  DMDivisorApp::VerifyFactor(uint64_t theFactor, uint64_t k)
       return;
    
    FatalError("Invalid factor: 2*%" PRIu64"*(2^%u-1)+1 mod %" PRIu64" = %" PRIu64"", k, ii_N, theFactor, rem);
+}
+
+bool  DMDivisorApp::PostSieveHook(void)
+{
+   if (!ib_TestTerms)
+      return true;
+   
+   time_t   lastCheckPointTime = time(NULL);
+   uint64_t startTestingUS, currentUS;
+   uint64_t kEvaluated = 0, kTested = 0;
+   uint32_t factorsFound = 0;
+   uint64_t kTestedPerSecond;
+   double   kSecondsPerTest;
+   double   percentCompleted;
+   double   percentTermsRequiringTest;
+   FILE    *fPtr;
+   mpz_t    rem, mersenne, nTemp, kTemp, factor;
+
+   WriteToConsole(COT_OTHER, "Starting Double-Mesenne divisibility checking");
+
+   startTestingUS = Clock::GetCurrentMicrosecond();
+            
+   mpz_init(rem);
+   mpz_init(mersenne);
+   mpz_init(nTemp);
+   mpz_init(kTemp);
+   mpz_init(factor);
+   
+   mpz_set_ui(nTemp, 2);
+   mpz_pow_ui(nTemp, nTemp, ii_N);
+   mpz_sub_ui(nTemp, nTemp, 1);
+   mpz_set_ui(mersenne, 2);
+
+   for (uint64_t k=il_MinK; k<=il_MaxK; k++)
+   {
+      uint64_t km4 = k % 4;
+
+      if (km4 > 1)
+         continue;
+
+      kEvaluated++;
+
+      if (km4 == 0 && !iv_MMPTerms0[BIT_EK(k)])
+         continue;
+
+      if (km4 == 1 && !iv_MMPTerms1[BIT_OK(k)])
+         continue;
+      
+      kTested++;
+      
+#ifdef WIN32
+      // Even though built with 64-bit limbs, mpz_set_ui doesn't
+      // populate kTemp correctly when k > 32 bits.
+      mpz_set_ui(kTemp, k >> 32);
+      mpz_mul_2exp(kTemp, kTemp, 32);
+      mpz_add_ui(kTemp, kTemp, k & (0xffffffff));
+#else
+      mpz_set_ui(kTemp, k);
+#endif
+
+      mpz_mul(factor, kTemp, nTemp);
+      mpz_mul_ui(factor, factor, 2);
+      mpz_add_ui(factor, factor, 1);
+
+      mpz_powm(rem, mersenne, nTemp, factor);
+
+      if (mpz_cmp_ui(rem, 1) == 0)
+      {
+         factorsFound++;
+         WriteToConsole(COT_OTHER, "Found factor 2*%" PRIu64"*(2^%u-1)+1 of 2^(2^%u-1)-1", k, ii_N, ii_N);
+         
+         fPtr = fopen("dm_factors.txt", "a+");
+         fprintf(fPtr, "Found factor 2*%" PRIu64"*(2^%u-1)+1 of 2^(2^%u-1)-1\n", k, ii_N, ii_N);
+         fclose(fPtr);
+      }
+
+      if (time(NULL) > lastCheckPointTime + 10)
+      {            
+         percentCompleted = ((double) (k - il_MinK)) / ((double) (il_MaxK - il_MinK));
+         
+         currentUS = Clock::GetCurrentMicrosecond();
+                     
+         percentTermsRequiringTest = (100.0 * (double) kTested) / (double) kEvaluated;
+         
+         kTestedPerSecond = kEvaluated / ((currentUS - startTestingUS) / 1000000);
+         
+         if (kTestedPerSecond > 1)
+            WriteToConsole(COT_SIEVE, " Tested %5.2f pct of range at %" PRIu64" tests per second (%4.2f pct terms passed sieving)", 
+                           percentCompleted * 100.0, kTestedPerSecond, percentTermsRequiringTest);
+         else 
+         {
+            kSecondsPerTest = ((double) (currentUS - startTestingUS)) / 1000000.0;
+            kSecondsPerTest /= (double) kEvaluated;
+
+            WriteToConsole(COT_SIEVE, " Tested %5.2f pct of range at %4.2f seconds per test (%4.2f pct terms passed sieving)", 
+                           percentCompleted * 100.0, kSecondsPerTest, percentTermsRequiringTest);
+         }
+
+         lastCheckPointTime = time(NULL);
+      }
+   }
+
+   mpz_clear(rem);
+   mpz_clear(mersenne);
+   mpz_clear(nTemp);
+   mpz_clear(kTemp);
+   mpz_clear(factor);
+
+   currentUS = Clock::GetCurrentMicrosecond();
+               
+   percentTermsRequiringTest = (100.0 * (double) kTested) / (double) kEvaluated;
+   
+   kTestedPerSecond = kEvaluated / ((currentUS - startTestingUS) / 1000000);
+   
+   if (kTestedPerSecond > 1)
+      WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %" PRIu64" tests per second (%4.2f pct terms passed sieving)", 
+                     kTested, kTestedPerSecond, percentTermsRequiringTest);
+   else 
+   {
+      kSecondsPerTest = ((double) (currentUS - startTestingUS)) / 1000000.0;
+      kSecondsPerTest /= (double) kEvaluated;
+            
+      WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %4.2f seconds per test (%4.2f pct terms passed sieving)", 
+                     kTested, kSecondsPerTest, percentTermsRequiringTest);
+   }
+
+   WriteToConsole(COT_OTHER, "Double-Mersenne divisibility checking completed in %llu seconds.  %u factors found",
+                  (currentUS - startTestingUS) / 1000000,   factorsFound);
+   
+   return true;
 }

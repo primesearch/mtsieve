@@ -40,7 +40,7 @@ public:
 
 protected:
    void              PreSieveHook(void) {};
-   bool              PostSieveHook(void) { return true; };
+   bool              PostSieveHook(void);
    
    void              NotifyAppToRebuild(uint64_t largestPrimeTested) {};
    
@@ -53,6 +53,7 @@ protected:
 
 private:
    void              VerifyFactor(uint64_t theFactor, uint64_t k);
+   void              TestRemainingTerms(void);
    
    std::vector<bool> iv_MMPTerms0;
    std::vector<bool> iv_MMPTerms1;
@@ -64,6 +65,7 @@ private:
    uint64_t          il_MaxK;
    uint32_t          ii_N;
    
+   bool              ib_TestTerms;
    uint32_t          ii_MaxGpuFactors;
 };
 
