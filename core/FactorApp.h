@@ -72,6 +72,7 @@ protected:
    
    double            id_FPSTarget;
    double            id_SPFTarget;
+   uint32_t          ii_MinutesForStatus;
    
    std::string       is_InputTermsFileName;
    std::string       is_InputFactorsFileName;
@@ -87,7 +88,6 @@ private:
    // I could use a vector, but I'm lazy
    factor_report_t   ir_ReportStatus[MAX_FACTOR_REPORT_COUNT];
    uint32_t          ii_NextStatusEntry;
-   uint32_t          ii_MinutesForStatus;
 };
 
 #endif

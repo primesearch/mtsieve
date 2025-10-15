@@ -376,56 +376,19 @@ bool  FactorApp::BuildFactorsPerSecondRateString(uint32_t currentStatusEntry, do
    uint64_t     factorsFound = 0;
    uint64_t     factorTimeUS = 0;
    double       factorsPerUS = 0;
-   double       adjustedFactorTimeSeconds;
    uint64_t     currentReportTimeUS = ir_ReportStatus[currentStatusEntry].reportTimeUS;
    uint64_t     currentFactorsFound = ir_ReportStatus[currentStatusEntry].factorsFound;
 
-   previousStatusEntry = currentStatusEntry;
-
-#if defined(USE_OPENCL) || defined(USE_METAL)
-   // In the GPU we could have an uneven distribution of factors because factors are only
-   // reported when the GPU is done with its chunk.  If each chunk requires more than a
-   // few seconds in the GPU, the factor rate will bounce up and down making it harder to
-   // compute the removal rate.  To reduce the size of the "bounce", we will use abort
-   // larger time slice.  There will still be bouncing, but it will be less pronounced
-   // as the runtime increases.
-   if (previousStatusEntry > 60)
-      previousStatusEntry -= 60;
-   else
-      previousStatusEntry = 1;
-#endif
-
-   while (previousStatusEntry > 0)
-   {
-      previousStatusEntry--;
+   // Note that this will only compute the removal rate for the last minute.
+   previousStatusEntry = currentStatusEntry - 1;
       
-      factorTimeUS = currentReportTimeUS - ir_ReportStatus[previousStatusEntry].reportTimeUS;
-      factorsFound = currentFactorsFound - ir_ReportStatus[previousStatusEntry].factorsFound;
-
-      // If no factors found in this time slice, use a larger time slice
-      if (factorsFound == 0) {
-         if (previousStatusEntry > 60)
-            previousStatusEntry -= 60;
-         else
-            previousStatusEntry = 1;
-         continue;
-      }
-      
-      // Might add logic here in the future to allow for longer time periods for factor rate
-      // calculation but the previous minute should be okay most of the time as most ranges
-      // need to reach a removal rate of less than 1 per second which will trigger the 
-      // seconds per factor logic.
-      break;
-   };
+   factorTimeUS = currentReportTimeUS - ir_ReportStatus[previousStatusEntry].reportTimeUS;
+   factorsFound = currentFactorsFound - ir_ReportStatus[previousStatusEntry].factorsFound;
    
-   // This will adjust based upon the CPU utilization, i.e. number of cores
-   // and that the factorTimeUS is in microseconds.
-   adjustedFactorTimeSeconds = ((double) factorTimeUS * cpuUtilization) / 1000000.0;
-   
-   // If finding at least one per second, then compute as factors per second
-   if (factorsFound < (uint64_t) adjustedFactorTimeSeconds)
+   // If no factors found in the last minute, return to the caller.
+   if (factorsFound == 0)
       return false;
-   
+
    // Note that we are computing factors per second
    factorsPerUS = ((double) factorsFound) / ((double) factorTimeUS);
    
