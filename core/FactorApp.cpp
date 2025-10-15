@@ -385,8 +385,9 @@ bool  FactorApp::BuildFactorsPerSecondRateString(uint32_t currentStatusEntry, do
    factorTimeUS = currentReportTimeUS - ir_ReportStatus[previousStatusEntry].reportTimeUS;
    factorsFound = currentFactorsFound - ir_ReportStatus[previousStatusEntry].factorsFound;
    
-   // If no factors found in the last minute, return to the caller.
-   if (factorsFound == 0)
+   // If not enough factors were found in the last minute, this will trigger a calculation
+   // of seconds per factor.
+   if (factorsFound < 60)
       return false;
 
    // Note that we are computing factors per second
@@ -448,6 +449,11 @@ bool  FactorApp::BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, do
          previousStatusEntry = 1;
          continue;
       }
+
+      // If the average is more than 50 factors per minute, then shorten
+      // the time for the calculation.
+      if (factorsFound >= 50 * currentStatusEntry - previousStatusEntry)
+         break;
 
       // Note that we are computing seconds per factor
       secondsPerFactor = ((double) factorTimeUS) / ((double) factorsFound);
