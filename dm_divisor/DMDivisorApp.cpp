@@ -48,7 +48,7 @@ dmd_t  dmdList[MERSENNE_PRIMES] = {
    {        7,      0,    0,    0},
    {       13,      0,    0,    0},
    {       17,      0,    0,    0},
-   {       18,      0,    0,    0},
+   {       19,      0,    0,    0},
    {       31,      0,    0,    0},
    {       61,      0,    0,    0},
    {       89,      0,    0,    0},
@@ -286,9 +286,9 @@ void DMDivisorApp::ValidateOptions(void)
 
    if (ii_N <= 7)
       FatalError("MM%u is a known prime", ii_N);
-   else if (ii_N <= 19)
+   else if (ii_N < 30)
       WriteToConsole(COT_OTHER, "MM%u should be factored with ECM", ii_N);
-   else if (ii_N <= 127)
+   else if (ii_N < 130)
       WriteToConsole(COT_OTHER, "MM%u should be tested with mmff", ii_N);
  
    FactorApp::ParentValidateOptions();
@@ -302,6 +302,12 @@ void DMDivisorApp::ValidateOptions(void)
    
    // The GPU kernel doesn't have separate small k logic
    SetMinGpuPrime(il_MaxK);
+
+   if (ii_N == 31)
+   {
+      double sqrtK = sqrt(il_MaxK);
+      SetMaxPrime((uint64_t) sqrtK * (2 << 16), "sqrt of largest term");
+   }
 
    for (uint32_t i=0; i<MERSENNE_PRIMES; i++)
    {
@@ -753,16 +759,19 @@ bool  DMDivisorApp::PostSieveHook(void)
    
    kTestedPerSecond = kEvaluated / ((currentUS - startTestingUS) / 1000000);
    
-   if (kTestedPerSecond > 1)
-      WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %" PRIu64" tests per second (%4.2f pct terms passed sieving)", 
-                     kTested, kTestedPerSecond, percentTermsRequiringTest);
-   else 
+   if (currentUS - startTestingUS > 0)
    {
-      kSecondsPerTest = ((double) (currentUS - startTestingUS)) / 1000000.0;
-      kSecondsPerTest /= (double) kEvaluated;
-            
-      WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %4.2f seconds per test (%4.2f pct terms passed sieving)", 
-                     kTested, kSecondsPerTest, percentTermsRequiringTest);
+      if (kTestedPerSecond > 1)
+         WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %" PRIu64" tests per second (%4.2f pct terms passed sieving)", 
+                        kTested, kTestedPerSecond, percentTermsRequiringTest);
+      else 
+      {
+         kSecondsPerTest = ((double) (currentUS - startTestingUS)) / 1000000.0;
+         kSecondsPerTest /= (double) kEvaluated;
+               
+         WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %4.2f seconds per test (%4.2f pct terms passed sieving)", 
+                        kTested, kSecondsPerTest, percentTermsRequiringTest);
+      }
    }
 
    WriteToConsole(COT_OTHER, "Double-Mersenne divisibility checking completed in %llu seconds.  %u factors found",
