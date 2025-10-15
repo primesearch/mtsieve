@@ -428,10 +428,10 @@ bool  FactorApp::BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, do
    // In the GPU we could have an uneven distribution of factors because factors are only
    // reported when the GPU is done with its chunk.  If each chunk requires more than a
    // few seconds in the GPU, the factor rate will bounce up and down making it harder to
-   // compute the removal rate.  To reduce the size of the "bounce", we will use abort
+   // compute the removal rate.  To reduce the size of the "bounce", we will use a shorter
    // larger time slice.  There will still be bouncing, but it will be less pronounced
    // as the runtime increases.
-   if (previousStatusEntry > 60)
+   if (previousStatusEntry > 0)
       previousStatusEntry -= 60;
    else
       previousStatusEntry = 1;
@@ -451,18 +451,9 @@ bool  FactorApp::BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, do
       }
 
       // If the average is more than 50 factors per minute, then shorten
-      // the time for the calculation.
-      if (factorsFound >= 50 * currentStatusEntry - previousStatusEntry)
+      // the time for the calculation so that it is more realistic going forward.
+      if (factorsFound >= 50 * (currentStatusEntry - previousStatusEntry))
          break;
-
-      // Note that we are computing seconds per factor
-      secondsPerFactor = ((double) factorTimeUS) / ((double) factorsFound);
-      
-      // Convert from ms per factor to sec per factor.
-      secondsPerFactor /= 1000000.0;
-
-      // Multiply the CPU utilization to account for less or more than 1 core
-      secondsPerFactor *= cpuUtilization;
       
       if (currentStatusEntry - previousStatusEntry >= ii_MinutesForStatus)
          break;
