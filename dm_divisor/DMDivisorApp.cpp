@@ -735,7 +735,7 @@ bool  DMDivisorApp::PostSieveHook(void)
          
          estimatedFinishTime = startTime + (currentTime - startTime)/percentCompleted;
          finish_tm = localtime(&estimatedFinishTime);
-         strftime(finishTimeBuffer, sizeof(finishTimeBuffer), "ETC %Y-%m-%d %H:%M", finish_tm);
+         strftime(finishTimeBuffer, sizeof(finishTimeBuffer), "%Y-%m-%d %H:%M", finish_tm);
          
          if (kTestedPerSecond >= 1)
             WriteToConsole(COT_SIEVE, " Tested %5.2f pct of range at %" PRIu64" tests per second (%4.2f pct terms passed sieving) ETC %s", 
