@@ -45,7 +45,7 @@ protected:
    void              NotifyAppToRebuild(uint64_t largestPrimeTested) {};
    
    void              ProcessInputTermsFile(bool haveBitMap);
-   bool              IsWritingOutputTermsFile(void){ return true; };
+   bool              IsWritingOutputTermsFile(void){ return !ib_TestTerms; };
    void              WriteOutputTermsFile(uint64_t largestPrime);
    void              OuptutAdditionalConsoleMessagesUponFinish(void) {};
    

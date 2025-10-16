@@ -303,10 +303,10 @@ void DMDivisorApp::ValidateOptions(void)
    // The GPU kernel doesn't have separate small k logic
    SetMinGpuPrime(il_MaxK);
 
-   if (ii_N == 31)
+   if (ii_N <= 31)
    {
       double sqrtK = sqrt(il_MaxK);
-      SetMaxPrime((uint64_t) sqrtK * (2 << 16), "sqrt of largest term");
+      SetMaxPrime((uint64_t) sqrtK * (2 << (ii_N+1)), "sqrt of largest term");
    }
 
    for (uint32_t i=0; i<MERSENNE_PRIMES; i++)
@@ -652,20 +652,22 @@ bool  DMDivisorApp::PostSieveHook(void)
    if (!ib_TestTerms)
       return true;
    
-   time_t   lastCheckPointTime = time(NULL);
-   uint64_t startTestingUS, currentUS;
+   time_t   lastCheckPointTime;
+   time_t   startTime, currentTime, estimatedFinishTime;
    uint64_t kEvaluated = 0, kTested = 0;
    uint32_t factorsFound = 0;
    uint64_t kTestedPerSecond;
-   double   kSecondsPerTest;
+   uint32_t kSecondsPerTest;
    double   percentCompleted;
    double   percentTermsRequiringTest;
    FILE    *fPtr;
    mpz_t    rem, mersenne, nTemp, kTemp, factor;
+   char     finishTimeBuffer[40];
+   struct tm   *finish_tm;
 
    WriteToConsole(COT_OTHER, "Starting Double-Mesenne divisibility checking");
 
-   startTestingUS = Clock::GetCurrentMicrosecond();
+   lastCheckPointTime = startTime = currentTime = time(NULL);
             
    mpz_init(rem);
    mpz_init(mersenne);
@@ -692,7 +694,8 @@ bool  DMDivisorApp::PostSieveHook(void)
 
       if (km4 == 1 && !iv_MMPTerms1[BIT_OK(k)])
          continue;
-      
+
+      currentTime = time(NULL);
       kTested++;
       
 #ifdef WIN32
@@ -721,29 +724,31 @@ bool  DMDivisorApp::PostSieveHook(void)
          fclose(fPtr);
       }
 
-      if (time(NULL) > lastCheckPointTime + 10)
+      // Report once every 10 seconds.
+      if (currentTime >= lastCheckPointTime + 10)
       {            
          percentCompleted = ((double) (k - il_MinK)) / ((double) (il_MaxK - il_MinK));
-         
-         currentUS = Clock::GetCurrentMicrosecond();
-                     
+                              
          percentTermsRequiringTest = (100.0 * (double) kTested) / (double) kEvaluated;
          
-         kTestedPerSecond = kEvaluated / ((currentUS - startTestingUS) / 1000000);
+         kTestedPerSecond = kEvaluated / (currentTime - startTime);
          
-         if (kTestedPerSecond > 1)
-            WriteToConsole(COT_SIEVE, " Tested %5.2f pct of range at %" PRIu64" tests per second (%4.2f pct terms passed sieving)", 
-                           percentCompleted * 100.0, kTestedPerSecond, percentTermsRequiringTest);
+         estimatedFinishTime = startTime + (currentTime - startTime)/percentCompleted;
+         finish_tm = localtime(&estimatedFinishTime);
+         strftime(finishTimeBuffer, sizeof(finishTimeBuffer), "ETC %Y-%m-%d %H:%M", finish_tm);
+         
+         if (kTestedPerSecond >= 1)
+            WriteToConsole(COT_SIEVE, " Tested %5.2f pct of range at %" PRIu64" tests per second (%4.2f pct terms passed sieving) ETC %s", 
+                           percentCompleted * 100.0, kTestedPerSecond, percentTermsRequiringTest, finishTimeBuffer);
          else 
          {
-            kSecondsPerTest = ((double) (currentUS - startTestingUS)) / 1000000.0;
-            kSecondsPerTest /= (double) kEvaluated;
+            kSecondsPerTest = (currentTime - startTime) / kTested;
 
-            WriteToConsole(COT_SIEVE, " Tested %5.2f pct of range at %4.2f seconds per test (%4.2f pct terms passed sieving)", 
-                           percentCompleted * 100.0, kSecondsPerTest, percentTermsRequiringTest);
+            WriteToConsole(COT_SIEVE, " Tested %5.2f pct of range at %u seconds per test (%4.2f pct terms passed sieving) ETC %s", 
+                           percentCompleted * 100.0, kSecondsPerTest, percentTermsRequiringTest, finishTimeBuffer);
          }
 
-         lastCheckPointTime = time(NULL);
+         lastCheckPointTime = currentTime;
       }
    }
 
@@ -752,30 +757,27 @@ bool  DMDivisorApp::PostSieveHook(void)
    mpz_clear(nTemp);
    mpz_clear(kTemp);
    mpz_clear(factor);
-
-   currentUS = Clock::GetCurrentMicrosecond();
                
    percentTermsRequiringTest = (100.0 * (double) kTested) / (double) kEvaluated;
    
-   kTestedPerSecond = kEvaluated / ((currentUS - startTestingUS) / 1000000);
+   kTestedPerSecond = kEvaluated / (currentTime - startTime);
    
-   if (currentUS - startTestingUS > 0)
+   if (currentTime - startTime > 0)
    {
-      if (kTestedPerSecond > 1)
+      if (kTestedPerSecond >= 1)
          WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %" PRIu64" tests per second (%4.2f pct terms passed sieving)", 
                         kTested, kTestedPerSecond, percentTermsRequiringTest);
       else 
       {
-         kSecondsPerTest = ((double) (currentUS - startTestingUS)) / 1000000.0;
-         kSecondsPerTest /= (double) kEvaluated;
+         kSecondsPerTest = (currentTime - startTime) / kTested;
                
-         WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %4.2f seconds per test (%4.2f pct terms passed sieving)", 
+         WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %u seconds per test (%4.2f pct terms passed sieving)", 
                         kTested, kSecondsPerTest, percentTermsRequiringTest);
       }
    }
 
    WriteToConsole(COT_OTHER, "Double-Mersenne divisibility checking completed in %llu seconds.  %u factors found",
-                  (currentUS - startTestingUS) / 1000000,   factorsFound);
+                  (currentTime - startTime),   factorsFound);
    
    return true;
 }
