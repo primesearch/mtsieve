@@ -101,6 +101,9 @@ void  DMDivisorWorker::TestMegaPrimeChunk(void)
    
       if (ps[3] >= maxPrime)
          break;
+
+      if (ip_App->IsInterrupted())
+         break;
    }
 }
 
