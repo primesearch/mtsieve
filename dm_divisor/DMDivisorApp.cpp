@@ -728,10 +728,10 @@ bool  DMDivisorApp::PostSieveHook(void)
       if (currentTime >= lastCheckPointTime + 10)
       {            
          percentCompleted = ((double) (k - il_MinK)) / ((double) (il_MaxK - il_MinK));
-                              
+
          percentTermsRequiringTest = (100.0 * (double) kTested) / (double) kEvaluated;
          
-         kTestedPerSecond = kEvaluated / (currentTime - startTime);
+         kTestedPerSecond = kTested / (currentTime - startTime);
          
          estimatedFinishTime = startTime + (currentTime - startTime)/percentCompleted;
          finish_tm = localtime(&estimatedFinishTime);
@@ -760,7 +760,7 @@ bool  DMDivisorApp::PostSieveHook(void)
                
    percentTermsRequiringTest = (100.0 * (double) kTested) / (double) kEvaluated;
    
-   kTestedPerSecond = kEvaluated / (currentTime - startTime);
+   kTestedPerSecond = kTested / (currentTime - startTime);
    
    if (currentTime - startTime > 0)
    {
