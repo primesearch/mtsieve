@@ -682,12 +682,12 @@ bool  DMDivisorApp::PostSieveHook(void)
 
    for (uint64_t k=il_MinK; k<=il_MaxK; k++)
    {
+      kEvaluated++;
+      
       uint64_t km4 = k % 4;
 
       if (km4 > 1)
          continue;
-
-      kEvaluated++;
 
       if (km4 == 0 && !iv_MMPTerms0[BIT_EK(k)])
          continue;
@@ -738,13 +738,13 @@ bool  DMDivisorApp::PostSieveHook(void)
          strftime(finishTimeBuffer, sizeof(finishTimeBuffer), "%Y-%m-%d %H:%M", finish_tm);
          
          if (kTestedPerSecond >= 1)
-            WriteToConsole(COT_SIEVE, " Tested %5.2f pct of range at %" PRIu64" tests per second (%4.2f pct terms passed sieving) ETC %s", 
+            WriteToConsole(COT_SIEVE, " Tested %5.2f pct of range at %" PRIu64" tests per second (%4.2f pct of all k after sieving) ETC %s", 
                            percentCompleted * 100.0, kTestedPerSecond, percentTermsRequiringTest, finishTimeBuffer);
          else 
          {
             kSecondsPerTest = (currentTime - startTime) / kTested;
 
-            WriteToConsole(COT_SIEVE, " Tested %5.2f pct of range at %u seconds per test (%4.2f pct terms passed sieving) ETC %s", 
+            WriteToConsole(COT_SIEVE, " Tested %5.2f pct of range at %u seconds per test (%4.2f pct of all k after sieving) ETC %s", 
                            percentCompleted * 100.0, kSecondsPerTest, percentTermsRequiringTest, finishTimeBuffer);
          }
 
@@ -765,13 +765,13 @@ bool  DMDivisorApp::PostSieveHook(void)
    if (currentTime - startTime > 0)
    {
       if (kTestedPerSecond >= 1)
-         WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %" PRIu64" tests per second (%4.2f pct terms passed sieving)", 
+         WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %" PRIu64" tests per second (%4.2f pct of all k after sieving)", 
                         kTested, kTestedPerSecond, percentTermsRequiringTest);
       else 
       {
          kSecondsPerTest = (currentTime - startTime) / kTested;
                
-         WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %u seconds per test (%4.2f pct terms passed sieving)", 
+         WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %u seconds per test (%4.2f pct of all k after sieving)", 
                         kTested, kSecondsPerTest, percentTermsRequiringTest);
       }
    }
