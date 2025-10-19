@@ -29,8 +29,18 @@
 
 #define MERSENNE_PRIMES 52
 
-#define BIT_EK(k)         (((k) - il_MinK) / 4)
-#define BIT_OK(k)         (((k-1) - il_MinK) / 4)
+// Let d be a prime divisor of MMp. We know that
+//
+//    A factor d will always be of the form 2*k*m + 1 where m = M(p) = 2p - 1 is a Mersenne prime.
+//   
+// Note that, since m == 1 (mod 3), factors of M(m) cannot have k == 1 (mod 3),
+// since 2*k*m + 1 == 0 (mod 3) in that case.
+// Chris Nash pointed out on the Mersenne list that k must be 0 or 1 mod 4,
+// since, otherwise, 2 is not a quadratic residue of the supposed factor.
+// The combination of the prior two restrictions limits k to 0, 5, 8, and 9 modulo 12.
+
+#define BIT_KM4E0(k)         (((k-0) - il_MinK) / 4)
+#define BIT_KM4E1(k)         (((k-1) - il_MinK) / 4)
 
 typedef struct {
    uint32_t n;
@@ -118,8 +128,8 @@ DMDivisorApp::DMDivisorApp() : FactorApp()
 
    ib_TestTerms = false;
    
-   iv_MMPTerms0.clear();
-   iv_MMPTerms1.clear();
+   iv_MMPTermsKm40.clear();
+   iv_MMPTermsKm41.clear();
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
    ii_MaxGpuFactors = GetGpuWorkGroups() * 1000;
@@ -168,11 +178,11 @@ parse_t DMDivisorApp::ParseOption(int opt, char *arg, const char *source)
    switch (opt)
    {
       case 'k':
-         status = Parser::Parse(arg, 4, KMAX_MAX, il_MinK);
+         status = Parser::Parse(arg, 1, KMAX_MAX, il_MinK);
          break;
 
       case 'K':
-         status = Parser::Parse(arg, 4, KMAX_MAX, il_MaxK);
+         status = Parser::Parse(arg, 1, KMAX_MAX, il_MaxK);
          break;
 
       case 'n':
@@ -208,10 +218,10 @@ void DMDivisorApp::ValidateOptions(void)
    {
       ProcessInputTermsFile(false);
 
-      iv_MMPTerms0.resize((il_MaxK - il_MinK) / 4 + 1);
-      iv_MMPTerms1.resize((il_MaxK - il_MinK) / 4 + 1);
-      std::fill(iv_MMPTerms0.begin(), iv_MMPTerms0.end(), false);
-      std::fill(iv_MMPTerms1.begin(), iv_MMPTerms1.end(), false);
+      iv_MMPTermsKm40.resize((il_MaxK - il_MinK) / 4 + 1);
+      iv_MMPTermsKm41.resize((il_MaxK - il_MinK) / 4 + 1);
+      std::fill(iv_MMPTermsKm40.begin(), iv_MMPTermsKm40.end(), false);
+      std::fill(iv_MMPTermsKm41.begin(), iv_MMPTermsKm41.end(), false);
       
       ProcessInputTermsFile(true);
    }
@@ -240,20 +250,68 @@ void DMDivisorApp::ValidateOptions(void)
       while (il_MaxK % 4 != 1)
          il_MaxK++;
 
-      iv_MMPTerms0.resize((il_MaxK - il_MinK) / 4 + 1);
-      iv_MMPTerms1.resize((il_MaxK - il_MinK) / 4 + 1);
-      std::fill(iv_MMPTerms0.begin(), iv_MMPTerms0.end(), false);
-      std::fill(iv_MMPTerms1.begin(), iv_MMPTerms1.end(), false);
+      iv_MMPTermsKm40.resize((il_MaxK - il_MinK) / 4 + 1);
+      iv_MMPTermsKm41.resize((il_MaxK - il_MinK) / 4 + 1);
+      std::fill(iv_MMPTermsKm40.begin(), iv_MMPTermsKm40.end(), false);
+      std::fill(iv_MMPTermsKm41.begin(), iv_MMPTermsKm41.end(), false);
       
-      for (uint64_t k=il_MinK; k<=il_MaxK; k+=4)
+      uint64_t bit, k;
+      uint64_t minK = 12*(il_MinK/12), maxK = 12*(il_MaxK/12);
+
+      if (minK == 0)
+         minK = 12;
+
+      for (k=il_MinK; k<minK; k++)
       {
-         uint32_t bit = BIT_EK(k);
+         uint64_t km12 = k % 12;
+
+         if (km12 == 0 || km12 == 8)
+         {
+            bit = BIT_KM4E0(k);
+            iv_MMPTermsKm40[bit] = true;
+            il_TermCount++;
+         }
+
+         if (k>0 && (km12 == 5 || km12 == 9))
+         {
+            bit = BIT_KM4E1(k);
+            iv_MMPTermsKm41[bit] = true;
+            il_TermCount++;
+         }
+      }
+
+      for (k=minK; k<maxK; k+=12)
+      {
+         bit = BIT_KM4E0(k);
          
-         // Only terms where k % 4 == 0 or k % 4 == 1 can be a factor of a double-mersenne
-         iv_MMPTerms0[bit] = true;
-         iv_MMPTerms1[bit] = true;
+         // k is limited to 0, 5, 8, and 9 modulo 12.
+
+         iv_MMPTermsKm40[bit+0] = true;      // for k = 0 % 12
+         iv_MMPTermsKm40[bit+2] = true;      // for k = 8 % 12
          
-         il_TermCount += 2;
+         iv_MMPTermsKm41[bit+1] = true;      // for k = 5 % 12
+         iv_MMPTermsKm41[bit+2] = true;      // for k = 9 % 12
+         
+         il_TermCount += 4;
+      }
+      
+      for (k=maxK; k<=il_MaxK; k++)
+      {
+         uint64_t km12 = k % 12;
+
+         if (km12 == 0 || km12 == 8)
+         {
+            bit = BIT_KM4E0(k);
+            iv_MMPTermsKm40[bit] = true;
+            il_TermCount++;
+         }
+
+         if (km12 == 5 || km12 == 9)
+         {
+            bit = BIT_KM4E1(k);
+            iv_MMPTermsKm41[bit] = true;
+            il_TermCount++;
+         }
       }
    }
             
@@ -395,13 +453,13 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
 
          if (k % 4 == 0)
          {
-            bit = BIT_EK(k);
-            iv_MMPTerms0[bit] = true;
+            bit = BIT_KM4E0(k);
+            iv_MMPTermsKm40[bit] = true;
          }
          else
          {
-            bit = BIT_OK(k);
-            iv_MMPTerms1[bit] = true;
+            bit = BIT_KM4E1(k);
+            iv_MMPTermsKm41[bit] = true;
          }
          
          il_TermCount++;
@@ -434,13 +492,13 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
       
          if (k % 4 == 0)
          {
-            bit = BIT_EK(k);
-            iv_MMPTerms0[bit] = true;
+            bit = BIT_KM4E0(k);
+            iv_MMPTermsKm40[bit] = true;
          }
          else
          {
-            bit = BIT_OK(k);
-            iv_MMPTerms1[bit] = true;
+            bit = BIT_KM4E1(k);
+            iv_MMPTermsKm41[bit] = true;
          }
          
          il_TermCount++;
@@ -481,11 +539,11 @@ bool DMDivisorApp::ApplyFactor(uint64_t theFactor, const char *term)
    // No locking is needed because the Workers aren't running yet
    if (k % 4 == 0)
    {
-      bit = BIT_EK(k);
+      bit = BIT_KM4E0(k);
    
-      if (iv_MMPTerms0[bit])
+      if (iv_MMPTermsKm40[bit])
       {
-         iv_MMPTerms0[bit] = false;
+         iv_MMPTermsKm40[bit] = false;
          il_TermCount--;
 
          return true;
@@ -493,11 +551,11 @@ bool DMDivisorApp::ApplyFactor(uint64_t theFactor, const char *term)
    }
    else
    {
-      bit = BIT_OK(k);
+      bit = BIT_KM4E1(k);
       
-      if (iv_MMPTerms1[bit])
+      if (iv_MMPTermsKm41[bit])
       {
-         iv_MMPTerms1[bit] = false;
+         iv_MMPTermsKm41[bit] = false;
          il_TermCount--;
 
          return true;
@@ -523,9 +581,9 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    
    for (k=il_MinK; k<=il_MaxK; k+=4)
    {
-      bit = BIT_EK(k);
+      bit = BIT_KM4E0(k);
       
-      if (iv_MMPTerms0[bit] || iv_MMPTerms1[bit])
+      if (iv_MMPTermsKm40[bit] || iv_MMPTermsKm41[bit])
          break;
    }
 
@@ -545,13 +603,13 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    
    for (k=il_MinK; k<=il_MaxK; k+=4)
    {   
-      if (iv_MMPTerms0[BIT_EK(k)])
+      if (iv_MMPTermsKm40[BIT_KM4E0(k)])
       {
          fprintf(termsFile, "%" PRIu64"\n", k);
          termsCounted++;
       }
  
-      if (iv_MMPTerms1[BIT_OK(k+1)])
+      if (iv_MMPTermsKm41[BIT_KM4E1(k+1)])
       {
          fprintf(termsFile, "%" PRIu64"\n", k+1);
          termsCounted++;
@@ -581,9 +639,9 @@ bool  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFact
 
    uint64_t km4 = k % 4;
 
-   uint64_t bit = ((km4 == 0) ? BIT_EK(k) : BIT_OK(k));
+   uint64_t bit = ((km4 == 0) ? BIT_KM4E0(k) : BIT_KM4E1(k));
 
-   if ((km4 == 0 && iv_MMPTerms0[bit]) || (km4 == 1 && iv_MMPTerms1[bit]))
+   if ((km4 == 0 && iv_MMPTermsKm40[bit]) || (km4 == 1 && iv_MMPTermsKm41[bit]))
    {
       if (ii_N == 13 && theFactor == 8191)
          return false;
@@ -604,9 +662,9 @@ bool  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFact
          VerifyFactor(theFactor, k);
       
       if (km4 == 0)
-         iv_MMPTerms0[bit] = false;
+         iv_MMPTermsKm40[bit] = false;
       else
-         iv_MMPTerms1[bit] = false;
+         iv_MMPTermsKm41[bit] = false;
 
       removedTerm = true;
       
@@ -689,10 +747,10 @@ bool  DMDivisorApp::PostSieveHook(void)
       if (km4 > 1)
          continue;
 
-      if (km4 == 0 && !iv_MMPTerms0[BIT_EK(k)])
+      if (km4 == 0 && !iv_MMPTermsKm40[BIT_KM4E0(k)])
          continue;
 
-      if (km4 == 1 && !iv_MMPTerms1[BIT_OK(k)])
+      if (km4 == 1 && !iv_MMPTermsKm41[BIT_KM4E1(k)])
          continue;
 
       currentTime = time(NULL);

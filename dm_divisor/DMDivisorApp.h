@@ -55,8 +55,8 @@ private:
    void              VerifyFactor(uint64_t theFactor, uint64_t k);
    void              TestRemainingTerms(void);
    
-   std::vector<bool> iv_MMPTerms0;
-   std::vector<bool> iv_MMPTerms1;
+   std::vector<bool> iv_MMPTermsKm40;
+   std::vector<bool> iv_MMPTermsKm41;
    
    std::string       is_InputFileName;
    std::string       is_OutputFileName;
