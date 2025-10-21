@@ -17,6 +17,8 @@
 #define KMAX_MAX (UINT64_C(1)<<62)
 #define NMAX_MAX (1 << 31)
 
+typedef enum { FF_UNKNOWN = 1, FF_ABCD, FF_ABC } format_t;
+
 class DMDivisorApp : public FactorApp
 {
 public:
@@ -65,6 +67,10 @@ private:
    uint64_t          il_MaxK;
    uint32_t          ii_N;
    
+   uint64_t          il_TermsMinK;
+   uint64_t          il_TermsMaxK;
+   
+   format_t          it_Format;
    bool              ib_TestTerms;
    uint32_t          ii_MaxGpuFactors;
 };

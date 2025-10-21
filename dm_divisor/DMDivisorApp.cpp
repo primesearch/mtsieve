@@ -25,7 +25,7 @@
 #define APP_NAME        "dmdsieve"
 #endif
 
-#define APP_VERSION     "1.7"
+#define APP_VERSION     "1.8"
 
 #define MERSENNE_PRIMES 52
 
@@ -39,8 +39,8 @@
 // since, otherwise, 2 is not a quadratic residue of the supposed factor.
 // The combination of the prior two restrictions limits k to 0, 5, 8, and 9 modulo 12.
 
-#define BIT_KM4E0(k)         (((k-0) - il_MinK) / 4)
-#define BIT_KM4E1(k)         (((k-1) - il_MinK) / 4)
+#define BIT_KM4E0(k)         (((k-0) - il_TermsMinK) / 4)
+#define BIT_KM4E1(k)         (((k-1) - il_TermsMinK) / 4)
 
 typedef struct {
    uint32_t n;
@@ -121,7 +121,9 @@ DMDivisorApp::DMDivisorApp() : FactorApp()
    SetBanner(APP_NAME " v" APP_VERSION ", a program to find terms that are potential factors of 2^(2^n-1)-1");
    SetLogFileName("dmdsieve.log");
    
+   it_Format = FF_ABCD;
    SetAppMinPrime(3);
+   SetAppMaxPrime(1ULL<<63);
    il_MinK = 0;
    il_MaxK = 0;
    ii_N    = 0;
@@ -143,6 +145,7 @@ void DMDivisorApp::Help(void)
    printf("-k --kmin=k           Minimum k to search\n");
    printf("-K --kmax=K           Maximum k to search\n");
    printf("-n --exp=n            Exponent to search\n");
+   printf("-f --format=f         Format of output file (A=ABC, D=ABCD (default))\n");
    printf("-x --testterms        test remaining terms for DM divisibility\n");
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
@@ -159,6 +162,7 @@ void  DMDivisorApp::AddCommandLineOptions(std::string &shortOpts, struct option 
    AppendLongOpt(longOpts, "kmin",              required_argument, 0, 'k');
    AppendLongOpt(longOpts, "kmax",              required_argument, 0, 'K');
    AppendLongOpt(longOpts, "exp",               required_argument, 0, 'n');
+   AppendLongOpt(longOpts, "format",            required_argument, 0, 'f');
    AppendLongOpt(longOpts, "testterms",         no_argument,       0, 'x');
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
@@ -177,6 +181,19 @@ parse_t DMDivisorApp::ParseOption(int opt, char *arg, const char *source)
 
    switch (opt)
    {
+      case 'f':
+         char value;
+         status = Parser::Parse(arg, "AB", value);
+         
+         it_Format = FF_UNKNOWN;
+   
+         if (value == 'A')
+            it_Format = FF_ABC;
+         if (value == 'D')
+            it_Format = FF_ABCD;
+         break;
+         
+
       case 'k':
          status = Parser::Parse(arg, 1, KMAX_MAX, il_MinK);
          break;
@@ -214,16 +231,35 @@ void DMDivisorApp::ValidateOptions(void)
      FatalError("GMP limb size is not 64 bits");
 #endif
 
+   if (it_Format == FF_UNKNOWN)
+      FatalError("the specified file format in not valid, use A (ABC) or D (ABCD)");
+
    if (is_InputTermsFileName.length() > 0)
    {
       ProcessInputTermsFile(false);
 
-      iv_MMPTermsKm40.resize((il_MaxK - il_MinK) / 4 + 1);
-      iv_MMPTermsKm41.resize((il_MaxK - il_MinK) / 4 + 1);
+      il_TermsMinK = il_MinK;
+      il_TermsMaxK = il_MaxK;
+
+      while (il_TermsMinK % 12 > 0)
+         il_TermsMinK--;
+
+      while (il_TermsMaxK % 12 > 0)
+         il_TermsMinK++;
+      
+      iv_MMPTermsKm40.resize(1 + (il_TermsMaxK - il_TermsMinK) / 4);
+      iv_MMPTermsKm41.resize(1 + (il_TermsMaxK - il_TermsMinK) / 4);
       std::fill(iv_MMPTermsKm40.begin(), iv_MMPTermsKm40.end(), false);
       std::fill(iv_MMPTermsKm41.begin(), iv_MMPTermsKm41.end(), false);
       
       ProcessInputTermsFile(true);
+      
+      if (GetMinPrime() >= GetMaxPrime() && ib_TestTerms)
+      {
+         WriteToConsole(COT_OTHER, "Cannot continue sieving due to p_min >= p_max");
+         PostSieveHook();
+         exit(0);
+      }
    }
    else
    {
@@ -239,29 +275,23 @@ void DMDivisorApp::ValidateOptions(void)
       if (ii_N == 0)
          FatalError("exponent must be specified");
 
-      // We want kmin where kmin % 4 == 0
-      while (il_MinK % 4 > 1)
-         il_MinK++;
+      il_TermsMinK = il_MinK;
+      il_TermsMaxK = il_MaxK;
       
-      while (il_MinK % 4 != 0)
-         il_MinK--;
-      
-      // We want kmin where kmax % 4 == 1
-      while (il_MaxK % 4 != 1)
-         il_MaxK++;
+      while (il_TermsMinK % 12 > 0)
+         il_TermsMinK--;
 
-      iv_MMPTermsKm40.resize((il_MaxK - il_MinK) / 4 + 1);
-      iv_MMPTermsKm41.resize((il_MaxK - il_MinK) / 4 + 1);
+      while (il_TermsMaxK % 12 > 0)
+         il_TermsMinK++;
+      
+      iv_MMPTermsKm40.resize(1 + (il_TermsMaxK - il_TermsMinK) / 4);
+      iv_MMPTermsKm41.resize(1 + (il_TermsMaxK - il_TermsMinK) / 4);
       std::fill(iv_MMPTermsKm40.begin(), iv_MMPTermsKm40.end(), false);
       std::fill(iv_MMPTermsKm41.begin(), iv_MMPTermsKm41.end(), false);
       
       uint64_t bit, k;
-      uint64_t minK = 12*(il_MinK/12), maxK = 12*(il_MaxK/12);
 
-      if (minK == 0)
-         minK = 12;
-
-      for (k=il_MinK; k<minK; k++)
+      for (k=il_MinK; k<il_TermsMinK+12; k++)
       {
          uint64_t km12 = k % 12;
 
@@ -280,7 +310,7 @@ void DMDivisorApp::ValidateOptions(void)
          }
       }
 
-      for (k=minK; k<maxK; k+=12)
+      for (k=il_TermsMinK+12; k<il_MaxK; k+=12)
       {
          bit = BIT_KM4E0(k);
          
@@ -295,7 +325,7 @@ void DMDivisorApp::ValidateOptions(void)
          il_TermCount += 4;
       }
       
-      for (k=maxK; k<=il_MaxK; k++)
+      for (; k<=il_MaxK; k++)
       {
          uint64_t km12 = k % 12;
 
@@ -319,7 +349,10 @@ void DMDivisorApp::ValidateOptions(void)
    {
       char fileName[30];
       
-      snprintf(fileName, sizeof(fileName), "mmp_%u.pfgw", ii_N);
+      if (it_Format == FF_ABC)
+         snprintf(fileName, sizeof(fileName), "mmp_%u.pfgw", ii_N);
+      else
+         snprintf(fileName, sizeof(fileName), "mmp_%u.abcd", ii_N);
       
       is_OutputTermsFileName = fileName;
    }
@@ -351,8 +384,8 @@ void DMDivisorApp::ValidateOptions(void)
  
    FactorApp::ParentValidateOptions();
 
-   if (ib_TestTerms && ii_N > 100000)
-      WriteToConsole(COT_OTHER, "It is recommended to use PRP test remaining candidates before testing for DM divisibility");
+   if (ib_TestTerms && ii_N > 10000)
+      WriteToConsole(COT_OTHER, "It is recommended to PRP test remaining candidates before testing for DM divisibility with other software");
 
    // Since the worker wants primes in groups of 4
    while (ii_CpuWorkSize % 4 != 0)
@@ -425,8 +458,9 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
 {
    FILE    *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
    char     buffer[1000];
+   bool     isAbcd = false;
    uint32_t n, bit;
-   uint64_t k, lastPrime = 0;
+   uint64_t k, prevk, lastPrime = 0;
    
    if (!fPtr)
       FatalError("Unable to open input file %s", is_InputTermsFileName.c_str());
@@ -443,14 +477,12 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
          FatalError("Line 1 is not a valid ABCD line in input file %s", is_InputTermsFileName.c_str());
         
       ii_N = n;
+      isAbcd = true;
 
       if (haveBitMap)
       {
          k = il_MinK;
          
-         while (il_MinK % 4 != 0)
-            il_MinK--;
-
          if (k % 4 == 0)
          {
             bit = BIT_KM4E0(k);
@@ -466,6 +498,8 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
       }
       else
          il_MinK = il_MaxK = k;
+
+      prevk = k;
    }
    else if (!memcmp(buffer, "ABC ", 4))
    {
@@ -487,9 +521,14 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
       if (sscanf(buffer, "%" SCNu64"", &k) != 1)
          FatalError("Line %s is malformed", buffer);
   
+      if (isAbcd)
+      {
+         k = prevk + k;
+         prevk = k;
+      }
+      
       if (haveBitMap)
       {
-      
          if (k % 4 == 0)
          {
             bit = BIT_KM4E0(k);
@@ -505,15 +544,11 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
       }
       else
       {
-         if (il_MinK > k || il_MinK == 0)
-         {
-            while (k % 4 != 0)
-               k--;
-            
-            il_MinK = k;
-         }
+         if (il_MinK == 0)
+            il_MinK = il_MaxK = k;
          
-         if (il_MaxK < k) il_MaxK = k;
+         if (k > il_MaxK)
+            il_MaxK = k;
       }
    }
 
@@ -549,7 +584,8 @@ bool DMDivisorApp::ApplyFactor(uint64_t theFactor, const char *term)
          return true;
       }
    }
-   else
+   
+   if (k % 4 == 1)
    {
       bit = BIT_KM4E1(k);
       
@@ -568,8 +604,7 @@ bool DMDivisorApp::ApplyFactor(uint64_t theFactor, const char *term)
 void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
    uint64_t termsCounted = 0;
-   uint64_t k;
-   uint64_t bit;
+   uint64_t k, prevk = 0;
 
    if (ib_TestTerms)
       return;
@@ -579,15 +614,8 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    if (IsRunning() && largestPrime < GetMaxPrimeForSingleWorker())
       return;   
    
-   for (k=il_MinK; k<=il_MaxK; k+=4)
-   {
-      bit = BIT_KM4E0(k);
-      
-      if (iv_MMPTermsKm40[bit] || iv_MMPTermsKm41[bit])
-         break;
-   }
-
-   if (k > il_MaxK)
+   // If we have no terms, then we have nothing to write
+   if (il_TermCount == 0)
       return;
    
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
@@ -597,21 +625,44 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    
    ip_FactorAppLock->Lock();
 
-   fprintf(termsFile, "ABC 2*$a*(2^%u-1)+1 // Sieved to %" SCNu64"\n", ii_N, largestPrime);
-   // There is no logic for writing ABCD files at this time.
-   //fprintf(termsFile, "ABCD 2*$a*(2^%u-1)+1 [%" SCNu64"] // Sieved to %" SCNu64"\n", ii_N, k, largestPrime);
-   
-   for (k=il_MinK; k<=il_MaxK; k+=4)
-   {   
+   if (it_Format == FF_ABC)
+      fprintf(termsFile, "ABC 2*$a*(2^%u-1)+1 // Sieved to %" SCNu64"\n", ii_N, largestPrime);
+
+   for (k=il_TermsMinK; k<=il_TermsMaxK; k+=4)
+   {
+      uint64_t kp1 = k + 1;
+      
       if (iv_MMPTermsKm40[BIT_KM4E0(k)])
       {
-         fprintf(termsFile, "%" PRIu64"\n", k);
+         if (it_Format == FF_ABC)
+            fprintf(termsFile, "%" PRIu64"\n", k);
+         else
+         {
+            if (termsCounted == 0)
+               fprintf(termsFile, "ABCD 2*$a*(2^%u-1)+1 [%" SCNu64"] // Sieved to %" SCNu64"\n", ii_N, k, largestPrime);
+            else
+               fprintf(termsFile, "%" PRIu64"\n", k - prevk);
+            
+            prevk = k;
+         }
+
          termsCounted++;
       }
  
-      if (iv_MMPTermsKm41[BIT_KM4E1(k+1)])
+      if (iv_MMPTermsKm41[BIT_KM4E1(kp1)])
       {
-         fprintf(termsFile, "%" PRIu64"\n", k+1);
+         if (it_Format == FF_ABC)
+            fprintf(termsFile, "%" PRIu64"\n", kp1);
+         else
+         {
+            if (termsCounted == 0)
+               fprintf(termsFile, "ABCD 2*$a*(2^%u-1)+1 [%" SCNu64"] // Sieved to %" SCNu64"\n", ii_N, kp1, largestPrime);
+            else
+               fprintf(termsFile, "%" PRIu64"\n", kp1 - prevk);
+            
+            prevk = kp1;
+         }
+
          termsCounted++;
       }
    }
@@ -818,10 +869,10 @@ bool  DMDivisorApp::PostSieveHook(void)
                
    percentTermsRequiringTest = (100.0 * (double) kTested) / (double) kEvaluated;
    
-   kTestedPerSecond = kTested / (currentTime - startTime);
-   
-   if (currentTime - startTime > 0)
+   if (currentTime > startTime)
    {
+      kTestedPerSecond = kTested / (currentTime - startTime);
+   
       if (kTestedPerSecond >= 1)
          WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %" PRIu64" tests per second (%4.2f pct of all k after sieving)", 
                         kTested, kTestedPerSecond, percentTermsRequiringTest);
@@ -835,7 +886,7 @@ bool  DMDivisorApp::PostSieveHook(void)
    }
 
    WriteToConsole(COT_OTHER, "Double-Mersenne divisibility checking completed in %llu seconds.  %u factors found",
-                  (currentTime - startTime),   factorsFound);
+                  (currentTime - startTime), factorsFound);
    
    return true;
 }
