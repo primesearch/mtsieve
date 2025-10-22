@@ -431,7 +431,7 @@ bool  FactorApp::BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, do
    // compute the removal rate.  To reduce the size of the "bounce", we will use a shorter
    // larger time slice.  There will still be bouncing, but it will be less pronounced
    // as the runtime increases.
-   if (previousStatusEntry > 0)
+   if (previousStatusEntry > 60)
       previousStatusEntry -= 60;
    else
       previousStatusEntry = 1;
