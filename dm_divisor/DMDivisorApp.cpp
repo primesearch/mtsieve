@@ -75,12 +75,12 @@ dmd_t  dmdList[MERSENNE_PRIMES] = {
    {     9689,    10,     0,    1},
    {     9941,     9,     0,    1},
    {    11213,     8,     0,    1},
-   {    19937,     1,     0,    1},
-   {    21701,     1,     0,    1},
+   {    19937,     4,     0,    1},
+   {    21701,     2,     0,    1},
+   {    23209,     2,     0,    1},
 
 // Potential divisors for MMs here and below should be sieved with dmdsieve, but PRP tested
 // with external software (such as pfgw) before doing any MM divisibility testing with pfgw.
-   {    23209,     0,     4,    5},
    {    44497,     0,     7,    5},
    {    86243,     0,    10,    5},
    {   110503,     0,    30,    6}, 
@@ -245,7 +245,7 @@ void DMDivisorApp::ValidateOptions(void)
          il_TermsMinK--;
 
       while (il_TermsMaxK % 12 > 0)
-         il_TermsMinK++;
+         il_TermsMaxK++;
       
       iv_MMPTermsKm40.resize(1 + (il_TermsMaxK - il_TermsMinK) / 4);
       iv_MMPTermsKm41.resize(1 + (il_TermsMaxK - il_TermsMinK) / 4);
@@ -282,7 +282,7 @@ void DMDivisorApp::ValidateOptions(void)
          il_TermsMinK--;
 
       while (il_TermsMaxK % 12 > 0)
-         il_TermsMinK++;
+         il_TermsMaxK++;
       
       iv_MMPTermsKm40.resize(1 + (il_TermsMaxK - il_TermsMinK) / 4);
       iv_MMPTermsKm41.resize(1 + (il_TermsMaxK - il_TermsMinK) / 4);
@@ -406,31 +406,33 @@ void DMDivisorApp::ValidateOptions(void)
       {
          if (dmdList[i].minutesForAverage > 0)
          {
-            if (dmdList[i].factorsPerSecond > 0 && id_FPSTarget == 0.0)
+            if (dmdList[i].factorsPerSecond > 0 && id_FPSTarget == 0.0 && id_SPFTarget == 0.)
             {
-               id_FPSTarget = (double) dmdList[i].factorsPerSecond;
+               id_FPSTarget = (double) dmdList[i].factorsPerSecond;     
                
                // At this time FactorApp only supports 1 minute averages for factors per second.
                // We won't change it because FactorApp won't work correctly if ii_MinutesForStatus 
                // is modified when computing factors per second.
-               
-               WriteToConsole(COT_OTHER, "Will stop sieving after averaging fewer than %d factors per second for %u minute",
-                  dmdList[i].factorsPerSecond, 1);
             }
 
-            if (dmdList[i].secodsPerFactor > 0 && id_SPFTarget == 0.0)
+            if (dmdList[i].secodsPerFactor > 0 && id_SPFTarget == 0.0 && id_FPSTarget == 0.0)
             {
                id_SPFTarget = (double) dmdList[i].secodsPerFactor;
                
                if (ii_MinutesForStatus == MAX_FACTOR_REPORT_COUNT)
                   ii_MinutesForStatus = dmdList[i].minutesForAverage;
-            
-               WriteToConsole(COT_OTHER, "Will stop sieving after averaging more than %d second per factor for %u minutes",
-                  dmdList[i].secodsPerFactor, ii_MinutesForStatus);
             }
          }
       }
    }
+
+   if (id_FPSTarget > 0.0)               
+      WriteToConsole(COT_OTHER, "Will stop sieving after averaging fewer than %d factors per second for %u minute",
+         dmdList[i].factorsPerSecond, 1);
+   
+   if (id_SPFTarget > 0.0)
+      WriteToConsole(COT_OTHER, "Will stop sieving after averaging more than %d second per factor for %u minutes",
+         dmdList[i].secodsPerFactor, ii_MinutesForStatus);
 
    // Allow only one worker to do work when processing small primes.  This allows us to avoid 
    // locking when factors are reported, which significantly hurts performance as most terms 
