@@ -25,7 +25,7 @@
 #define APP_NAME        "dmdsieve"
 #endif
 
-#define APP_VERSION     "1.8"
+#define APP_VERSION     "1.8.1"
 
 #define MERSENNE_PRIMES 52
 
@@ -406,7 +406,7 @@ void DMDivisorApp::ValidateOptions(void)
       {
          if (dmdList[i].minutesForAverage > 0)
          {
-            if (dmdList[i].factorsPerSecond > 0 && id_FPSTarget == 0.0 && id_SPFTarget == 0.)
+            if (dmdList[i].factorsPerSecond > 0 && id_FPSTarget == 0.0 && id_SPFTarget == 0.0)
             {
                id_FPSTarget = (double) dmdList[i].factorsPerSecond;     
                
@@ -427,12 +427,12 @@ void DMDivisorApp::ValidateOptions(void)
    }
 
    if (id_FPSTarget > 0.0)               
-      WriteToConsole(COT_OTHER, "Will stop sieving after averaging fewer than %d factors per second for %u minute",
-         dmdList[i].factorsPerSecond, 1);
+      WriteToConsole(COT_OTHER, "Will stop sieving after averaging fewer than %.2lf factors per second for %u minute",
+         id_FPSTarget, 1);
    
    if (id_SPFTarget > 0.0)
-      WriteToConsole(COT_OTHER, "Will stop sieving after averaging more than %d second per factor for %u minutes",
-         dmdList[i].secodsPerFactor, ii_MinutesForStatus);
+      WriteToConsole(COT_OTHER, "Will stop sieving after averaging more than %.2lf second per factor for %u minutes",
+         id_SPFTarget, ii_MinutesForStatus);
 
    // Allow only one worker to do work when processing small primes.  This allows us to avoid 
    // locking when factors are reported, which significantly hurts performance as most terms 
@@ -620,12 +620,12 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    if (il_TermCount == 0)
       return;
    
+   ip_FactorAppLock->Lock();
+   
    FILE    *termsFile = fopen(is_OutputTermsFileName.c_str(), "w");
 
    if (!termsFile)
       FatalError("Unable to open output file %s", is_OutputTermsFileName.c_str());
-   
-   ip_FactorAppLock->Lock();
 
    if (it_Format == FF_ABC)
       fprintf(termsFile, "ABC 2*$a*(2^%u-1)+1 // Sieved to %" SCNu64"\n", ii_N, largestPrime);
@@ -696,18 +696,6 @@ bool  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFact
 
    if ((km4 == 0 && iv_MMPTermsKm40[bit]) || (km4 == 1 && iv_MMPTermsKm41[bit]))
    {
-      if (ii_N == 13 && theFactor == 8191)
-         return false;
-      
-      if (ii_N == 17 && theFactor == 131071)
-         return false;
-      
-      if (ii_N == 19 && theFactor == 524287)
-         return false;
-      
-      if (ii_N == 31 && theFactor == 2147483647)
-         return false;
-      
       if (ii_N == 61 && theFactor == 2305843009213693951)
          return false;
          
