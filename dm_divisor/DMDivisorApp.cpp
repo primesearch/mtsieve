@@ -779,7 +779,7 @@ bool  DMDivisorApp::PostSieveHook(void)
    mpz_sub_ui(nTemp, nTemp, 1);
    mpz_set_ui(mersenne, 2);
 
-   for (uint64_t k=il_MinK; k<=il_MaxK; k++)
+   for (uint64_t k=il_TermsMinK; k<=il_TermsMaxK; k++)
    {
       kEvaluated++;
       
