@@ -29,7 +29,7 @@ protected:
    void              NotifyPrimeListAllocated(uint32_t primesInList) {}
 
 private:
-   void              RemoveTermsSmallPrime(uint64_t prime, uint64_t k);
+   void              RemoveTerms(uint64_t prime, uint64_t k);
    
    DMDivisorApp     *ip_DMDivisorApp;
       

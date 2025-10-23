@@ -25,7 +25,7 @@
 #define APP_NAME        "dmdsieve"
 #endif
 
-#define APP_VERSION     "1.8.1"
+#define APP_VERSION     "1.8.2"
 
 #define MERSENNE_PRIMES 52
 
@@ -392,7 +392,7 @@ void DMDivisorApp::ValidateOptions(void)
       ii_CpuWorkSize++;
    
    // The GPU kernel doesn't have separate small k logic
-   SetMinGpuPrime(il_MaxK);
+   SetMinGpuPrime(100000);
 
    if (ii_N <= 31)
    {

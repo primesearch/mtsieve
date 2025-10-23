@@ -80,22 +80,11 @@ void  DMDivisorWorker::TestMegaPrimeChunk(void)
       k3 >>= 1;
       k4 >>= 1;
       
-      // We have now solved for k
-         
-      if (ps[0] <= il_MaxK)
-      {
-         if (k1 <= il_MaxK) RemoveTermsSmallPrime(ps[0], k1);
-         if (k2 <= il_MaxK) RemoveTermsSmallPrime(ps[1], k2);
-         if (k3 <= il_MaxK) RemoveTermsSmallPrime(ps[2], k3);
-         if (k4 <= il_MaxK) RemoveTermsSmallPrime(ps[3], k4);
-      }
-      else
-      {
-         if (k1 >= il_MinK && k1 <= il_MaxK && k1 % 4 < 2) ip_DMDivisorApp->ReportFactor(ps[0], k1, true);
-         if (k2 >= il_MinK && k2 <= il_MaxK && k2 % 4 < 2) ip_DMDivisorApp->ReportFactor(ps[1], k2, true);
-         if (k3 >= il_MinK && k3 <= il_MaxK && k3 % 4 < 2) ip_DMDivisorApp->ReportFactor(ps[2], k3, true);
-         if (k4 >= il_MinK && k4 <= il_MaxK && k4 % 4 < 2) ip_DMDivisorApp->ReportFactor(ps[3], k4, true);
-      }
+      // We have now solved for mink
+      if (k1 <= il_MaxK) RemoveTerms(ps[0], k1);
+      if (k2 <= il_MaxK) RemoveTerms(ps[1], k2);
+      if (k3 <= il_MaxK) RemoveTerms(ps[2], k3);
+      if (k4 <= il_MaxK) RemoveTerms(ps[3], k4);
 
       SetLargestPrimeTested(ps[3], 4);
    
@@ -113,9 +102,10 @@ void  DMDivisorWorker::TestMiniPrimeChunk(uint64_t *miniPrimeChunk)
 }
 
 // This must be used when prime <= il_MaxK.
-void    DMDivisorWorker::RemoveTermsSmallPrime(uint64_t prime, uint64_t k)
+void    DMDivisorWorker::RemoveTerms(uint64_t prime, uint64_t k)
 {
-   // Make sure that k >= il_MinK
+   // Adjust so that k >= il_MinK
+
    if (k < il_MinK)
    {
       if (prime >= il_MinK)
@@ -129,6 +119,14 @@ void    DMDivisorWorker::RemoveTermsSmallPrime(uint64_t prime, uint64_t k)
    
    if (k > il_MaxK)
       return;
+
+   if (prime > il_MaxK)
+   {
+      if (k >= il_MinK && k <= il_MaxK && k % 4 < 2)
+         ip_DMDivisorApp->ReportFactor(prime, k, true);
+      
+      return;
+   }
    
    uint32_t verifiedCount = 0;
    
@@ -136,11 +134,7 @@ void    DMDivisorWorker::RemoveTermsSmallPrime(uint64_t prime, uint64_t k)
 	{
       // Only k where k%4 < 2 are considered.
       if (k % 4 < 2)
-      {
-         verifiedCount++;
-         
-         ip_DMDivisorApp->ReportFactor(prime, k, (verifiedCount < 5));
-      }
+         ip_DMDivisorApp->ReportFactor(prime, k, (++verifiedCount <= 3));
       
 		k += prime; 
 	} while (k <= il_MaxK);

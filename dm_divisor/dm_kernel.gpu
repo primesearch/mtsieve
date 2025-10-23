@@ -95,7 +95,19 @@ kernel void dm_kernel(device const ulong  *primes,
       k += thePrime;
    
    k >>= 1;
-   
+
+   // We have now solved for mink, now adjust so that mink > K_MIN
+   if (k < K_MIN)
+   {
+      if (thePrime >= K_MIN)
+         k += thePrime; 
+      else
+      {
+         // Compute k such that K_MIN <= k < K_MIN + p
+         k += thePrime * ((K_MIN - k + thePrime - 1)/thePrime);
+      }
+   }
+
    // We have now solved for k, but only consider where k%4 < 2
    if (k >= K_MIN && k <= K_MAX && k%4 < 2) collectFactor(k, thePrime, factorCount, factors);
 }
