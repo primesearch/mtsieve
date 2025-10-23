@@ -108,8 +108,11 @@ kernel void dm_kernel(device const ulong  *primes,
       }
    }
 
+   while (k%4 > 1 && k < K_MAX)
+      k += thePrime;
+
    // We have now solved for k, but only consider where k%4 < 2
-   if (k >= K_MIN && k <= K_MAX && k%4 < 2) collectFactor(k, thePrime, factorCount, factors);
+   if (k >= K_MIN && k <= K_MAX) collectFactor(k, thePrime, factorCount, factors);
 }
 
 ulong  invmod(ulong a, ulong p)
