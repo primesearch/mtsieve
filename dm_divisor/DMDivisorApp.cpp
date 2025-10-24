@@ -311,7 +311,7 @@ void DMDivisorApp::ValidateOptions(void)
          }
       }
 
-      for (k=il_TermsMinK+12; k<il_TermsMinK-12; k+=12)
+      for (k=il_TermsMinK+12; k<il_TermsMaxK-12; k+=12)
       {
          bit = BIT_KM4E0(k);
          
