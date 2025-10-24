@@ -25,7 +25,7 @@
 #define APP_NAME        "dmdsieve"
 #endif
 
-#define APP_VERSION     "1.8.2"
+#define APP_VERSION     "1.8.3"
 
 #define MERSENNE_PRIMES 52
 
@@ -244,6 +244,7 @@ void DMDivisorApp::ValidateOptions(void)
       while (il_TermsMinK % 12 > 0)
          il_TermsMinK--;
 
+      il_TermsMaxK++;
       while (il_TermsMaxK % 12 > 0)
          il_TermsMaxK++;
       
@@ -310,7 +311,7 @@ void DMDivisorApp::ValidateOptions(void)
          }
       }
 
-      for (k=il_TermsMinK+12; k<il_MaxK; k+=12)
+      for (k=il_TermsMinK+12; k<il_TermsMinK-12; k+=12)
       {
          bit = BIT_KM4E0(k);
          
@@ -325,7 +326,7 @@ void DMDivisorApp::ValidateOptions(void)
          il_TermCount += 4;
       }
       
-      for (; k<=il_MaxK; k++)
+      for (; k<il_MaxK; k++)
       {
          uint64_t km12 = k % 12;
 
@@ -630,7 +631,7 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    if (it_Format == FF_ABC)
       fprintf(termsFile, "ABC 2*$a*(2^%u-1)+1 // Sieved to %" SCNu64"\n", ii_N, largestPrime);
 
-   for (k=il_TermsMinK; k<=il_TermsMaxK; k+=4)
+   for (k=il_TermsMinK; k<il_TermsMaxK; k+=4)
    {
       uint64_t kp1 = k + 1;
       
@@ -679,7 +680,7 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
 
 void  DMDivisorApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
-   snprintf(extraText, maxTextLength, "%" PRIu64 " < k < %" PRIu64", 2*k*(2^%u-1)+1", il_MinK, il_MaxK, ii_N);
+   snprintf(extraText, maxTextLength, "%" PRIu64 " <= k < %" PRIu64", 2*k*(2^%u-1)+1", il_MinK, il_MaxK, ii_N);
 }
 
 bool  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFactor)
@@ -779,7 +780,7 @@ bool  DMDivisorApp::PostSieveHook(void)
    mpz_sub_ui(nTemp, nTemp, 1);
    mpz_set_ui(mersenne, 2);
 
-   for (uint64_t k=il_TermsMinK; k<=il_TermsMaxK; k++)
+   for (uint64_t k=il_MinK; k<il_MaxK; k++)
    {
       kEvaluated++;
       
@@ -864,18 +865,18 @@ bool  DMDivisorApp::PostSieveHook(void)
       kTestedPerSecond = kTested / (currentTime - startTime);
    
       if (kTestedPerSecond >= 1)
-         WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %" PRIu64" tests per second (%4.2f pct of all k after sieving)", 
+         WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %" PRIu64" tests per second (%4.2f pct of all k after sieving)                ", 
                         kTested, kTestedPerSecond, percentTermsRequiringTest);
       else 
       {
          kSecondsPerTest = (currentTime - startTime) / kTested;
                
-         WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %u seconds per test (%4.2f pct of all k after sieving)", 
+         WriteToConsole(COT_SIEVE, "Tested %" PRIu64" terms for divisilibity at %u seconds per test (%4.2f pct of all k after sieving)                ", 
                         kTested, kSecondsPerTest, percentTermsRequiringTest);
       }
    }
 
-   WriteToConsole(COT_OTHER, "Double-Mersenne divisibility checking completed in %llu seconds.  %u factors found",
+   WriteToConsole(COT_OTHER, "Double-Mersenne divisibility checking completed in %llu seconds.  %u factors found                                ",
                   (currentTime - startTime), factorsFound);
    
    return true;
