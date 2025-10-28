@@ -1,3 +1,11 @@
+2.6.7 - October 28, 2025
+   dmdsieve/dmdsievecl: 1.8.5
+      Added support for ABCD files.
+      Reduced the threshold for switching to the GPU.
+      Fix issue where some factors can be missed for larger values of -k.
+      Restricted starting k to 0, 5, 8, 9 mod 12, which reduces starting k by 33%.
+      Fix issue where ranges larger than 2^32 would produce invalid output.
+      
 2.6.6 - October 17, 2025
    framework:
       Updated to the latest primesieve.

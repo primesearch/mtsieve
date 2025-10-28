@@ -25,22 +25,23 @@
 #define APP_NAME        "dmdsieve"
 #endif
 
-#define APP_VERSION     "1.8.3"
+#define APP_VERSION     "1.8.4"
 
-#define MERSENNE_PRIMES 52
+// Arrays cannot have more than 2^32 elements on some systems.
+// We will limit the vector to have at most 2^30 on all systems.
+#define BITS_PER_ARRAY     30
+#define TERMS_PER_VECTOR   (1 << BITS_PER_ARRAY)
 
-// Let d be a prime divisor of MMp. We know that
-//
-//    A factor d will always be of the form 2*k*m + 1 where m = M(p) = 2p - 1 is a Mersenne prime.
-//   
-// Note that, since m == 1 (mod 3), factors of M(m) cannot have k == 1 (mod 3),
-// since 2*k*m + 1 == 0 (mod 3) in that case.
-// Chris Nash pointed out on the Mersenne list that k must be 0 or 1 mod 4,
-// since, otherwise, 2 is not a quadratic residue of the supposed factor.
-// The combination of the prior two restrictions limits k to 0, 5, 8, and 9 modulo 12.
+// But we can have a vector of vectors, so that is what we are going
+// to do to get beyond the 2^32 limit for an individual array.
 
-#define BIT_KM4E0(k)         (((k-0) - il_TermsMinK) / 4)
-#define BIT_KM4E1(k)         (((k-1) - il_TermsMinK) / 4)
+// Only k % 4 = 0 and k % 4 = 1 can be factors
+// Even k are tracked in iv_MMPTermsKm40.
+// Odd k are tracked in iv_MMPTermsKm41.
+#define IDX_K(k)           ((((((k) & 1) ? (k)-1 : (k)) - il_TermsMinK) / 4) >> BITS_PER_ARRAY)
+#define BIT_K(k)           ((((((k) & 1) ? (k)-1 : (k)) - il_TermsMinK) / 4) & (TERMS_PER_VECTOR - 1))
+
+#define MERSENNE_PRIMES    52
 
 typedef struct {
    uint32_t n;
@@ -130,9 +131,6 @@ DMDivisorApp::DMDivisorApp() : FactorApp()
 
    ib_TestTerms = false;
    
-   iv_MMPTermsKm40.clear();
-   iv_MMPTermsKm41.clear();
-
 #if defined(USE_OPENCL) || defined(USE_METAL)
    ii_MaxGpuFactors = GetGpuWorkGroups() * 1000;
 #endif
@@ -223,6 +221,8 @@ parse_t DMDivisorApp::ParseOption(int opt, char *arg, const char *source)
 
 void DMDivisorApp::ValidateOptions(void)
 {
+   uint32_t vCount, idx;
+
 #ifdef WIN32
    if (sizeof(unsigned long long) != sizeof(mp_limb_t))
      FatalError("GMP limb size is not 64 bits");
@@ -238,20 +238,21 @@ void DMDivisorApp::ValidateOptions(void)
    {
       ProcessInputTermsFile(false);
 
-      il_TermsMinK = il_MinK;
-      il_TermsMaxK = il_MaxK;
-
-      while (il_TermsMinK % 12 > 0)
-         il_TermsMinK--;
-
-      il_TermsMaxK++;
-      while (il_TermsMaxK % 12 > 0)
-         il_TermsMaxK++;
+      // We need this to be even
+      il_TermsMinK = (il_MinK & 1) ? il_MinK - 1 : il_MinK;
       
-      iv_MMPTermsKm40.resize(1 + (il_TermsMaxK - il_TermsMinK) / 4);
-      iv_MMPTermsKm41.resize(1 + (il_TermsMaxK - il_TermsMinK) / 4);
-      std::fill(iv_MMPTermsKm40.begin(), iv_MMPTermsKm40.end(), false);
-      std::fill(iv_MMPTermsKm41.begin(), iv_MMPTermsKm41.end(), false);
+      vCount = 1 + (1 + il_MaxK - il_TermsMinK) / TERMS_PER_VECTOR;
+
+      iv_MMPTermsKm40.resize(vCount);
+      iv_MMPTermsKm41.resize(vCount);
+      for (idx=0; idx<vCount; idx++)
+      {
+         iv_MMPTermsKm40[idx].resize(20 + TERMS_PER_VECTOR);
+         iv_MMPTermsKm41[idx].resize(20 + TERMS_PER_VECTOR);
+         
+         std::fill(iv_MMPTermsKm40[idx].begin(), iv_MMPTermsKm40[idx].end(), false);
+         std::fill(iv_MMPTermsKm41[idx].begin(), iv_MMPTermsKm41[idx].end(), false);
+      }
       
       ProcessInputTermsFile(true);
       
@@ -276,71 +277,89 @@ void DMDivisorApp::ValidateOptions(void)
       if (ii_N == 0)
          FatalError("exponent must be specified");
 
-      il_TermsMinK = il_MinK;
-      il_TermsMaxK = il_MaxK;
-      
-      while (il_TermsMinK % 12 > 0)
-         il_TermsMinK--;
+      // We need this to be even
+      il_TermsMinK = (il_MinK & 1) ? il_MinK - 1 : il_MinK;
 
-      while (il_TermsMaxK % 12 > 0)
-         il_TermsMaxK++;
-      
-      iv_MMPTermsKm40.resize(1 + (il_TermsMaxK - il_TermsMinK) / 4);
-      iv_MMPTermsKm41.resize(1 + (il_TermsMaxK - il_TermsMinK) / 4);
-      std::fill(iv_MMPTermsKm40.begin(), iv_MMPTermsKm40.end(), false);
-      std::fill(iv_MMPTermsKm41.begin(), iv_MMPTermsKm41.end(), false);
-      
-      uint64_t bit, k;
+      vCount = 1 + (1 + il_MaxK - il_TermsMinK) / TERMS_PER_VECTOR;
 
-      for (k=il_MinK; k<il_TermsMinK+12; k++)
+      iv_MMPTermsKm40.resize(vCount);
+      iv_MMPTermsKm41.resize(vCount);
+      for (uint32_t idx=0; idx<vCount; idx++)
+      {
+         iv_MMPTermsKm40[idx].resize(20 + TERMS_PER_VECTOR);
+         iv_MMPTermsKm41[idx].resize(20 + TERMS_PER_VECTOR);
+         
+         std::fill(iv_MMPTermsKm40[idx].begin(), iv_MMPTermsKm40[idx].end(), false);
+         std::fill(iv_MMPTermsKm41[idx].begin(), iv_MMPTermsKm41[idx].end(), false);
+      }
+
+      // Let d be a prime divisor of MMp. We know that
+      //
+      //    A factor d will always be of the form 2*k*m + 1 where m = M(p) = 2p - 1 is a Mersenne prime.
+      //   
+      // Note that, since m == 1 (mod 3), factors of M(m) cannot have k == 1 (mod 3),
+      // since 2*k*m + 1 == 0 (mod 3) in that case.
+      // Chris Nash pointed out on the Mersenne list that k must be 0 or 1 mod 4,
+      // since, otherwise, 2 is not a quadratic residue of the supposed factor.
+      // The combination of the prior two restrictions limits k to 0, 5, 8, and 9 modulo 12.
+      uint64_t k;
+
+      for (k=il_MinK; k%12>0; k++)
       {
          uint64_t km12 = k % 12;
+         uint64_t bit = BIT_K(k);
+         uint64_t idx = IDX_K(k);
 
          if (km12 == 0 || km12 == 8)
          {
-            bit = BIT_KM4E0(k);
-            iv_MMPTermsKm40[bit] = true;
-            il_TermCount++;
-         }
-
-         if (k>0 && (km12 == 5 || km12 == 9))
-         {
-            bit = BIT_KM4E1(k);
-            iv_MMPTermsKm41[bit] = true;
-            il_TermCount++;
-         }
-      }
-
-      for (k=il_TermsMinK+12; k<il_TermsMaxK-12; k+=12)
-      {
-         bit = BIT_KM4E0(k);
-         
-         // k is limited to 0, 5, 8, and 9 modulo 12.
-
-         iv_MMPTermsKm40[bit+0] = true;      // for k = 0 % 12
-         iv_MMPTermsKm40[bit+2] = true;      // for k = 8 % 12
-         
-         iv_MMPTermsKm41[bit+1] = true;      // for k = 5 % 12
-         iv_MMPTermsKm41[bit+2] = true;      // for k = 9 % 12
-         
-         il_TermCount += 4;
-      }
-      
-      for (; k<il_MaxK; k++)
-      {
-         uint64_t km12 = k % 12;
-
-         if (km12 == 0 || km12 == 8)
-         {
-            bit = BIT_KM4E0(k);
-            iv_MMPTermsKm40[bit] = true;
+            iv_MMPTermsKm40[idx][bit] = true;
             il_TermCount++;
          }
 
          if (km12 == 5 || km12 == 9)
          {
-            bit = BIT_KM4E1(k);
-            iv_MMPTermsKm41[bit] = true;
+            iv_MMPTermsKm41[idx][bit] = true;
+            il_TermCount++;
+         }
+      }
+
+      for (; k<il_MaxK-24; k+=12)
+      {         
+         uint64_t bit0 = BIT_K(k+0);
+         uint64_t idx0 = IDX_K(k+0);
+         uint64_t bit5 = BIT_K(k+5);
+         uint64_t idx5 = IDX_K(k+5);
+         uint64_t bit8 = BIT_K(k+8);
+         uint64_t idx8 = IDX_K(k+8);
+         uint64_t bit9 = BIT_K(k+9);
+         uint64_t idx9 = IDX_K(k+9);
+
+         // For terms where k % 4 = 0
+         iv_MMPTermsKm40[idx0][bit0] = true;      // for k = 0 % 12
+         iv_MMPTermsKm40[idx8][bit8] = true;      // for k = 8 % 12
+        
+         // For terms where k % 4 = 1
+         iv_MMPTermsKm41[idx5][bit5] = true;      // for k = 5 % 12
+         iv_MMPTermsKm41[idx9][bit9] = true;      // for k = 9 % 12
+         
+         il_TermCount += 4;
+      }
+      
+      for (; k<=il_MaxK; k++)
+      {
+         uint64_t km12 = k % 12;
+         uint64_t bit = BIT_K(k);
+         uint64_t idx = IDX_K(k);
+
+         if (km12 == 0 || km12 == 8)
+         {
+            iv_MMPTermsKm40[idx][bit] = true;
+            il_TermCount++;
+         }
+
+         if (km12 == 5 || km12 == 9)
+         {
+            iv_MMPTermsKm41[idx][bit] = true;
             il_TermCount++;
          }
       }
@@ -395,7 +414,7 @@ void DMDivisorApp::ValidateOptions(void)
    // The GPU kernel doesn't have separate small k logic
    SetMinGpuPrime(100000);
 
-   if (ii_N <= 31)
+   if (ii_N <= 19)
    {
       double sqrtK = sqrt(il_MaxK);
       SetMaxPrime((uint64_t) sqrtK * (2 << (ii_N+1)), "sqrt of largest term");
@@ -462,7 +481,7 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
    FILE    *fPtr = fopen(is_InputTermsFileName.c_str(), "r");
    char     buffer[1000];
    bool     isAbcd = false;
-   uint32_t n, bit;
+   uint32_t n;
    uint64_t k, prevk, lastPrime = 0;
    
    if (!fPtr)
@@ -485,17 +504,17 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
       if (haveBitMap)
       {
          k = il_MinK;
+
+         if (k % 4 > 1)
+            FatalError("Bad k %llu", k);
          
-         if (k % 4 == 0)
-         {
-            bit = BIT_KM4E0(k);
-            iv_MMPTermsKm40[bit] = true;
-         }
+         uint64_t bit = BIT_K(k);
+         uint64_t idx = IDX_K(k); 
+         
+         if (k & 1)
+            iv_MMPTermsKm41[idx][bit] = true;
          else
-         {
-            bit = BIT_KM4E1(k);
-            iv_MMPTermsKm41[bit] = true;
-         }
+            iv_MMPTermsKm40[idx][bit] = true;
          
          il_TermCount++;
       }
@@ -530,18 +549,18 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
          prevk = k;
       }
       
+      if (k % 4 > 1)
+         FatalError("Bad k %llu.  Expecting k mod 4 < 2", k);
+      
       if (haveBitMap)
       {
-         if (k % 4 == 0)
-         {
-            bit = BIT_KM4E0(k);
-            iv_MMPTermsKm40[bit] = true;
-         }
+         uint64_t bit = BIT_K(k);
+         uint64_t idx = IDX_K(k); 
+         
+         if (k & 1)
+            iv_MMPTermsKm41[idx][bit] = true;
          else
-         {
-            bit = BIT_KM4E1(k);
-            iv_MMPTermsKm41[bit] = true;
-         }
+            iv_MMPTermsKm40[idx][bit] = true;
          
          il_TermCount++;
       }
@@ -560,7 +579,7 @@ void DMDivisorApp::ProcessInputTermsFile(bool haveBitMap)
 
 bool DMDivisorApp::ApplyFactor(uint64_t theFactor, const char *term)
 {
-   uint64_t k, bit;
+   uint64_t k;
    uint32_t n;
       
    if (sscanf(term, "2*%" SCNu64"*(2^%u-1)+1", &k, &n) != 2)
@@ -573,28 +592,29 @@ bool DMDivisorApp::ApplyFactor(uint64_t theFactor, const char *term)
       return false;
 
    VerifyFactor(theFactor, k);
-   
+
+   if (k % 4 > 1)
+      return false;
+
+   uint64_t bit = BIT_K(k);
+   uint64_t idx = IDX_K(k); 
+         
    // No locking is needed because the Workers aren't running yet
-   if (k % 4 == 0)
+   if (k & 1)
    {
-      bit = BIT_KM4E0(k);
-   
-      if (iv_MMPTermsKm40[bit])
+      if (iv_MMPTermsKm41[idx][bit])
       {
-         iv_MMPTermsKm40[bit] = false;
+         iv_MMPTermsKm41[idx][bit] = false;
          il_TermCount--;
 
          return true;
       }
    }
-   
-   if (k % 4 == 1)
+   else
    {
-      bit = BIT_KM4E1(k);
-      
-      if (iv_MMPTermsKm41[bit])
+      if (iv_MMPTermsKm40[idx][bit])
       {
-         iv_MMPTermsKm41[bit] = false;
+         iv_MMPTermsKm40[idx][bit] = false;
          il_TermCount--;
 
          return true;
@@ -607,7 +627,7 @@ bool DMDivisorApp::ApplyFactor(uint64_t theFactor, const char *term)
 void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
 {
    uint64_t termsCounted = 0;
-   uint64_t k, prevk = 0;
+   uint64_t prevk = 0;
 
    if (ib_TestTerms)
       return;
@@ -631,43 +651,35 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    if (it_Format == FF_ABC)
       fprintf(termsFile, "ABC 2*$a*(2^%u-1)+1 // Sieved to %" SCNu64"\n", ii_N, largestPrime);
 
-   for (k=il_TermsMinK; k<il_TermsMaxK; k+=4)
-   {
-      uint64_t kp1 = k + 1;
+   for (uint64_t k=il_MinK; k<=il_MaxK; k++)
+   {    
+      uint64_t km4 = k % 4;
+
+      if (km4 > 1)
+         continue;
+
+      uint64_t bit = BIT_K(k);
+      uint64_t idx = IDX_K(k); 
+
+      if (km4 == 0 && !iv_MMPTermsKm40[idx][bit])
+         continue;
+
+      if (km4 == 1 && !iv_MMPTermsKm41[idx][bit])
+         continue;
       
-      if (iv_MMPTermsKm40[BIT_KM4E0(k)])
+      if (it_Format == FF_ABC)
+         fprintf(termsFile, "%" PRIu64"\n", k);
+      else
       {
-         if (it_Format == FF_ABC)
-            fprintf(termsFile, "%" PRIu64"\n", k);
+         if (termsCounted == 0)
+            fprintf(termsFile, "ABCD 2*$a*(2^%u-1)+1 [%" SCNu64"] // Sieved to %" SCNu64"\n", ii_N, k, largestPrime);
          else
-         {
-            if (termsCounted == 0)
-               fprintf(termsFile, "ABCD 2*$a*(2^%u-1)+1 [%" SCNu64"] // Sieved to %" SCNu64"\n", ii_N, k, largestPrime);
-            else
-               fprintf(termsFile, "%" PRIu64"\n", k - prevk);
-            
-            prevk = k;
-         }
-
-         termsCounted++;
+            fprintf(termsFile, "%" PRIu64"\n", k - prevk);
+         
+         prevk = k;
       }
- 
-      if (iv_MMPTermsKm41[BIT_KM4E1(kp1)])
-      {
-         if (it_Format == FF_ABC)
-            fprintf(termsFile, "%" PRIu64"\n", kp1);
-         else
-         {
-            if (termsCounted == 0)
-               fprintf(termsFile, "ABCD 2*$a*(2^%u-1)+1 [%" SCNu64"] // Sieved to %" SCNu64"\n", ii_N, kp1, largestPrime);
-            else
-               fprintf(termsFile, "%" PRIu64"\n", kp1 - prevk);
-            
-            prevk = kp1;
-         }
 
-         termsCounted++;
-      }
+      termsCounted++;
    }
    
    fclose(termsFile);
@@ -680,7 +692,7 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
 
 void  DMDivisorApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t maxTextLength)
 {
-   snprintf(extraText, maxTextLength, "%" PRIu64 " <= k < %" PRIu64", 2*k*(2^%u-1)+1", il_MinK, il_MaxK, ii_N);
+   snprintf(extraText, maxTextLength, "%" PRIu64 " <= k <= %" PRIu64", 2*k*(2^%u-1)+1", il_MinK, il_MaxK, ii_N);
 }
 
 bool  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFactor)
@@ -693,9 +705,13 @@ bool  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFact
 
    uint64_t km4 = k % 4;
 
-   uint64_t bit = ((km4 == 0) ? BIT_KM4E0(k) : BIT_KM4E1(k));
+   if (km4 > 1)
+      return false;
 
-   if ((km4 == 0 && iv_MMPTermsKm40[bit]) || (km4 == 1 && iv_MMPTermsKm41[bit]))
+   uint64_t bit = BIT_K(k);
+   uint64_t idx = IDX_K(k); 
+
+   if ((km4 == 0 && iv_MMPTermsKm40[idx][bit]) || (km4 == 1 && iv_MMPTermsKm41[idx][bit]))
    {
       if (ii_N == 61 && theFactor == 2305843009213693951)
          return false;
@@ -704,9 +720,9 @@ bool  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFact
          VerifyFactor(theFactor, k);
       
       if (km4 == 0)
-         iv_MMPTermsKm40[bit] = false;
+         iv_MMPTermsKm40[idx][bit] = false;
       else
-         iv_MMPTermsKm41[bit] = false;
+         iv_MMPTermsKm41[idx][bit] = false;
 
       removedTerm = true;
       
@@ -767,6 +783,7 @@ bool  DMDivisorApp::PostSieveHook(void)
 
    WriteToConsole(COT_OTHER, "Starting Double-Mesenne divisibility checking");
 
+   FILE *tPtr = fopen("tested.out", "w");
    lastCheckPointTime = startTime = currentTime = time(NULL);
             
    mpz_init(rem);
@@ -780,7 +797,7 @@ bool  DMDivisorApp::PostSieveHook(void)
    mpz_sub_ui(nTemp, nTemp, 1);
    mpz_set_ui(mersenne, 2);
 
-   for (uint64_t k=il_MinK; k<il_MaxK; k++)
+   for (uint64_t k=il_MinK; k<=il_MaxK; k++)
    {
       kEvaluated++;
       
@@ -789,15 +806,20 @@ bool  DMDivisorApp::PostSieveHook(void)
       if (km4 > 1)
          continue;
 
-      if (km4 == 0 && !iv_MMPTermsKm40[BIT_KM4E0(k)])
+      uint64_t bit = BIT_K(k);
+      uint64_t idx = IDX_K(k); 
+
+      if (km4 == 0 && !iv_MMPTermsKm40[idx][bit])
          continue;
 
-      if (km4 == 1 && !iv_MMPTermsKm41[BIT_KM4E1(k)])
+      if (km4 == 1 && !iv_MMPTermsKm41[idx][bit])
          continue;
 
       currentTime = time(NULL);
       kTested++;
       
+         fprintf(tPtr, "%" PRIu64"\n", k);
+         
 #ifdef WIN32
       // Even though built with 64-bit limbs, mpz_set_ui doesn't
       // populate kTemp correctly when k > 32 bits.
@@ -857,7 +879,12 @@ bool  DMDivisorApp::PostSieveHook(void)
    mpz_clear(nTemp);
    mpz_clear(kTemp);
    mpz_clear(factor);
-               
+   
+   fclose(tPtr);
+   
+   if (il_TermCount != kTested)
+      FatalError("Expected to test %" PRIu64" terms, but tested %" PRIu64" terms                                                  ", il_TermCount, kTested);
+   
    percentTermsRequiringTest = (100.0 * (double) kTested) / (double) kEvaluated;
    
    if (currentTime > startTime)
@@ -876,7 +903,7 @@ bool  DMDivisorApp::PostSieveHook(void)
       }
    }
 
-   WriteToConsole(COT_OTHER, "Double-Mersenne divisibility checking completed in %llu seconds.  %u factors found                                ",
+   WriteToConsole(COT_OTHER, "Double-Mersenne divisibility checking completed in %" PRIu64" seconds.  %u factors found                                ",
                   (currentTime - startTime), factorsFound);
    
    return true;

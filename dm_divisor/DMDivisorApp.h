@@ -47,7 +47,7 @@ protected:
    void              NotifyAppToRebuild(uint64_t largestPrimeTested) {};
    
    void              ProcessInputTermsFile(bool haveBitMap);
-   bool              IsWritingOutputTermsFile(void){ return !ib_TestTerms; };
+   bool              IsWritingOutputTermsFile(void){ return true; };
    void              WriteOutputTermsFile(uint64_t largestPrime);
    void              OuptutAdditionalConsoleMessagesUponFinish(void) {};
    
@@ -57,19 +57,18 @@ private:
    void              VerifyFactor(uint64_t theFactor, uint64_t k);
    void              TestRemainingTerms(void);
    
-   std::vector<bool> iv_MMPTermsKm40;
-   std::vector<bool> iv_MMPTermsKm41;
+   std::vector<std::vector<bool>> iv_MMPTermsKm40;
+   std::vector<std::vector<bool>> iv_MMPTermsKm41;
    
    std::string       is_InputFileName;
    std::string       is_OutputFileName;
 
+   uint64_t          il_TermsMinK;
+
    uint64_t          il_MinK;
    uint64_t          il_MaxK;
    uint32_t          ii_N;
-   
-   uint64_t          il_TermsMinK;
-   uint64_t          il_TermsMaxK;
-   
+      
    format_t          it_Format;
    bool              ib_TestTerms;
    uint32_t          ii_MaxGpuFactors;
