@@ -38,7 +38,7 @@ public:
    uint32_t          GetN(void) { return ii_N; };
    uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
    
-   bool              ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFactor);
+   void              ReportFactor(uint64_t theFactor, uint64_t k);
 
 protected:
    void              PreSieveHook(void) {};

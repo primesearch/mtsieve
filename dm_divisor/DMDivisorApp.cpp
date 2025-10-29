@@ -25,7 +25,7 @@
 #define APP_NAME        "dmdsieve"
 #endif
 
-#define APP_VERSION     "1.8.4"
+#define APP_VERSION     "1.8.5"
 
 // Arrays cannot have more than 2^32 elements on some systems.
 // We will limit the vector to have at most 2^30 on all systems.
@@ -695,49 +695,57 @@ void  DMDivisorApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t
    snprintf(extraText, maxTextLength, "%" PRIu64 " <= k <= %" PRIu64", 2*k*(2^%u-1)+1", il_MinK, il_MaxK, ii_N);
 }
 
-bool  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFactor)
+void  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k)
 {
-   bool     removedTerm = false;
-   char     kStr[50];
-
+   uint32_t verifiedCount = 0;
+      
    if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Lock();
 
-   uint64_t km4 = k % 4;
-
-   if (km4 > 1)
-      return false;
-
-   uint64_t bit = BIT_K(k);
-   uint64_t idx = IDX_K(k); 
-
-   if ((km4 == 0 && iv_MMPTermsKm40[idx][bit]) || (km4 == 1 && iv_MMPTermsKm41[idx][bit]))
+   if (ii_N < 62)
    {
-      if (ii_N == 61 && theFactor == 2305843009213693951)
-         return false;
-         
-      if (verifyFactor)
-         VerifyFactor(theFactor, k);
-      
-      if (km4 == 0)
-         iv_MMPTermsKm40[idx][bit] = false;
-      else
-         iv_MMPTermsKm41[idx][bit] = false;
-
-      removedTerm = true;
-      
-      snprintf(kStr, sizeof(kStr), "%" PRIu64"", k);
-      
-      LogFactor(theFactor, "2*%s*(2^%u-1)+1", kStr, ii_N);
-      
-      il_FactorCount++;
-      il_TermCount--;
+      if (ii_N == 13 && theFactor == 338193759479) return;
+      if (ii_N == 17 && theFactor == 231733529) return;
+      if (ii_N == 17 && theFactor == 64296354767) return;
+      if (ii_N == 19 && theFactor == 62914441) return;
+      if (ii_N == 19 && theFactor == 5746991873407) return;
+      if (ii_N == 31 && theFactor == 295257526626031) return;
+      if (ii_N == 61 && theFactor == 2305843009213693951) return;
    }
+
+   // Only k where k%4 < 2 are considered.
+   while (k <= il_MaxK)
+   {
+      uint64_t km4 = k % 4;
+      
+      if (km4 < 2)
+      {
+         uint64_t bit = BIT_K(k);
+         uint64_t idx = IDX_K(k); 
+
+         if ((km4 == 0 && iv_MMPTermsKm40[idx][bit]) || (km4 == 1 && iv_MMPTermsKm41[idx][bit]))
+         {
+            // We only need to verify the first two
+            if (++verifiedCount < 3)
+               VerifyFactor(theFactor, k);
+            
+            if (km4 == 0)
+               iv_MMPTermsKm40[idx][bit] = false;
+            else
+               iv_MMPTermsKm41[idx][bit] = false;
+
+            LogFactor(theFactor, "2*%" PRIu64"*(2^%u-1)+1", k, ii_N);
+            
+            il_FactorCount++;
+            il_TermCount--;
+         }
+      }
+      
+		k += theFactor; 
+	};
 
    if (theFactor > GetMaxPrimeForSingleWorker())
       ip_FactorAppLock->Release();
-   
-   return removedTerm;
 }
 
 void  DMDivisorApp::VerifyFactor(uint64_t theFactor, uint64_t k)

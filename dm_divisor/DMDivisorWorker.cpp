@@ -119,23 +119,6 @@ void    DMDivisorWorker::RemoveTerms(uint64_t prime, uint64_t k)
    
    if (k > il_MaxK)
       return;
-
-   if (prime > il_MaxK)
-   {
-      if (k >= il_MinK && k <= il_MaxK && k % 4 < 2)
-         ip_DMDivisorApp->ReportFactor(prime, k, true);
-      
-      return;
-   }
    
-   uint32_t verifiedCount = 0;
-   
-   do
-	{
-      // Only k where k%4 < 2 are considered.
-      if (k % 4 < 2)
-         ip_DMDivisorApp->ReportFactor(prime, k, (++verifiedCount <= 3));
-      
-		k += prime; 
-	} while (k <= il_MaxK);
+   ip_DMDivisorApp->ReportFactor(prime, k);
 }

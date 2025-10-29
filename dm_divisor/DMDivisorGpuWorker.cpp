@@ -66,19 +66,12 @@ void  DMDivisorGpuWorker::TestMegaPrimeChunk(void)
    for (uint32_t ii=0; ii<ii_FactorCount[0]; ii++)
    {
       uint64_t k, prime;
-      uint32_t idx = ii*2, verifiedCount = 0;
+      uint32_t idx = ii*2;
       
       k = (uint64_t) il_FactorList[idx+0];
       prime = il_FactorList[idx+1];
    
-      do
-      {
-         // Only k where k%4 < 2 are considered.
-         if (k % 4 < 2)         
-            ip_DMDivisorApp->ReportFactor(prime, k, (++verifiedCount <= 3));
-         
-         k += prime; 
-      } while (k <= il_MaxK);
+      ip_DMDivisorApp->ReportFactor(prime, k);
       
       if ((ii+1) == ii_MaxGpuFactors)
          break;
