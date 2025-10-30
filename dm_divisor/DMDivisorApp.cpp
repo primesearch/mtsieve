@@ -791,7 +791,6 @@ bool  DMDivisorApp::PostSieveHook(void)
 
    WriteToConsole(COT_OTHER, "Starting Double-Mesenne divisibility checking");
 
-   FILE *tPtr = fopen("tested.out", "w");
    lastCheckPointTime = startTime = currentTime = time(NULL);
             
    mpz_init(rem);
@@ -826,8 +825,6 @@ bool  DMDivisorApp::PostSieveHook(void)
       currentTime = time(NULL);
       kTested++;
       
-         fprintf(tPtr, "%" PRIu64"\n", k);
-         
 #ifdef WIN32
       // Even though built with 64-bit limbs, mpz_set_ui doesn't
       // populate kTemp correctly when k > 32 bits.
@@ -887,8 +884,6 @@ bool  DMDivisorApp::PostSieveHook(void)
    mpz_clear(nTemp);
    mpz_clear(kTemp);
    mpz_clear(factor);
-   
-   fclose(tPtr);
    
    if (il_TermCount != kTested)
       FatalError("Expected to test %" PRIu64" terms, but tested %" PRIu64" terms                                                  ", il_TermCount, kTested);
