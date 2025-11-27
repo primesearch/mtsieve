@@ -69,6 +69,7 @@ App::App(void)
    il_MaxPrime = il_AppMaxPrime;
    il_MaxPrimeForSingleWorker = 0;
    il_LargestPrimeSieved = 0;
+   il_LargestPrimeTestedNoGaps = 0;
    
    // We want this to be a multiple of 16 as any AVX code requires this (see AVX_ARRAY_SIZE).
    // Not many sieves  use AVX, but since the Worker thread will change the number of primes
@@ -513,7 +514,7 @@ void  App::Sieve(void)
       // before reaching the of their chunk of work.
       GetWorkerStats(workerCpuUS, largestPrimeTestedNoGaps, largestPrimeTested, primesTested);
       
-      il_LargestPrimeSieved = largestPrimeTestedNoGaps;
+      il_LargestPrimeSieved = il_LargestPrimeTestedNoGaps = largestPrimeTestedNoGaps;
    }
    
    // In the second loop, run until we are done.  Hopefully this will do a better job at keeping
@@ -529,7 +530,7 @@ void  App::Sieve(void)
       if (IsRebuildNeeded())
       {
          il_LargestPrimeSieved = PauseSievingAndRebuild();
-         
+                  
          ip_PrimeIterator.jump_to(il_LargestPrimeSieved, il_MaxPrime);
       }
       
@@ -669,7 +670,7 @@ uint64_t  App::PauseSievingAndRebuild(void)
    // We can pass true because all workers are stopped which means that
    // they have completed sieving their respective range of primes.
    largestPrimeTested = GetLargestPrimeTested(true);
-    
+
    NotifyAppToRebuild(largestPrimeTested);
       
    DeleteWorkers();
@@ -771,7 +772,7 @@ void  App::Finish(void)
    
    // This won't return until all workers have completed processing work assigned to them.
    StopWorkers();
-
+   
    processCpuUS = Clock::GetProcessMicroseconds();
    sievingCpuUS = processCpuUS - il_StartSievingProcessUS;
 
@@ -804,7 +805,7 @@ void  App::Finish(void)
 #endif
 
    Finish(finishMethod, elapsedTimeUS, largestPrimeTested, primesTested);
-
+   
    ip_AppStatus->SetValueNoLock(AS_FINISHED);
 }
 
@@ -812,7 +813,7 @@ void  App::ReportStatus(void)
 {
    double   percentDone;
    bool     havePercentDone;
-   double   cpuUtilization;
+   double   cpuUtilization, gpuUtilization = 0.0;
    struct tm   *finish_tm;
    char     primeStats[200];
    char     childStats[200];
@@ -822,7 +823,6 @@ void  App::ReportStatus(void)
    uint64_t gpuUS = 0;
    uint64_t largestPrimeTestedNoGaps, largestPrimeTested, primesTested;
    time_t   finish_date;
-
       
    elapsedTimeUS = Clock::GetCurrentMicrosecond() - il_StartSievingUS;
       
@@ -834,27 +834,29 @@ void  App::ReportStatus(void)
 
    if (gpuUS > 0)
    {
-      // TODO : figure out what we are usinga full CPU core (on Windows) when using the GPU.  I will assume
+      // TODO : figure out what we are using a full CPU core (on Windows) when using the GPU.  I will assume
       //        (for now) that this is a problem on other OSes so I will exclude the GPU utilization until
       //        this is fully investigated.  This could be a problem with how this program executed the
       //        kernel.  It could be a problem specific to Windows.  I just don't know at this time.
-      cpuUtilization = ((double) gpuUS) / ((double) elapsedTimeUS);
+      gpuUtilization = ((double) gpuUS) / ((double) elapsedTimeUS);
    }
-   else
-   {
-      // We might only have CPU Workers even if GPU Workers are supported, so use CPU time
-      // when we know that the GPU hasn't been used.
-      uint64_t processCpuUS, sievingCpuUS;
-      
-      processCpuUS = Clock::GetProcessMicroseconds();
-      sievingCpuUS = processCpuUS - il_StartSievingProcessUS;
-      
-      cpuUtilization = ((double) sievingCpuUS) / ((double) elapsedTimeUS);
-   }
+
+   // We might only have CPU Workers even if GPU Workers are supported, so use CPU time
+   // when we know that the GPU hasn't been used.
+   uint64_t processCpuUS, sievingCpuUS;
+   
+   processCpuUS = Clock::GetProcessMicroseconds();
+   sievingCpuUS = processCpuUS - il_StartSievingProcessUS;
+   
+   cpuUtilization = ((double) sievingCpuUS) / ((double) elapsedTimeUS);
    
    GetPrimeStats(primeStats, primesTested);
-   GetReportStats(childStats, sizeof(childStats), cpuUtilization);
    
+   if (gpuUtilization > cpuUtilization)
+      GetReportStats(childStats, sizeof(childStats), gpuUtilization);
+   else
+      GetReportStats(childStats, sizeof(childStats), cpuUtilization);
+      
    // Compute the percentage of the range we have completed
    if (largestPrimeTestedNoGaps == 0)
       havePercentDone = false;
@@ -983,10 +985,10 @@ void  App::GetWorkerStats(uint64_t &workerCpuUS, uint64_t &largestPrimeTestedNoG
       ip_Workers[ii]->LockStats();
 
       workerLargestPrimeTested = ip_Workers[ii]->GetLargestPrimeTested();
-         
+
       if (workerLargestPrimeTested > largestPrimeTested)
          largestPrimeTested = workerLargestPrimeTested;
-         
+
       // Gaps can only be identified by workers that are currently busy.
       // If the worker isn't busy, then it has completed the range of primes
       // it was working on.
@@ -1004,6 +1006,11 @@ void  App::GetWorkerStats(uint64_t &workerCpuUS, uint64_t &largestPrimeTestedNoG
 
    if (largestPrimeTestedNoGaps == PMAX_MAX_62BIT)
       largestPrimeTestedNoGaps = largestPrimeTested;
+
+   // When switching from CPU to GPU, the timing might cause largestPrimeTestedNoGaps to be
+   // set below what has been tested, so update.
+   if (largestPrimeTestedNoGaps < il_LargestPrimeTestedNoGaps)
+      largestPrimeTestedNoGaps = il_LargestPrimeTestedNoGaps;
 }
 
 uint64_t  App::GetLargestPrimeTested(bool finishedNormally)

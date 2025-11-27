@@ -158,6 +158,7 @@ protected:
    uint64_t          il_MaxPrime;
    
    uint64_t          il_LargestPrimeSieved;
+   uint64_t          il_LargestPrimeTestedNoGaps;
    
    // This represents the largest prime that must be tested by a single worker.  There is one
    // restriction, it must be a CPU worker.
