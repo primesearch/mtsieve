@@ -1,3 +1,13 @@
+2.6.8 - November 27, 2025
+   framework:
+      Adjusted removal rate when using the GPU to account for sieves when more time is
+      spent in CPU.
+      
+   dmdsieve/dmdsievecl: 1.8.6
+      When using GPU, do factor validation in GPU.
+      Added -y to avoid writing checkpoint files.  This should only be used when sieving
+      very large ranges of k, e.g. > 1e10.
+      
 2.6.7 - October 28, 2025
    dmdsieve/dmdsievecl: 1.8.5
       Added support for ABCD files.
