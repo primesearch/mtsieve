@@ -24,7 +24,6 @@ using namespace metal;
 #define THE_N                 1000
 #define K_MIN                 1000
 #define K_MAX                 2000
-#define D_MAX_FACTORS         1000
 #endif
 
 #if defined(USE_OPENCL)
@@ -44,11 +43,13 @@ void  collectFactor(ulong       k,
 #endif
 
 ulong invmod(ulong a, ulong p);
+uint  isFactorValid(ulong k, ulong p, ulong _q, ulong _one, ulong _two, ulong _r2);
 
 ulong mmmInvert(ulong _p);
 ulong mmmOne(ulong _p);
 ulong mmmR2(ulong _p, ulong _q, ulong _one);
 ulong mmmAdd(ulong a, ulong b, ulong _p);
+ulong mmmSub(ulong a, ulong b, ulong _p);
 ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q);
 ulong mmmNtoRes(ulong n, ulong _p, ulong _q, ulong _r2);
 ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one, ulong _r2);
@@ -112,7 +113,16 @@ kernel void dm_kernel(device const ulong  *primes,
       k += thePrime;
 
    // We have now solved for k, but only consider where k%4 < 2
-   if (k >= K_MIN && k <= K_MAX) collectFactor(k, thePrime, factorCount, factors);
+   if (k >= K_MIN && k <= K_MAX)
+   {
+      // It is much faster to validate in the GPU, but if not valid, we will tell the caller
+      // but subtracting 1 from the prime to make it even.  The CPU code will then trigger
+      // revalidation, which should fail with a fatal error.
+      if (!isFactorValid(k, thePrime, _q, _one, _two, _r2))
+         thePrime--;      
+      
+      collectFactor(k, thePrime, factorCount, factors);
+   }
 }
 
 ulong  invmod(ulong a, ulong p)
@@ -206,6 +216,12 @@ ulong mmmAdd(ulong a, ulong b, ulong _p)
    return a + b - c;
 }
 
+ulong mmmSub(ulong a, ulong b, ulong _p)
+{
+   ulong c = (a < b) ? _p : 0;
+   return a - b + c;
+}
+
 ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q)
 {
    ulong lo = a * b;
@@ -257,6 +273,24 @@ ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one, ulong _r2
    return 0;
 }
 
+uint  isFactorValid(ulong k, ulong p, ulong _q, ulong _one, ulong _two, ulong _r2)
+{
+   ulong res = mmmPowmod(_two, THE_N, p, _q, _one, _r2);
+
+   res = mmmSub(res, _one, p);
+   res = mmmMulmod(res, mmmNtoRes(2*k, p, _q, _r2), p, _q);
+   
+   ulong rem = mmmResToN(res, p, _q);
+   
+   rem++;
+   
+   // Now we have 2*k*2^(n-1)+1   
+   if (rem >= p)
+      rem -= p;
+   
+   return (rem == 0);
+}
+
 #if defined(USE_OPENCL)
 void  collectFactor(ulong   k,
                     ulong   p, 
@@ -278,7 +312,7 @@ void  collectFactor(ulong       k,
 
    // If we reach the end, stop adding to the buffer.  The CPU code will end
    // with an error as the buffer is not large enough to capture all factors.
-   if (old >= D_MAX_FACTORS)
+   if (old >= factorCount[1])
       return;
 
    factors[old].x = k;

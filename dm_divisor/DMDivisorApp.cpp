@@ -25,7 +25,7 @@
 #define APP_NAME        "dmdsieve"
 #endif
 
-#define APP_VERSION     "1.8.5"
+#define APP_VERSION     "1.8.6"
 
 // Arrays cannot have more than 2^32 elements on some systems.
 // We will limit the vector to have at most 2^30 on all systems.
@@ -128,6 +128,7 @@ DMDivisorApp::DMDivisorApp() : FactorApp()
    il_MinK = 0;
    il_MaxK = 0;
    ii_N    = 0;
+   ib_WriteWhenDone = false;
 
    ib_TestTerms = false;
    
@@ -144,7 +145,8 @@ void DMDivisorApp::Help(void)
    printf("-K --kmax=K           Maximum k to search\n");
    printf("-n --exp=n            Exponent to search\n");
    printf("-f --format=f         Format of output file (A=ABC, D=ABCD (default))\n");
-   printf("-x --testterms        test remaining terms for DM divisibility\n");
+   printf("-x --testterms        Test remaining terms for DM divisibility\n");
+   printf("-y --writewhendone    Write output file only when sieving is completed\n");
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    printf("-M --maxfactors=M        max number of factors to support per GPU worker chunk (default %u)\n", ii_MaxGpuFactors);
@@ -155,13 +157,14 @@ void  DMDivisorApp::AddCommandLineOptions(std::string &shortOpts, struct option 
 {
    FactorApp::ParentAddCommandLineOptions(shortOpts, longOpts);
 
-   shortOpts += "k:K:b:n:f:x";
+   shortOpts += "k:K:b:n:f:xy";
 
    AppendLongOpt(longOpts, "kmin",              required_argument, 0, 'k');
    AppendLongOpt(longOpts, "kmax",              required_argument, 0, 'K');
    AppendLongOpt(longOpts, "exp",               required_argument, 0, 'n');
    AppendLongOpt(longOpts, "format",            required_argument, 0, 'f');
    AppendLongOpt(longOpts, "testterms",         no_argument,       0, 'x');
+   AppendLongOpt(longOpts, "writewhendone",     no_argument,       0, 'y');
    
 #if defined(USE_OPENCL) || defined(USE_METAL)
    shortOpts += "M:";
@@ -206,6 +209,11 @@ parse_t DMDivisorApp::ParseOption(int opt, char *arg, const char *source)
 
       case 'x':
          ib_TestTerms = true;
+         status = P_SUCCESS;
+         break;
+         
+      case 'y':
+         ib_WriteWhenDone = true;
          status = P_SUCCESS;
          break;
          
@@ -410,9 +418,7 @@ void DMDivisorApp::ValidateOptions(void)
    // Since the worker wants primes in groups of 4
    while (ii_CpuWorkSize % 4 != 0)
       ii_CpuWorkSize++;
-   
-   // The GPU kernel doesn't have separate small k logic
-   SetMinGpuPrime(100000);
+
 
    if (ii_N <= 19)
    {
@@ -457,7 +463,9 @@ void DMDivisorApp::ValidateOptions(void)
    // Allow only one worker to do work when processing small primes.  This allows us to avoid 
    // locking when factors are reported, which significantly hurts performance as most terms 
    // will be removed due to small primes.
-   SetMaxPrimeForSingleWorker(10000);
+   SetMaxPrimeForSingleWorker(1000000);
+   
+   SetMinGpuPrime(1000000);
 }
 
 Worker *DMDivisorApp::CreateWorker(uint32_t id, bool gpuWorker, uint64_t largestPrimeTested)
@@ -632,11 +640,15 @@ void DMDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    if (ib_TestTerms)
       return;
    
+   // No need to waste time writing to a file if we don't want one until we are done sieving.
+   if (!IsSievingDone() && ib_WriteWhenDone)
+      return;
+   
    // With super large ranges, wait until we can lock because without locking
    // the term count can change between opening and closing the file.
    if (IsRunning() && largestPrime < GetMaxPrimeForSingleWorker())
-      return;   
-   
+      return;
+
    // If we have no terms, then we have nothing to write
    if (il_TermCount == 0)
       return;
@@ -695,7 +707,7 @@ void  DMDivisorApp::GetExtraTextForSieveStartedMessage(char *extraText, uint32_t
    snprintf(extraText, maxTextLength, "%" PRIu64 " <= k <= %" PRIu64", 2*k*(2^%u-1)+1", il_MinK, il_MaxK, ii_N);
 }
 
-void  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k)
+void  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFactor)
 {
    uint32_t verifiedCount = 0;
       
@@ -726,7 +738,7 @@ void  DMDivisorApp::ReportFactor(uint64_t theFactor, uint64_t k)
          if ((km4 == 0 && iv_MMPTermsKm40[idx][bit]) || (km4 == 1 && iv_MMPTermsKm41[idx][bit]))
          {
             // We only need to verify the first two
-            if (++verifiedCount < 3)
+            if (verifyFactor && ++verifiedCount < 3)
                VerifyFactor(theFactor, k);
             
             if (km4 == 0)

@@ -14,7 +14,7 @@
 #include <gmp.h>
 #include "../core/FactorApp.h"
 
-#define KMAX_MAX (UINT64_C(1)<<62)
+#define KMAX_MAX ((UINT64_C(1)<<62)-1)
 #define NMAX_MAX (1 << 31)
 
 typedef enum { FF_UNKNOWN = 1, FF_ABCD, FF_ABC } format_t;
@@ -38,7 +38,7 @@ public:
    uint32_t          GetN(void) { return ii_N; };
    uint32_t          GetMaxGpuFactors(void) { return ii_MaxGpuFactors; };
    
-   void              ReportFactor(uint64_t theFactor, uint64_t k);
+   void              ReportFactor(uint64_t theFactor, uint64_t k, bool verifyFactor);
 
 protected:
    void              PreSieveHook(void) {};
@@ -71,6 +71,7 @@ private:
       
    format_t          it_Format;
    bool              ib_TestTerms;
+   bool              ib_WriteWhenDone;
    uint32_t          ii_MaxGpuFactors;
 };
 

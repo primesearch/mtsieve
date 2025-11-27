@@ -28,10 +28,10 @@ DMDivisorGpuWorker::DMDivisorGpuWorker(uint32_t myId, App *theApp) : Worker(myId
       
    ii_MaxGpuFactors = ip_DMDivisorApp->GetMaxGpuFactors();
    
+   
    snprintf(defines[defineCount++], 50, "#define THE_N %u\n", ii_N);
    snprintf(defines[defineCount++], 50, "#define K_MIN %" PRIu64"\n", il_MinK);
    snprintf(defines[defineCount++], 50, "#define K_MAX %" PRIu64"\n", il_MaxK);
-   snprintf(defines[defineCount++], 50, "#define D_MAX_FACTORS %d\n", ii_MaxGpuFactors);
 
    for (idx=0; idx<defineCount; idx++)
       preKernelSources[idx] = defines[idx];
@@ -44,10 +44,15 @@ DMDivisorGpuWorker::DMDivisorGpuWorker(uint32_t myId, App *theApp) : Worker(myId
    
    ii_PrimesInList = ip_DMDivisorApp->GetGpuPrimesPerWorker();
    
+   // Resize because we expect to find one k per prime
+   if (ip_DMDivisorApp->GetMinPrime() < (il_MaxK - il_MinK))
+      ii_MaxGpuFactors = ii_PrimesInList + 2;
+
    il_PrimeList = (uint64_t *) ip_Kernel->AddCpuArgument("primes", sizeof(uint64_t), ii_PrimesInList);
-   ii_FactorCount = (uint32_t *) ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 1);
+   ii_FactorCount = (uint32_t *) ip_Kernel->AddSharedArgument("factorCount", sizeof(uint32_t), 2);
    il_FactorList = (uint64_t *) ip_Kernel->AddGpuArgument("factorList", sizeof(uint64_t), 2*ii_MaxGpuFactors);
 
+   
    // The thread can't start until initialization is done
    ib_Initialized = true;
 }
@@ -60,6 +65,7 @@ void  DMDivisorGpuWorker::CleanUp(void)
 void  DMDivisorGpuWorker::TestMegaPrimeChunk(void)
 {
    ii_FactorCount[0] = 0;
+   ii_FactorCount[1] = ii_PrimesInList + 1;
    
    ip_Kernel->Execute(ii_PrimesInList);
 
@@ -67,11 +73,20 @@ void  DMDivisorGpuWorker::TestMegaPrimeChunk(void)
    {
       uint64_t k, prime;
       uint32_t idx = ii*2;
+      bool badFactor = false;
       
       k = (uint64_t) il_FactorList[idx+0];
       prime = il_FactorList[idx+1];
-   
-      ip_DMDivisorApp->ReportFactor(prime, k);
+
+      // If prime is even, then the GPU could not verify the factor.
+      // Add 1 to the prime then force factor validation, which should fail.
+      if (!(prime & 1))
+      {
+         badFactor = true;
+         prime++;
+      }
+
+      ip_DMDivisorApp->ReportFactor(prime, k, badFactor);
       
       if ((ii+1) == ii_MaxGpuFactors)
          break;
@@ -79,7 +94,7 @@ void  DMDivisorGpuWorker::TestMegaPrimeChunk(void)
 
    if (ii_FactorCount[0] >= ii_MaxGpuFactors)
       FatalError("Could not handle all GPU factors.  A range of p generated %u factors (limited to %u).  Use -M to increase max factor density", ii_FactorCount[0], ii_MaxGpuFactors);
-      
+   
    SetLargestPrimeTested(il_PrimeList[ii_PrimesInList-1], ii_PrimesInList);
 }
 

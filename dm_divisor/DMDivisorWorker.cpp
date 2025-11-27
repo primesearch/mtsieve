@@ -33,6 +33,10 @@ void  DMDivisorWorker::TestMegaPrimeChunk(void)
    uint64_t k1, k2, k3, k4;
    uint64_t bs[4], ps[4];
    uint64_t maxPrime = ip_App->GetMaxPrime();
+
+#if defined(USE_OPENCL) || defined(USE_METAL)
+   uint64_t minGpuPrime = ip_App->GetMinGpuPrime();
+#endif
    
    for (uint32_t pIdx=0; pIdx<ii_PrimesInList; pIdx+=4)
    {
@@ -87,12 +91,20 @@ void  DMDivisorWorker::TestMegaPrimeChunk(void)
       if (k4 <= il_MaxK) RemoveTerms(ps[3], k4);
 
       SetLargestPrimeTested(ps[3], 4);
-   
+
       if (ps[3] >= maxPrime)
          break;
 
       if (ip_App->IsInterrupted())
          break;
+      
+#if defined(USE_OPENCL) || defined(USE_METAL)
+      if (ps[3] >= minGpuPrime)
+      {
+         ip_App->SetRebuildNeeded();
+         break;
+      }
+#endif
    }
 }
 
@@ -120,5 +132,5 @@ void    DMDivisorWorker::RemoveTerms(uint64_t prime, uint64_t k)
    if (k > il_MaxK)
       return;
    
-   ip_DMDivisorApp->ReportFactor(prime, k);
+   ip_DMDivisorApp->ReportFactor(prime, k, true);
 }
