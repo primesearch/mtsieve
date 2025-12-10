@@ -25,7 +25,7 @@
 #define APP_NAME        "dmdsieve"
 #endif
 
-#define APP_VERSION     "1.8.6"
+#define APP_VERSION     "1.8.7"
 
 // Arrays cannot have more than 2^32 elements on some systems.
 // We will limit the vector to have at most 2^30 on all systems.
@@ -53,61 +53,61 @@ typedef struct {
 // Eventually this program will calculate optimal removal rate on the fly
 // rather than being hard-coded in this table.
 dmd_t  dmdList[MERSENNE_PRIMES] = {
-   {        2,     0,     0,    0},
-   {        3,     0,     0,    0},
-   {        5,     0,     0,    0},
-   {        7,     0,     0,    0},
-   {       13,     0,     0,    0},
-   {       17,     0,     0,    0},
-   {       19,     0,     0,    0},
-   {       31,     0,     0,    0},
-   {       61,     0,     0,    0},
-   {       89,     0,     0,    0},
-   {      107,     0,     0,    0},
-   {      127,     0,     0,    0}, 
-   {      521, 20000,     0,    1},
-   {      607,  9000,     0,    1},
-   {     1279,  1800,     0,    1},
-   {     2203,   500,     0,    1},
-   {     2281,   400,     0,    1},
-   {     3217,   200,     0,    1},
-   {     4253,    80,     0,    1},
-   {     4423,    70,     0,    1},
-   {     9689,    10,     0,    1},
-   {     9941,     9,     0,    1},
-   {    11213,     8,     0,    1},
-   {    19937,     4,     0,    1},
-   {    21701,     2,     0,    1},
-   {    23209,     2,     0,    1},
+   {        2,       0,     0,    0},
+   {        3,       0,     0,    0},
+   {        5,       0,     0,    0},
+   {        7,       0,     0,    0},
+   {       13, 5000000,     0,    0},
+   {       17, 4000000,     0,    0},
+   {       19, 3000000,     0,    0},
+   {       31, 1000000,     0,    0},
+   {       61,  400000,     0,    0},
+   {       89,  200000,     0,    0},
+   {      107,  100000,     0,    0},
+   {      127,   80000,     0,    0}, 
+   {      521,   20000,     0,    1},
+   {      607,    9000,     0,    1},
+   {     1279,    1800,     0,    1},
+   {     2203,     500,     0,    1},
+   {     2281,     400,     0,    1},
+   {     3217,     200,     0,    1},
+   {     4253,      80,     0,    1},
+   {     4423,      70,     0,    1},
+   {     9689,      10,     0,    1},
+   {     9941,       9,     0,    1},
+   {    11213,       8,     0,    1},
+   {    19937,       4,     0,    1},
+   {    21701,       2,     0,    1},
+   {    23209,       2,     0,    1},
 
 // Potential divisors for MMs here and below should be sieved with dmdsieve, but PRP tested
 // with external software (such as pfgw) before doing any MM divisibility testing with pfgw.
-   {    44497,     0,     7,    5},
-   {    86243,     0,    10,    5},
-   {   110503,     0,    30,    6}, 
-   {   132049,     0,    50,    7},
-   {   216091,     0,    80,   10},
-   {   756839,     0,   250,  100},
-   {   859433,     0,   400,  200},
-   {  1257787,     0,   800,  400},
-   {  1398269,     0,   950,  500},
-   {  2976221,     0,  2000, 1000},
-   {  3021377,     0,     0,    0},
-   {  6972593,     0,     0,    0},
-   { 13466917,     0,     0,    0},
-   { 20996011,     0,     0,    0},
-   { 24036583,     0,     0,    0},
-   { 25964951,     0,     0,    0},
-   { 30402457,     0,     0,    0},
-   { 32582657,     0,     0,    0},
-   { 37156667,     0,     0,    0},
-   { 42643801,     0,     0,    0},
-   { 43112609,     0,     0,    0},
-   { 57885161,     0,     0,    0},
-   { 74207281,     0,     0,    0},
-   { 77232917,     0,     0,    0},
-   { 82589933,     0,     0,    0},
-   {136279841,     0,     0,    0}
+   {    44497,       0,     7,    5},
+   {    86243,       0,    10,    5},
+   {   110503,       0,    30,    6}, 
+   {   132049,       0,    50,    7},
+   {   216091,       0,    80,   10},
+   {   756839,       0,   250,  100},
+   {   859433,       0,   400,  200},
+   {  1257787,       0,   800,  400},
+   {  1398269,       0,   950,  500},
+   {  2976221,       0,  2000, 1000},
+   {  3021377,       0,     0,    0},
+   {  6972593,       0,     0,    0},
+   { 13466917,       0,     0,    0},
+   { 20996011,       0,     0,    0},
+   { 24036583,       0,     0,    0},
+   { 25964951,       0,     0,    0},
+   { 30402457,       0,     0,    0},
+   { 32582657,       0,     0,    0},
+   { 37156667,       0,     0,    0},
+   { 42643801,       0,     0,    0},
+   { 43112609,       0,     0,    0},
+   { 57885161,       0,     0,    0},
+   { 74207281,       0,     0,    0},
+   { 77232917,       0,     0,    0},
+   { 82589933,       0,     0,    0},
+   {136279841,       0,     0,    0}
 };
 
 // This is declared in App.h, but implemented here.  This means that App.h
@@ -797,7 +797,7 @@ bool  DMDivisorApp::PostSieveHook(void)
    double   percentCompleted;
    double   percentTermsRequiringTest;
    FILE    *fPtr;
-   mpz_t    rem, mersenne, nTemp, kTemp, factor;
+   mpz_t    rem, mTwo, mMp, mMpPlus1, kTemp, factor;
    char     finishTimeBuffer[40];
    struct tm   *finish_tm;
 
@@ -806,15 +806,16 @@ bool  DMDivisorApp::PostSieveHook(void)
    lastCheckPointTime = startTime = currentTime = time(NULL);
             
    mpz_init(rem);
-   mpz_init(mersenne);
-   mpz_init(nTemp);
+   mpz_init(mTwo);
+   mpz_init(mMp);
+   mpz_init(mMpPlus1);
    mpz_init(kTemp);
    mpz_init(factor);
    
-   mpz_set_ui(nTemp, 2);
-   mpz_pow_ui(nTemp, nTemp, ii_N);
-   mpz_sub_ui(nTemp, nTemp, 1);
-   mpz_set_ui(mersenne, 2);
+   mpz_set_ui(mMpPlus1, 2);
+   mpz_pow_ui(mMpPlus1, mMpPlus1, ii_N);
+   mpz_sub_ui(mMp, mMpPlus1, 1);
+   mpz_set_ui(mTwo, 2);
 
    for (uint64_t k=il_MinK; k<=il_MaxK; k++)
    {
@@ -847,13 +848,14 @@ bool  DMDivisorApp::PostSieveHook(void)
       mpz_set_ui(kTemp, k);
 #endif
 
-      mpz_mul(factor, kTemp, nTemp);
+      mpz_mul(factor, kTemp, mMp);
       mpz_mul_ui(factor, factor, 2);
       mpz_add_ui(factor, factor, 1);
 
-      mpz_powm(rem, mersenne, nTemp, factor);
+      // Compute 2^(2^n) % factor.  If == 2, then we have a factor of 2^(2^n-1)-1.
+      mpz_powm(rem, mTwo, mMpPlus1, factor);
 
-      if (mpz_cmp_ui(rem, 1) == 0)
+      if (mpz_cmp_ui(rem, 2) == 0)
       {
          factorsFound++;
          WriteToConsole(COT_OTHER, "Found factor 2*%" PRIu64"*(2^%u-1)+1 of 2^(2^%u-1)-1", k, ii_N, ii_N);
@@ -892,8 +894,9 @@ bool  DMDivisorApp::PostSieveHook(void)
    }
 
    mpz_clear(rem);
-   mpz_clear(mersenne);
-   mpz_clear(nTemp);
+   mpz_clear(mTwo);
+   mpz_clear(mMp);
+   mpz_clear(mMpPlus1);
    mpz_clear(kTemp);
    mpz_clear(factor);
    
