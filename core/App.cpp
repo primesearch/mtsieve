@@ -387,8 +387,15 @@ void  App::StopWorkers(void)
    }
 }
 
-void  App::Interrupt(const char *why)
+void  App::Interrupt(const char *fmt, ...)
 {
+   va_list args;
+   char    why[200];
+
+   va_start(args, fmt);
+   vsnprintf(why, sizeof(why), fmt, args);
+   va_end(args);
+   
    ip_AppStatus->SetValueNoLock(AS_INTERRUPTED);
 
    uint64_t maxPrime = (il_LargestPrimeSieved > il_MaxPrime ? il_MaxPrime : il_LargestPrimeSieved);

@@ -56,7 +56,7 @@ ulong mmmAdd(ulong a, ulong b, ulong _p);
 ulong mmmSub(ulong a, ulong b, ulong _p);
 ulong mmmMulmod(ulong a, ulong b, ulong _p, ulong _q);
 ulong mmmN(ulong n, ulong _p, ulong _q, ulong _r2);
-ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one, ulong _r2);
+ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one);
 
 #if defined(USE_OPENCL)
 __kernel void cw_kernel(__global const  ulong *primes,
@@ -118,7 +118,7 @@ kernel void cw_kernel(device const  ulong *primes,
    uint theN = terms[0];
 
    ulong resI = mmmN(inverse, thePrime, _q, _r2);
-   ulong rem = mmmPowmod(resI, theN, thePrime, _q, _one, _r2);
+   ulong rem = mmmPowmod(resI, theN, thePrime, _q, _one);
 
 #ifdef CHECK_CULLEN
    ulong cullen  = mmmN(thePrime - theN, thePrime, _q, _r2);
@@ -268,7 +268,7 @@ ulong mmmN(ulong n, ulong _p, ulong _q, ulong _r2)
 }
 
 // Compute the residual of b ^ n (mod p)
-ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one, ulong _r2)
+ulong mmmPowmod(ulong resB, ulong exp, ulong _p, ulong _q, ulong _one)
 {
    ulong x = resB;
    ulong y = _one;

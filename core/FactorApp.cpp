@@ -141,7 +141,13 @@ void  FactorApp::ParentValidateOptions(void)
    if (id_FPSTarget > 0.0 && id_SPFTarget > 0.0)
       FatalError("Cannot specify both -4 and -5");
    
-   if (ii_MinutesForStatus > 0 && id_FPSTarget > 0.0)
+   if (id_FPSTarget > 0 && id_FPSTarget < 1.0)
+      FatalError("Factors per second must be greater than or equal to 1.0");
+   
+   if (id_SPFTarget > 0 && id_SPFTarget < 1.0)
+      FatalError("Seconds per factor must be greater than or equal to 1.0");
+   
+   if (id_FPSTarget > 0.0 && ii_MinutesForStatus > 0)
       WriteToConsole(COT_OTHER, "Option -6 ignored as it only applies to seconds per factor calculations");
       
    if (ii_MinutesForStatus == 0)
@@ -375,7 +381,7 @@ bool  FactorApp::BuildFactorsPerSecondRateString(uint32_t currentStatusEntry, do
    const char  *factorRateUnit;
    uint64_t     factorsFound = 0;
    uint64_t     factorTimeUS = 0;
-   double       factorsPerUS = 0;
+   double       factorsPerUS = 0, factorsPerSecond;
    uint64_t     currentReportTimeUS = ir_ReportStatus[currentStatusEntry].reportTimeUS;
    uint64_t     currentFactorsFound = ir_ReportStatus[currentStatusEntry].factorsFound;
 
@@ -385,20 +391,29 @@ bool  FactorApp::BuildFactorsPerSecondRateString(uint32_t currentStatusEntry, do
    factorTimeUS = currentReportTimeUS - ir_ReportStatus[previousStatusEntry].reportTimeUS;
    factorsFound = currentFactorsFound - ir_ReportStatus[previousStatusEntry].factorsFound;
    
-   // If not enough factors were found in the last minute, this will trigger a calculation
-   // of seconds per factor.
-   if (factorsFound < 60)
-      return false;
-
    // Note that we are computing factors per second
    factorsPerUS = ((double) factorsFound) / ((double) factorTimeUS);
    
    // Divide the CPU utilization to account for less or more than 1 core
    factorsPerUS /= cpuUtilization;
 
-   if (id_FPSTarget > factorsPerUS * 1000000.0)
-      Interrupt("f/sec is slower than target");
-   
+   factorsPerSecond = factorsPerUS * 1000000.0;
+
+   if (id_FPSTarget > 0.0)
+   {
+      if (id_FPSTarget > factorsPerSecond)
+      {
+         WriteToLog("Stopped due to removal rate");
+         Interrupt("Removal rate, %.2lf f/sec, is slower than target of %.2lf f/sec", factorsPerSecond, id_FPSTarget);
+      }
+   }
+   else
+   {
+      // If less than 1 factor per second, then we will compute as seconds per factor.
+      if (factorsPerSecond < 1.0)
+         return false;
+   }
+
    factorRateUnit = "M";
    if (factorsPerUS < 1.0) factorsPerUS *= 1000.0, factorRateUnit = "K";
    if (factorsPerUS < 1.0) factorsPerUS *= 1000.0, factorRateUnit = "";
@@ -480,11 +495,11 @@ bool  FactorApp::BuildSecondsPerFactorRateString(uint32_t currentStatusEntry, do
    // Multiply the CPU utilization to account for less or more than 1 core
    secondsPerFactor *= cpuUtilization;
    
-   if (id_FPSTarget > 0.0)
-      Interrupt("sec/f is slower than target");
-   
    if (id_SPFTarget > 0.0 && id_SPFTarget < secondsPerFactor)
-      Interrupt("sec/f is slower than target");
+   {
+      WriteToLog("Stopped due to removal rate");
+      Interrupt("Removal rate, %.2lf sec/f, is slower than target of %.2lf sec/f", secondsPerFactor, id_SPFTarget);
+   }
    
    if (secondsPerFactor > 100)
       snprintf(factoringRate, 100, "%.0f sec per factor (last %u min)", secondsPerFactor, currentStatusEntry - previousStatusEntry);

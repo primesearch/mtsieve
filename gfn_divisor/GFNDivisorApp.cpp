@@ -17,7 +17,7 @@
 #include "GFNDivisorApp.h"
 #include "GFNDivisorWorker.h"
 
-#define APP_VERSION     "2.4"
+#define APP_VERSION     "2.4.1"
 
 #if defined(USE_OPENCL) || defined(USE_METAL)
 #include "GFNDivisorGpuWorker.h"
@@ -30,6 +30,34 @@
 #define NMAX_MAX (1 << 31)
 
 #define BIT(k)          (((k) - il_MinK) >> 1)
+
+
+typedef struct {
+   uint32_t n;
+   uint32_t factorsPerSecond;
+   uint32_t secodsPerFactor;
+   uint32_t minutesForAverage;
+} dmd_t;
+
+// Eventually this program will calculate optimal removal rate on the fly
+// rather than being hard-coded in this table.
+dmd_t  gfndList[] = {
+   {   5000, 71,     0,    1},
+   {  10000, 36,     0,    1},
+   {  15000, 18,     0,    1},
+   {  20000, 10,     0,    1},
+   {  25000,  7,     0,    1},
+   {  30000,  5,     0,    1},
+   {  35000,  4,     0,    1},
+   {  40000,  2,     0,    1},
+   {  50000,  1,     0,    5},
+   {  60000,  1,     0,    5},
+   {  70000,  0,     2,    5},
+   {  80000,  0,     2,    5},
+   {  90000,  0,     2,    5},
+   { 100000,  0,     3,    5},
+   {      0,  0,     0,    0}
+};
 
 // This is declared in App.h, but implemented here.  This means that App.h
 // can remain unchanged if using the mtsieve framework for other applications.
@@ -320,6 +348,49 @@ void GFNDivisorApp::ValidateOptions(void)
    while (ii_CpuWorkSize % 4 != 0)
       ii_CpuWorkSize++;
    
+   for (uint32_t i=0; ; i++)
+   {
+      // There are no defaults for n > 100000 in the table.
+      if (ii_MinN > 100000)
+         break;
+
+      if (gfndList[i].n == 0)
+         break;
+
+      if (ii_MinN <= gfndList[i].n)
+      {
+         if (i == 0 || ii_MinN > gfndList[i-1].n)
+         {
+            if (gfndList[i].factorsPerSecond > 0 && id_FPSTarget == 0.0 && id_SPFTarget == 0.0)
+            {
+               id_FPSTarget = (double) gfndList[i].factorsPerSecond;     
+               
+               // At this time FactorApp only supports 1 minute averages for factors per second.
+               // We won't change it because FactorApp won't work correctly if ii_MinutesForStatus 
+               // is modified when computing factors per second.
+            }
+
+            if (gfndList[i].secodsPerFactor > 0 && id_SPFTarget == 0.0 && id_FPSTarget == 0.0)
+            {
+               id_SPFTarget = (double) gfndList[i].secodsPerFactor;
+               
+               if (ii_MinutesForStatus == MAX_FACTOR_REPORT_COUNT)
+                  ii_MinutesForStatus = gfndList[i].minutesForAverage;
+            }
+            
+            break;
+         }
+      }
+   }
+
+   if (id_FPSTarget > 0.0)               
+      WriteToConsole(COT_OTHER, "Will stop sieving after averaging fewer than %.2lf factors per second for %u minute",
+         id_FPSTarget, 1);
+   
+   if (id_SPFTarget > 0.0)
+      WriteToConsole(COT_OTHER, "Will stop sieving after averaging more than %.2lf second per factor for %u minutes",
+         id_SPFTarget, ii_MinutesForStatus);
+
    // Allow only one worker to do work when processing small primes.  This allows us to avoid 
    // locking when factors are reported, which significantly hurts performance as most terms 
    // will be removed due to small primes.
@@ -475,7 +546,7 @@ void GFNDivisorApp::ProcessInputTermsFile(bool haveBitMap)
    
    if (!fPtr)
    {
-      snprintf(fileName, sizeof(fileName), "%s.pfgw", is_InputTermsFileName.c_str());
+      snprintf(fileName, sizeof(fileName), "%s.abcd", is_InputTermsFileName.c_str());
       
       fPtr = fopen(fileName, "r");
    }
@@ -494,7 +565,7 @@ void GFNDivisorApp::ProcessInputTermsFile(bool haveBitMap)
       
    for (int i=1; i<10000; i++)
    {
-      snprintf(fileName, sizeof(fileName), "%s_%04d.pfgw", is_InputTermsFileName.c_str(), i);
+      snprintf(fileName, sizeof(fileName), "%s_%04d.abcd", is_InputTermsFileName.c_str(), i);
       
       fPtr = fopen(fileName, "r");
    
@@ -654,7 +725,7 @@ void GFNDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
    
    if (ii_NsPerFile >= (ii_MaxN - ii_MinN + 1))
    {
-      snprintf(fileName, sizeof(fileName), "%s.pfgw", is_OutputTermsFilePrefix.c_str());
+      snprintf(fileName, sizeof(fileName), "%s.abcd", is_OutputTermsFilePrefix.c_str());
            
       termsCounted = WriteABCDTermsFile(fileName, ii_MinN, largestPrime);
       
@@ -671,7 +742,7 @@ void GFNDivisorApp::WriteOutputTermsFile(uint64_t largestPrime)
       {
          fileCount++;
          
-         snprintf(fileName, sizeof(fileName), "%s_%04d.pfgw", is_OutputTermsFilePrefix.c_str(), fileCount);
+         snprintf(fileName, sizeof(fileName), "%s_%04d.abcd", is_OutputTermsFilePrefix.c_str(), fileCount);
          
          termsCounted += WriteABCDTermsFile(fileName, n, largestPrime);
       }

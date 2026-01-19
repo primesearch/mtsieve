@@ -95,7 +95,7 @@ public:
    bool              IsRunning(void) { return (((appstatus_t) ip_AppStatus->GetValueNoLock()) == AS_RUNNING); };
    
    void              StopWorkers(void);
-   void              Interrupt(const char *why);
+   void              Interrupt(const char *fmt, ...);
 
    void              Run(void);
 
