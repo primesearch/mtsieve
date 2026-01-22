@@ -1,3 +1,10 @@
+2.6.9 - January 22, 2026
+   framework:
+      Add message to the log if the program is stopped upon reaching desired removal rate.
+   
+   gfndsieve/gfndsievecl: 2.4.1
+      Add table to default optimal removal rate based upon n.
+
 2.6.8 - November 27, 2025
    framework:
       Adjusted removal rate when using the GPU to account for sieves when more time is
