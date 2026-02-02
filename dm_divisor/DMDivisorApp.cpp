@@ -25,7 +25,7 @@
 #define APP_NAME        "dmdsieve"
 #endif
 
-#define APP_VERSION     "1.8.7"
+#define APP_VERSION     "1.8.8"
 
 // Arrays cannot have more than 2^32 elements on some systems.
 // We will limit the vector to have at most 2^30 on all systems.
@@ -902,6 +902,9 @@ bool  DMDivisorApp::PostSieveHook(void)
    
    if (il_TermCount != kTested)
       FatalError("Expected to test %" PRIu64" terms, but tested %" PRIu64" terms                                                  ", il_TermCount, kTested);
+
+
+   WriteToLog("Double-Mersenne divisibility check for 2^(2^%u-1)-1 finished. %u factors found", ii_N, factorsFound);
    
    percentTermsRequiringTest = (100.0 * (double) kTested) / (double) kEvaluated;
    
